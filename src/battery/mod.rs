@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::Result;
 use std::time::Duration;
 
 /// Represents the current state of the system's battery

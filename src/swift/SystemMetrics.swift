@@ -1,46 +1,109 @@
-import DarwinMetrics
+//!
+//! Swift module for macOS system metrics
+//!
+//! This module provides Swift bindings for accessing system metrics
+//! using the `IOKit` framework. It includes functions to retrieve
+//! battery information, CPU usage, memory statistics, and more.
 //!
 import Foundation
 import IOKit
+import os.log
+
+// MARK: - Error Handling
+
+enum SystemMetricsError: Error {
+    case serviceNotFound
+    case invalidData
+    case systemError(String)
+}
 
 // MARK: - FFI Data Structures
 
-struct BatteryInfoFFI {
-    let isPresent: Bool
-    let isCharging: Bool
-    let percentage: Double
-    let timeRemaining: Int32
+@objc
+class BatteryInfoFFI: NSObject {
+    @objc private(set) var isPresent: Bool
+    @objc private(set) var isCharging: Bool
+    @objc private(set) var percentage: Double
+    @objc private(set) var timeRemaining: Int32
+
+    init(isPresent: Bool, isCharging: Bool, percentage: Double, timeRemaining: Int32) {
+        self.isPresent = isPresent
+        self.isCharging = isCharging
+        self.percentage = percentage
+        self.timeRemaining = timeRemaining
+        super.init()
+    }
 }
 
-struct CPUInfoFFI {
-    let cores: Int32
-    let frequencyMHz: Double
+@objc
+class CPUInfoFFI: NSObject {
+    @objc private(set) var cores: Int32
+    @objc private(set) var frequencyMHz: Double
+
+    init(cores: Int32, frequencyMHz: Double) {
+        self.cores = cores
+        self.frequencyMHz = frequencyMHz
+        super.init()
+    }
 }
 
-struct MemoryInfoFFI {
-    let totalGB: Double
-    let usedGB: Double
-    let freeGB: Double
+@objc
+class MemoryInfoFFI: NSObject {
+    @objc private(set) var totalGB: Double
+    @objc private(set) var usedGB: Double
+    @objc private(set) var freeGB: Double
+
+    init(totalGB: Double, usedGB: Double, freeGB: Double) {
+        self.totalGB = totalGB
+        self.usedGB = usedGB
+        self.freeGB = freeGB
+        super.init()
+    }
 }
 
 // MARK: - Battery Information
 
-func getBatteryInfo() -> BatteryInfo {
+private let logger = Logger(subsystem: "com.darwin-metrics", category: "BatteryInfo")
+
+@_cdecl("get_battery_info")
+func getBatteryInfoFFI() -> UnsafeMutableRawPointer {
+    do {
+        let info = try getBatteryInfo()
+        return Unmanaged.passRetained(info).toOpaque()
+    } catch {
+        logger.error("Failed to get battery info: \(error.localizedDescription)")
+        return Unmanaged.passRetained(
+            BatteryInfoFFI(isPresent: false, isCharging: false, percentage: 0, timeRemaining: 0)
+        ).toOpaque()
+    }
+}
+
+func getBatteryInfo() throws -> BatteryInfoFFI {
     let service = IOServiceGetMatchingService(
-        kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"))
-    defer { IOObjectRelease(service) }
+        kIOMainPortDefault,
+        IOServiceMatching("AppleSmartBattery")
+    )
 
     guard service != 0 else {
-        return BatteryInfo.new(isPresent: false, isCharging: false, percentage: 0, timeRemaining: 0)
+        logger.error("Battery service not found")
+        throw SystemMetricsError.serviceNotFound
     }
 
+    defer { IOObjectRelease(service) }
+
     var propertyList: Unmanaged<CFMutableDictionary>?
-    let result = IORegistryEntryCreateCFProperties(service, &propertyList, kCFAllocatorDefault, 0)
+    let result = IORegistryEntryCreateCFProperties(
+        service,
+        &propertyList,
+        kCFAllocatorDefault,
+        0
+    )
 
     guard result == KERN_SUCCESS,
         let properties = propertyList?.takeRetainedValue() as? [String: Any]
     else {
-        return BatteryInfo.new(isPresent: false, isCharging: false, percentage: 0, timeRemaining: 0)
+        logger.error("Failed to get battery properties")
+        throw SystemMetricsError.invalidData
     }
 
     let isCharging = properties["IsCharging"] as? Bool ?? false
@@ -50,7 +113,7 @@ func getBatteryInfo() -> BatteryInfo {
 
     let percentage = Double(currentCapacity) / Double(maxCapacity) * 100.0
 
-    return BatteryInfo.new(
+    return BatteryInfoFFI(
         isPresent: true,
         isCharging: isCharging,
         percentage: percentage,
@@ -60,7 +123,13 @@ func getBatteryInfo() -> BatteryInfo {
 
 // MARK: - CPU Information
 
-func getCPUInfo() -> CPUInfo {
+@_cdecl("get_cpu_info")
+func getCPUInfoFFI() -> UnsafeMutableRawPointer {
+    let info = getCPUInfo()
+    return Unmanaged.passRetained(info).toOpaque()
+}
+
+func getCPUInfo() -> CPUInfoFFI {
     var size = UInt32(0)
     var cores: Int32 = 0
     var mib = [CTL_HW, HW_NCPU]
@@ -72,15 +141,21 @@ func getCPUInfo() -> CPUInfo {
     var sizeOfFreq = MemoryLayout<UInt64>.size
     sysctlbyname("hw.cpufrequency", &cpuFreq, &sizeOfFreq, nil, 0)
 
-    return CPUInfo.new(
+    return CPUInfoFFI(
         cores: cores,
-        frequencyMhz: Double(cpuFreq) / 1_000_000.0
+        frequencyMHz: Double(cpuFreq) / 1_000_000.0
     )
 }
 
 // MARK: - Memory Information
 
-func getMemoryInfo() -> MemoryInfo {
+@_cdecl("get_memory_info")
+func getMemoryInfoFFI() -> UnsafeMutableRawPointer {
+    let info = getMemoryInfo()
+    return Unmanaged.passRetained(info).toOpaque()
+}
+
+func getMemoryInfo() -> MemoryInfoFFI {
     var stats = vm_statistics64()
     var size = mach_msg_type_number_t(
         MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
@@ -92,7 +167,11 @@ func getMemoryInfo() -> MemoryInfo {
     }
 
     guard result == KERN_SUCCESS else {
-        return MemoryInfo.new(totalGb: 0, usedGb: 0, freeGb: 0)
+        return MemoryInfoFFI(
+            totalGB: 0,
+            usedGB: 0,
+            freeGB: 0
+        )
     }
 
     let pageSize = UInt64(vm_kernel_page_size)
@@ -107,9 +186,9 @@ func getMemoryInfo() -> MemoryInfo {
     // Convert to GB
     let bytesInGB = 1024.0 * 1024.0 * 1024.0
 
-    return MemoryInfo.new(
-        totalGb: total / bytesInGB,
-        usedGb: used / bytesInGB,
-        freeGb: free / bytesInGB
+    return MemoryInfoFFI(
+        totalGB: total / bytesInGB,
+        usedGB: used / bytesInGB,
+        freeGB: free / bytesInGB
     )
 }

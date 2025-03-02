@@ -32,8 +32,7 @@ impl Disk {
 
     /// Get current disk information
     pub fn get_info() -> Result<Self> {
-        // TODO: Implement disk info retrieval
-        Err(Error::NotImplemented)
+        Err(Error::NotImplemented("Disk info not yet implemented".to_string()))
     }
 
     /// Get information for all mounted disks

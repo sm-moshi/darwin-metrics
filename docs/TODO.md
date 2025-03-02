@@ -7,8 +7,8 @@
 - [x] Configure library crate types (staticlib, cdylib, rlib)
 - [x] Set up basic error handling and result types
 - [ ] Create a Swift module for macOS API bindings
-- [ ] Write a build script (`build.rs`) to compile Swift code
-- [ ] Implement a minimal working example
+- [x] Write a build script (`build.rs`) to compile Swift code
+- [x] Implement a minimal working example
 
 ## **Core Features**
 
@@ -16,13 +16,14 @@
 
 - [x] Define Battery struct and interface
 - [x] Implement basic battery info functions
-- [ ] Implement macOS-specific battery info retrieval
+- [x] Implement macOS-specific battery info retrieval
 - [ ] Add battery health and cycle count information
 - [ ] Add power source detection (AC/Battery)
 
 ### **CPU Metrics** (In Progress)
 
 - [x] Define CPU struct and interface
+- [x] Set up thread-safe CPU info data structure
 - [ ] Get CPU usage percentage per core
 - [ ] Get CPU model name and frequency
 - [ ] Fetch total CPU load (user, system, idle)
@@ -32,6 +33,7 @@
 
 - [x] Define Memory struct and interface
 - [x] Set up memory info data structure
+- [x] Implement mock data for testing
 - [ ] Implement macOS memory pressure level detection
 - [ ] Get total and used RAM
 - [ ] Fetch swap usage
@@ -81,29 +83,29 @@
 ### **Async Support**
 
 - [x] Add tokio dependency with full features
-- [ ] Implement async versions of metric collection
-- [ ] Add background monitoring capabilities
-- [ ] Implement metric caching system
+- [x] Implement async versions of metric collection
+- [x] Add background monitoring capabilities
+- [x] Implement metric caching system
 
 ### **Error Handling**
 
 - [x] Implement custom Error type
 - [x] Add detailed error messages
-- [ ] Add error context and chaining
-- [ ] Implement recovery strategies
+- [x] Add error context and chaining
+- [x] Implement recovery strategies
 
 ## **Testing & Benchmarking**
 
 - [x] Set up test infrastructure
 - [x] Add basic unit tests for Battery struct
-- [ ] Write unit tests for all metric types
-- [ ] Implement integration tests for Rust-Swift communication
+- [x] Write unit tests for all metric types
+- [x] Implement integration tests for Rust-Swift communication
 - [ ] Add benchmarking suite
 - [ ] Test on both Intel and Apple Silicon
 
 ## **Documentation**
 
-- [x] Set up basic module documentation
+- [ ] Set up basic module documentation
 - [ ] Write comprehensive API documentation
 - [ ] Add usage examples for each metric type
 - [ ] Document Swift-Rust FFI interface
@@ -126,3 +128,13 @@
 - [ ] Add system event notifications
 - [ ] Support for power management profiles
 - [ ] Add network interface monitoring
+
+## **Code Quality & Safety**
+
+- [x] Implement thread-safe resource management
+- [x] Add proper cleanup for system resources
+- [x] Implement safe FFI boundaries
+- [x] Add null pointer safety checks
+- [x] Implement proper error propagation
+- [ ] Add memory leak detection tests
+- [ ] Implement fuzzing tests for FFI layer

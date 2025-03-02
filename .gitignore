@@ -38,5 +38,5 @@ Package.resolved
 # local VS Code / Cursor stuff
 .bacon-locations
 .vscode/mise-tools
-.cursor
-.references
+.cursor/
+.references/

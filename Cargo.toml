@@ -24,7 +24,7 @@ mach-sys        = "0.5.4"
 io-kit-sys      = "0.4.1"
 
 # Async support
-tokio   = { version = "1.43.0", features = ["full"], optional = true }
+tokio   = { version = "1.43.0", features = ["full", "test-util"] }
 futures = "0.3.31"
 
 # Error handling and logging
@@ -40,6 +40,10 @@ serde_json = "1.0.139"
 metrics-runtime = { version = "0.13.1", optional = true }
 cached          = { version = "0.54.0", optional = true }
 
+# Additional dependencies
+parking_lot = "0.12.3"
+lazy_static = "1.5.0"
+
 [build-dependencies]
 swift-bridge-build = "0.1.57"
 
@@ -47,7 +51,7 @@ swift-bridge-build = "0.1.57"
 criterion        = "0.5.1"
 assert_approx_eq = "1.1.0"
 tokio-test       = "0.4.4"
-test-log         = "0.2.17"
+test-log         = { version = "0.2.17", features = ["trace"] }
 mockall          = "0.13.1"
 
 [features]
@@ -63,7 +67,7 @@ temperature        = []
 process_monitoring = []
 
 # Optional features
-async          = ["tokio"]
+async          = []
 metrics-export = ["metrics-runtime"]
 cached-metrics = ["cached"]
 

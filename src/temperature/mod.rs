@@ -64,8 +64,7 @@ impl Temperature {
 
     /// Get current temperature information
     pub fn get_info() -> Result<Self> {
-        // TODO: Implement temperature info retrieval
-        Err(Error::NotImplemented)
+        Err(Error::NotImplemented("Temperature info not yet implemented".to_string()))
     }
 }
 

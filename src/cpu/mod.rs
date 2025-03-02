@@ -1,5 +1,4 @@
 use crate::{Error, Result};
-use std::time::Duration;
 
 /// Represents CPU information and metrics
 #[derive(Debug, PartialEq)]
