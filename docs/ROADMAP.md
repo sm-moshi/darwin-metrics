@@ -1,36 +1,103 @@
-# Roadmap for macOS System Metrics Crate
+# 🗺️ Roadmap for darwin-metrics - a crate for native macOS system metrics
 
-## **Phase 1: Foundation (Week 1-2)**
+---
 
-- Set up Rust library structure
-- Integrate `swift-bridge` for Swift interoperability
-- Implement build automation (`build.rs`)
-- Create a minimal working example (battery status, CPU usage)
+## 🎯 **Phase 1: Foundation** *(Weeks 1-2)*
 
-## **Phase 2: Core System Metrics (Week 3-5)**
+*(Current Phase)*
 
-- Implement CPU metrics (usage, frequency, model)
-- Implement memory metrics (total, used, swap)
-- Implement disk metrics (storage, I/O stats)
-- Write unit tests for Rust-Swift communication
+### Core Setup
 
-## **Phase 3: Advanced Hardware Monitoring (Week 6-8)**
+- [x] Set up Rust library structure
+- [x] Implement direct IOKit bindings
+- [x] Implement build automation (`build.rs`)
+- [x] Create a minimal working example
+  - [x] Battery status implementation
+  - [x] CPU usage monitoring
 
-- Add GPU monitoring (usage, VRAM, active GPU)
-- Add fan speed & temperature monitoring
-- Optimize Swift API calls for performance
-- Improve error handling and data caching
+---
 
-## **Phase 4: Process Monitoring & System Info (Week 9-11)**
+## 🔄 **Phase 2: Core System Metrics** *(Weeks 3-5)*
 
-- Implement process monitoring (list, CPU/memory usage)
-- Fetch kernel version, uptime, and macOS version
-- Implement structured logging for system metrics
-- Write integration tests and benchmarking
+*(In Progress)*
 
-## **Phase 5: Optimization & Release (Week 12-14)**
+### System Monitoring
 
-- Optimize system calls to reduce CPU overhead
-- Improve Swift-Rust API stability
-- Document Rust crate API and Swift bindings
-- Publish the crate to `crates.io` and create a GitHub release
+- [~] Implement CPU metrics
+  - [x] Usage monitoring
+  - [x] Frequency tracking
+  - [x] Model information
+- [~] Implement memory metrics
+  - [x] Total memory tracking
+  - [ ] Used memory monitoring
+  - [ ] Swap usage tracking
+- [ ] Implement disk metrics
+  - [ ] Storage monitoring
+  - [ ] I/O statistics
+- [~] Testing
+  - [x] Unit tests for core functionality
+  - [ ] Integration tests for IOKit bindings
+
+---
+
+## 🎮 **Phase 3: Advanced Hardware Monitoring** *(Weeks 6-8)*
+
+### Hardware Features
+
+- [ ] GPU Monitoring
+  - [ ] Usage tracking via IOKit
+  - [ ] VRAM monitoring
+  - [ ] Active GPU detection
+- [ ] Temperature & Cooling
+  - [ ] Fan speed monitoring via SMC
+  - [ ] Temperature tracking
+- [ ] Performance
+  - [ ] Optimize IOKit calls
+  - [ ] Implement data caching
+- [ ] Error Handling
+  - [ ] Robust error recovery
+  - [ ] Graceful degradation
+
+---
+
+## 📊 **Phase 4: Process Monitoring & System Info** *(Weeks 9-11)*
+
+### System Integration
+
+- [ ] Process Monitoring
+  - [ ] Process listing via libproc
+  - [ ] Per-process CPU usage
+  - [ ] Per-process memory usage
+- [ ] System Information
+  - [ ] Kernel version tracking
+  - [ ] System uptime monitoring
+  - [ ] macOS version detection
+- [ ] Logging & Testing
+  - [ ] Structured logging system
+  - [ ] Comprehensive integration tests
+  - [ ] Performance benchmarks
+
+---
+
+## ⚡ **Phase 5: Optimization & Release** *(Weeks 12-14)*
+
+### Final Steps
+
+- [ ] Performance Optimization
+  - [ ] Minimize system call overhead
+  - [ ] Optimize memory usage
+  - [ ] Reduce CPU impact
+- [ ] API Finalization
+  - [ ] Stabilize public API
+  - [ ] Ensure backward compatibility
+  - [ ] Implement proper error types
+- [ ] Documentation & Release
+  - [ ] Complete API documentation
+  - [ ] Write usage examples
+  - [ ] Document IOKit integration
+  - [ ] Publish to `crates.io`
+  - [ ] Create GitHub release
+
+---
+
+*Note: Timeline estimates are approximate and may be adjusted based on development progress and priorities.*

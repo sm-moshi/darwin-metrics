@@ -1,0 +1,29 @@
+darwin-metrics
+Copyright (c) 2025 Stuart Meya
+
+This software is licensed under the MIT License.
+
+Attribution Requirements:
+
+1. All copies or substantial portions of this software must retain the above copyright notice.
+2. When using this software in your projects, please include one of the following attributions in your documentation:
+
+Short form:
+
+```
+This project uses darwin-metrics (https://github.com/sm-moshi/darwin-metrics) by Stuart Meya.
+```
+
+Full form:
+
+```
+This project incorporates darwin-metrics (https://github.com/sm-moshi/darwin-metrics), 
+a Rust library for native macOS system metrics, developed by Stuart Meya.
+```
+
+For academic or research use, please cite as:
+
+```
+Meya, S. (2025). darwin-metrics: A Rust library for native macOS system metrics.
+GitHub repository: https://github.com/sm-moshi/darwin-metrics
+```

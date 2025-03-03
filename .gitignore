@@ -36,7 +36,7 @@ generated/
 .TemporaryItems
 .Trashes
 
-# local VS Code / Cursor stuff
+# local VS Code stuff
 .bacon-locations
 .vscode/mise-tools
 .cursor/
