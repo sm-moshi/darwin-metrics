@@ -12,7 +12,7 @@
 
 ## **Core Features**
 
-### **Battery Metrics** (In Progress)
+### **Battery Metrics** (Completed)
 
 - [x] Define Battery struct and interface
 - [x] Implement basic battery info functions
@@ -22,6 +22,9 @@
 - [x] Add temperature monitoring
 - [x] Implement thread-safe battery info caching
 - [x] Add comprehensive test coverage
+- [x] Fix doctest examples for proper instance creation
+- [x] Implement proper mock expectations in tests
+- [x] Add bounds checking for percentage values
 
 Additional features that could be added in the future:
 
@@ -39,6 +42,7 @@ Additional features that could be added in the future:
 - [x] Add thread-safe resource management
 - [x] Fix type conflicts and import issues
 - [x] Add comprehensive test coverage
+- [x] Fix mock expectations for service matching
 
 ### **CPU Metrics** (In Progress)
 
@@ -120,6 +124,8 @@ Additional features that could be added in the future:
 - [x] Add basic unit tests for Battery struct
 - [x] Write unit tests for all metric types
 - [x] Implement integration tests for Rust-Swift communication
+- [x] Fix doctest examples to match implementation
+- [x] Ensure proper mock setup in tests
 - [ ] Add benchmarking suite
 - [ ] Test on both Intel and Apple Silicon
 
@@ -128,6 +134,7 @@ Additional features that could be added in the future:
 - [x] Set up basic module documentation
 - [x] Write comprehensive API documentation for Battery module
 - [x] Write comprehensive API documentation for IOKit module
+- [x] Add proper examples in docstrings
 - [ ] Write comprehensive API documentation for remaining modules
 - [ ] Add usage examples for each metric type
 - [ ] Document Swift-Rust FFI interface

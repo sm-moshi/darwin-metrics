@@ -18,8 +18,8 @@ fn test_battery_info_ffi_lifecycle() {
         assert!(battery.temperature >= 0.0);
         assert!(matches!(battery.power_source, 0..=2));
 
-        // Clean up
-        Box::from_raw(battery_ptr);
+        // Clean up - explicitly drop the Box
+        drop(Box::from_raw(battery_ptr));
     }
 }
 
@@ -31,7 +31,7 @@ fn test_battery_info_ffi_power_source_conversion() {
         is_present: true,
         is_charging: false,
         percentage: 85.5,
-        time_remaining: 3600,
+        time_remaining_minutes: 60,
         power_source: 1, // Battery
         cycle_count: 500,
         health_percentage: 85.0,
@@ -65,7 +65,7 @@ fn test_battery_info_ffi_clone() {
         is_present: true,
         is_charging: false,
         percentage: 85.5,
-        time_remaining: 3600,
+        time_remaining_minutes: 60,
         power_source: 1,
         cycle_count: 500,
         health_percentage: 85.0,
@@ -77,7 +77,7 @@ fn test_battery_info_ffi_clone() {
     assert_eq!(original.is_present, cloned.is_present);
     assert_eq!(original.is_charging, cloned.is_charging);
     assert_eq!(original.percentage, cloned.percentage);
-    assert_eq!(original.time_remaining, cloned.time_remaining);
+    assert_eq!(original.time_remaining_minutes, cloned.time_remaining_minutes);
     assert_eq!(original.power_source, cloned.power_source);
     assert_eq!(original.cycle_count, cloned.cycle_count);
     assert_eq!(original.health_percentage, cloned.health_percentage);
@@ -131,22 +131,18 @@ fn test_battery_info_ffi_thread_safety() {
 
 #[test]
 fn test_cpu_info_ffi_clone() {
-    let core_usage = Arc::new(vec![0.5, 0.6, 0.7]);
-    
     let info = CPUInfoFFI {
-        physical_cores: 4,
-        logical_cores: 8,
-        core_usage: core_usage.clone(),
-        core_usage_len: 3,
-        frequency_mhz: 2400.0,
+        usage_percentage: 50.0,
+        temperature: 45.0,
+        core_count: 4,
+        thread_count: 8,
     };
     
     let cloned = info.clone();
-    assert_eq!(info.physical_cores, cloned.physical_cores);
-    assert_eq!(info.logical_cores, cloned.logical_cores);
-    assert_eq!(info.core_usage_len, cloned.core_usage_len);
-    assert_eq!(info.frequency_mhz, cloned.frequency_mhz);
-    assert_eq!(&*info.core_usage, &*cloned.core_usage);
+    assert_eq!(info.usage_percentage, cloned.usage_percentage);
+    assert_eq!(info.temperature, cloned.temperature);
+    assert_eq!(info.core_count, cloned.core_count);
+    assert_eq!(info.thread_count, cloned.thread_count);
 }
 
 #[test]
@@ -219,19 +215,19 @@ fn test_metrics_manager_cache_timeout() {
 #[test]
 fn test_memory_info_ffi() {
     let info = MemoryInfoFFI {
-        total: 16_000_000_000,
-        available: 8_000_000_000,
-        used: 8_000_000_000,
-        wired: 2_000_000_000,
-        pressure: 0.5,
+        total_bytes: 16_000_000_000,
+        used_bytes: 8_000_000_000,
+        available_bytes: 8_000_000_000,
+        swap_total_bytes: 2_000_000_000,
+        swap_used_bytes: 1_000_000_000,
     };
     
     let cloned = info.clone();
-    assert_eq!(info.total, cloned.total);
-    assert_eq!(info.available, cloned.available);
-    assert_eq!(info.used, cloned.used);
-    assert_eq!(info.wired, cloned.wired);
-    assert_eq!(info.pressure, cloned.pressure);
+    assert_eq!(info.total_bytes, cloned.total_bytes);
+    assert_eq!(info.used_bytes, cloned.used_bytes);
+    assert_eq!(info.available_bytes, cloned.available_bytes);
+    assert_eq!(info.swap_total_bytes, cloned.swap_total_bytes);
+    assert_eq!(info.swap_used_bytes, cloned.swap_used_bytes);
 }
 
 #[test]
@@ -239,15 +235,15 @@ fn test_ffi_null_safety() {
     unsafe {
         let battery_ptr = get_battery_info();
         assert!(!battery_ptr.is_null());
-        Box::from_raw(battery_ptr);
+        drop(Box::from_raw(battery_ptr));
         
         let cpu_ptr = get_cpu_info();
         assert!(!cpu_ptr.is_null());
-        Box::from_raw(cpu_ptr);
+        drop(Box::from_raw(cpu_ptr));
         
         let memory_ptr = get_memory_info();
         assert!(!memory_ptr.is_null());
-        Box::from_raw(memory_ptr);
+        drop(Box::from_raw(memory_ptr));
     }
 }
 
@@ -256,28 +252,22 @@ fn test_ffi_null_safety() {
 fn test_drop_cleanup() {
     // Test CPUInfoFFI cleanup
     {
-        let core_usage = Arc::new(vec![0.5; 8]);
         let _cpu_info = CPUInfoFFI {
-            physical_cores: 4,
-            logical_cores: 8,
-            core_usage: core_usage.clone(),
-            core_usage_len: 8,
-            frequency_mhz: 2400.0,
+            usage_percentage: 50.0,
+            temperature: 45.0,
+            core_count: 4,
+            thread_count: 8,
         };
         // _cpu_info will be dropped here
     }
     
     // Test GPUInfoFFI cleanup
     {
-        let name = "Test GPU".as_bytes().to_vec().into_boxed_slice();
-        let ptr = Box::into_raw(name) as *mut u8;
         let _gpu_info = GPUInfoFFI {
-            name: unsafe { NonNull::new_unchecked(ptr) },
-            name_len: 8,
-            utilization: 75.0,
-            memory_used: 4_000_000_000,
-            memory_total: 8_000_000_000,
+            usage_percentage: 75.0,
             temperature: 65.0,
+            memory_total_bytes: 8_000_000_000,
+            memory_used_bytes: 4_000_000_000,
         };
         // _gpu_info will be dropped here
     }

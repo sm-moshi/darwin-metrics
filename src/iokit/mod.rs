@@ -8,9 +8,9 @@ use io_kit_sys::{
     types::io_service_t,
     kIOMasterPortDefault,
     IOServiceGetMatchingService,
-    IOServiceMatching,
     IORegistryEntryCreateCFProperties,
     IOObjectRelease,
+    IOServiceMatching,
 };
 use mach_sys::kern_return::KERN_SUCCESS;
 
@@ -19,6 +19,7 @@ use mockall::automock;
 
 #[cfg_attr(test, automock)]
 pub trait IOKit: Send + Sync + std::fmt::Debug {
+    fn io_service_matching(&self, service_name: &str) -> CFDictionaryRef;
     fn io_service_get_matching_service(&self, matching: CFDictionaryRef) -> io_service_t;
     fn io_registry_entry_create_cf_properties(&self, entry: io_service_t) -> Result<CFMutableDictionaryRef, Error>;
     fn io_object_release(&self, obj: io_service_t);
@@ -32,6 +33,12 @@ pub trait IOKit: Send + Sync + std::fmt::Debug {
 pub struct IOKitImpl;
 
 impl IOKit for IOKitImpl {
+    fn io_service_matching(&self, service_name: &str) -> CFDictionaryRef {
+        unsafe {
+            IOServiceMatching(format!("{}\0", service_name).as_ptr() as *const i8)
+        }
+    }
+
     fn io_service_get_matching_service(&self, matching: CFDictionaryRef) -> io_service_t {
         unsafe { IOServiceGetMatchingService(kIOMasterPortDefault, matching) }
     }

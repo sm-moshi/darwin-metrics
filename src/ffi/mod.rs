@@ -1,13 +1,10 @@
-use std::ptr::NonNull;
 use tracing::{debug, error, info};
 use std::sync::Arc;
 use parking_lot::Mutex;
-use std::ffi::c_void;
 use io_kit_sys::types::io_service_t;
 
 use crate::{Error, Result};
 use crate::battery::{Battery, PowerSource};
-use crate::iokit::IOKit;
 use io_kit_sys::{
     kIOMasterPortDefault,
     IOObjectRelease,
@@ -49,10 +46,6 @@ pub struct CPUInfoFFI {
     pub core_count: u32,
     pub thread_count: u32,
 }
-
-// Make CPUInfoFFI Send + Sync by using Arc for shared data
-unsafe impl Send for CPUInfoFFI {}
-unsafe impl Sync for CPUInfoFFI {}
 
 impl Drop for CPUInfoFFI {
     fn drop(&mut self) {

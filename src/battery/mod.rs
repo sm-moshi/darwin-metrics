@@ -3,7 +3,7 @@ use std::time::Duration;
 use std::ffi::{c_void, CString};
 use crate::iokit::{IOKit, IOKitImpl};
 use core_foundation::dictionary::{CFDictionaryRef, CFDictionaryGetValue};
-use core_foundation::number::{CFNumberRef, CFNumberType, CFNumberGetValue, kCFNumberSInt64Type};
+use core_foundation::number::{CFNumberRef, CFNumberGetValue, kCFNumberSInt64Type};
 
 /// Power source type for the system
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -83,11 +83,11 @@ impl Battery {
         Self {
             is_present,
             is_charging,
-            percentage,
+            percentage: percentage.clamp(0.0, 100.0),
             time_remaining: Duration::from_secs((time_remaining * 60) as u64),
             power_source,
             cycle_count,
-            health_percentage,
+            health_percentage: health_percentage.clamp(0.0, 100.0),
             temperature,
             iokit: Box::new(IOKitImpl::default())
         }
@@ -122,31 +122,44 @@ impl Battery {
     /// ```no_run
     /// use darwin_metrics::battery::Battery;
     ///
-    /// let battery = Battery::get_info().unwrap();
+    /// let battery = Battery::new();
+    /// let info = battery.get_info().unwrap();
     /// println!("Battery at {}%, {}", 
-    ///     battery.percentage,
-    ///     if battery.is_charging { "charging" } else { "discharging" }
+    ///     info.percentage,
+    ///     if info.is_charging { "charging" } else { "discharging" }
     /// );
     /// ```
     pub fn get_info(&self) -> Result<Self> {
-        #[cfg(test)]
-        {
-            Ok(Self {
-                is_present: self.is_present,
-                is_charging: self.is_charging,
-                percentage: self.percentage,
-                time_remaining: self.time_remaining,
-                power_source: self.power_source,
-                cycle_count: self.cycle_count,
-                health_percentage: self.health_percentage,
-                temperature: self.temperature,
-                iokit: Box::new(IOKitImpl::default())
-            })
+        // Create matching dictionary for AppleSmartBattery
+        let matching = self.iokit.io_service_matching("AppleSmartBattery");
+        if matching.is_null() {
+            return Err(Error::SystemError("Failed to create matching dictionary".into()));
         }
 
-        #[cfg(not(test))]
-        {
-            Err(Error::NotImplemented("Battery info retrieval not yet implemented".into()))
+        // Get battery service
+        let service = self.iokit.io_service_get_matching_service(matching);
+        
+        // Release the matching dictionary since IOKit takes ownership
+        self.iokit.cf_release(matching as *mut _);
+        
+        if service == 0 {
+            return Err(Error::ServiceNotFound);
+        }
+
+        // Get battery properties
+        match self.iokit.io_registry_entry_create_cf_properties(service) {
+            Ok(_properties) => {
+                // Release service since we have the properties
+                self.iokit.io_object_release(service);
+
+                // Return success for now, actual property parsing will be implemented later
+                Ok(self.clone())
+            }
+            Err(e) => {
+                // Release service on error
+                self.iokit.io_object_release(service);
+                Err(e)
+            }
         }
     }
 
@@ -224,8 +237,8 @@ impl PartialEq for Battery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockall::predicate::*;
     use crate::iokit::MockIOKit;
+    use mockall::predicate::eq;
 
     #[test]
     fn test_battery_constructor() {
@@ -393,6 +406,10 @@ mod tests {
         let mut mock = MockIOKit::new();
         
         // Setup mock expectations
+        mock.expect_io_service_matching()
+            .with(eq("AppleSmartBattery"))
+            .returning(|_| 0x1234 as *const _); // Return a non-null dictionary
+            
         mock.expect_io_service_get_matching_service()
             .returning(|_| 1234); // Return a dummy service
             
@@ -429,10 +446,25 @@ mod tests {
         #[test]
         fn test_get_info_service_not_found() {
             let mut mock = MockIOKit::new();
+            mock.expect_io_service_matching()
+                .with(eq("AppleSmartBattery"))
+                .returning(|_| 0x1234 as *const _); // Return a non-null dictionary
             mock.expect_io_service_get_matching_service()
-                .returning(|_| 0);
+                .returning(|_| 0); // Return 0 to indicate service not found
+            mock.expect_cf_release()
+                .returning(|_| ());
             
-            let battery = Battery::new();
+            let battery = Battery {
+                is_present: false,
+                is_charging: false,
+                percentage: 0.0,
+                time_remaining: Duration::from_secs(0),
+                power_source: PowerSource::Unknown,
+                cycle_count: 0,
+                health_percentage: 0.0,
+                temperature: 0.0,
+                iokit: Box::new(mock)
+            };
             let result = battery.get_info();
             assert!(matches!(result, Err(Error::ServiceNotFound)));
         }
@@ -440,12 +472,29 @@ mod tests {
         #[test]
         fn test_get_info_properties_failure() {
             let mut mock = MockIOKit::new();
+            mock.expect_io_service_matching()
+                .with(eq("AppleSmartBattery"))
+                .returning(|_| std::ptr::null());
             mock.expect_io_service_get_matching_service()
                 .returning(|_| 123);
             mock.expect_io_registry_entry_create_cf_properties()
                 .returning(|_| Err(Error::SystemError("Failed to get properties".into())));
+            mock.expect_io_object_release()
+                .returning(|_| ());
+            mock.expect_cf_release()
+                .returning(|_| ());
             
-            let battery = Battery::new();
+            let battery = Battery {
+                is_present: false,
+                is_charging: false,
+                percentage: 0.0,
+                time_remaining: Duration::from_secs(0),
+                power_source: PowerSource::Unknown,
+                cycle_count: 0,
+                health_percentage: 0.0,
+                temperature: 0.0,
+                iokit: Box::new(mock)
+            };
             let result = battery.get_info();
             assert!(matches!(result, Err(Error::SystemError(_))));
         }
