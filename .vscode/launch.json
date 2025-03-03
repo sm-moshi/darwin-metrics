@@ -1,0 +1,73 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Unit Tests",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=darwin-metrics"],
+        "filter": {
+          "name": "darwin-metrics",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1",
+        "RUST_LOG": "debug"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Integration Tests",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--test=integration_tests",
+          "--package=darwin-metrics"
+        ],
+        "filter": {
+          "name": "integration_tests",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1",
+        "RUST_LOG": "debug"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Benchmarks",
+      "cargo": {
+        "args": [
+          "bench",
+          "--no-run",
+          "--bench=darwin-metrics",
+          "--package=darwin-metrics"
+        ],
+        "filter": {
+          "name": "darwin-metrics",
+          "kind": "bench"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1",
+        "RUST_LOG": "debug",
+        "CRITERION_DEBUG": "1"
+      }
+    }
+  ]
+}

@@ -6,9 +6,9 @@ use crate::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
 use core_foundation::base::TCFType;
 use core_foundation::string::CFString;
-use std::ffi::c_void;
-use objc2::runtime::AnyObject;
 use objc2::msg_send;
+use objc2::runtime::AnyObject;
+use std::ffi::c_void;
 
 // Metal framework types and functions
 type MTLDeviceRef = *mut c_void;
@@ -74,7 +74,7 @@ impl GPU {
 
             // Convert the MTLDevice pointer to an AnyObject
             let device: &AnyObject = &*(self.device as *const AnyObject);
-            
+
             // Get the name using objc2's safe interface
             let name: *const AnyObject = msg_send![device, name];
             if name.is_null() {
@@ -113,10 +113,37 @@ impl GPU {
 
     /// Get GPU memory information
     fn get_memory_info(&self) -> Result<GPUMemoryInfo> {
-        // Implementation using IOKit to get memory info
-        // This will be similar to how battery metrics are collected
+        // Get GPU memory info using IOKit
+        let matching = self.iokit.io_service_matching("IOAccelerator");
+        let service = self.iokit.io_service_get_matching_service(matching);
+
+        if service == 0 {
+            return Err(Error::not_available("Could not find GPU service"));
+        }
+
+        // Use RAII to ensure service is released
+        struct ServiceGuard<'a> {
+            service: io_kit_sys::types::io_service_t,
+            iokit: &'a dyn IOKit,
+        }
+
+        impl Drop for ServiceGuard<'_> {
+            fn drop(&mut self) {
+                self.iokit.io_object_release(self.service);
+            }
+        }
+
+        let _guard = ServiceGuard {
+            service,
+            iokit: &*self.iokit,
+        };
+
+        let _properties = self.iokit.io_registry_entry_create_cf_properties(service)?;
+
+        // For now return placeholder values until we implement the full memory info collection
+        // TODO: Parse the properties dictionary to get actual memory values
         Ok(GPUMemoryInfo {
-            total: 0, // TODO: Implement actual memory info collection
+            total: 0,
             used: 0,
             free: 0,
         })

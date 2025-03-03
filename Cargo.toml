@@ -27,10 +27,11 @@ mach-sys        = "0.5.4"
 io-kit-sys      = "0.4.1"
 
 # Async support
-tokio   = { version = "1.43.0", features = ["full", "test-util"] }
-futures = "0.3.31"
 
 # Error handling and logging
+tokio              = { version = "1.43.0", features = ["full"] }
+futures            = "0.3.31"
+async-trait        = "0.1.87"
 thiserror          = "2.0.12"
 tracing            = { version = "0.1.41", features = ["attributes"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

@@ -1,2 +1,5 @@
 .vscode/mise-tools/
 .references/
+# Coverage files
+/coverage/*.profraw
+/coverage/*.profdata

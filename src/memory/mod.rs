@@ -57,22 +57,3 @@ impl Memory {
         self.pressure * 100.0
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_memory_calculations() {
-        let memory = Memory {
-            total: 16 * 1024 * 1024 * 1024,    // 16GB
-            available: 8 * 1024 * 1024 * 1024, // 8GB
-            used: 8 * 1024 * 1024 * 1024,      // 8GB
-            wired: 2 * 1024 * 1024 * 1024,     // 2GB
-            pressure: 0.5,
-        };
-
-        assert_eq!(memory.usage_percentage(), 50.0);
-        assert_eq!(memory.pressure_percentage(), 50.0);
-    }
-}

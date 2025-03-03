@@ -1,3 +1,38 @@
+//! IOKit interface for macOS system metrics
+//!
+//! This module provides a safe abstraction over the IOKit framework,
+//! allowing access to system hardware information and metrics.
+//!
+//! # Safety
+//!
+//! This module contains unsafe FFI calls to IOKit and Core Foundation.
+//! All unsafe operations are properly wrapped in safe abstractions and
+//! follow proper resource management practices.
+//!
+//! # Thread Safety
+//!
+//! All types in this module implement `Send` and `Sync` where appropriate.
+//! Resource cleanup is handled automatically through RAII patterns.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use darwin_metrics::iokit::{IOKit, IOKitImpl};
+//!
+//! let iokit = IOKitImpl::default();
+//! 
+//! // Get battery service
+//! let matching = iokit.io_service_matching("AppleSmartBattery");
+//! let service = iokit.io_service_get_matching_service(matching);
+//! 
+//! // Use RAII guard for automatic cleanup
+//! let _guard = ServiceGuard::new(service, &iokit);
+//! 
+//! // Get properties
+//! let properties = iokit.io_registry_entry_create_cf_properties(service)?;
+//! let _props_guard = CFPropertiesGuard::new(properties, &iokit);
+//! ```
+
 use crate::Error;
 use core_foundation::base::{CFTypeRef, kCFAllocatorDefault};
 use core_foundation::boolean::CFBooleanRef;

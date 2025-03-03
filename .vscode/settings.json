@@ -14,5 +14,6 @@
   "editor.formatOnPaste": true,
   "editor.formatOnType": true,
   "editor.minimap.autohide": true,
-  "files.autoGuessEncoding": true
+  "rust-analyzer.cargo.features": ["test-utils"]
+  // "rust-analyzer.checkOnSave.features": ["test-utils"]
 }
