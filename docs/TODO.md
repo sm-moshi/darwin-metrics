@@ -38,8 +38,21 @@ Additional features that could be added in the future:
 - [x] Implement safe FFI boundaries for IOKit calls
 - [x] Add null pointer safety checks
 - [ ] Add thread-safe resource management
+  - [x] Basic reference counting with objc2
+  - [ ] Implement thread-safe caching layer
+  - [ ] Add resource pooling for heavy operations
+  - [ ] Add concurrent access patterns
 - [ ] Fix remaining type conflicts and import issues
+  - [ ] Strengthen type safety around AnyObject casts
+  - [ ] Add proper error handling for type conversions
+  - [ ] Resolve unsafe block type conflicts
 - [ ] Add comprehensive test coverage for error paths
+  - [ ] Test null pointer handling scenarios
+  - [ ] Test failed service lookups
+  - [ ] Test property access failures
+  - [ ] Test type conversion errors
+  - [ ] Test resource cleanup scenarios
+  - [ ] Add concurrent access tests
 
 ## **objc2 Migration** (High Priority)
 
