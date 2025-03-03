@@ -3,28 +3,25 @@
 ## **Project Setup**
 
 - [x] Initialize Rust crate with `cargo init --lib`
-- [x] Set up `swift-bridge` for Rust-Swift interoperability
 - [x] Configure library crate types (staticlib, cdylib, rlib)
 - [x] Set up basic error handling and result types
-- [ ] Create a Swift module for macOS API bindings
-- [x] Write a build script (`build.rs`) to compile Swift code
+- [x] Write a build script (`build.rs`) to compile and link frameworks
 - [x] Implement a minimal working example
 
 ## **Core Features**
 
-### **Battery Metrics** (Completed)
+### **Battery Metrics** (In Progress)
 
 - [x] Define Battery struct and interface
 - [x] Implement basic battery info functions
-- [x] Implement macOS-specific battery info retrieval
-- [x] Add battery health and cycle count information
-- [x] Add power source detection (AC/Battery)
-- [x] Add temperature monitoring
-- [x] Implement thread-safe battery info caching
-- [x] Add comprehensive test coverage
-- [x] Fix doctest examples for proper instance creation
-- [x] Implement proper mock expectations in tests
 - [x] Add bounds checking for percentage values
+- [x] Implement proper mock expectations in tests
+- [~] Implement macOS-specific battery info retrieval (partial)
+- [~] Add battery health and cycle count information (partial)
+- [~] Add power source detection (AC/Battery) (partial)
+- [~] Add temperature monitoring (partial)
+- [ ] Implement thread-safe battery info caching
+- [ ] Add comprehensive test coverage for edge cases
 
 Additional features that could be added in the future:
 
@@ -33,16 +30,59 @@ Additional features that could be added in the future:
 - [ ] Add detailed power adapter information
 - [ ] Implement battery calibration status
 
-### **IOKit Integration** (Completed)
+### **IOKit Integration** (In Progress)
 
 - [x] Define IOKit trait and implementation
-- [x] Implement safe FFI boundaries for IOKit calls
-- [x] Add proper error handling for IOKit operations
 - [x] Implement mock IOKit for testing
-- [x] Add thread-safe resource management
-- [x] Fix type conflicts and import issues
-- [x] Add comprehensive test coverage
-- [x] Fix mock expectations for service matching
+- [x] Add proper error handling for IOKit operations
+- [x] Implement safe FFI boundaries for IOKit calls
+- [x] Add null pointer safety checks
+- [ ] Add thread-safe resource management
+- [ ] Fix remaining type conflicts and import issues
+- [ ] Add comprehensive test coverage for error paths
+
+## **objc2 Migration** (High Priority)
+
+### **Core Migration**
+
+- [x] Add objc2 and related framework dependencies
+- [x] Configure objc2 features in Cargo.toml
+- [ ] Remove io-kit-sys dependency
+- [ ] Remove core-foundation dependency
+- [ ] Create safe abstractions using objc2 runtime
+
+### **IOKit Refactoring**
+
+- [ ] Rewrite IOKit interface using objc2 macros and types
+- [ ] Implement IOService using objc2's class definition system
+- [ ] Convert existing FFI calls to use objc2's message sending
+- [ ] Add proper memory management using objc2's retain/release system
+- [ ] Implement autorelease pool management
+- [ ] Add thread safety using objc2's MainThreadMarker
+
+### **Framework Integration**
+
+- [ ] Set up objc2-foundation integration
+- [ ] Set up objc2-core-foundation integration
+- [ ] Set up objc2-core-graphics integration
+- [ ] Implement block2 support for callbacks
+- [ ] Add proper exception handling
+
+### **Testing & Safety**
+
+- [ ] Add tests for objc2 class implementations
+- [ ] Verify memory management in tests
+- [ ] Add thread safety tests
+- [ ] Implement proper error propagation with objc2
+- [ ] Add comprehensive documentation for objc2 usage
+
+### **Performance Optimization**
+
+- [ ] Implement zero-cost abstractions using objc2
+- [ ] Optimize message sending with static selectors
+- [ ] Add compile-time selector verification
+- [ ] Implement efficient autorelease eliding
+- [ ] Profile and optimize critical paths
 
 ### **CPU Metrics** (In Progress)
 
@@ -57,7 +97,7 @@ Additional features that could be added in the future:
 
 - [x] Define Memory struct and interface
 - [x] Set up memory info data structure
-- [x] Implement mock data for testing
+- [ ] Implement mock data for testing
 - [ ] Implement macOS memory pressure level detection
 - [ ] Get total and used RAM
 - [ ] Fetch swap usage
@@ -65,24 +105,30 @@ Additional features that could be added in the future:
 
 ### **GPU Metrics** (In Progress)
 
-- [ ] Implement usage of **Metal API** for this!
-  - [x] Define GPU struct and interface
-  - [x] Set up GPU info data structure
-  - [ ] Get active GPU model
-  - [ ] Fetch GPU usage percentage
-  - [ ] Monitor VRAM consumption
-  - [ ] Implement multi-GPU support
+- [x] Define GPU struct and interface
+- [x] Set up GPU info data structure
+- [x] Add basic GPU name retrieval
+- [ ] Implement basic Metal framework integration
+- [ ] Define temperature and power monitoring interfaces
+- [ ] Implement GPU temperature monitoring
+- [ ] Implement power usage monitoring
+- [ ] Get active GPU model details
+- [ ] Fetch GPU usage percentage
+- [ ] Monitor VRAM consumption
+- [ ] Implement multi-GPU support
 
 ### **Disk Metrics** (In Progress)
 
-- [x] Define Disk struct and interface
-- [x] Set up disk info data structure
+- [ ] Define Disk struct and interface
+- [ ] Set up disk info data structure
+- [ ] Add basic disk space calculations
+- [ ] Implement byte formatting utilities
 - [ ] Get total and used disk space
 - [ ] Fetch read/write speeds
 - [ ] Monitor disk I/O activity
 - [ ] Add support for multiple volumes
 
-### **Temperature Metrics via SMC** (In Progress)
+### **Temperature Metrics** (In Progress)
 
 - [x] Define Temperature struct and interface
 - [x] Implement temperature unit conversion (F/C)
@@ -107,9 +153,9 @@ Additional features that could be added in the future:
 ### **Async Support**
 
 - [x] Add tokio dependency with full features
-- [x] Implement async versions of metric collection
-- [x] Add background monitoring capabilities
-- [x] Implement metric caching system
+- [ ] Implement async versions of metric collection
+- [ ] Add background monitoring capabilities
+- [ ] Implement metric caching system
 
 ### **Error Handling**
 
@@ -117,15 +163,16 @@ Additional features that could be added in the future:
 - [x] Add detailed error messages
 - [x] Add error context and chaining
 - [x] Implement recovery strategies
+- [x] Add comprehensive error variants for all subsystems
 
 ## **Testing & Benchmarking**
 
 - [x] Set up test infrastructure
 - [x] Add basic unit tests for Battery struct
-- [x] Write unit tests for all metric types
-- [x] Implement integration tests for Rust-Swift communication
-- [x] Fix doctest examples to match implementation
 - [x] Ensure proper mock setup in tests
+- [ ] Write unit tests for all metric types
+- [ ] Add coverage tests for error cases
+- [ ] Add tests for utility functions
 - [ ] Add benchmarking suite
 - [ ] Test on both Intel and Apple Silicon
 
@@ -135,9 +182,9 @@ Additional features that could be added in the future:
 - [x] Write comprehensive API documentation for Battery module
 - [x] Write comprehensive API documentation for IOKit module
 - [x] Add proper examples in docstrings
+- [x] Add usage examples for each metric type
+- [x] Document error handling and safety considerations
 - [ ] Write comprehensive API documentation for remaining modules
-- [ ] Add usage examples for each metric type
-- [ ] Document Swift-Rust FFI interface
 - [ ] Create example applications
 - [ ] Add performance considerations documentation
 
@@ -146,25 +193,24 @@ Additional features that could be added in the future:
 - [x] Configure crate features
 - [x] Set up release profile optimizations
 - [ ] Ensure compatibility with Apple Silicon & Intel Macs (macOS 15+)
-- [ ] Implement dynamic linking for Swift libraries
 - [ ] Add version compatibility matrix
 - [ ] Publish to `crates.io`
 
 ## **Future Enhancements**
 
 - [ ] Add metric history tracking
-- [ ] Implement metric alerting system
-- [ ] Add system event notifications
 - [ ] Support for power management profiles
 - [ ] Add network interface monitoring
 
 ## **Code Quality & Safety**
 
-- [x] Implement thread-safe resource management
-- [x] Add proper cleanup for system resources
+- [x] Implement proper error propagation
 - [x] Implement safe FFI boundaries
 - [x] Add null pointer safety checks
-- [x] Implement proper error propagation
-- [x] Fix type conflicts and import issues
+- [~] Implement thread-safe resource management (partial)
+- [~] Add proper cleanup for system resources (partial)
+- [~] Fix type conflicts and import issues (partial)
 - [ ] Add memory leak detection tests
 - [ ] Implement fuzzing tests for FFI layer
+- [ ] Add objc2 runtime safety checks
+- [ ] Implement comprehensive objc2 error handling

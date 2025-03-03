@@ -20,12 +20,14 @@ cc = "1.2.16"
 
 [dependencies]
 # Core FFI and system interfaces
-libc            = "0.2.170"
-core-foundation = "0.10.0"
-objc2           = { version = "0.6.0", features = ["objc2-proc-macros", "alloc"] }
-mach-sys        = "0.5.4"
-io-kit-sys      = "0.4.1"
-scopeguard      = "1.2.0"
+libc = "0.2.170"
+# core-foundation = "0.10.0"
+objc2                 = { version = "0.6.0", features = ["alloc", "objc2-proc-macros", "std"] }
+objc2-foundation      = "0.3.0"
+objc2-core-foundation = "0.3.0"
+objc2-core-graphics   = "0.3.0"
+block2                = { version = "0.6.0", features = ["alloc", "std"] }
+scopeguard            = "1.2.0"
 
 # Error handling and logging
 tokio              = { version = "1.43.0", features = ["full"] }
@@ -43,16 +45,17 @@ serde_json = "1.0.140"
 metrics-runtime = { version = "0.13.1", optional = true }
 cached          = { version = "0.55.1", optional = true }
 
+# Testing
+proptest = { version = "1.6.0", optional = true }
+mockall  = "0.13.1"
+test-log = { version = "0.2.17", optional = true }
+
 # Additional dependencies
 parking_lot = "0.12.3"
 lazy_static = "1.5.0"
 
 [dev-dependencies]
-criterion        = "0.5.1"
-assert_approx_eq = "1.1.0"
-tokio-test       = "0.4.4"
-test-log         = { version = "0.2.17", features = ["trace"] }
-mockall          = "0.13.1"
+tokio-test = "0.4.4"
 
 [features]
 default = ["battery", "cpu", "memory", "gpu", "disk", "temperature", "async"]
@@ -71,7 +74,6 @@ async          = []
 metrics-export = ["metrics-runtime"]
 cached-metrics = ["cached"]
 
-
 [profile.release]
 lto           = true
 codegen-units = 1
@@ -84,7 +86,8 @@ opt-level = 0
 debug     = true
 
 [package.metadata]
-docs.rs.all-features = true
+docs.rs.all-features  = true
+minimum-macos-version = "15.0"
 
 # Code coverage configuration
 [package.metadata.llvm-cov]
