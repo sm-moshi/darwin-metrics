@@ -25,8 +25,7 @@ core-foundation = "0.10.0"
 objc2           = { version = "0.6.0", features = ["objc2-proc-macros", "alloc"] }
 mach-sys        = "0.5.4"
 io-kit-sys      = "0.4.1"
-
-# Async support
+scopeguard      = "1.2.0"
 
 # Error handling and logging
 tokio              = { version = "1.43.0", features = ["full"] }
@@ -72,9 +71,6 @@ async          = []
 metrics-export = ["metrics-runtime"]
 cached-metrics = ["cached"]
 
-[[bench]]
-name    = "darwin-metrics"
-harness = false
 
 [profile.release]
 lto           = true
@@ -89,3 +85,12 @@ debug     = true
 
 [package.metadata]
 docs.rs.all-features = true
+
+# Code coverage configuration
+[package.metadata.llvm-cov]
+# Enable all coverage features
+enable = ["line", "branch", "function", "mcdc"]
+# Set coverage threshold
+threshold = 80
+# Exclude test files and generated code
+exclude = ["tests/*", "target/*", "**/*_test.rs"]

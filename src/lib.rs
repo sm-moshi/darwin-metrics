@@ -97,6 +97,7 @@ impl Error {
         Error::NotImplemented(msg.into())
     }
 
+    #[allow(dead_code)]
     pub(crate) fn system_error(msg: impl Into<String>) -> Self {
         Error::SystemError(msg.into())
     }

@@ -18,20 +18,30 @@
 //!
 //! ```no_run
 //! use darwin_metrics::iokit::{IOKit, IOKitImpl};
-//!
-//! let iokit = IOKitImpl::default();
+//! use scopeguard::defer;
 //! 
-//! // Get battery service
-//! let matching = iokit.io_service_matching("AppleSmartBattery");
-//! let service = iokit.io_service_get_matching_service(matching);
-//! 
-//! // Use RAII guard for automatic cleanup
-//! let _guard = ServiceGuard::new(service, &iokit);
-//! 
-//! // Get properties
-//! let properties = iokit.io_registry_entry_create_cf_properties(service)?;
-//! let _props_guard = CFPropertiesGuard::new(properties, &iokit);
+//! fn main() -> Result<(), darwin_metrics::Error> {
+//!     let iokit = IOKitImpl::default();
+//!     
+//!     // Get battery service
+//!     let matching = iokit.io_service_matching("AppleSmartBattery");
+//!     let service = iokit.io_service_get_matching_service(matching);
+//!     
+//!     // Ensure service is released when we're done
+//!     defer! { iokit.io_object_release(service); }
+//!     
+//!     // Get properties
+//!     let properties = iokit.io_registry_entry_create_cf_properties(service)?;
+//!     
+//!     // Ensure properties are released when we're done
+//!     defer! { iokit.cf_release(properties.cast()); }
+//!     
+//!     Ok(())
+//! }
 //! ```
+
+use scopeguard;
+use scopeguard::defer;
 
 use crate::Error;
 use core_foundation::base::{CFTypeRef, kCFAllocatorDefault};

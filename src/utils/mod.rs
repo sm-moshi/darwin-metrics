@@ -10,6 +10,7 @@ use std::slice;
 /// # Returns
 /// * `Some(String)` if conversion is successful
 /// * `None` if the pointer is null or the string is invalid UTF-8
+#[allow(dead_code)]
 pub unsafe fn c_str_to_string(ptr: *const c_char) -> Option<String> {
     if ptr.is_null() {
         return None;
@@ -26,6 +27,7 @@ pub unsafe fn c_str_to_string(ptr: *const c_char) -> Option<String> {
 /// # Returns
 /// * `Some(String)` if conversion is successful
 /// * `None` if the pointer is null, length is 0, or the string is invalid UTF-8
+#[allow(dead_code)]
 pub unsafe fn raw_str_to_string(ptr: *const c_char, len: usize) -> Option<String> {
     if ptr.is_null() || len == 0 {
         return None;
@@ -45,6 +47,7 @@ pub unsafe fn raw_str_to_string(ptr: *const c_char, len: usize) -> Option<String
 /// # Returns
 /// * `Some(Vec<f64>)` if conversion is successful
 /// * `None` if the pointer is null or length is 0
+#[allow(dead_code)]
 pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<Vec<f64>> {
     if ptr.is_null() || len == 0 {
         return None;

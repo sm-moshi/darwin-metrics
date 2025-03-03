@@ -10,10 +10,6 @@
     "go": "${workspaceFolder}/.vscode/mise-tools/go",
     "dlv": "${workspaceFolder}/.vscode/mise-tools/dlv"
   },
-  "files.autoSave": "afterDelay",
-  "editor.formatOnPaste": true,
-  "editor.formatOnType": true,
-  "editor.minimap.autohide": true,
   "rust-analyzer.cargo.features": ["test-utils"]
   // "rust-analyzer.checkOnSave.features": ["test-utils"]
 }

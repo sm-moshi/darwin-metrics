@@ -48,14 +48,7 @@
       "label": "cargo llvm-cov",
       "type": "shell",
       "command": "cargo",
-      "args": [
-        "llvm-cov",
-        "--features",
-        "test",
-        "--lcov",
-        "--output-path",
-        "coverage/lcov.info"
-      ],
+      "args": ["llvm-cov", "--lcov", "--output-path", "coverage/lcov.info"],
       "problemMatcher": ["$rustc"],
       "group": "test",
       "options": {
