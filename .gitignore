@@ -11,6 +11,7 @@ Packages/
 Package.pins
 Package.resolved
 .build/
+generated/
 
 # Object files and libraries
 *.o
