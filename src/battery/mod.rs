@@ -1,3 +1,50 @@
+//! Battery metrics and power management information for macOS systems.
+//!
+//! This module provides functionality to gather battery-related metrics and power management
+//! information on macOS systems. It supports monitoring of:
+//! - Battery presence and charging status
+//! - Power source (Battery/AC/Unknown)
+//! - Battery charge percentage and time remaining
+//! - Battery health metrics (cycle count, health percentage)
+//! - Temperature monitoring
+//!
+//! The module uses IOKit to safely interact with macOS power management interfaces.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use darwin_metrics::battery::{Battery, PowerSource};
+//!
+//! fn main() -> darwin_metrics::Result<()> {
+//!     // Create and initialize battery monitoring
+//!     let mut battery = Battery::new()?;
+//!     
+//!     // Get current battery status
+//!     println!("Power Source: {}", battery.power_source_display());
+//!     println!("Battery: {}%", battery.percentage);
+//!     
+//!     if battery.is_charging {
+//!         println!("Charging...");
+//!     } else if battery.is_present {
+//!         println!("Time remaining: {}", battery.time_remaining_display());
+//!     }
+//!     
+//!     // Check battery health
+//!     if battery.is_health_poor() {
+//!         println!("Warning: Battery health is degraded!");
+//!         println!("Health: {}%", battery.health_percentage);
+//!         println!("Cycle count: {}", battery.cycle_count);
+//!     }
+//!     
+//!     Ok(())
+//! }
+//! ```
+//!
+//! # Note
+//!
+//! This module requires macOS-specific IOKit functionality and will only work on macOS systems.
+//! All battery metrics are updated atomically when calling `update()` to ensure consistency.
+
 use crate::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
 use std::time::Duration;
@@ -22,7 +69,11 @@ const BATTERY_TEMPERATURE: &str = "Temperature";
 const BATTERY_TIME_REMAINING: &str = "TimeRemaining";
 const BATTERY_POWER_SOURCE: &str = "ExternalConnected";
 
-/// Power source type for the system
+/// Power source type for the system.
+///
+/// Represents the current power source providing energy to the system.
+/// This can be either battery power, AC power, or unknown in case
+/// the power source cannot be determined.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum PowerSource {
     /// Running on battery power
@@ -33,7 +84,43 @@ pub enum PowerSource {
     Unknown,
 }
 
-/// Represents the current state of the system's battery
+/// Represents the current state of the system's battery.
+///
+/// This struct provides comprehensive battery metrics and power management
+/// information for macOS systems. It includes both real-time metrics like
+/// charge level and power source, as well as battery health information
+/// like cycle count and capacity health.
+///
+/// The struct maintains its state internally and can be updated by calling
+/// the `update()` method to fetch the latest metrics from the system.
+///
+/// # Examples
+///
+/// ```no_run
+/// use darwin_metrics::battery::Battery;
+///
+/// let mut battery = Battery::new()?;
+/// 
+/// // Update battery metrics
+/// battery.update()?;
+/// 
+/// // Check battery status
+/// if battery.is_present {
+///     println!("Battery at {}%", battery.percentage);
+///     if battery.is_low() {
+///         println!("Warning: Low battery!");
+///     }
+/// } else {
+///     println!("No battery detected");
+/// }
+/// # Ok::<(), darwin_metrics::Error>(())
+/// ```
+///
+/// # Thread Safety
+///
+/// This struct is safe to use across threads as it maintains internal
+/// synchronization when accessing IOKit interfaces. All public methods
+/// are thread-safe.
 #[derive(Debug)]
 pub struct Battery {
     /// Whether a battery is present in the system

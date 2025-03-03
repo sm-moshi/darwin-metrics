@@ -88,10 +88,10 @@ Additional features that could be added in the future:
 
 - [x] Define CPU struct and interface
 - [x] Set up thread-safe CPU info data structure
-- [ ] Get CPU usage percentage per core
-- [ ] Get CPU model name and frequency
-- [ ] Fetch total CPU load (user, system, idle)
-- [ ] Implement CPU temperature monitoring
+- [x] Get CPU usage percentage per core
+- [x] Get CPU model name and frequency
+- [x] Fetch total CPU load (user, system, idle)
+- [x] Implement CPU temperature monitoring
 
 ### **Memory Metrics** (In Progress)
 

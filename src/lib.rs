@@ -137,17 +137,15 @@ pub mod temperature;
 // Private modules
 mod utils;
 
-/// Re-export common types for convenience
+/// Re-exports of commonly used types
 pub mod prelude {
-    pub use crate::Error;
-    pub use crate::Result;
     pub use crate::battery::Battery;
     pub use crate::cpu::CPU;
-    pub use crate::disk::Disk;
-    pub use crate::gpu::{GPU, GPUMemoryInfo, GPUMetrics};
+    pub use crate::gpu::{GPUMetrics, GPUMemoryInfo};
     pub use crate::memory::Memory;
+    pub use crate::disk::Disk;
     pub use crate::temperature::Temperature;
-    // Add other types as they're implemented
+    pub use crate::{Error, Result};
 }
 
 #[cfg(test)]
