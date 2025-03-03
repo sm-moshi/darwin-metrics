@@ -47,42 +47,42 @@ Additional features that could be added in the future:
 
 - [x] Add objc2 and related framework dependencies
 - [x] Configure objc2 features in Cargo.toml
-- [ ] Remove io-kit-sys dependency
-- [ ] Remove core-foundation dependency
-- [ ] Create safe abstractions using objc2 runtime
+- [x] Remove io-kit-sys dependency
+- [x] Remove core-foundation dependency
+- [x] Create safe abstractions using objc2 runtime
 
 ### **IOKit Refactoring**
 
-- [ ] Rewrite IOKit interface using objc2 macros and types
-- [ ] Implement IOService using objc2's class definition system
-- [ ] Convert existing FFI calls to use objc2's message sending
-- [ ] Add proper memory management using objc2's retain/release system
-- [ ] Implement autorelease pool management
-- [ ] Add thread safety using objc2's MainThreadMarker
+- [x] Rewrite IOKit interface using objc2 macros and types
+- [x] Implement IOService using objc2's class definition system
+- [x] Convert existing FFI calls to use objc2's message sending
+- [x] Add proper memory management using objc2's retain/release system
+- [x] Implement autorelease pool management
+- [x] Add thread safety using objc2's MainThreadMarker
 
 ### **Framework Integration**
 
-- [ ] Set up objc2-foundation integration
-- [ ] Set up objc2-core-foundation integration
-- [ ] Set up objc2-core-graphics integration
-- [ ] Implement block2 support for callbacks
-- [ ] Add proper exception handling
+- [x] Set up objc2-foundation integration
+- [x] Set up objc2-core-foundation integration
+- [x] Set up objc2-core-graphics integration
+- [x] Implement block2 support for callbacks
+- [x] Add proper exception handling
 
 ### **Testing & Safety**
 
-- [ ] Add tests for objc2 class implementations
-- [ ] Verify memory management in tests
-- [ ] Add thread safety tests
-- [ ] Implement proper error propagation with objc2
-- [ ] Add comprehensive documentation for objc2 usage
+- [x] Add tests for objc2 class implementations
+- [x] Verify memory management in tests
+- [x] Add thread safety tests
+- [x] Implement proper error propagation with objc2
+- [x] Add comprehensive documentation for objc2 usage
 
 ### **Performance Optimization**
 
-- [ ] Implement zero-cost abstractions using objc2
-- [ ] Optimize message sending with static selectors
-- [ ] Add compile-time selector verification
-- [ ] Implement efficient autorelease eliding
-- [ ] Profile and optimize critical paths
+- [x] Implement zero-cost abstractions using objc2
+- [x] Optimize message sending with static selectors
+- [x] Add compile-time selector verification
+- [x] Implement efficient autorelease eliding
+- [x] Profile and optimize critical paths
 
 ### **CPU Metrics** (In Progress)
 
@@ -105,17 +105,17 @@ Additional features that could be added in the future:
 
 ### **GPU Metrics** (In Progress)
 
-- [x] Define GPU struct and interface
-- [x] Set up GPU info data structure
-- [x] Add basic GPU name retrieval
-- [ ] Implement basic Metal framework integration
-- [ ] Define temperature and power monitoring interfaces
-- [ ] Implement GPU temperature monitoring
-- [ ] Implement power usage monitoring
-- [ ] Get active GPU model details
-- [ ] Fetch GPU usage percentage
-- [ ] Monitor VRAM consumption
-- [ ] Implement multi-GPU support
+- [~] Define GPU struct and interface
+- [~] Set up GPU info data structure
+- [~] Add basic GPU name retrieval
+- [~] Implement basic Metal framework integration
+- [~] Define temperature and power monitoring interfaces
+- [~] Implement GPU temperature monitoring
+- [~] Implement power usage monitoring
+- [~] Get active GPU model details
+- [~] Fetch GPU usage percentage
+- [~] Monitor VRAM consumption
+- [~] Implement multi-GPU support
 
 ### **Disk Metrics** (In Progress)
 

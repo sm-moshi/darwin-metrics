@@ -1,12 +1,15 @@
 use crate::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
-use core_foundation::dictionary::{CFDictionaryGetValue, CFDictionaryRef, CFDictionaryAddValue, CFDictionaryCreateMutable};
-use core_foundation::number::{CFBooleanGetValue, CFNumberGetValue, CFNumberRef, kCFNumberSInt64Type};
-use core_foundation::boolean::kCFBooleanTrue;
-use std::ffi::{CString, c_void};
 use std::time::Duration;
-use scopeguard;
-use mockall::predicate::eq;
+
+#[cfg(test)]
+use {
+    mockall::predicate::*,
+    objc2::runtime::AnyObject,
+    objc2::{msg_send, class},
+    objc2_foundation::{NSString, NSObject, NSDictionary},
+    objc2::rc::Retained,
+};
 
 // Battery property keys
 const BATTERY_IS_PRESENT: &str = "BatteryInstalled";
@@ -70,32 +73,19 @@ impl Battery {
     pub fn update(&mut self) -> Result<()> {
         // Create matching dictionary for AppleSmartBattery
         let matching = self.iokit.io_service_matching("AppleSmartBattery");
-        if matching.is_null() {
-            return Err(Error::SystemError(
-                "Failed to create matching dictionary".into(),
-            ));
-        }
 
         // Get battery service
-        let service = self.iokit.io_service_get_matching_service(matching);
+        let service = self.iokit.io_service_get_matching_service(&matching);
 
-        // Release the matching dictionary since IOKit takes ownership
-        self.iokit.cf_release(matching as *mut _);
-
-        if service == 0 {
+        let Some(service) = service else {
             return Err(Error::ServiceNotFound);
-        }
+        };
 
         // Get battery properties
-        let properties = self.iokit.io_registry_entry_create_cf_properties(service)?;
+        let properties = self.iokit.io_registry_entry_create_cf_properties(&service)?;
         
-        // Create a clone of self.iokit for the guard to avoid borrow checker issues
-        let iokit = self.iokit.as_ref();
-        let _guard = scopeguard::guard(service, move |s| iokit.io_object_release(s));
-        let _props_guard = scopeguard::guard(properties as *mut _, move |p| iokit.cf_release(p));
-
         // Update battery presence
-        self.is_present = Self::get_bool_value(properties, BATTERY_IS_PRESENT)?
+        self.is_present = self.iokit.get_bool_property(&properties, BATTERY_IS_PRESENT)
             .unwrap_or(false);
 
         if !self.is_present {
@@ -111,11 +101,11 @@ impl Battery {
         }
 
         // Update charging status
-        self.is_charging = Self::get_bool_value(properties, BATTERY_IS_CHARGING)?
+        self.is_charging = self.iokit.get_bool_property(&properties, BATTERY_IS_CHARGING)
             .unwrap_or(false);
 
         // Update power source
-        let is_external = Self::get_bool_value(properties, BATTERY_POWER_SOURCE)?
+        let is_external = self.iokit.get_bool_property(&properties, BATTERY_POWER_SOURCE)
             .unwrap_or(false);
         self.power_source = if is_external {
             PowerSource::AC
@@ -124,9 +114,9 @@ impl Battery {
         };
 
         // Update capacity and percentage
-        let current = Self::get_number_value(properties, BATTERY_CURRENT_CAPACITY)?
+        let current = self.iokit.get_number_property(&properties, BATTERY_CURRENT_CAPACITY)
             .unwrap_or(0) as f64;
-        let max = Self::get_number_value(properties, BATTERY_MAX_CAPACITY)?
+        let max = self.iokit.get_number_property(&properties, BATTERY_MAX_CAPACITY)
             .unwrap_or(100) as f64;
         self.percentage = if max > 0.0 {
             (current / max * 100.0).clamp(0.0, 100.0)
@@ -135,7 +125,7 @@ impl Battery {
         };
 
         // Update health percentage
-        let design = Self::get_number_value(properties, BATTERY_DESIGN_CAPACITY)?
+        let design = self.iokit.get_number_property(&properties, BATTERY_DESIGN_CAPACITY)
             .unwrap_or(max as i64) as f64;
         self.health_percentage = if design > 0.0 {
             (max / design * 100.0).clamp(0.0, 100.0)
@@ -144,58 +134,54 @@ impl Battery {
         };
 
         // Update cycle count
-        self.cycle_count = Self::get_number_value(properties, BATTERY_CYCLE_COUNT)?
+        self.cycle_count = self.iokit.get_number_property(&properties, BATTERY_CYCLE_COUNT)
             .unwrap_or(0) as u32;
 
         // Update time remaining (in minutes)
-        let time = Self::get_number_value(properties, BATTERY_TIME_REMAINING)?
+        let time = self.iokit.get_number_property(&properties, BATTERY_TIME_REMAINING)
             .unwrap_or(0);
         self.time_remaining = Duration::from_secs((time.max(0) * 60) as u64);
 
         // Update temperature (convert from celsius * 100 to celsius)
-        let temp = Self::get_number_value(properties, BATTERY_TEMPERATURE)?
+        let temp = self.iokit.get_number_property(&properties, BATTERY_TEMPERATURE)
             .unwrap_or(0) as f64;
         self.temperature = temp / 100.0;
 
         Ok(())
     }
 
-    /// Get a boolean value from the battery properties dictionary
-    fn get_bool_value(dict: CFDictionaryRef, key: &str) -> Result<Option<bool>> {
-        unsafe {
-            let key_str = CString::new(key)
-                .map_err(|e| Error::SystemError(format!("Invalid key {}: {}", key, e)))?;
-            let key_ptr = key_str.as_ptr() as *const c_void;
-            let value = CFDictionaryGetValue(dict as *const _, key_ptr);
-            if value.is_null() {
-                return Ok(None);
-            }
+    /// Get current battery information
+    ///
+    /// # Returns
+    /// Returns a `Result` containing battery information or an error if the information
+    /// cannot be retrieved.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use darwin_metrics::battery::Battery;
+    ///
+    /// let battery = Battery::new().unwrap();
+    /// let info = battery.get_info().unwrap();
+    /// println!("Battery at {}%, {}",
+    ///     info.percentage,
+    ///     if info.is_charging { "charging" } else { "discharging" }
+    /// );
+    /// ```
+    pub fn get_info(&self) -> Result<Self> {
+        // Create matching dictionary for AppleSmartBattery
+        let matching = self.iokit.io_service_matching("AppleSmartBattery");
 
-            Ok(Some(CFBooleanGetValue(value as _)))
-        }
-    }
+        // Get battery service
+        let service = self.iokit.io_service_get_matching_service(&matching);
 
-    /// Get a number value from the battery properties dictionary
-    fn get_number_value(dict: CFDictionaryRef, key: &str) -> Result<Option<i64>> {
-        unsafe {
-            let key_str = CString::new(key)
-                .map_err(|e| Error::SystemError(format!("Invalid key {}: {}", key, e)))?;
-            let key_ptr = key_str.as_ptr() as *const c_void;
-            let value = CFDictionaryGetValue(dict as *const _, key_ptr);
-            if value.is_null() {
-                return Ok(None);
-            }
+        let Some(service) = service else {
+            return Err(Error::ServiceNotFound);
+        };
 
-            let mut result: i64 = 0;
-            if CFNumberGetValue(
-                value as CFNumberRef,
-                kCFNumberSInt64Type,
-                &mut result as *mut _ as *mut _,
-            ) {
-                Ok(Some(result))
-            } else {
-                Ok(None)
-            }
+        // Get battery properties
+        match self.iokit.io_registry_entry_create_cf_properties(&service) {
+            Ok(_) => Ok(self.clone()),
+            Err(e) => Err(e),
         }
     }
 
@@ -230,56 +216,6 @@ impl Battery {
             health_percentage: health_percentage.clamp(0.0, 100.0),
             temperature,
             iokit: Box::new(IOKitImpl::default()),
-        }
-    }
-
-    /// Get current battery information
-    ///
-    /// # Returns
-    /// Returns a `Result` containing battery information or an error if the information
-    /// cannot be retrieved.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use darwin_metrics::battery::Battery;
-    ///
-    /// let battery = Battery::new().unwrap();
-    /// let info = battery.get_info().unwrap();
-    /// println!("Battery at {}%, {}",
-    ///     info.percentage,
-    ///     if info.is_charging { "charging" } else { "discharging" }
-    /// );
-    /// ```
-    pub fn get_info(&self) -> Result<Self> {
-        // Create matching dictionary for AppleSmartBattery
-        let matching = self.iokit.io_service_matching("AppleSmartBattery");
-        if matching.is_null() {
-            return Err(Error::SystemError(
-                "Failed to create matching dictionary".into(),
-            ));
-        }
-
-        // Get battery service
-        let service = self.iokit.io_service_get_matching_service(matching);
-
-        // Release the matching dictionary since IOKit takes ownership
-        self.iokit.cf_release(matching as *mut _);
-
-        if service == 0 {
-            return Err(Error::ServiceNotFound);
-        }
-
-        // Create a guard to ensure service is released
-        let _guard = scopeguard::guard(service, |s| self.iokit.io_object_release(s));
-
-        // Get battery properties
-        match self.iokit.io_registry_entry_create_cf_properties(service) {
-            Ok(properties) => {
-                // Create a guard to ensure properties are released
-                let _props_guard = scopeguard::guard(properties as *mut _, |p| self.iokit.cf_release(p));
-                Ok(self.clone())
-            }
-            Err(e) => Err(e),
         }
     }
 
@@ -357,66 +293,164 @@ impl PartialEq for Battery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iokit::MockIOKit;
-    use std::ptr;
-    use mockall::predicate::eq;
+    use mockall::predicate::*;
+    use objc2::runtime::AnyObject;
+    use objc2::rc::Retained;
 
     #[test]
     fn test_battery_update() {
-        let mut mock = MockIOKit::new();
-
-        // Return null for the matching dictionary to simulate failure
+        let mut mock = crate::iokit::MockIOKit::new();
+        
+        // Setup mock for service matching
         mock.expect_io_service_matching()
             .with(eq("AppleSmartBattery"))
-            .returning(|_| std::ptr::null());
+            .times(1)
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Retained::from_raw(dict.cast()).unwrap()
+            });
 
-        // These shouldn't be called if matching is null
+        // Setup mock for getting service
         mock.expect_io_service_get_matching_service()
-            .times(0)
-            .returning(|_| 0);
+            .times(1)
+            .returning(|_| unsafe {
+                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+                Some(Retained::from_raw(obj).unwrap())
+            });
 
-        mock.expect_cf_release()
-            .times(0)
-            .returning(|_| ());
+        // Setup mock for getting properties
+        mock.expect_io_registry_entry_create_cf_properties()
+            .times(1)
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Ok(Retained::from_raw(dict.cast()).unwrap())
+            });
 
-        let mut battery = Battery::default();
-        battery.iokit = Box::new(mock);
+        // Setup mock for property getters
+        mock.expect_get_bool_property()
+            .with(always(), eq(BATTERY_IS_PRESENT))
+            .times(1)
+            .returning(|_, _| Some(true));
 
-        let result = battery.update();
-        assert!(matches!(result, Err(Error::SystemError(_))));
+        mock.expect_get_bool_property()
+            .with(always(), eq(BATTERY_IS_CHARGING))
+            .times(1)
+            .returning(|_, _| Some(true));
+
+        mock.expect_get_bool_property()
+            .with(always(), eq(BATTERY_POWER_SOURCE))
+            .times(1)
+            .returning(|_, _| Some(true));
+
+        mock.expect_get_number_property()
+            .with(always(), eq(BATTERY_CURRENT_CAPACITY))
+            .times(1)
+            .returning(|_, _| Some(75));
+
+        mock.expect_get_number_property()
+            .with(always(), eq(BATTERY_MAX_CAPACITY))
+            .times(1)
+            .returning(|_, _| Some(100));
+
+        mock.expect_get_number_property()
+            .with(always(), eq(BATTERY_DESIGN_CAPACITY))
+            .times(1)
+            .returning(|_, _| Some(100));
+
+        mock.expect_get_number_property()
+            .with(always(), eq(BATTERY_CYCLE_COUNT))
+            .times(1)
+            .returning(|_, _| Some(150));
+
+        mock.expect_get_number_property()
+            .with(always(), eq(BATTERY_TIME_REMAINING))
+            .times(1)
+            .returning(|_, _| Some(120));
+
+        mock.expect_get_number_property()
+            .with(always(), eq(BATTERY_TEMPERATURE))
+            .times(1)
+            .returning(|_, _| Some(2500));
+
+        let mut battery = Battery {
+            iokit: Box::new(mock),
+            is_present: false,
+            is_charging: false,
+            percentage: 0.0,
+            time_remaining: Duration::from_secs(0),
+            power_source: PowerSource::Unknown,
+            cycle_count: 0,
+            health_percentage: 0.0,
+            temperature: 0.0,
+        };
+
+        assert!(battery.update().is_ok());
+        assert!(battery.is_present);
+        assert!(battery.is_charging);
+        assert_eq!(battery.percentage, 75.0);
+        assert_eq!(battery.time_remaining, Duration::from_secs(7200));
+        assert_eq!(battery.power_source, PowerSource::AC);
+        assert_eq!(battery.cycle_count, 150);
+        assert_eq!(battery.health_percentage, 100.0);
+        assert_eq!(battery.temperature, 25.0);
     }
 
     #[test]
-    fn test_battery_update_with_service() {
-        let mut mock = MockIOKit::new();
-
-        // Return a valid pointer for the matching dictionary
+    fn test_battery_update_no_battery() {
+        let mut mock = crate::iokit::MockIOKit::new();
+        
+        // Setup mock for service matching
         mock.expect_io_service_matching()
             .with(eq("AppleSmartBattery"))
-            .returning(|_| std::ptr::null());  // Simulate failure to create dictionary
+            .times(1)
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Retained::from_raw(dict.cast()).unwrap()
+            });
 
-        // These shouldn't be called if matching is null
+        // Setup mock for getting service
         mock.expect_io_service_get_matching_service()
-            .times(0)
-            .returning(|_| 1234);
+            .times(1)
+            .returning(|_| unsafe {
+                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+                Some(Retained::from_raw(obj).unwrap())
+            });
 
-        mock.expect_cf_release()
-            .times(0)
-            .returning(|_| ());
-
-        mock.expect_io_object_release()
-            .times(0)
-            .returning(|_| ());
-
+        // Setup mock for getting properties
         mock.expect_io_registry_entry_create_cf_properties()
-            .times(0)
-            .returning(|_| Ok(std::ptr::null_mut()));
+            .times(1)
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Ok(Retained::from_raw(dict.cast()).unwrap())
+            });
 
-        let mut battery = Battery::default();
-        battery.iokit = Box::new(mock);
+        // Setup mock for property getters
+        mock.expect_get_bool_property()
+            .with(always(), eq(BATTERY_IS_PRESENT))
+            .times(1)
+            .returning(|_, _| Some(false));
 
-        let result = battery.update();
-        assert!(matches!(result, Err(Error::SystemError(_))));
+        let mut battery = Battery {
+            iokit: Box::new(mock),
+            is_present: true,
+            is_charging: true,
+            percentage: 50.0,
+            time_remaining: Duration::from_secs(3600),
+            power_source: PowerSource::Battery,
+            cycle_count: 100,
+            health_percentage: 90.0,
+            temperature: 25.0,
+        };
+
+        assert!(battery.update().is_ok());
+        assert!(!battery.is_present);
+        assert!(!battery.is_charging);
+        assert_eq!(battery.percentage, 0.0);
+        assert_eq!(battery.time_remaining, Duration::from_secs(0));
+        assert_eq!(battery.power_source, PowerSource::Unknown);
+        assert_eq!(battery.cycle_count, 0);
+        assert_eq!(battery.health_percentage, 0.0);
+        assert_eq!(battery.temperature, 0.0);
     }
 
     #[test]
@@ -551,14 +585,16 @@ mod tests {
 
         #[test]
         fn test_get_info_service_not_found() {
-            let mut mock = MockIOKit::new();
+            let mut mock = crate::iokit::MockIOKit::new();
             mock.expect_io_service_matching()
                 .with(eq("AppleSmartBattery"))
-                .returning(|_| 0x1234 as *const _);
+                .returning(|_| unsafe {
+                    let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                    Retained::from_raw(dict.cast()).unwrap()
+                });
+
             mock.expect_io_service_get_matching_service()
-                .returning(|_| 0);
-            mock.expect_cf_release()
-                .returning(|_| ());
+                .returning(|_| None);
 
             let battery = Battery {
                 is_present: false,
@@ -577,29 +613,23 @@ mod tests {
 
         #[test]
         fn test_get_info_properties_failure() {
-            let mut mock = MockIOKit::new();
+            let mut mock = crate::iokit::MockIOKit::new();
             
-            // Return a valid pointer for the matching dictionary
             mock.expect_io_service_matching()
                 .with(eq("AppleSmartBattery"))
-                .returning(|_| std::ptr::null() as CFDictionaryRef);
+                .returning(|_| unsafe {
+                    let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                    Retained::from_raw(dict.cast()).unwrap()
+                });
 
-            // These shouldn't be called if matching is null
             mock.expect_io_service_get_matching_service()
-                .times(0)
-                .returning(|_| 0);
+                .returning(|_| unsafe {
+                    let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+                    Some(Retained::from_raw(obj).unwrap())
+                });
 
             mock.expect_io_registry_entry_create_cf_properties()
-                .times(0)
                 .returning(|_| Err(Error::SystemError("Failed to get properties".into())));
-
-            mock.expect_io_object_release()
-                .times(0)
-                .returning(|_| ());
-
-            mock.expect_cf_release()
-                .times(0)
-                .returning(|_| ());
 
             let battery = Battery {
                 is_present: false,

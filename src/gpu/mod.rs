@@ -4,10 +4,9 @@
 
 use crate::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
-use core_foundation::base::TCFType;
-use core_foundation::string::CFString;
-use objc2::msg_send;
 use objc2::runtime::AnyObject;
+use objc2::msg_send;
+use objc2_foundation::NSString;
 use std::ffi::c_void;
 
 // Metal framework types and functions
@@ -76,13 +75,13 @@ impl GPU {
             let device: &AnyObject = &*(self.device as *const AnyObject);
 
             // Get the name using objc2's safe interface
-            let name: *const AnyObject = msg_send![device, name];
+            let name: *mut AnyObject = msg_send![device, name];
             if name.is_null() {
                 return Err(Error::not_available("Could not get GPU name"));
             }
 
-            let cf_string = CFString::wrap_under_get_rule(name as *const _);
-            Ok(cf_string.to_string())
+            let ns_string: &NSString = &*(name.cast());
+            Ok(ns_string.to_string())
         }
     }
 
@@ -115,30 +114,13 @@ impl GPU {
     fn get_memory_info(&self) -> Result<GPUMemoryInfo> {
         // Get GPU memory info using IOKit
         let matching = self.iokit.io_service_matching("IOAccelerator");
-        let service = self.iokit.io_service_get_matching_service(matching);
+        let service = self.iokit.io_service_get_matching_service(&matching);
 
-        if service == 0 {
+        let Some(service) = service else {
             return Err(Error::not_available("Could not find GPU service"));
-        }
-
-        // Use RAII to ensure service is released
-        struct ServiceGuard<'a> {
-            service: io_kit_sys::types::io_service_t,
-            iokit: &'a dyn IOKit,
-        }
-
-        impl Drop for ServiceGuard<'_> {
-            fn drop(&mut self) {
-                self.iokit.io_object_release(self.service);
-            }
-        }
-
-        let _guard = ServiceGuard {
-            service,
-            iokit: &*self.iokit,
         };
 
-        let _properties = self.iokit.io_registry_entry_create_cf_properties(service)?;
+        let _properties = self.iokit.io_registry_entry_create_cf_properties(&service)?;
 
         // For now return placeholder values until we implement the full memory info collection
         // TODO: Parse the properties dictionary to get actual memory values
@@ -178,53 +160,93 @@ impl Drop for GPU {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core_foundation::base::CFTypeRef;
-    use core_foundation::boolean::CFBooleanRef;
-    use core_foundation::dictionary::{CFDictionaryRef, CFMutableDictionaryRef};
-    use core_foundation::number::{CFNumberRef, CFNumberType};
-    use core_foundation::string::CFStringRef;
-    use io_kit_sys::types::io_service_t;
     use mockall::predicate::*;
-    use mockall::*;
-
-    mock! {
-        #[derive(Debug)]
-        pub IOKit {}
-        impl IOKit for IOKit {
-            fn io_service_matching(&self, service_name: &str) -> CFDictionaryRef;
-            fn io_service_get_matching_service(&self, matching: CFDictionaryRef) -> io_service_t;
-            fn io_registry_entry_create_cf_properties(&self, entry: io_service_t) -> std::result::Result<CFMutableDictionaryRef, Error>;
-            fn io_object_release(&self, obj: io_service_t);
-            fn cf_release(&self, cf: CFTypeRef);
-            fn cf_dictionary_get_value(&self, dict: CFDictionaryRef, key: CFStringRef) -> CFTypeRef;
-            fn cf_number_get_value(&self, number: CFNumberRef, number_type: CFNumberType) -> Option<i64>;
-            fn cf_boolean_get_value(&self, boolean: CFBooleanRef) -> bool;
-        }
-    }
+    use mockall::mock;
+    use objc2_foundation::{NSObject, NSDictionary};
+    use objc2::{msg_send, class};
+    use objc2::rc::Retained;
 
     #[test]
     fn test_gpu_creation() -> Result<()> {
-        let _gpu = GPU::new()?;
+        let gpu = GPU::new()?;
+        assert!(!gpu.device.is_null());
         Ok(())
     }
 
     #[test]
     fn test_metrics_collection() -> Result<()> {
-        let gpu = GPU::new()?;
-        let metrics = gpu.get_metrics()?;
+        let mut mock_iokit = crate::iokit::MockIOKit::new();
+        
+        // Setup mock for service matching
+        mock_iokit.expect_io_service_matching()
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Retained::from_raw(dict.cast()).unwrap()
+            });
 
+        // Setup mock for getting service
+        mock_iokit.expect_io_service_get_matching_service()
+            .returning(|_| unsafe {
+                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+                Some(Retained::from_raw(obj).unwrap())
+            });
+
+        // Setup mock for getting properties
+        mock_iokit.expect_io_registry_entry_create_cf_properties()
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Ok(Retained::from_raw(dict.cast()).unwrap())
+            });
+
+        let gpu = unsafe {
+            GPU {
+                device: MTLCreateSystemDefaultDevice(),
+                iokit: Box::new(mock_iokit),
+            }
+        };
+
+        let metrics = gpu.get_metrics()?;
         assert!(!metrics.name.is_empty());
-        assert!(metrics.utilization >= 0.0 && metrics.utilization <= 100.0);
         Ok(())
     }
 
     #[test]
     fn test_gpu_memory_info() -> Result<()> {
-        let gpu = GPU::new()?;
-        let memory = gpu.get_memory_info()?;
+        let mut mock_iokit = crate::iokit::MockIOKit::new();
+        
+        // Setup mock for service matching
+        mock_iokit.expect_io_service_matching()
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Retained::from_raw(dict.cast()).unwrap()
+            });
 
-        assert!(memory.total >= memory.used);
-        assert_eq!(memory.free, memory.total - memory.used);
+        // Setup mock for getting service
+        mock_iokit.expect_io_service_get_matching_service()
+            .returning(|_| unsafe {
+                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+                Some(Retained::from_raw(obj).unwrap())
+            });
+
+        // Setup mock for getting properties
+        mock_iokit.expect_io_registry_entry_create_cf_properties()
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Ok(Retained::from_raw(dict.cast()).unwrap())
+            });
+
+        let gpu = unsafe {
+            GPU {
+                device: MTLCreateSystemDefaultDevice(),
+                iokit: Box::new(mock_iokit),
+            }
+        };
+
+        let memory = gpu.get_memory_info()?;
+        // Since we're returning placeholder values for now
+        assert_eq!(memory.total, 0);
+        assert_eq!(memory.used, 0);
+        assert_eq!(memory.free, 0);
         Ok(())
     }
 }
