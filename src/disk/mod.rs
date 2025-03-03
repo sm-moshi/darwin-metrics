@@ -19,7 +19,14 @@ pub struct Disk {
 
 impl Disk {
     /// Creates a new Disk instance with the given values
-    pub fn new(device: String, mount_point: String, fs_type: String, total: u64, available: u64, used: u64) -> Self {
+    pub fn new(
+        device: String,
+        mount_point: String,
+        fs_type: String,
+        total: u64,
+        available: u64,
+        used: u64,
+    ) -> Self {
         Self {
             device,
             mount_point,
@@ -32,7 +39,9 @@ impl Disk {
 
     /// Get current disk information
     pub fn get_info() -> Result<Self> {
-        Err(Error::NotImplemented("Disk info not yet implemented".to_string()))
+        Err(Error::NotImplemented(
+            "Disk info not yet implemented".to_string(),
+        ))
     }
 
     /// Get information for all mounted disks
@@ -47,7 +56,7 @@ impl Disk {
     ///
     /// let disks = Disk::get_all().unwrap();
     /// for disk in disks {
-    ///     println!("{}: {:.1}% used", 
+    ///     println!("{}: {:.1}% used",
     ///         disk.mount_point,
     ///         disk.usage_percentage()
     ///     );
@@ -55,7 +64,9 @@ impl Disk {
     /// ```
     pub fn get_all() -> Result<Vec<Self>> {
         // TODO: Implement actual disk info retrieval
-        Err(Error::not_implemented("Disk info retrieval not yet implemented"))
+        Err(Error::not_implemented(
+            "Disk info retrieval not yet implemented",
+        ))
     }
 
     /// Returns disk usage as a percentage (0-100)
@@ -104,13 +115,13 @@ mod tests {
             device: "/dev/disk1s1".to_string(),
             mount_point: "/".to_string(),
             fs_type: "apfs".to_string(),
-            total: 500 * 1024 * 1024 * 1024, // 500GB
+            total: 500 * 1024 * 1024 * 1024,     // 500GB
             available: 100 * 1024 * 1024 * 1024, // 100GB
-            used: 400 * 1024 * 1024 * 1024, // 400GB
+            used: 400 * 1024 * 1024 * 1024,      // 400GB
         };
 
         assert_eq!(disk.usage_percentage(), 80.0);
         assert!(!disk.is_nearly_full());
         assert_eq!(disk.available_display(), "100.0 GB");
     }
-} 
+}

@@ -24,7 +24,7 @@ impl Temperature {
     ///
     /// let temps = Temperature::get_all().unwrap();
     /// for temp in temps {
-    ///     println!("{}: {:.1}°C", 
+    ///     println!("{}: {:.1}°C",
     ///         temp.sensor,
     ///         temp.celsius
     ///     );
@@ -32,7 +32,9 @@ impl Temperature {
     /// ```
     pub fn get_all() -> Result<Vec<Self>> {
         // TODO: Implement actual temperature info retrieval
-        Err(Error::not_implemented("Temperature info retrieval not yet implemented"))
+        Err(Error::not_implemented(
+            "Temperature info retrieval not yet implemented",
+        ))
     }
 
     /// Create a new Temperature instance from Celsius
@@ -64,7 +66,9 @@ impl Temperature {
 
     /// Get current temperature information
     pub fn get_info() -> Result<Self> {
-        Err(Error::NotImplemented("Temperature info not yet implemented".to_string()))
+        Err(Error::NotImplemented(
+            "Temperature info not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -89,4 +93,4 @@ mod tests {
         let temp = Temperature::from_celsius("CPU", 75.0);
         assert!(!temp.is_critical());
     }
-} 
+}

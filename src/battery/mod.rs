@@ -1,9 +1,9 @@
-use crate::{Error, Result};
-use std::time::Duration;
-use std::ffi::{c_void, CString};
 use crate::iokit::{IOKit, IOKitImpl};
-use core_foundation::dictionary::{CFDictionaryRef, CFDictionaryGetValue};
-use core_foundation::number::{CFNumberRef, CFNumberGetValue, kCFNumberSInt64Type};
+use crate::{Error, Result};
+use core_foundation::dictionary::{CFDictionaryGetValue, CFDictionaryRef};
+use core_foundation::number::{CFNumberGetValue, CFNumberRef, kCFNumberSInt64Type};
+use std::ffi::{CString, c_void};
+use std::time::Duration;
 
 /// Power source type for the system
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -40,23 +40,23 @@ pub struct Battery {
 
 impl Default for Battery {
     fn default() -> Self {
-        Self::with_values(
-            false,
-            false,
-            0.0,
-            0,
-            PowerSource::Unknown,
-            0,
-            0.0,
-            0.0
-        )
+        Self::with_values(false, false, 0.0, 0, PowerSource::Unknown, 0, 0.0, 0.0)
     }
 }
 
 impl Battery {
-    /// Create a new Battery instance with default values
-    pub fn new() -> Self {
-        Self::default()
+    /// Create a new Battery instance and initialize it with system values
+    pub fn new() -> Result<Self> {
+        let mut battery = Self::default();
+        battery.update()?;
+        Ok(battery)
+    }
+
+    /// Update battery metrics from the system
+    pub fn update(&mut self) -> Result<()> {
+        // TODO: Implement actual battery metrics collection
+        // For now return default values
+        Ok(())
     }
 
     /// Create a new Battery instance with the given parameters
@@ -89,7 +89,7 @@ impl Battery {
             cycle_count,
             health_percentage: health_percentage.clamp(0.0, 100.0),
             temperature,
-            iokit: Box::new(IOKitImpl::default())
+            iokit: Box::new(IOKitImpl::default()),
         }
     }
 
@@ -104,7 +104,11 @@ impl Battery {
             }
 
             let mut result: i64 = 0;
-            if CFNumberGetValue(value as CFNumberRef, kCFNumberSInt64Type, &mut result as *mut _ as *mut _) {
+            if CFNumberGetValue(
+                value as CFNumberRef,
+                kCFNumberSInt64Type,
+                &mut result as *mut _ as *mut _,
+            ) {
                 Some(result)
             } else {
                 None
@@ -122,9 +126,9 @@ impl Battery {
     /// ```no_run
     /// use darwin_metrics::battery::Battery;
     ///
-    /// let battery = Battery::new();
+    /// let battery = Battery::new().unwrap();
     /// let info = battery.get_info().unwrap();
-    /// println!("Battery at {}%, {}", 
+    /// println!("Battery at {}%, {}",
     ///     info.percentage,
     ///     if info.is_charging { "charging" } else { "discharging" }
     /// );
@@ -133,15 +137,17 @@ impl Battery {
         // Create matching dictionary for AppleSmartBattery
         let matching = self.iokit.io_service_matching("AppleSmartBattery");
         if matching.is_null() {
-            return Err(Error::SystemError("Failed to create matching dictionary".into()));
+            return Err(Error::SystemError(
+                "Failed to create matching dictionary".into(),
+            ));
         }
 
         // Get battery service
         let service = self.iokit.io_service_get_matching_service(matching);
-        
+
         // Release the matching dictionary since IOKit takes ownership
         self.iokit.cf_release(matching as *mut _);
-        
+
         if service == 0 {
             return Err(Error::ServiceNotFound);
         }
@@ -216,21 +222,21 @@ impl Clone for Battery {
             cycle_count: self.cycle_count,
             health_percentage: self.health_percentage,
             temperature: self.temperature,
-            iokit: Box::new(IOKitImpl::default())
+            iokit: Box::new(IOKitImpl::default()),
         }
     }
 }
 
 impl PartialEq for Battery {
     fn eq(&self, other: &Self) -> bool {
-        self.is_present == other.is_present &&
-        self.is_charging == other.is_charging &&
-        self.percentage == other.percentage &&
-        self.time_remaining == other.time_remaining &&
-        self.power_source == other.power_source &&
-        self.cycle_count == other.cycle_count &&
-        self.health_percentage == other.health_percentage &&
-        self.temperature == other.temperature
+        self.is_present == other.is_present
+            && self.is_charging == other.is_charging
+            && self.percentage == other.percentage
+            && self.time_remaining == other.time_remaining
+            && self.power_source == other.power_source
+            && self.cycle_count == other.cycle_count
+            && self.health_percentage == other.health_percentage
+            && self.temperature == other.temperature
     }
 }
 
@@ -242,13 +248,8 @@ mod tests {
 
     #[test]
     fn test_battery_constructor() {
-        let battery = Battery::with_values(
-            true, false, 75.5, 90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0
-        );
+        let battery =
+            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 35.0);
         assert_eq!(battery.is_present, true);
         assert_eq!(battery.is_charging, false);
         assert_eq!(battery.percentage, 75.5);
@@ -261,13 +262,7 @@ mod tests {
 
     #[test]
     fn test_battery_status_display() {
-        let battery = Battery::with_values(
-            true, false, 75.5, 90,
-            PowerSource::AC,
-            500,
-            85.0,
-            35.0
-        );
+        let battery = Battery::with_values(true, false, 75.5, 90, PowerSource::AC, 500, 85.0, 35.0);
         assert_eq!(battery.time_remaining_display(), "1 hours 30 minutes");
         assert!(!battery.is_low());
         assert!(!battery.is_critical());
@@ -277,11 +272,14 @@ mod tests {
     #[test]
     fn test_battery_health() {
         let battery = Battery::with_values(
-            true, false, 75.5, 90,
+            true,
+            false,
+            75.5,
+            90,
             PowerSource::Battery,
             1200,
             65.0,
-            35.0
+            35.0,
         );
         assert!(battery.is_health_poor());
         assert!(battery.has_high_cycle_count());
@@ -289,27 +287,11 @@ mod tests {
 
     #[test]
     fn test_power_source_variants() {
-        let battery_power = Battery::with_values(
-            true, false, 75.5, 90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0
-        );
-        let ac_power = Battery::with_values(
-            true, true, 95.5, 0,
-            PowerSource::AC,
-            500,
-            85.0,
-            35.0
-        );
-        let unknown_power = Battery::with_values(
-            true, false, 75.5, 90,
-            PowerSource::Unknown,
-            500,
-            85.0,
-            35.0
-        );
+        let battery_power =
+            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 35.0);
+        let ac_power = Battery::with_values(true, true, 95.5, 0, PowerSource::AC, 500, 85.0, 35.0);
+        let unknown_power =
+            Battery::with_values(true, false, 75.5, 90, PowerSource::Unknown, 500, 85.0, 35.0);
 
         assert_eq!(battery_power.power_source_display(), "Battery Power");
         assert_eq!(ac_power.power_source_display(), "AC Power");
@@ -319,41 +301,45 @@ mod tests {
     #[test]
     fn test_battery_percentage_bounds() {
         let battery = Battery::with_values(
-            true, false, 150.0, 90, // Over 100%
+            true,
+            false,
+            150.0,
+            90, // Over 100%
             PowerSource::Battery,
             500,
             85.0,
-            35.0
+            35.0,
         );
         assert!(battery.percentage <= 100.0);
-        
+
         let battery = Battery::with_values(
-            true, false, -10.0, 90, // Under 0%
+            true,
+            false,
+            -10.0,
+            90, // Under 0%
             PowerSource::Battery,
             500,
             85.0,
-            35.0
+            35.0,
         );
         assert!(battery.percentage >= 0.0);
     }
 
     #[test]
     fn test_time_remaining_edge_cases() {
-        let battery = Battery::with_values(
-            true, false, 75.5, 0,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0
-        );
+        let battery =
+            Battery::with_values(true, false, 75.5, 0, PowerSource::Battery, 500, 85.0, 35.0);
         assert_eq!(battery.time_remaining_display(), "0 minutes");
 
         let battery = Battery::with_values(
-            true, false, 75.5, 180,
+            true,
+            false,
+            75.5,
+            180,
             PowerSource::Battery,
             500,
             85.0,
-            35.0
+            35.0,
         );
         assert_eq!(battery.time_remaining_display(), "3 hours 0 minutes");
     }
@@ -361,20 +347,26 @@ mod tests {
     #[test]
     fn test_battery_health_edge_cases() {
         let battery = Battery::with_values(
-            true, false, 75.5, 90,
+            true,
+            false,
+            75.5,
+            90,
             PowerSource::Battery,
             0, // New battery
             100.0,
-            35.0
+            35.0,
         );
         assert!(!battery.has_high_cycle_count());
 
         let battery = Battery::with_values(
-            true, false, 75.5, 90,
+            true,
+            false,
+            75.5,
+            90,
             PowerSource::Battery,
             5000, // Very old battery
             50.0,
-            35.0
+            35.0,
         );
         assert!(battery.has_high_cycle_count());
         assert!(battery.is_health_poor());
@@ -382,21 +374,19 @@ mod tests {
 
     #[test]
     fn test_battery_temperature_bounds() {
-        let cold_battery = Battery::with_values(
-            true, false, 75.5, 90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            0.0
-        );
+        let cold_battery =
+            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 0.0);
         assert!(cold_battery.temperature >= 0.0);
 
         let hot_battery = Battery::with_values(
-            true, false, 75.5, 90,
+            true,
+            false,
+            75.5,
+            90,
             PowerSource::Battery,
             500,
             85.0,
-            100.0
+            100.0,
         );
         assert!(hot_battery.temperature <= 100.0);
     }
@@ -404,23 +394,21 @@ mod tests {
     #[test]
     fn test_battery_info() {
         let mut mock = MockIOKit::new();
-        
+
         // Setup mock expectations
         mock.expect_io_service_matching()
             .with(eq("AppleSmartBattery"))
             .returning(|_| 0x1234 as *const _); // Return a non-null dictionary
-            
+
         mock.expect_io_service_get_matching_service()
             .returning(|_| 1234); // Return a dummy service
-            
+
         mock.expect_io_registry_entry_create_cf_properties()
             .returning(|_| Ok(std::ptr::null_mut())); // Return empty properties
-            
-        mock.expect_io_object_release()
-            .returning(|_| ());
-            
-        mock.expect_cf_release()
-            .returning(|_| ());
+
+        mock.expect_io_object_release().returning(|_| ());
+
+        mock.expect_cf_release().returning(|_| ());
 
         let battery = Battery {
             is_present: false,
@@ -431,7 +419,7 @@ mod tests {
             cycle_count: 0,
             health_percentage: 0.0,
             temperature: 0.0,
-            iokit: Box::new(mock)
+            iokit: Box::new(mock),
         };
 
         let info = battery.get_info();
@@ -451,9 +439,8 @@ mod tests {
                 .returning(|_| 0x1234 as *const _); // Return a non-null dictionary
             mock.expect_io_service_get_matching_service()
                 .returning(|_| 0); // Return 0 to indicate service not found
-            mock.expect_cf_release()
-                .returning(|_| ());
-            
+            mock.expect_cf_release().returning(|_| ());
+
             let battery = Battery {
                 is_present: false,
                 is_charging: false,
@@ -463,7 +450,7 @@ mod tests {
                 cycle_count: 0,
                 health_percentage: 0.0,
                 temperature: 0.0,
-                iokit: Box::new(mock)
+                iokit: Box::new(mock),
             };
             let result = battery.get_info();
             assert!(matches!(result, Err(Error::ServiceNotFound)));
@@ -479,11 +466,9 @@ mod tests {
                 .returning(|_| 123);
             mock.expect_io_registry_entry_create_cf_properties()
                 .returning(|_| Err(Error::SystemError("Failed to get properties".into())));
-            mock.expect_io_object_release()
-                .returning(|_| ());
-            mock.expect_cf_release()
-                .returning(|_| ());
-            
+            mock.expect_io_object_release().returning(|_| ());
+            mock.expect_cf_release().returning(|_| ());
+
             let battery = Battery {
                 is_present: false,
                 is_charging: false,
@@ -493,10 +478,10 @@ mod tests {
                 cycle_count: 0,
                 health_percentage: 0.0,
                 temperature: 0.0,
-                iokit: Box::new(mock)
+                iokit: Box::new(mock),
             };
             let result = battery.get_info();
             assert!(matches!(result, Err(Error::SystemError(_))));
         }
     }
-} 
+}

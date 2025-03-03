@@ -15,12 +15,7 @@ pub unsafe fn c_str_to_string(ptr: *const c_char) -> Option<String> {
         return None;
     }
 
-    unsafe {
-        CStr::from_ptr(ptr)
-            .to_str()
-            .ok()
-            .map(|s| s.to_string())
-    }
+    unsafe { CStr::from_ptr(ptr).to_str().ok().map(|s| s.to_string()) }
 }
 
 /// Converts a raw string pointer and length to a Rust String
@@ -55,9 +50,7 @@ pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<V
         return None;
     }
 
-    unsafe {
-        Some(slice::from_raw_parts(ptr, len).to_vec())
-    }
+    unsafe { Some(slice::from_raw_parts(ptr, len).to_vec()) }
 }
 
 #[cfg(test)]
@@ -69,10 +62,7 @@ mod tests {
     fn test_c_str_to_string() {
         let test_str = CString::new("test").unwrap();
         unsafe {
-            assert_eq!(
-                c_str_to_string(test_str.as_ptr()),
-                Some("test".to_string())
-            );
+            assert_eq!(c_str_to_string(test_str.as_ptr()), Some("test".to_string()));
             assert_eq!(c_str_to_string(std::ptr::null()), None);
         }
     }
@@ -102,4 +92,4 @@ mod tests {
             assert_eq!(raw_f64_slice_to_vec(std::ptr::null(), 3), None);
         }
     }
-} 
+}

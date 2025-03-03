@@ -1,42 +1,120 @@
-#[derive(Debug, thiserror::Error)]
+//! Error types for darwin-metrics operations
+//! 
+//! This module provides a comprehensive error handling system for all metrics collection
+//! operations. Each subsystem (Battery, GPU, CPU, etc.) has its own specific error types,
+//! and all errors can be converted into the main Error type.
+
+use thiserror::Error;
+use std::ffi::NulError;
+
+/// Main error type for darwin-metrics operations
+#[derive(Debug, Error)]
 pub enum Error {
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    #[error("IOKit error: {0}")]
+    IOKit(String),
 
-    #[error("System call error: {0}")]
-    System(String),
+    #[error("Metal error: {0}")]
+    Metal(String),
 
-    #[error("Swift FFI error: {0}")]
-    SwiftFFI(String),
-
-    #[error("Invalid data: {0}")]
-    InvalidData(String),
+    #[error("Service not found: {0}")]
+    ServiceNotFound(String),
 
     #[error("Feature not available: {0}")]
     NotAvailable(String),
 
-    #[error("Permission denied: {0}")]
-    PermissionDenied(String),
+    #[error("Feature not implemented: {0}")]
+    NotImplemented(String),
+
+    #[error("System error: {0}")]
+    System(String),
+
+    #[error("Invalid data: {0}")]
+    InvalidData(String),
+
+    #[error("Memory error: {0}")]
+    Memory(String),
+
+    #[error("Temperature sensor error: {0}")]
+    Temperature(String),
+
+    #[error("Disk error: {0}")]
+    Disk(String),
+
+    #[error("Network error: {0}")]
+    Network(String),
+
+    #[error("Process error: {0}")]
+    Process(String),
+
+    #[error(transparent)]
+    NulError(#[from] NulError),
+
+    #[error(transparent)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl Error {
-    pub(crate) fn system<S: Into<String>>(msg: S) -> Self {
-        Error::System(msg.into())
+    /// Create a new IOKit error
+    pub fn io_kit(msg: impl Into<String>) -> Self {
+        Error::IOKit(msg.into())
     }
 
-    pub(crate) fn swift_ffi<S: Into<String>>(msg: S) -> Self {
-        Error::SwiftFFI(msg.into())
+    /// Create a new Metal error
+    pub fn metal(msg: impl Into<String>) -> Self {
+        Error::Metal(msg.into())
     }
 
-    pub(crate) fn invalid_data<S: Into<String>>(msg: S) -> Self {
-        Error::InvalidData(msg.into())
+    /// Create a new service not found error
+    pub fn service_not_found(msg: impl Into<String>) -> Self {
+        Error::ServiceNotFound(msg.into())
     }
 
-    pub(crate) fn not_available<S: Into<String>>(msg: S) -> Self {
+    /// Create a new not available error
+    pub fn not_available(msg: impl Into<String>) -> Self {
         Error::NotAvailable(msg.into())
     }
 
-    pub(crate) fn permission_denied<S: Into<String>>(msg: S) -> Self {
-        Error::PermissionDenied(msg.into())
+    /// Create a new not implemented error
+    pub fn not_implemented(msg: impl Into<String>) -> Self {
+        Error::NotImplemented(msg.into())
+    }
+
+    /// Create a new system error
+    pub fn system(msg: impl Into<String>) -> Self {
+        Error::System(msg.into())
+    }
+
+    /// Create a new invalid data error
+    pub fn invalid_data(msg: impl Into<String>) -> Self {
+        Error::InvalidData(msg.into())
+    }
+}
+
+/// Result type for darwin-metrics operations
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_creation() {
+        let err = Error::io_kit("test error");
+        assert!(matches!(err, Error::IOKit(_)));
+        
+        let err = Error::metal("test error");
+        assert!(matches!(err, Error::Metal(_)));
+        
+        let err = Error::not_available("test error");
+        assert!(matches!(err, Error::NotAvailable(_)));
+    }
+
+    #[test]
+    fn test_error_display() {
+        let err = Error::io_kit("test error");
+        assert_eq!(err.to_string(), "IOKit error: test error");
+        
+        let err = Error::metal("test error");
+        assert_eq!(err.to_string(), "Metal error: test error");
     }
 } 

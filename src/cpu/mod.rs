@@ -24,9 +24,15 @@ impl CPU {
     ///
     /// # Returns
     /// A new CPU instance
-    pub fn new(physical_cores: u32, logical_cores: u32, core_usage: Vec<f64>, frequency_mhz: f64) -> Self {
+    pub fn new(
+        physical_cores: u32,
+        logical_cores: u32,
+        core_usage: Vec<f64>,
+        frequency_mhz: f64,
+    ) -> Self {
         // Validate core usage values
-        let validated_usage = core_usage.into_iter()
+        let validated_usage = core_usage
+            .into_iter()
             .map(|usage| usage.clamp(0.0, 100.0))
             .collect();
 
@@ -44,7 +50,9 @@ impl CPU {
     /// Result containing CPU information or an error if retrieval fails
     pub fn get_info() -> Result<Self> {
         // TODO: Implement actual system call to get CPU info
-        Err(Error::not_implemented("CPU info retrieval not yet implemented"))
+        Err(Error::not_implemented(
+            "CPU info retrieval not yet implemented",
+        ))
     }
 
     /// Calculates the average CPU usage across all cores
@@ -100,12 +108,7 @@ mod tests {
 
     #[test]
     fn test_value_clamping() {
-        let cpu = CPU::new(
-            2, 
-            4, 
-            vec![-10.0, 50.0, 150.0, 75.0], 
-            -100.0
-        );
+        let cpu = CPU::new(2, 4, vec![-10.0, 50.0, 150.0, 75.0], -100.0);
         assert_eq!(cpu.core_usage(), &[0.0, 50.0, 100.0, 75.0]);
         assert_eq!(cpu.frequency_mhz(), 0.0);
     }
@@ -115,4 +118,4 @@ mod tests {
         let cpu = CPU::new(2, 4, vec![], 2400.0);
         assert_eq!(cpu.average_usage(), 0.0);
     }
-} 
+}

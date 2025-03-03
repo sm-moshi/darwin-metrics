@@ -42,7 +42,9 @@ impl Memory {
     /// ```
     pub fn get_info() -> Result<Self> {
         // TODO: Implement actual memory info retrieval
-        Err(Error::not_implemented("Memory info retrieval not yet implemented"))
+        Err(Error::not_implemented(
+            "Memory info retrieval not yet implemented",
+        ))
     }
 
     /// Returns memory usage as a percentage (0-100)
@@ -63,14 +65,14 @@ mod tests {
     #[test]
     fn test_memory_calculations() {
         let memory = Memory {
-            total: 16 * 1024 * 1024 * 1024, // 16GB
+            total: 16 * 1024 * 1024 * 1024,    // 16GB
             available: 8 * 1024 * 1024 * 1024, // 8GB
-            used: 8 * 1024 * 1024 * 1024, // 8GB
-            wired: 2 * 1024 * 1024 * 1024, // 2GB
+            used: 8 * 1024 * 1024 * 1024,      // 8GB
+            wired: 2 * 1024 * 1024 * 1024,     // 2GB
             pressure: 0.5,
         };
 
         assert_eq!(memory.usage_percentage(), 50.0);
         assert_eq!(memory.pressure_percentage(), 50.0);
     }
-} 
+}

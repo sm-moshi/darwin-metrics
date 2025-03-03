@@ -1,4 +1,0 @@
-module darwin_metrics_swift_bridge {
-    header "darwin_metrics_swift_bridge.h"
-    export *
-}
