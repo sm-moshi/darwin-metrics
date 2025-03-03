@@ -2,9 +2,23 @@ use std::ptr::NonNull;
 use tracing::{debug, error, info};
 use std::sync::Arc;
 use parking_lot::Mutex;
+use std::ffi::c_void;
+use io_kit_sys::types::io_service_t;
 
 use crate::{Error, Result};
-use crate::iokit::{kIOMainPortDefault, IOObjectRelease, IOServiceGetMatchingService, IOServiceMatching};
+use crate::battery::{Battery, PowerSource};
+use crate::iokit::IOKit;
+use io_kit_sys::{
+    kIOMasterPortDefault,
+    IOObjectRelease,
+    IOServiceGetMatchingService,
+    IOServiceMatching,
+};
+use crate::cpu::CPU;
+use crate::memory::Memory;
+use crate::gpu::GPU;
+use crate::disk::Disk;
+use crate::temperature::Temperature;
 
 /// FFI struct for battery information
 #[repr(C)]
@@ -13,7 +27,11 @@ pub struct BatteryInfoFFI {
     pub is_present: bool,
     pub is_charging: bool,
     pub percentage: f64,
-    pub time_remaining: u64,
+    pub time_remaining_minutes: i32,
+    pub power_source: i32,
+    pub cycle_count: u32,
+    pub health_percentage: f64,
+    pub temperature: f64,
 }
 
 impl Drop for BatteryInfoFFI {
@@ -24,30 +42,17 @@ impl Drop for BatteryInfoFFI {
 
 /// FFI struct for CPU information with thread-safe core usage data
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CPUInfoFFI {
-    pub physical_cores: u32,
-    pub logical_cores: u32,
-    pub core_usage: Arc<Vec<f64>>,
-    pub core_usage_len: usize,
-    pub frequency_mhz: f64,
+    pub usage_percentage: f64,
+    pub temperature: f64,
+    pub core_count: u32,
+    pub thread_count: u32,
 }
 
 // Make CPUInfoFFI Send + Sync by using Arc for shared data
 unsafe impl Send for CPUInfoFFI {}
 unsafe impl Sync for CPUInfoFFI {}
-
-impl Clone for CPUInfoFFI {
-    fn clone(&self) -> Self {
-        Self {
-            physical_cores: self.physical_cores,
-            logical_cores: self.logical_cores,
-            core_usage: self.core_usage.clone(),
-            core_usage_len: self.core_usage_len,
-            frequency_mhz: self.frequency_mhz,
-        }
-    }
-}
 
 impl Drop for CPUInfoFFI {
     fn drop(&mut self) {
@@ -59,11 +64,11 @@ impl Drop for CPUInfoFFI {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MemoryInfoFFI {
-    pub total: u64,
-    pub available: u64,
-    pub used: u64,
-    pub wired: u64,
-    pub pressure: f64,
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+    pub available_bytes: u64,
+    pub swap_total_bytes: u64,
+    pub swap_used_bytes: u64,
 }
 
 impl Drop for MemoryInfoFFI {
@@ -74,93 +79,56 @@ impl Drop for MemoryInfoFFI {
 
 /// FFI struct for GPU information
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GPUInfoFFI {
-    pub name: NonNull<u8>,
-    pub name_len: usize,
-    pub utilization: f64,
-    pub memory_used: u64,
-    pub memory_total: u64,
+    pub usage_percentage: f64,
     pub temperature: f64,
+    pub memory_total_bytes: u64,
+    pub memory_used_bytes: u64,
 }
 
 impl Drop for GPUInfoFFI {
     fn drop(&mut self) {
-        unsafe {
-            if !self.name.as_ptr().is_null() {
-                debug!("Freeing GPU name string");
-                let slice = std::slice::from_raw_parts_mut(
-                    self.name.as_ptr(),
-                    self.name_len
-                );
-                drop(Box::from_raw(slice as *mut [u8]));
-            }
-        }
+        debug!("Dropping GPUInfoFFI");
     }
 }
 
 /// FFI struct for disk information
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DiskInfoFFI {
-    pub device: NonNull<u8>,
-    pub device_len: usize,
-    pub mount_point: NonNull<u8>,
-    pub mount_point_len: usize,
-    pub fs_type: NonNull<u8>,
-    pub fs_type_len: usize,
-    pub total: u64,
-    pub available: u64,
-    pub used: u64,
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+    pub available_bytes: u64,
+    pub read_bytes_per_sec: u64,
+    pub write_bytes_per_sec: u64,
 }
 
 impl Drop for DiskInfoFFI {
     fn drop(&mut self) {
-        unsafe {
-            for (ptr, len) in [
-                (self.device, self.device_len),
-                (self.mount_point, self.mount_point_len),
-                (self.fs_type, self.fs_type_len),
-            ] {
-                if !ptr.as_ptr().is_null() {
-                    debug!("Freeing string buffer");
-                    let slice = std::slice::from_raw_parts_mut(ptr.as_ptr(), len);
-                    drop(Box::from_raw(slice as *mut [u8]));
-                }
-            }
-        }
+        debug!("Dropping DiskInfoFFI");
     }
 }
 
 /// FFI struct for temperature information
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TemperatureInfoFFI {
-    pub sensor: NonNull<u8>,
-    pub sensor_len: usize,
-    pub celsius: f64,
-    pub fahrenheit: f64,
+    pub cpu_temp: f64,
+    pub gpu_temp: f64,
+    pub battery_temp: f64,
 }
 
 impl Drop for TemperatureInfoFFI {
     fn drop(&mut self) {
-        unsafe {
-            if !self.sensor.as_ptr().is_null() {
-                debug!("Freeing sensor name string");
-                let slice = std::slice::from_raw_parts_mut(
-                    self.sensor.as_ptr(),
-                    self.sensor_len
-                );
-                drop(Box::from_raw(slice as *mut [u8]));
-            }
-        }
+        debug!("Dropping TemperatureInfoFFI");
     }
 }
 
 /// Resource manager to ensure proper cleanup of system resources
 #[derive(Debug)]
 pub struct ResourceManager {
-    battery_service: Mutex<Option<i32>>,  // IOKit service
+    battery_service: Mutex<Option<io_service_t>>,  // IOKit service
     cpu_stats: Mutex<Option<Box<[f64]>>>,
     memory_stats: Mutex<Option<Box<[u64]>>>,
 }
@@ -207,7 +175,7 @@ lazy_static::lazy_static! {
 }
 
 impl BatteryInfoFFI {
-    pub fn new(service: i32) -> Self {
+    pub fn new(service: io_service_t) -> Self {
         if let Some(service_ref) = RESOURCE_MANAGER.battery_service.lock().as_ref() {
             unsafe {
                 IOObjectRelease(*service_ref);
@@ -219,7 +187,19 @@ impl BatteryInfoFFI {
             is_present: true,
             is_charging: false,
             percentage: 0.0,
-            time_remaining: 0,
+            time_remaining_minutes: 0,
+            power_source: 0,
+            cycle_count: 0,
+            health_percentage: 0.0,
+            temperature: 0.0,
+        }
+    }
+
+    pub fn power_source(&self) -> PowerSource {
+        match self.power_source {
+            1 => PowerSource::Battery,
+            2 => PowerSource::AC,
+            _ => PowerSource::Unknown,
         }
     }
 }
@@ -336,7 +316,7 @@ pub unsafe extern "C" fn get_memory_info() -> *mut MemoryInfoFFI {
 fn get_battery_info_impl() -> Result<BatteryInfoFFI> {
     let service = unsafe {
         IOServiceGetMatchingService(
-            kIOMainPortDefault,
+            kIOMasterPortDefault,
             IOServiceMatching(b"AppleSmartBattery\0".as_ptr() as *const i8)
         )
     };
@@ -353,11 +333,10 @@ fn get_cpu_info_impl() -> Result<CPUInfoFFI> {
     {
         let core_usage = Arc::new(vec![0.5; 8]);
         return Ok(CPUInfoFFI {
-            physical_cores: 4,
-            logical_cores: 8,
-            core_usage: core_usage.clone(),
-            core_usage_len: 8,
-            frequency_mhz: 2400.0,
+            usage_percentage: 50.0,
+            temperature: 25.0,
+            core_count: 4,
+            thread_count: 8,
         });
     }
 
@@ -371,11 +350,11 @@ fn get_cpu_info_impl() -> Result<CPUInfoFFI> {
 fn get_memory_info_impl() -> Result<MemoryInfoFFI> {
     if cfg!(test) {
         Ok(MemoryInfoFFI {
-            total: 16 * 1024 * 1024 * 1024, // 16 GB
-            available: 8 * 1024 * 1024 * 1024, // 8 GB
-            used: 6 * 1024 * 1024 * 1024, // 6 GB
-            wired: 2 * 1024 * 1024 * 1024, // 2 GB
-            pressure: 50.0,
+            total_bytes: 16 * 1024 * 1024 * 1024, // 16 GB
+            used_bytes: 6 * 1024 * 1024 * 1024, // 6 GB
+            available_bytes: 8 * 1024 * 1024 * 1024, // 8 GB
+            swap_total_bytes: 2 * 1024 * 1024 * 1024, // 2 GB
+            swap_used_bytes: 0,
         })
     } else {
         Err(Error::NotImplemented("Memory info retrieval not yet implemented".to_string()))
@@ -397,7 +376,7 @@ mod tests;
 mod test_utils {
     use super::*;
     
-    pub fn mock_battery_service() -> i32 {
+    pub fn mock_battery_service() -> io_service_t {
         123 // Mock service handle
     }
     
@@ -406,7 +385,11 @@ mod test_utils {
             is_present: true,
             is_charging: false,
             percentage: 85.5,
-            time_remaining: 3600,
+            time_remaining_minutes: 60,
+            power_source: 1,
+            cycle_count: 0,
+            health_percentage: 100.0,
+            temperature: 25.0,
         })
     }
     
@@ -414,21 +397,95 @@ mod test_utils {
         let core_usage = Arc::new(vec![0.5; 8]);
         
         Ok(CPUInfoFFI {
-            physical_cores: 4,
-            logical_cores: 8,
-            core_usage: core_usage.clone(),
-            core_usage_len: 8,
-            frequency_mhz: 2400.0,
+            usage_percentage: 50.0,
+            temperature: 25.0,
+            core_count: 4,
+            thread_count: 8,
         })
     }
     
     pub fn mock_get_memory_info_impl() -> Result<MemoryInfoFFI> {
         Ok(MemoryInfoFFI {
-            total: 16_000_000_000,
-            available: 8_000_000_000,
-            used: 8_000_000_000,
-            wired: 2_000_000_000,
-            pressure: 0.5,
+            total_bytes: 16_000_000_000,
+            used_bytes: 6_000_000_000,
+            available_bytes: 8_000_000_000,
+            swap_total_bytes: 2_000_000_000,
+            swap_used_bytes: 0,
         })
+    }
+}
+
+impl From<Battery> for BatteryInfoFFI {
+    fn from(battery: Battery) -> Self {
+        Self {
+            is_present: battery.is_present,
+            is_charging: battery.is_charging,
+            percentage: battery.percentage,
+            time_remaining_minutes: (battery.time_remaining.as_secs() / 60) as i32,
+            power_source: match battery.power_source {
+                PowerSource::Battery => 0,
+                PowerSource::AC => 1,
+                PowerSource::Unknown => 2,
+            },
+            cycle_count: battery.cycle_count,
+            health_percentage: battery.health_percentage,
+            temperature: battery.temperature,
+        }
+    }
+}
+
+impl From<CPU> for CPUInfoFFI {
+    fn from(cpu: CPU) -> Self {
+        Self {
+            usage_percentage: cpu.average_usage(),
+            temperature: 0.0, // Temperature not available in CPU struct yet
+            core_count: cpu.physical_cores(),
+            thread_count: cpu.logical_cores(),
+        }
+    }
+}
+
+impl From<Memory> for MemoryInfoFFI {
+    fn from(memory: Memory) -> Self {
+        Self {
+            total_bytes: memory.total,
+            used_bytes: memory.used,
+            available_bytes: memory.available,
+            swap_total_bytes: memory.wired,
+            swap_used_bytes: (memory.pressure * memory.total as f64) as u64,
+        }
+    }
+}
+
+impl From<GPU> for GPUInfoFFI {
+    fn from(gpu: GPU) -> Self {
+        Self {
+            usage_percentage: gpu.utilization,
+            temperature: gpu.temperature,
+            memory_total_bytes: gpu.memory_total,
+            memory_used_bytes: gpu.memory_used,
+        }
+    }
+}
+
+impl From<Disk> for DiskInfoFFI {
+    fn from(disk: Disk) -> Self {
+        Self {
+            total_bytes: disk.total,
+            used_bytes: disk.used,
+            available_bytes: disk.available,
+            read_bytes_per_sec: 0, // These fields aren't available in the Disk struct yet
+            write_bytes_per_sec: 0,
+        }
+    }
+}
+
+impl From<Temperature> for TemperatureInfoFFI {
+    fn from(temp: Temperature) -> Self {
+        Self {
+            cpu_temp: temp.celsius,
+            gpu_temp: temp.celsius,
+            battery_temp: temp.celsius,
+        }
     }
 } 

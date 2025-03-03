@@ -38,40 +38,10 @@ pub mod ffi;
 pub mod gpu;
 pub mod memory;
 pub mod temperature;
+pub mod iokit;
 
 // Private modules
 mod utils;
-
-#[cfg(test)]
-use mockall::automock;
-
-#[cfg(test)]
-#[automock]
-mod iokit {
-    #[allow(non_upper_case_globals)]
-    pub const kIOMainPortDefault: i32 = 0;
-    
-    pub unsafe fn IOServiceGetMatchingService(_port: i32, _matching: *const i8) -> i32 {
-        123 // Mock service handle
-    }
-    
-    pub unsafe fn IOObjectRelease(_handle: i32) {}
-    
-    pub unsafe fn IOServiceMatching(_service: *const i8) -> *const i8 {
-        std::ptr::null()
-    }
-}
-
-#[cfg(not(test))]
-mod iokit {
-    #[link(name = "IOKit", kind = "framework")]
-    unsafe extern "C" {
-        pub static kIOMainPortDefault: i32;
-        pub fn IOServiceGetMatchingService(port: i32, matching: *const i8) -> i32;
-        pub fn IOObjectRelease(handle: i32);
-        pub fn IOServiceMatching(service: *const i8) -> *const i8;
-    }
-}
 
 #[cfg(test)]
 mod tests {
