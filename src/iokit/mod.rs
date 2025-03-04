@@ -17,7 +17,6 @@
 //!
 //! ```no_run
 //! use darwin_metrics::iokit::{IOKit, IOKitImpl};
-//! use scopeguard::defer;
 //! 
 //! fn main() -> Result<(), darwin_metrics::Error> {
 //!     let iokit = IOKitImpl::default();
@@ -37,11 +36,14 @@
 //! ```
 
 use objc2::runtime::{AnyObject, AnyClass};
-use objc2::{msg_send, class};
+use objc2::msg_send;
 use objc2_foundation::{NSString, NSObject, NSDictionary, NSNumber};
 use objc2::rc::Retained;
 use std::ffi::CStr;
-use scopeguard::defer;
+
+// For tests only
+#[cfg(test)]
+use objc2::class;
 
 use crate::Error;
 

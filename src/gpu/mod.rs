@@ -160,11 +160,9 @@ impl Drop for GPU {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockall::predicate::*;
-    use mockall::mock;
-    use objc2_foundation::{NSObject, NSDictionary};
-    use objc2::{msg_send, class};
+    use objc2::class;
     use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
 
     #[test]
     fn test_gpu_creation() -> Result<()> {

@@ -1,6 +1,6 @@
 [package]
 name        = "darwin-metrics"
-version     = "0.1.0"
+version     = "0.0.1"
 edition     = "2024"
 description = "A Rust library exposing native macOS system metrics"
 authors     = ["Stuart Meya <sm0sh1@pm.me>"]
@@ -13,7 +13,7 @@ links       = "darwin_metrics"
 
 [lib]
 name       = "darwin_metrics"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib", "cdylib", "staticlib"]
 
 [build-dependencies]
 cc = "1.2.16"

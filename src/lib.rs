@@ -20,6 +20,7 @@
 //! ```rust
 //! use darwin_metrics::prelude::*;
 //! use darwin_metrics::battery::PowerSource;
+//! use darwin_metrics::gpu::{GPUMetrics, GPUMemoryInfo};
 //!
 //! fn main() -> Result<()> {
 //!     // Create a battery with test values
@@ -130,22 +131,43 @@ pub mod battery;
 pub mod cpu;
 pub mod disk;
 pub mod gpu;
-pub mod iokit;
 pub mod memory;
+pub mod network;
+pub mod process;
 pub mod temperature;
+pub mod resource;
 
-// Private modules
+// Internal modules
+pub mod iokit;
 mod utils;
 
-/// Re-exports of commonly used types
+// Re-exports for convenience
+pub use battery::Battery;
+pub use cpu::CPU;
+pub use disk::Disk;
+pub use gpu::{GPU, GPUMetrics};
+pub use memory::Memory;
+pub use network::Network;
+pub use process::Process;
+pub use temperature::Temperature;
+pub use resource::{ResourceManager, ResourcePool, Cache};
+
+/// Prelude module for convenient imports
 pub mod prelude {
-    pub use crate::battery::Battery;
-    pub use crate::cpu::CPU;
-    pub use crate::gpu::{GPUMetrics, GPUMemoryInfo};
-    pub use crate::memory::Memory;
-    pub use crate::disk::Disk;
-    pub use crate::temperature::Temperature;
-    pub use crate::{Error, Result};
+    pub use crate::{
+        Error,
+        Result,
+        Battery,
+        CPU,
+        Disk,
+        GPU,
+        GPUMetrics,
+        Memory,
+        Network,
+        Process,
+        Temperature,
+        ResourceManager,
+    };
 }
 
 #[cfg(test)]

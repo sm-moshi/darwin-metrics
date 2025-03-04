@@ -1,103 +1,133 @@
-# 🗺️ Roadmap for darwin-metrics - a crate for native macOS system metrics
+# 🗺️ Roadmap for darwin-metrics
 
----
+## 🎯 Phase 1: Foundation (0.1.0) - Current Phase
 
-## 🎯 **Phase 1: Foundation** *(Weeks 1-2)*
+**Timeline: 3 weeks**
 
-*(Current Phase)*
+### Core Infrastructure
 
-### Core Setup
+- [x] Project setup and configuration
+- [x] Basic IOKit bindings
+- [x] Thread-safe resource management
+- [x] Comprehensive error handling
 
-- [x] Set up Rust library structure
-- [x] Implement direct IOKit bindings
-- [x] Implement build automation (`build.rs`)
-- [x] Create a minimal working example
-  - [x] Battery status implementation
-  - [x] CPU usage monitoring
+### Essential Metrics
 
----
+- [x] CPU usage and temperature
+- [ ] Basic memory statistics (In Progress)
+- [x] Battery information
+- [x] Temperature monitoring
+- [x] Process monitoring
+- [x] Network interface structure
 
-## 🔄 **Phase 2: Core System Metrics** *(Weeks 3-5)*
+### Documentation & Quality
 
-*(In Progress)*
+- [x] Core API documentation
+- [x] Usage examples
+- [x] Basic test suite
+- [ ] Release preparation (In Progress)
 
-### System Monitoring
+## 🔄 Phase 2: Enhanced Metrics (0.2.0)
 
-- [~] Implement CPU metrics
-  - [x] Usage monitoring
-  - [x] Frequency tracking
-  - [x] Model information
-- [~] Implement memory metrics
-  - [x] Total memory tracking
-  - [ ] Used memory monitoring
-  - [ ] Swap usage tracking
-- [ ] Implement disk metrics
-  - [ ] Storage monitoring
+**Timeline: 4-6 weeks after 0.1.0**
+
+### Advanced System Metrics
+
+- GPU monitoring and statistics
+  - [ ] Metal framework integration
+  - [ ] Multi-GPU support
+  - [ ] Performance metrics
+- Disk usage and performance
+  - [ ] Volume management
   - [ ] I/O statistics
-- [~] Testing
-  - [x] Unit tests for core functionality
-  - [ ] Integration tests for IOKit bindings
+  - [ ] RAID support
+- Network interface monitoring
+  - [ ] Bandwidth tracking
+  - [ ] Connection states
+  - [ ] Protocol statistics
+- Process information
+  - [ ] Detailed resource tracking
+  - [ ] Inter-process communication
+  - [ ] Thread monitoring
 
----
+### Quality Improvements
 
-## 🎮 **Phase 3: Advanced Hardware Monitoring** *(Weeks 6-8)*
+- [ ] Comprehensive test coverage
+- [ ] Performance optimizations
+- [ ] Advanced error handling
+- [ ] Memory leak prevention
+
+## 🎮 Phase 3: Hardware Monitoring (0.3.0)
+
+**Timeline: 6-8 weeks after 0.2.0**
 
 ### Hardware Features
 
-- [ ] GPU Monitoring
-  - [ ] Usage tracking via IOKit
-  - [ ] VRAM monitoring
-  - [ ] Active GPU detection
-- [ ] Temperature & Cooling
-  - [ ] Fan speed monitoring via SMC
-  - [ ] Temperature tracking
-- [ ] Performance
-  - [ ] Optimize IOKit calls
-  - [ ] Implement data caching
-- [ ] Error Handling
-  - [ ] Robust error recovery
-  - [ ] Graceful degradation
+- [ ] Detailed thermal management
+- [ ] Fan control and monitoring
+- [ ] Power management
+- [ ] Hardware-specific optimizations
 
----
+### Architecture Support
 
-## 📊 **Phase 4: Process Monitoring & System Info** *(Weeks 9-11)*
+- [ ] Apple Silicon optimizations
+- [ ] Architecture-specific features
+- [ ] Performance profiling
+
+## 📊 Phase 4: Advanced Features (0.4.0)
+
+**Timeline: 8-10 weeks after 0.3.0**
 
 ### System Integration
 
-- [ ] Process Monitoring
-  - [ ] Process listing via libproc
-  - [ ] Per-process CPU usage
-  - [ ] Per-process memory usage
-- [ ] System Information
-  - [ ] Kernel version tracking
-  - [ ] System uptime monitoring
-  - [ ] macOS version detection
-- [ ] Logging & Testing
-  - [ ] Structured logging system
-  - [ ] Comprehensive integration tests
-  - [ ] Performance benchmarks
+- [ ] Event-based monitoring
+- [ ] Metric history tracking
+- [ ] System health analytics
+- [ ] Power efficiency tracking
+
+### Developer Experience
+
+- [ ] Advanced documentation
+- [ ] Integration examples
+- [ ] Performance guides
+- [ ] Migration tools
+
+## ⚡ Phase 5: Performance & Polish (1.0.0)
+
+**Timeline: 10-12 weeks after 0.4.0**
+
+### Optimization
+
+- [ ] Performance tuning
+- [ ] Memory optimization
+- [ ] CPU efficiency
+- [ ] Battery impact reduction
+
+### Production Ready
+
+- [ ] Full test coverage
+- [ ] Complete documentation
+- [ ] Example applications
+- [ ] Production deployment guides
 
 ---
 
-## ⚡ **Phase 5: Optimization & Release** *(Weeks 12-14)*
+## Version Compatibility
 
-### Final Steps
+### Current Target (0.1.0)
 
-- [ ] Performance Optimization
-  - [ ] Minimize system call overhead
-  - [ ] Optimize memory usage
-  - [ ] Reduce CPU impact
-- [ ] API Finalization
-  - [ ] Stabilize public API
-  - [ ] Ensure backward compatibility
-  - [ ] Implement proper error types
-- [ ] Documentation & Release
-  - [ ] Complete API documentation
-  - [ ] Write usage examples
-  - [ ] Document IOKit integration
-  - [ ] Publish to `crates.io`
-  - [ ] Create GitHub release
+- [x] macOS 15.0+
+- [x] Rust 1.80+
+- [x] Primary focus on Apple Silicon
 
----
+### Future Support
 
-*Note: Timeline estimates are approximate and may be adjusted based on development progress and priorities.*
+- [ ] Extended macOS version support
+- [ ] Cross-platform abstractions
+- [ ] Additional hardware support
+
+## Notes
+
+- Timeline estimates are approximate
+- Priorities may shift based on community feedback
+- Features may be adjusted based on technical constraints
