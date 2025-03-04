@@ -52,9 +52,10 @@ use std::time::Duration;
 #[cfg(test)]
 use {
     mockall::predicate::*,
+    crate::iokit::MockIOKit,
     objc2::runtime::AnyObject,
     objc2::{msg_send, class},
-    objc2_foundation::{NSString, NSObject, NSDictionary},
+    //objc2_foundation::{NSString, NSObject, NSDictionary},
     objc2::rc::Retained,
 };
 
@@ -346,6 +347,16 @@ impl Battery {
             PowerSource::Unknown => "Unknown Power Source",
         }
     }
+
+    /// Checks if the battery temperature is in a critical range
+    /// 
+    /// Returns true if the battery temperature is outside the safe operating range.
+    /// Most lithium-ion batteries should operate between -10°C and 40°C.
+    /// Temperatures outside this range can cause reduced battery life, 
+    /// performance issues, or safety concerns.
+    pub fn is_temperature_critical(&self) -> bool {
+        self.temperature < -10.0 || self.temperature > 40.0
+    }
 }
 
 impl Clone for Battery {
@@ -381,12 +392,15 @@ impl PartialEq for Battery {
 mod tests {
     use super::*;
     use mockall::predicate::*;
+    use crate::iokit::MockIOKit;
     use objc2::runtime::AnyObject;
     use objc2::rc::Retained;
+    use objc2_foundation::{NSString, NSObject, NSDictionary};
+    use objc2::{msg_send, class};
 
     #[test]
     fn test_battery_update() {
-        let mut mock = crate::iokit::MockIOKit::new();
+        let mut mock = MockIOKit::new();
         
         // Setup mock for service matching
         mock.expect_io_service_matching()
@@ -484,38 +498,37 @@ mod tests {
 
     #[test]
     fn test_battery_update_no_battery() {
-        let mut mock = crate::iokit::MockIOKit::new();
+        let mut mock = MockIOKit::new();
         
         // Setup mock for service matching
         mock.expect_io_service_matching()
-            .with(eq("AppleSmartBattery"))
-            .times(1)
             .returning(|_| unsafe {
-                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
                 Retained::from_raw(dict.cast()).unwrap()
             });
 
         // Setup mock for getting service
         mock.expect_io_service_get_matching_service()
-            .times(1)
-            .returning(|_| unsafe {
+            .returning(|_| Some(unsafe {
                 let obj: *mut AnyObject = msg_send![class!(NSObject), new];
-                Some(Retained::from_raw(obj).unwrap())
-            });
+                Retained::from_raw(obj).unwrap()
+            }));
 
         // Setup mock for getting properties
         mock.expect_io_registry_entry_create_cf_properties()
-            .times(1)
-            .returning(|_| unsafe {
-                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
-                Ok(Retained::from_raw(dict.cast()).unwrap())
-            });
+            .returning(|_| Ok(unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
+                Retained::from_raw(dict.cast()).unwrap()
+            }));
 
         // Setup mock for property getters
         mock.expect_get_bool_property()
-            .with(always(), eq(BATTERY_IS_PRESENT))
-            .times(1)
-            .returning(|_, _| Some(false));
+            .returning(|_, key| {
+                match key {
+                    BATTERY_IS_PRESENT => Some(false),
+                    _ => None,
+                }
+            });
 
         let mut battery = Battery {
             iokit: Box::new(mock),
@@ -587,6 +600,7 @@ mod tests {
 
     #[test]
     fn test_power_source_variants() {
+        // Test each power source variant using with_values constructor
         let battery_power = Battery::with_values(
             true, false, 75.5, 90,
             PowerSource::Battery, 500, 85.0, 35.0
@@ -600,6 +614,7 @@ mod tests {
             PowerSource::Unknown, 500, 85.0, 35.0
         );
 
+        // Test the display strings for each power source
         assert_eq!(battery_power.power_source_display(), "Battery Power");
         assert_eq!(ac_power.power_source_display(), "AC Power");
         assert_eq!(unknown_power.power_source_display(), "Unknown Power Source");

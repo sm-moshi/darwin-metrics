@@ -116,6 +116,10 @@ impl Error {
     pub(crate) fn not_implemented(msg: impl Into<String>) -> Self {
         Error::NotImplemented(msg.into())
     }
+    
+    pub(crate) fn invalid_value(msg: impl Into<String>) -> Self {
+        Error::SystemError(msg.into())
+    }
 
     #[allow(dead_code)]
     pub(crate) fn system_error(msg: impl Into<String>) -> Self {
@@ -140,6 +144,78 @@ pub mod resource;
 // Internal modules
 pub mod iokit;
 mod utils;
+#[cfg(test)]
+pub(crate) mod testing {
+    use crate::battery::{Battery, PowerSource};
+    use crate::cpu::CPU;
+    use crate::iokit::MockIOKit;
+    use objc2::runtime::AnyObject;
+    use objc2::rc::Retained;
+    use objc2::{msg_send, class};
+    
+    /// Creates a safe test dictionary for tests
+    pub(crate) fn create_safe_dictionary() -> Retained<objc2_foundation::NSDictionary<objc2_foundation::NSString, objc2_foundation::NSObject>> {
+        unsafe {
+            let dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
+            Retained::from_raw(dict.cast()).unwrap()
+        }
+    }
+
+    /// Creates a safe test object for tests
+    pub(crate) fn create_safe_object() -> Retained<AnyObject> {
+        unsafe {
+            let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+            Retained::from_raw(obj).unwrap()
+        }
+    }
+
+    /// Creates a safe mock IOKit for tests
+    pub(crate) fn create_safe_mock_iokit() -> MockIOKit {
+        let mut mock = MockIOKit::new();
+        mock.expect_io_service_matching()
+            .returning(|_| create_safe_dictionary());
+        mock.expect_io_service_get_matching_service()
+            .returning(|_| None);
+        mock
+    }
+
+    /// Creates a test battery with safe values
+    pub(crate) fn create_test_battery() -> Battery {
+        Battery::with_values(
+            true,                 // is_present
+            false,                // is_charging
+            75.5,                 // percentage
+            90,                   // time_remaining
+            PowerSource::Battery, // power_source
+            500,                 // cycle_count
+            85.0,                // health_percentage
+            35.0                 // temperature
+        )
+    }
+
+    /// Creates a test CPU with safe values
+    pub(crate) fn create_test_cpu() -> CPU {
+        CPU {
+            physical_cores: 4,
+            logical_cores: 8,
+            frequency_mhz: 2400.0,
+            core_usage: vec![50.0, 75.0, 25.0, 100.0],
+            model_name: "Test CPU".to_string(),
+            temperature: Some(45.0),
+            iokit: Box::new(create_safe_mock_iokit()),
+        }
+    }
+
+    /// Sets up test environment for better diagnostics
+    pub(crate) fn setup_test_environment() {
+        std::panic::set_hook(Box::new(|panic_info| {
+            eprintln!("Test panic: {}", panic_info);
+            if let Some(location) = panic_info.location() {
+                eprintln!("Panic occurred in file '{}' at line {}", location.file(), location.line());
+            }
+        }));
+    }
+}
 
 // Re-exports for convenience
 pub use battery::Battery;
@@ -174,29 +250,59 @@ pub mod prelude {
 mod tests {
     use super::*;
     use crate::battery::PowerSource;
-    use std::time::Duration;
-
+    use std::panic;
+    
+    /// Setup crash handlers for tests
+    fn setup_test_environment() {
+        // Set up a panic hook to get better information on segfaults
+        panic::set_hook(Box::new(|panic_info| {
+            eprintln!("Test panic: {}", panic_info);
+        }));
+    }
+    
     #[test]
     fn test_gpu_metrics() -> Result<()> {
+        setup_test_environment();
         // Skip this test as it requires real hardware
-        // We already have unit tests in the gpu module
+        Ok(())
+    }
+    
+    #[test]
+    fn test_battery_metrics() -> Result<()> {
+        setup_test_environment();
+        // Create a battery with known test values
+        let battery = battery::Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
+        );
+        assert!(battery.percentage >= 0.0 && battery.percentage <= 100.0);
         Ok(())
     }
 
     #[test]
-    fn test_battery_metrics() -> Result<()> {
-        // Create a battery with known test values instead of accessing hardware
+    fn test_error_types() {
+        fn get_service_not_found() -> Result<()> {
+            Err(Error::ServiceNotFound)
+        }
+        
+        assert!(matches!(get_service_not_found(), Err(Error::ServiceNotFound)));
+        assert!(matches!(
+            Error::not_available("test"), 
+            Error::NotAvailable(_)
+        ));
+    }
+
+    #[test]
+    fn test_public_api() {
+        use crate::battery::PowerSource;
+        
         let battery = battery::Battery::with_values(
-            true,
-            false,
-            75.5,
-            90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0,
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
         );
-        assert!(battery.percentage >= 0.0 && battery.percentage <= 100.0);
-        Ok(())
+        
+        assert_eq!(battery.power_source, PowerSource::Battery);
+        assert!(!battery.is_critical());
+        assert_eq!(battery.time_remaining_display(), "1 hours 30 minutes");
     }
 }

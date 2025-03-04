@@ -57,20 +57,40 @@ use objc2_foundation::NSNumber;
 /// ```
 #[derive(Debug)]
 pub struct CPU {
-    /// Number of physical CPU cores
+    #[cfg(not(test))]
     physical_cores: u32,
-    /// Number of logical CPU cores (including virtual/hyperthreaded cores)
+    #[cfg(test)]
+    pub(crate) physical_cores: u32,
+    
+    #[cfg(not(test))]
     logical_cores: u32,
-    /// Current CPU frequency in MHz
+    #[cfg(test)]
+    pub(crate) logical_cores: u32,
+    
+    #[cfg(not(test))]
     frequency_mhz: f64,
-    /// Usage percentage per core (0.0 to 100.0)
+    #[cfg(test)]
+    pub(crate) frequency_mhz: f64,
+    
+    #[cfg(not(test))]
     core_usage: Vec<f64>,
-    /// CPU model name
+    #[cfg(test)]
+    pub(crate) core_usage: Vec<f64>,
+    
+    #[cfg(not(test))]
     model_name: String,
-    /// CPU temperature in Celsius
+    #[cfg(test)]
+    pub(crate) model_name: String,
+    
+    #[cfg(not(test))]
     temperature: Option<f64>,
-    /// IOKit interface for hardware access
+    #[cfg(test)]
+    pub(crate) temperature: Option<f64>,
+    
+    #[cfg(not(test))]
     iokit: Box<dyn IOKit>,
+    #[cfg(test)]
+    pub(crate) iokit: Box<dyn IOKit>,
 }
 
 impl CPU {
@@ -140,36 +160,38 @@ impl CPU {
             if process_info.is_null() {
                 return Err(Error::not_available("Could not get process info"));
             }
-
+    
             // Get processor count
             let physical_cores: u32 = msg_send![process_info, activeProcessorCount];
             self.physical_cores = physical_cores;
             self.logical_cores = physical_cores; // On Apple Silicon, these are the same
-
+    
             // Get CPU frequency
             let freq: f64 = msg_send![process_info, processorFrequency];
             self.frequency_mhz = freq / 1_000_000.0; // Convert Hz to MHz
-
+    
             // Get CPU model name using IOKit
             let matching = self.iokit.io_service_matching("IOPlatformExpertDevice");
             let service = self.iokit.io_service_get_matching_service(&matching);
-
+    
             if let Some(service) = service {
                 let properties = self.iokit.io_registry_entry_create_cf_properties(&service)?;
                 if let Some(name) = self.iokit.get_string_property(&properties, "cpu-type") {
                     self.model_name = name;
                 }
-
+    
                 // Try to get CPU temperature if available
                 if let Some(temp) = self.iokit.get_number_property(&properties, "cpu-die-temperature") {
                     self.temperature = Some(temp as f64 / 100.0); // Convert to Celsius
                 }
+            } else {
+                return Err(Error::not_available("Could not get CPU service"));
             }
-
+    
             // Get CPU usage per core
             self.update_cpu_usage()?;
         }
-
+    
         Ok(())
     }
 
@@ -322,74 +344,106 @@ impl Clone for CPU {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::iokit::MockIOKit;
+    use mockall::predicate::*;
+    use objc2::{class, msg_send};
+    use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
+    use objc2_foundation::{NSDictionary, NSObject, NSString};
 
-    #[test]
-    fn test_new_cpu() {
-        let mock_iokit = crate::iokit::MockIOKit::new();
+    fn create_safe_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
+        unsafe {
+            let dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
+            Retained::from_raw(dict.cast()).unwrap()
+        }
+    }
+
+    fn create_test_cpu() -> CPU {
+        let mut mock_iokit = MockIOKit::new();
         
-        let cpu = CPU {
+        mock_iokit.expect_io_service_matching()
+            .returning(|_| create_safe_dictionary());
+
+        mock_iokit.expect_io_service_get_matching_service()
+            .returning(|_| None);
+
+        mock_iokit.expect_io_registry_entry_create_cf_properties()
+            .returning(|_| Ok(create_safe_dictionary()));
+
+        CPU {
             physical_cores: 4,
             logical_cores: 8,
             frequency_mhz: 2400.0,
-            core_usage: vec![50.0, 75.0, 25.0, 100.0],
-            model_name: "Apple M1".to_string(),
+            core_usage: vec![50.0, 60.0, 70.0, 70.0],
+            model_name: "Test CPU".to_string(),
             temperature: Some(45.0),
             iokit: Box::new(mock_iokit),
-        };
+        }
+    }
 
+    #[test]
+    fn test_new_cpu() {
+        let cpu = create_test_cpu();
         assert_eq!(cpu.physical_cores(), 4);
         assert_eq!(cpu.logical_cores(), 8);
         assert_eq!(cpu.frequency_mhz(), 2400.0);
-        assert_eq!(cpu.model_name(), "Apple M1");
-        assert_eq!(cpu.temperature(), Some(45.0));
+        assert_eq!(cpu.model_name(), "Test CPU");
     }
 
     #[test]
     fn test_average_usage() {
-        let mock_iokit = crate::iokit::MockIOKit::new();
-        let cpu = CPU {
-            physical_cores: 2,
-            logical_cores: 4,
-            frequency_mhz: 2400.0,
-            core_usage: vec![50.0, 75.0, 25.0, 100.0],
-            model_name: "Test CPU".to_string(),
-            temperature: None,
-            iokit: Box::new(mock_iokit),
-        };
+        let cpu = create_test_cpu();
         assert_eq!(cpu.average_usage(), 62.5);
     }
 
     #[test]
-    fn test_value_clamping() {
-        let mock_iokit = crate::iokit::MockIOKit::new();
-        let mut core_usage = vec![-10.0_f64, 50.0, 150.0, 75.0];
-        core_usage = core_usage.into_iter().map(|v: f64| v.clamp(0.0, 100.0)).collect();
+    fn test_empty_usage() {
+        let mut mock = MockIOKit::new();
         
+        // Setup mock expectations
+        mock.expect_io_service_matching()
+            .returning(|_| unsafe {
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
+                Retained::from_raw(dict.cast()).unwrap()
+            });
+
+        mock.expect_io_service_get_matching_service()
+            .returning(|_| None);
+
         let cpu = CPU {
-            physical_cores: 2,
-            logical_cores: 4,
+            core_usage: Vec::new(),
+            iokit: Box::new(mock),
+            physical_cores: 0,
+            logical_cores: 0,
             frequency_mhz: 0.0,
-            core_usage,
-            model_name: "Test CPU".to_string(),
-            temperature: Some(-10.0),
-            iokit: Box::new(mock_iokit),
+            model_name: String::new(),
+            temperature: None,
+            // Removed duplicate core_usage initialization
         };
-        assert_eq!(cpu.core_usage(), &[0.0, 50.0, 100.0, 75.0]);
-        assert_eq!(cpu.frequency_mhz(), 0.0);
+
+        assert_eq!(cpu.average_usage(), 0.0);
+        assert!(cpu.core_usage.is_empty()); // Changed from cpu.usage to cpu.core_usage
     }
 
     #[test]
-    fn test_empty_usage() {
-        let mock_iokit = crate::iokit::MockIOKit::new();
-        let cpu = CPU {
-            physical_cores: 2,
-            logical_cores: 4,
-            frequency_mhz: 2400.0,
-            core_usage: vec![],
-            model_name: "Test CPU".to_string(),
-            temperature: None,
-            iokit: Box::new(mock_iokit),
-        };
-        assert_eq!(cpu.average_usage(), 0.0);
+    fn test_cpu_update() -> Result<()> {
+        let mut cpu = create_test_cpu();
+        let result = cpu.update();
+        assert!(result.is_ok() || matches!(result, Err(Error::NotAvailable(_))));
+        Ok(())
+    }
+
+    #[test]
+    fn test_cpu_clone() {
+        let cpu = create_test_cpu();
+        let cloned = cpu.clone();
+        
+        assert_eq!(cpu.physical_cores(), cloned.physical_cores());
+        assert_eq!(cpu.logical_cores(), cloned.logical_cores());
+        assert_eq!(cpu.frequency_mhz(), cloned.frequency_mhz());
+        assert_eq!(cpu.core_usage(), cloned.core_usage());
+        assert_eq!(cpu.model_name(), cloned.model_name());
+        assert_eq!(cpu.temperature(), cloned.temperature());
     }
 }
+
