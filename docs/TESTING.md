@@ -88,6 +88,14 @@ fn test_battery_with_values() {
 }
 ```
 
+## Process Metrics
+
+When testing process metrics, note that:
+
+- CPU usage is normalized between 0-100%
+- Permission errors are handled gracefully
+- Tests cover both accessible and privileged processes
+
 ## Test Organization
 
 - **Unit Tests**: Located alongside the code they test (`mod tests { ... }`)

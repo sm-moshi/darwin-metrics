@@ -21,7 +21,7 @@ cc = "1.2.16"
 [dependencies]
 # Core FFI and system interfaces
 libc = "0.2.170"
-# core-foundation = "0.10.0"
+libproc = "0.14.10"
 objc2 = { version = "0.6.0", features = [
     "alloc",
     "objc2-proc-macros",
@@ -38,6 +38,7 @@ scopeguard = "1.2.0"
 # Error handling and logging
 tokio              = { version = "1.43.0", features = ["full"] }
 futures            = "0.3.31"
+futures-util       = "0.3.31"
 async-trait        = "0.1.87"
 thiserror          = "2.0.12"
 tracing            = { version = "0.1.41", features = ["attributes"] }

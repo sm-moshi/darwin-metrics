@@ -2,7 +2,7 @@
 
 ---
 
-## 🚀 **Project Setup** *(Completed - 0.1.0)*
+## **Project Setup** *(Completed - 0.1.0)*
 
 - [x] Initialize Rust crate with `cargo init --lib`
 - [x] Configure library crate types (staticlib, cdylib, rlib)
@@ -12,9 +12,9 @@
 
 ---
 
-## 💻 **Core Features**
+## **Core Features**
 
-### 🔒 Thread Safety & Resource Management *(0.1.0)*
+### **Thread Safety & Resource Management** *(0.1.0)*
 
 - [x] Implement global thread-safe resource management
   - [x] Add atomic updates for shared state
@@ -25,7 +25,7 @@
   - [x] Add memory leak detection
   - [x] Monitor resource usage patterns
 
-### 🔋 Battery Metrics *(0.1.0 Core Features)*
+### **Battery Metrics** *(0.1.0 Core Features)*
 
 - [x] Define Battery struct and interface
 - [x] Implement basic battery info functions
@@ -62,7 +62,7 @@
   - [ ] Add last calibration date tracking
   - [ ] Add tests for calibration state transitions
 
-### 🔌 IOKit Integration *(0.1.0)*
+### **IOKit Integration** *(0.1.0)*
 
 - [x] Define IOKit trait and implementation
 - [x] Implement mock IOKit for testing
@@ -78,7 +78,7 @@
   - [x] Add detailed error messages and context
   - [x] Implement error conversion traits
 
-### 💻 CPU Metrics *(0.1.0 Core Features)*
+### **CPU Metrics** *(0.1.0 Core Features)*
 
 - [x] Define CPU struct and interface
 - [x] Set up thread-safe CPU info data structure
@@ -86,13 +86,14 @@
 - [x] Get CPU model name and frequency
 - [x] Fetch total CPU load (user, system, idle)
 - [x] Implement CPU temperature monitoring
+- [x] Normalize CPU usage calculation between 0-100%
 - [x] Add comprehensive test coverage
   - [x] Test CPU initialization
   - [x] Test usage calculations
   - [x] Test error handling
   - [x] Test field visibility and access
 
-### 💾 Memory Metrics *(0.1.0 Core Features)*
+### **Memory Metrics** *(0.1.0 Core Features)*
 
 - [x] Define Memory struct and interface
 - [x] Set up memory info data structure
@@ -108,7 +109,7 @@
   - [x] Track swap file usage
   - [x] Monitor swap pressure
 
-### 🌡️ Temperature Metrics *(0.1.0 Core Features)*
+### **Temperature Metrics** *(0.1.0 Core Features)*
 
 - [x] Define Temperature struct and interface
 - [x] Implement temperature unit conversion (F/C)
@@ -119,7 +120,7 @@
   - [ ] Monitor power impact
   - [ ] Implement thermal warnings
 
-### 🌐 Network Metrics *(0.1.0)*
+### **Network Metrics** *(0.1.0)*
 
 - [x] Define Network struct and interface
 - [x] Implement network interface enumeration
@@ -128,18 +129,29 @@
   - [ ] Track interface states
   - [ ] Collect interface statistics
 
-### 🔄 Process Monitoring *(0.1.0)*
+### **Process Monitoring** *(0.1.0)*
 
 - [x] Define Process struct and interface
 - [x] Implement process info collection trait
 - [x] Add async process monitoring
 - [x] Implement process metrics stream
+  - [x] Fix interval state management
+  - [x] Implement proper async stream polling
+  - [x] Add thread-safe cloning support
+  - [x] Add comprehensive doc tests
+- [ ] Process Information Collection
+  - [ ] Implement Process::get_by_pid()
+  - [ ] Add process name resolution
+  - [ ] Implement process state tracking
+  - [ ] Add process hierarchy mapping
 - [ ] Process Statistics
   - [ ] CPU usage tracking
   - [ ] Memory usage monitoring
   - [ ] Resource limit tracking
+  - [ ] I/O statistics collection
+  - [ ] Thread count monitoring
 
-### 🎮 GPU Metrics *(0.1.0 Core Features)*
+### **GPU Metrics** *(0.1.0 Core Features)*
 
 - [ ] Define GPU struct and interface
 - [ ] Implement basic GPU info retrieval
@@ -152,9 +164,9 @@
 
 ---
 
-## 🧪 **Quality Assurance**
+## **Quality Assurance**
 
-### 🔍 Testing Strategy *(0.1.0)*
+### **Testing Strategy** *(0.1.0)*
 
 - [x] Test Suite Implementation
   - [x] Unit tests for all metric types
@@ -165,7 +177,7 @@
   - [x] Memory leak detection
   - [x] FFI layer fuzzing tests
 
-### 📝 Documentation *(0.1.0)*
+### **Documentation** *(0.1.0)*
 
 - [x] Set up basic module documentation
 - [x] Write comprehensive API documentation for Battery module
@@ -178,9 +190,9 @@
 
 ---
 
-## 📦 **Distribution**
+## **Distribution**
 
-### 🎯 Packaging *(0.1.0)*
+### **Packaging** *(0.1.0)*
 
 - [x] Configure crate features
 - [x] Set up release profile optimizations
@@ -191,7 +203,7 @@
   - [~] Add version compatibility matrix
 - [ ] Publish to `crates.io`
 
-### 🔮 Future Enhancements *(Post 0.1.0)*
+### **Future Enhancements** *(Post 0.1.0)*
 
 - [ ] Add metric history tracking
 - [ ] Support power management profiles
@@ -201,21 +213,21 @@
 
 ---
 
-## 🛡️ **Code Quality & Safety**
+## **Code Quality & Safety**
 
-### ✅ Completed *(0.1.0)*
+### **Completed** *(0.1.0)*
 
 - [x] Implement proper error propagation
 - [x] Implement safe FFI boundaries
 - [x] Add null pointer safety checks
 
-### 🚧 In Progress *(0.1.0)*
+### **In Progress** *(0.1.0)*
 
 - [~] Implement thread-safe resource management
 - [~] Add proper cleanup for system resources
 - [~] Fix type conflicts and import issues
 
-### 📋 Pending *(0.1.0)*
+### **Pending** *(0.1.0)*
 
 - [ ] Add memory leak detection tests
 - [ ] Implement fuzzing tests for FFI layer

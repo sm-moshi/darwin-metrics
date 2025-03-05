@@ -39,10 +39,11 @@ generated/
 # local VS Code stuff
 .bacon-locations
 .vscode/mise-tools
-.cursor/
-.references/
-.repomix/
+.cursor
+.github
+.repomix
 
 # Coverage files
-/coverage/*.profraw
-/coverage/*.profdata
+coverage/*.profraw
+coverage/*.profdata
+CLAUDE.md
