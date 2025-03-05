@@ -136,6 +136,50 @@ pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<V
     Some(slice::from_raw_parts(ptr, len).to_vec())
 }
 
+/// Gets the name of the GPU
+///
+/// # Returns
+///
+/// A Result containing the GPU name as a String or an error
+pub fn name(&self) -> Result<String> {
+    // Check if we have a valid device
+    if self.device.is_null() {
+        return Err(Error::NotAvailable("No GPU device available".into()));
+    }
+    
+    // Safely execute Objective-C code within an autorelease pool
+    // Changed |_| to || to match expected signature
+    autorelease_pool(|| {
+        objc_safe_exec(|| {
+            unsafe {
+                // Cast the device pointer to AnyObject before sending messages to it
+                let device_obj: *mut AnyObject = self.device.cast();
+                
+                // Get the name property using Metal API
+                let name_obj: *mut AnyObject = msg_send![device_obj, name];
+                
+                // Check if we got a valid name object
+                if name_obj.is_null() {
+                    return Err(Error::NotAvailable("Could not get GPU name".into()));
+                }
+                
+                // Convert to Rust string
+                let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
+                
+                if utf8_string.is_null() {
+                    return Err(Error::NotAvailable("Could not convert GPU name to string".into()));
+                }
+                
+                // Convert C string to Rust string
+                let c_str = std::ffi::CStr::from_ptr(utf8_string as *const i8);
+                let name = c_str.to_string_lossy().into_owned();
+                
+                Ok(name)
+            }
+        })
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

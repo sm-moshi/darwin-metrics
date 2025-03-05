@@ -36,22 +36,15 @@
 //! ```
 
 use objc2::msg_send;
-use objc2::rc::Retained;
+use objc2::rc::{Retained, autoreleasepool}; // Added autoreleasepool import
 use objc2::runtime::{AnyClass, AnyObject};
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
-use objc2::class; // Keep this import for all code paths
-
-// Remove the redundant import below
-// #[cfg(test)]
-// use objc2::class; // This is now redundant but can be kept for clarity
+use objc2::class;
 
 use crate::Error;
 
 #[cfg(test)]
 use mockall::automock;
-
-// Remove the unused type alias
-// type IOObject = Retained<AnyObject>;
 
 #[cfg_attr(test, automock)]
 pub trait IOKit: Send + Sync + std::fmt::Debug {
@@ -88,42 +81,46 @@ impl IOKit for IOKitImpl {
         &self,
         service_name: &str,
     ) -> Retained<NSDictionary<NSString, NSObject>> {
-        unsafe {
-            // Get the IOService class with proper error handling
-            let class = match AnyClass::get(c"IOService") {
-                Some(class) => class,
-                None => {
-                    // Create an empty dictionary as fallback if IOService class not found
-                    let empty_dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
-                    return Retained::from_raw(empty_dict.cast()).unwrap_or_else(|| {
-                        panic!("Failed to create fallback dictionary");
-                    });
+        // Use autorelease pool to manage temporary objects - pass _ parameter to satisfy type requirements
+        autoreleasepool(|_| {
+            unsafe {
+                // First create the service name as an NSString
+                let ns_service_name = NSString::from_str(service_name);
+                
+                // Safe fallback is an empty dictionary
+                let empty_dict = {
+                    let dict_class = class!(NSDictionary);
+                    let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
+                    
+                    if dict_ptr.is_null() {
+                        panic!("Failed to create empty dictionary");
+                    }
+                    
+                    match Retained::from_raw(dict_ptr.cast()) {
+                        Some(dict) => dict,
+                        None => panic!("Failed to retain empty dictionary"),
+                    }
+                };
+                
+                // Try to get the IOService class
+                if let Some(io_class) = AnyClass::get(c"IOService") {
+                    let dict_ptr: *mut AnyObject = msg_send![io_class, serviceMatching: &*ns_service_name];
+                    
+                    // If result is null or can't be retained, return our empty fallback
+                    if dict_ptr.is_null() {
+                        return empty_dict;
+                    }
+                    
+                    match Retained::from_raw(dict_ptr.cast()) {
+                        Some(dict) => dict,
+                        None => empty_dict
+                    }
+                } else {
+                    // IOService class not found, return empty dictionary
+                    empty_dict
                 }
-            };
-            
-            // Create NSString from the service name
-            let service_name = NSString::from_str(service_name);
-            
-            // Call serviceMatching: and handle potential null result
-            let dict: *mut AnyObject = msg_send![class, serviceMatching:&*service_name];
-            
-            if dict.is_null() {
-                // Create empty dictionary as fallback
-                let empty_dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
-                Retained::from_raw(empty_dict.cast()).unwrap_or_else(|| {
-                    panic!("Failed to create fallback dictionary after null serviceMatching result");
-                })
-            } else {
-                // Try to retain the dictionary, with fallback if retention fails
-                Retained::from_raw(dict.cast()).unwrap_or_else(|| {
-                    // Create empty dictionary as last-resort fallback
-                    let empty_dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
-                    Retained::from_raw(empty_dict.cast()).unwrap_or_else(|| {
-                        panic!("Failed all attempts to create dictionary");
-                    })
-                })
             }
-        }
+        })
     }
 
     fn io_service_get_matching_service(
@@ -132,9 +129,8 @@ impl IOKit for IOKitImpl {
     ) -> Option<Retained<AnyObject>> {
         unsafe {
             // Use the master port (0) and the matching dictionary
-            // This is the correct way to call IOServiceGetMatchingService
             let master_port: u32 = 0; // kIOMasterPortDefault
-            // Fix the syntax with proper commas between arguments
+            // Fixed syntax with proper comma separation
             let service: *mut AnyObject = msg_send![class!(IOService), getMatchingService: master_port, matching: matching];
             
             if service.is_null() {
@@ -222,25 +218,115 @@ impl IOKit for IOKitImpl {
     }
 }
 
+// Moving MockIOKit implementation to the test module where it belongs
 #[cfg(test)]
 mod tests {
     use super::*;
     use mockall::predicate::*;
 
+    // Implementation of MockIOKit methods
+    impl IOKit for MockIOKit {
+        fn io_service_matching(
+            &self, 
+            service_name: &str
+        ) -> Retained<NSDictionary<NSString, NSObject>> {
+            self.io_service_matching_impl(service_name)
+        }
+        
+        fn io_service_get_matching_service(
+            &self,
+            matching: &NSDictionary<NSString, NSObject>,
+        ) -> Option<Retained<AnyObject>> {
+            self.io_service_get_matching_service_impl(matching)
+        }
+        
+        fn io_registry_entry_create_cf_properties(
+            &self,
+            entry: &AnyObject,
+        ) -> Result<Retained<NSDictionary<NSString, NSObject>>, Error> {
+            self.io_registry_entry_create_cf_properties_impl(entry)
+        }
+        
+        fn io_object_release(&self, obj: &AnyObject) {
+            self.io_object_release_impl(obj)
+        }
+        
+        fn get_string_property(
+            &self,
+            dict: &NSDictionary<NSString, NSObject>,
+            key: &str,
+        ) -> Option<String> {
+            self.get_string_property_impl(dict, key)
+        }
+        
+        fn get_number_property(
+            &self,
+            dict: &NSDictionary<NSString, NSObject>,
+            key: &str,
+        ) -> Option<i64> {
+            self.get_number_property_impl(dict, key)
+        }
+        
+        fn get_bool_property(
+            &self, 
+            dict: &NSDictionary<NSString, NSObject>, 
+            key: &str
+        ) -> Option<bool> {
+            self.get_bool_property_impl(dict, key)
+        }
+    }
+
+    /// Create an empty dictionary for safe testing
+    fn create_empty_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
+        // Changed |_| to || to match expected signature
+        autoreleasepool(|| {
+            unsafe {
+                let dict_class = class!(NSDictionary);
+                let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
+                
+                // Ensure we got a valid dictionary
+                assert!(!dict_ptr.is_null(), "Failed to create empty dictionary");
+                
+                // Convert to retained dictionary
+                match Retained::from_raw(dict_ptr.cast()) {
+                    Some(dict) => dict,
+                    None => panic!("Could not retain dictionary"),
+                }
+            }
+        })
+    }
+
     /// Create a safe dictionary for testing
     fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
-        unsafe {
-            let dict: *mut AnyObject = msg_send![class!(NSDictionary), new];
-            Retained::from_raw(dict.cast()).unwrap()
-        }
+        // Changed |_| to || to match expected signature
+        autoreleasepool(|| {
+            unsafe {
+                let dict_class = class!(NSDictionary);
+                let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
+                Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
+            }
+        })
     }
 
     /// Create a safe NSObject for testing
     fn create_test_object() -> Retained<AnyObject> {
-        unsafe {
-            let obj: *mut AnyObject = msg_send![class!(NSObject), new];
-            Retained::from_raw(obj).unwrap()
-        }
+        autoreleasepool(|| {
+            unsafe {
+                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+                Retained::from_raw(obj).expect("Failed to create test object")
+            }
+        })
+    }
+
+    /// Create a safe empty AnyObject for testing
+    fn create_test_anyobject() -> Retained<AnyObject> {
+        // Changed |_| to || to match expected signature
+        autoreleasepool(|| {
+            unsafe {
+                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+                Retained::from_raw(obj).expect("Failed to create test object")
+            }
+        })
     }
 
     #[test]
@@ -249,7 +335,7 @@ mod tests {
         let service_name = "TestService";
 
         // Set up expectations with safer test code
-        mock.expect_io_service_matching()
+        mock.expect_io_service_matching_impl()
             .with(eq(service_name))
             .times(1)
             .returning(|_| create_test_dictionary());
@@ -288,14 +374,14 @@ mod tests {
         // Create a test dictionary with string property
         let key = "TestKey";
         let value = "TestValue";
-        let dict = unsafe {
-            let ns_key = NSString::from_str(key);
-            let ns_value = NSString::from_str(value);
-            // Fix the message sending syntax with proper commas
-            let dict: *mut AnyObject =
-                msg_send![class!(NSDictionary), dictionaryWithObject:&*ns_value, forKey:&*ns_key];
-            Retained::from_raw(dict.cast()).unwrap()
-        };
+        let dict = autoreleasepool(|| {
+            unsafe {
+                let ns_key = NSString::from_str(key);
+                let ns_value = NSString::from_str(value);
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionaryWithObject:&*ns_value forKey:&*ns_key];
+                Retained::from_raw(dict.cast()).expect("Failed to create test dictionary with string")
+            }
+        });
 
         // Test property retrieval
         let result = iokit.get_string_property(&dict, key);
@@ -313,14 +399,14 @@ mod tests {
         // Create a test dictionary with number property
         let key = "TestNumberKey";
         let value: i64 = 42;
-        let dict = unsafe {
-            let ns_key = NSString::from_str(key);
-            let ns_value: *mut AnyObject = msg_send![class!(NSNumber), numberWithLongLong:value];
-            // Fix the message sending syntax with proper commas
-            let dict: *mut AnyObject =
-                msg_send![class!(NSDictionary), dictionaryWithObject:ns_value, forKey:&*ns_key];
-            Retained::from_raw(dict.cast()).unwrap()
-        };
+        let dict = autoreleasepool(|| {
+            unsafe {
+                let ns_key = NSString::from_str(key);
+                let ns_value: *mut AnyObject = msg_send![class!(NSNumber), numberWithLongLong:value];
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionaryWithObject:ns_value forKey:&*ns_key];
+                Retained::from_raw(dict.cast()).expect("Failed to create test dictionary with number")
+            }
+        });
 
         // Test property retrieval
         let result = iokit.get_number_property(&dict, key);
@@ -338,14 +424,14 @@ mod tests {
         // Create a test dictionary with boolean property
         let key = "TestBoolKey";
         let value = true;
-        let dict = unsafe {
-            let ns_key = NSString::from_str(key);
-            let ns_value: *mut AnyObject = msg_send![class!(NSNumber), numberWithBool:value];
-            // Fix the message sending syntax with proper commas
-            let dict: *mut AnyObject =
-                msg_send![class!(NSDictionary), dictionaryWithObject:ns_value, forKey:&*ns_key];
-            Retained::from_raw(dict.cast()).unwrap()
-        };
+        let dict = autoreleasepool(|| {
+            unsafe {
+                let ns_key = NSString::from_str(key);
+                let ns_value: *mut AnyObject = msg_send![class!(NSNumber), numberWithBool:value];
+                let dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionaryWithObject:ns_value forKey:&*ns_key];
+                Retained::from_raw(dict.cast()).expect("Failed to create test dictionary with boolean")
+            }
+        });
 
         // Test property retrieval
         let result = iokit.get_bool_property(&dict, key);
@@ -377,9 +463,6 @@ mod tests {
         // This will likely fail with a SystemError on mock objects, which is correct
         let result = iokit.io_registry_entry_create_cf_properties(&mock_obj);
         assert!(result.is_err());
-
-        // For full coverage we would need a real IOKit object, which is challenging
-        // in a pure unit test environment. Integration tests would be better for this.
     }
 
     #[test]

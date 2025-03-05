@@ -3,3 +3,4 @@
 # Coverage files
 /coverage/*.profraw
 /coverage/*.profdata
+.repomix/
