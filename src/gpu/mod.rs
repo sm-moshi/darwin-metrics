@@ -120,7 +120,7 @@ impl GPU {
         }
         
         // Safely execute Objective-C code within an autorelease pool
-        autorelease_pool(|_| {
+        autorelease_pool(|| {
             objc_safe_exec(|| {
                 unsafe {
                     // Cast the device pointer to AnyObject before sending messages to it
@@ -342,10 +342,10 @@ unsafe impl Sync for GPU {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iokit::MockIOKit;
-    use mockall::predicate::*;
+    use crate::iokit::MockIOKit; // This is now re-exported from iokit module
+    // We don't need mockall::predicate imports yet
     use objc2::rc::{Retained, autoreleasepool};
-    use objc2::runtime::{AnyClass, AnyObject};
+    use objc2::runtime::AnyObject;
     use objc2_foundation::{NSObject, NSString, NSDictionary};
     use objc2::{msg_send, class};
     use std::ptr;
@@ -439,13 +439,13 @@ mod tests {
         let mut mock_iokit = MockIOKit::new();
         
         // Set expectations for the mock
-        mock_iokit.expect_io_service_matching_impl()
+        mock_iokit.expect_io_service_matching()
             .returning(|_| create_test_dictionary());
             
-        mock_iokit.expect_io_service_get_matching_service_impl()
+        mock_iokit.expect_io_service_get_matching_service()
             .returning(|_| Some(create_test_anyobject()));
             
-        mock_iokit.expect_io_registry_entry_create_cf_properties_impl()
+        mock_iokit.expect_io_registry_entry_create_cf_properties()
             .returning(|_| Ok(create_test_dictionary()));
             
         let device = unsafe { MTLCreateSystemDefaultDevice() };
@@ -458,9 +458,9 @@ mod tests {
             iokit: Box::new(mock_iokit),
         };
         
-        let memory = gpu.memory_info()?;
+        let _memory = gpu.memory_info()?; // Prefixed with _ to indicate intentional unused variable
         // Just verify we get some kind of result without error
-        assert!(memory.total >= 0);
+        // The total value should be populated based on actual system info
         
         Ok(())
     }

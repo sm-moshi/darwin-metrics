@@ -388,7 +388,7 @@ impl PartialEq for Battery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iokit::MockIOKit;
+    use crate::iokit::MockIOKit; // This is now re-exported from iokit module
     use crate::testing::{create_safe_dictionary, setup_test_environment};
     
     use objc2::{msg_send, class};

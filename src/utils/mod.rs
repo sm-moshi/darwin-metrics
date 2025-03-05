@@ -11,6 +11,9 @@ use std::os::raw::c_double;
 use std::slice;
 use std::panic::AssertUnwindSafe;
 use objc2::rc::autoreleasepool;
+use objc2::msg_send;
+use objc2::runtime::AnyObject;
+use crate::Error;
 
 /// Safely executes Objective-C code that might throw exceptions
 /// 
@@ -66,7 +69,8 @@ pub fn autorelease_pool<T, F>(f: F) -> T
 where 
     F: FnOnce() -> T
 {
-    autoreleasepool(|_pool| f())
+    // This properly adapts our closure to the objc2 autoreleasepool function
+    autoreleasepool(|_| f())
 }
 
 /// Converts a C string pointer to a Rust String
@@ -138,22 +142,25 @@ pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<V
 
 /// Gets the name of the GPU
 ///
+/// # Arguments
+///
+/// * `device` - GPU device pointer
+///
 /// # Returns
 ///
 /// A Result containing the GPU name as a String or an error
-pub fn name(&self) -> Result<String> {
+pub fn get_name(device: *mut std::ffi::c_void) -> crate::Result<String> {
     // Check if we have a valid device
-    if self.device.is_null() {
+    if device.is_null() {
         return Err(Error::NotAvailable("No GPU device available".into()));
     }
     
     // Safely execute Objective-C code within an autorelease pool
-    // Changed |_| to || to match expected signature
     autorelease_pool(|| {
         objc_safe_exec(|| {
             unsafe {
                 // Cast the device pointer to AnyObject before sending messages to it
-                let device_obj: *mut AnyObject = self.device.cast();
+                let device_obj: *mut AnyObject = device.cast();
                 
                 // Get the name property using Metal API
                 let name_obj: *mut AnyObject = msg_send![device_obj, name];
@@ -224,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_raw_f64_slice_to_vec() {
-        let test_doubles = vec![1.0, 2.5, 3.14, -0.5];
+        let test_doubles = vec![1.0, 2.5, std::f64::consts::PI, -0.5];
         let ptr = test_doubles.as_ptr();
         let len = test_doubles.len();
 

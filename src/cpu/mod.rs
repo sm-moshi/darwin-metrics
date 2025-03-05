@@ -342,7 +342,7 @@ impl Clone for CPU {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iokit::MockIOKit;
+    use crate::iokit::MockIOKit; // This is now re-exported from iokit module
     
 
     fn setup_test_environment() {
