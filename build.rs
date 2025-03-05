@@ -10,7 +10,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map_err(|e| format!("Failed to get CARGO_MANIFEST_DIR: {}", e))?;
 
     // Add framework search paths - order matters!
-    println!("cargo:rustc-link-search=framework=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks");
+    println!(
+        "cargo:rustc-link-search=framework=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+    );
     println!("cargo:rustc-link-search=framework=/System/Library/Frameworks");
     println!("cargo:rustc-link-search=framework=/Library/Frameworks");
     println!("cargo:rustc-link-search=native=/usr/lib");

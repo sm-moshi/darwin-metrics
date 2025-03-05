@@ -1,7 +1,7 @@
 [package]
 name        = "darwin-metrics"
 version     = "0.0.1"
-edition     = "2024"
+edition     = "2021"
 description = "A Rust library exposing native macOS system metrics"
 authors     = ["Stuart Meya <sm0sh1@pm.me>"]
 license     = "MIT"
@@ -22,12 +22,18 @@ cc = "1.2.16"
 # Core FFI and system interfaces
 libc = "0.2.170"
 # core-foundation = "0.10.0"
-objc2                 = { version = "0.6.0", features = ["alloc", "objc2-proc-macros", "std"] }
-objc2-foundation      = "0.3.0"
+objc2 = { version = "0.6.0", features = [
+    "alloc",
+    "objc2-proc-macros",
+    "std",
+    "exception",
+    "catch-all",
+] }
+objc2-foundation = "0.3.0"
 objc2-core-foundation = "0.3.0"
-objc2-core-graphics   = "0.3.0"
-block2                = { version = "0.6.0", features = ["alloc", "std"] }
-scopeguard            = "1.2.0"
+objc2-core-graphics = "0.3.0"
+block2 = { version = "0.6.0", features = ["alloc", "std"] }
+scopeguard = "1.2.0"
 
 # Error handling and logging
 tokio              = { version = "1.43.0", features = ["full"] }

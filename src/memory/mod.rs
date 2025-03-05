@@ -23,8 +23,11 @@
 
 use crate::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
-use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::collections::VecDeque;
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
 use std::time::{Duration, Instant};
 
 // External C functions from macOS
@@ -52,7 +55,7 @@ impl std::fmt::Display for PressureLevel {
 }
 
 /// Represents memory page states
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct PageStates {
     /// Active memory pages in bytes
     pub active: u64,
@@ -64,18 +67,6 @@ pub struct PageStates {
     pub free: u64,
     /// Compressed memory in bytes
     pub compressed: u64,
-}
-
-impl Default for PageStates {
-    fn default() -> Self {
-        Self {
-            active: 0,
-            inactive: 0,
-            wired: 0,
-            free: 0,
-            compressed: 0,
-        }
-    }
 }
 
 /// Represents swap usage information
@@ -164,13 +155,29 @@ impl std::fmt::Debug for Memory {
             .field("swap_usage", &self.swap_usage)
             .field("history", &self.history)
             .field("history_max_items", &self.history_max_items)
-            .field("pressure_warning_threshold", &self.pressure_warning_threshold)
-            .field("pressure_critical_threshold", &self.pressure_critical_threshold)
-            .field("pressure_callbacks", &format!("<{} callbacks>", callback_count))
+            .field(
+                "pressure_warning_threshold",
+                &self.pressure_warning_threshold,
+            )
+            .field(
+                "pressure_critical_threshold",
+                &self.pressure_critical_threshold,
+            )
+            .field(
+                "pressure_callbacks",
+                &format!("<{} callbacks>", callback_count),
+            )
             .field("last_update", &self.last_update)
             .field("prev_swap_in", &self.prev_swap_in)
             .field("prev_swap_out", &self.prev_swap_out)
-            .field("iokit", &if self.iokit.is_some() { "Some(IOKit)" } else { "None" })
+            .field(
+                "iokit",
+                &if self.iokit.is_some() {
+                    "Some(IOKit)"
+                } else {
+                    "None"
+                },
+            )
             .finish()
     }
 }
@@ -202,13 +209,13 @@ impl Clone for Memory {
 
 impl PartialEq for Memory {
     fn eq(&self, other: &Self) -> bool {
-        self.total == other.total &&
-        self.available == other.available &&
-        self.used == other.used &&
-        self.wired == other.wired &&
-        self.pressure == other.pressure &&
-        self.page_states == other.page_states &&
-        self.swap_usage == other.swap_usage
+        self.total == other.total
+            && self.available == other.available
+            && self.used == other.used
+            && self.wired == other.wired
+            && self.pressure == other.pressure
+            && self.page_states == other.page_states
+            && self.swap_usage == other.swap_usage
     }
 }
 
@@ -250,9 +257,9 @@ impl Memory {
             last_update: Instant::now(),
             prev_swap_in: 0,
             prev_swap_out: 0,
-            iokit: Some(Box::new(IOKitImpl::default())),
+            iokit: Some(Box::new(IOKitImpl)),
         };
-        
+
         memory.update()?;
         Ok(memory)
     }
@@ -358,74 +365,74 @@ impl Memory {
     pub fn update(&mut self) -> Result<()> {
         // Get total memory
         self.total = Self::get_total_memory()?;
-        
+
         // Get VM statistics
         let vmstat = Self::get_vm_statistics()?;
-        
+
         // Calculate page states
         let page_size = Self::get_page_size()?;
-        
+
         self.page_states.free = vmstat.free_count as u64 * page_size;
         self.page_states.active = vmstat.active_count as u64 * page_size;
         self.page_states.inactive = vmstat.inactive_count as u64 * page_size;
         self.page_states.wired = vmstat.wire_count as u64 * page_size;
         self.page_states.compressed = vmstat.compressor_page_count as u64 * page_size;
-        
+
         // Update memory totals
         self.available = self.page_states.free + self.page_states.inactive;
         self.used = self.total - self.available;
         self.wired = self.page_states.wired;
-        
+
         // Calculate memory pressure
         self.pressure = 1.0 - (self.available as f64 / self.total as f64).clamp(0.0, 1.0);
-        
+
         // Get swap usage
         let mut swap = Self::get_swap_usage()?;
-        
+
         // Calculate swap in/out rates
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_update).as_secs_f64();
-        
+
         if elapsed > 0.0 && self.prev_swap_in > 0 && self.prev_swap_out > 0 {
             let swap_in_diff = if vmstat.swapins >= self.prev_swap_in {
                 vmstat.swapins - self.prev_swap_in
             } else {
                 vmstat.swapins
             };
-            
+
             let swap_out_diff = if vmstat.swapouts >= self.prev_swap_out {
                 vmstat.swapouts - self.prev_swap_out
             } else {
                 vmstat.swapouts
             };
-            
+
             swap.ins = swap_in_diff as f64 / elapsed;
             swap.outs = swap_out_diff as f64 / elapsed;
         }
-        
+
         // Update swap pressure
         swap.pressure = if swap.total > 0 {
             (swap.used as f64 / swap.total as f64).clamp(0.0, 1.0)
         } else {
             0.0
         };
-        
+
         self.swap_usage = swap;
-        
+
         // Save values for next rate calculation
         self.prev_swap_in = vmstat.swapins;
         self.prev_swap_out = vmstat.swapouts;
         self.last_update = now;
-        
+
         // Add current usage to history
         self.history.push_back(self.usage_percentage());
         if self.history.len() > self.history_max_items {
             self.history.pop_front();
         }
-        
+
         // Check pressure thresholds and trigger callbacks if needed
         self.check_pressure_thresholds();
-        
+
         Ok(())
     }
 
@@ -459,9 +466,9 @@ impl Memory {
             last_update: Instant::now(),
             prev_swap_in: 0,
             prev_swap_out: 0,
-            iokit: Some(Box::new(IOKitImpl::default())),
+            iokit: Some(Box::new(IOKitImpl)),
         };
-        
+
         memory.update()?;
         Ok(memory)
     }
@@ -498,15 +505,16 @@ impl Memory {
     /// - `Ok(())` if thresholds were set successfully
     /// - `Err(Error)` if thresholds are invalid
     pub fn set_pressure_thresholds(&mut self, warning: f64, critical: f64) -> Result<()> {
-        if warning < 0.0 || warning > 1.0 || critical < 0.0 || critical > 1.0 || warning > critical {
+        if !(0.0..=1.0).contains(&warning) || !(0.0..=1.0).contains(&critical) || warning > critical
+        {
             return Err(Error::invalid_value(
-                "Invalid pressure thresholds: must be between 0 and 1, and warning must be less than critical"
+                "Invalid pressure thresholds: must be between 0 and 1, and warning must be less than critical",
             ));
         }
-        
+
         self.pressure_warning_threshold = warning;
         self.pressure_critical_threshold = critical;
-        
+
         Ok(())
     }
 
@@ -546,11 +554,11 @@ impl Memory {
         let critical_threshold = self.pressure_critical_threshold;
         let active = Arc::new(AtomicBool::new(true));
         let handle_active = active.clone();
-        
+
         // Spawn monitoring task
         tokio::spawn(async move {
             let mut prev_level = None;
-            
+
             while handle_active.load(Ordering::SeqCst) {
                 if let Ok(memory) = Self::get_info() {
                     // Check if pressure level has changed
@@ -561,7 +569,7 @@ impl Memory {
                     } else {
                         PressureLevel::Normal
                     };
-                    
+
                     // Only trigger callbacks if level changed
                     if prev_level != Some(current_level) {
                         if let Ok(callbacks) = callbacks.lock() {
@@ -572,22 +580,22 @@ impl Memory {
                         prev_level = Some(current_level);
                     }
                 }
-                
+
                 tokio::time::sleep(Duration::from_millis(interval_ms)).await;
             }
         });
-        
+
         Ok(MemoryMonitorHandle { active })
     }
 
     // Private helper methods
-    
+
     fn get_total_memory() -> Result<u64> {
         let mut size = 0u64;
         let mut size_len = std::mem::size_of::<u64>();
-        
+
         let mib = [CTL_HW, HW_MEMSIZE];
-        
+
         let result = unsafe {
             sysctl(
                 mib.as_ptr(),
@@ -602,16 +610,17 @@ impl Memory {
         if result == 0 {
             Ok(size)
         } else {
-            Err(Error::system_error(
-                format!("Failed to get total memory: {}", result)
-            ))
+            Err(Error::system_error(format!(
+                "Failed to get total memory: {}",
+                result
+            )))
         }
     }
-    
+
     fn get_page_size() -> Result<u64> {
         Ok(unsafe { vm_kernel_page_size as u64 })
     }
-    
+
     fn get_vm_statistics() -> Result<vm_statistics64> {
         let mut info = vm_statistics64::default();
         let mut count = HOST_VM_INFO64_COUNT;
@@ -626,20 +635,21 @@ impl Memory {
         };
 
         if kern_result != KERN_SUCCESS {
-            return Err(Error::system_error(
-                format!("Failed to get VM statistics: {}", kern_result)
-            ));
+            return Err(Error::system_error(format!(
+                "Failed to get VM statistics: {}",
+                kern_result
+            )));
         }
-        
+
         Ok(info)
     }
-    
+
     fn get_swap_usage() -> Result<SwapUsage> {
         let mut xsw_usage = xsw_usage::default();
         let mut size = std::mem::size_of::<xsw_usage>();
-        
+
         let mib = [CTL_VM, VM_SWAPUSAGE];
-        
+
         let result = unsafe {
             sysctl(
                 mib.as_ptr(),
@@ -652,11 +662,12 @@ impl Memory {
         };
 
         if result != 0 {
-            return Err(Error::system_error(
-                format!("Failed to get swap usage: {}", result)
-            ));
+            return Err(Error::system_error(format!(
+                "Failed to get swap usage: {}",
+                result
+            )));
         }
-        
+
         Ok(SwapUsage {
             total: xsw_usage.xsu_total,
             used: xsw_usage.xsu_used,
@@ -673,7 +684,7 @@ impl Memory {
 
     fn check_pressure_thresholds(&self) {
         let level = self.pressure_level();
-        
+
         if let Ok(callbacks) = self.pressure_callbacks.lock() {
             for callback in callbacks.iter() {
                 callback(level);
@@ -758,16 +769,16 @@ struct xsw_usage {
 // Mark the extern block as unsafe
 unsafe extern "C" {
     static vm_kernel_page_size: u32;
-    
+
     fn host_statistics64(
         host_priv: MachPortT,
         flavor: i32,
         host_info_out: HostInfoT,
         host_info_outCnt: *mut u32,
     ) -> i32;
-    
+
     fn mach_host_self() -> MachPortT;
-    
+
     fn sysctl(
         name: *const i32,
         namelen: u32,
@@ -781,7 +792,7 @@ unsafe extern "C" {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicU64, AtomicI32};
+    use std::sync::atomic::{AtomicI32, AtomicU64};
 
     #[test]
     fn test_memory_with_basic_info() {
@@ -790,9 +801,9 @@ mod tests {
             8 * 1024 * 1024 * 1024,  // 8GB available
             8 * 1024 * 1024 * 1024,  // 8GB used
             2 * 1024 * 1024 * 1024,  // 2GB wired
-            0.5,                      // 50% pressure
+            0.5,                     // 50% pressure
         );
-        
+
         assert_eq!(memory.usage_percentage(), 50.0);
         assert_eq!(memory.pressure_percentage(), 50.0);
         assert_eq!(memory.pressure_level(), PressureLevel::Normal);
@@ -811,7 +822,7 @@ mod tests {
             free: 8 * 1024 * 1024 * 1024,
             compressed: 1 * 1024 * 1024 * 1024,
         };
-        
+
         let swap_usage = SwapUsage {
             total: 8 * 1024 * 1024 * 1024,
             used: 2 * 1024 * 1024 * 1024,
@@ -820,17 +831,17 @@ mod tests {
             outs: 5.2,
             pressure: 0.25,
         };
-        
+
         let memory = Memory::with_values(
             16 * 1024 * 1024 * 1024, // 16GB total
             10 * 1024 * 1024 * 1024, // 10GB available
             6 * 1024 * 1024 * 1024,  // 6GB used
             2 * 1024 * 1024 * 1024,  // 2GB wired
-            0.4,                      // 40% pressure
+            0.4,                     // 40% pressure
             page_states.clone(),
             swap_usage.clone(),
         );
-        
+
         assert_eq!(memory.usage_percentage(), 37.5);
         assert_eq!(memory.pressure_percentage(), 40.0);
         assert_eq!(memory.page_states, page_states);
@@ -844,19 +855,19 @@ mod tests {
             4 * 1024 * 1024 * 1024,  // 4GB available
             12 * 1024 * 1024 * 1024, // 12GB used
             2 * 1024 * 1024 * 1024,  // 2GB wired
-            0.7,                      // 70% pressure
+            0.7,                     // 70% pressure
         );
-        
+
         assert_eq!(memory.pressure_level(), PressureLevel::Warning);
-        
+
         // Set lower thresholds
         memory.set_pressure_thresholds(0.5, 0.8).unwrap();
         assert_eq!(memory.pressure_level(), PressureLevel::Warning);
-        
+
         // Set higher thresholds
         memory.set_pressure_thresholds(0.8, 0.9).unwrap();
         assert_eq!(memory.pressure_level(), PressureLevel::Normal);
-        
+
         // Test invalid thresholds
         assert!(memory.set_pressure_thresholds(-0.1, 0.9).is_err());
         assert!(memory.set_pressure_thresholds(0.5, 1.1).is_err());
@@ -870,15 +881,15 @@ mod tests {
             4 * 1024 * 1024 * 1024,  // 4GB available
             12 * 1024 * 1024 * 1024, // 12GB used
             2 * 1024 * 1024 * 1024,  // 2GB wired
-            0.9,                      // 90% pressure
+            0.9,                     // 90% pressure
         );
-        
+
         let callback_counter = Arc::new(AtomicI32::new(0));
         let critical_counter = Arc::new(AtomicI32::new(0));
-        
+
         let counter_clone = callback_counter.clone();
         let critical_clone = critical_counter.clone();
-        
+
         // Register callback
         memory.on_pressure_change(move |level| {
             counter_clone.fetch_add(1, Ordering::SeqCst);
@@ -886,14 +897,14 @@ mod tests {
                 critical_clone.fetch_add(1, Ordering::SeqCst);
             }
         });
-        
+
         // Trigger callbacks
         memory.check_pressure_thresholds();
-        
+
         assert_eq!(callback_counter.load(Ordering::SeqCst), 1);
         assert_eq!(critical_counter.load(Ordering::SeqCst), 1);
     }
-    
+
     #[test]
     fn test_history_tracking() {
         let mut memory = Memory::with_basic_info(
@@ -901,42 +912,42 @@ mod tests {
             8 * 1024 * 1024 * 1024,  // 8GB available
             8 * 1024 * 1024 * 1024,  // 8GB used
             2 * 1024 * 1024 * 1024,  // 2GB wired
-            0.5,                      // 50% pressure
+            0.5,                     // 50% pressure
         );
-        
+
         // Initially empty
         assert_eq!(memory.usage_history().len(), 0);
-        
+
         // Simulate update
         memory.history.push_back(50.0);
         memory.history.push_back(55.0);
         memory.history.push_back(60.0);
-        
+
         // Check history
         assert_eq!(memory.usage_history().len(), 3);
         assert_eq!(memory.usage_history()[0], 50.0);
         assert_eq!(memory.usage_history()[1], 55.0);
         assert_eq!(memory.usage_history()[2], 60.0);
-        
+
         // Test history limit
         let orig_capacity = memory.history_max_items;
         memory.history_max_items = 3;
-        
+
         // This should push out the first item
         memory.history.push_back(65.0);
         if memory.history.len() > memory.history_max_items {
             memory.history.pop_front();
         }
-        
+
         assert_eq!(memory.usage_history().len(), 3);
         assert_eq!(memory.usage_history()[0], 55.0);
         assert_eq!(memory.usage_history()[1], 60.0);
         assert_eq!(memory.usage_history()[2], 65.0);
-        
+
         // Restore original capacity
         memory.history_max_items = orig_capacity;
     }
-    
+
     #[test]
     fn test_memory_display_formatting() {
         let memory = Memory::with_basic_info(
@@ -944,12 +955,12 @@ mod tests {
             8 * 1024 * 1024 * 1024,  // 8GB available
             8 * 1024 * 1024 * 1024,  // 8GB used
             2 * 1024 * 1024 * 1024,  // 2GB wired
-            0.5,                      // 50% pressure
+            0.5,                     // 50% pressure
         );
-        
+
         // Test pressure level formatting
         assert_eq!(format!("{}", memory.pressure_level()), "Normal");
-        
+
         let warning_memory = Memory::with_basic_info(
             16 * 1024 * 1024 * 1024,
             4 * 1024 * 1024 * 1024,
@@ -958,7 +969,7 @@ mod tests {
             0.7,
         );
         assert_eq!(format!("{}", warning_memory.pressure_level()), "Warning");
-        
+
         let critical_memory = Memory::with_basic_info(
             16 * 1024 * 1024 * 1024,
             1 * 1024 * 1024 * 1024,
@@ -979,11 +990,11 @@ mod tests {
             0,                       // 0GB wired
             0.0,                     // 0% pressure
         );
-        
+
         assert_eq!(empty_memory.usage_percentage(), 0.0);
         assert_eq!(empty_memory.pressure_percentage(), 0.0);
         assert_eq!(empty_memory.pressure_level(), PressureLevel::Normal);
-        
+
         // Edge case: 100% memory usage
         let full_memory = Memory::with_basic_info(
             16 * 1024 * 1024 * 1024, // 16GB total
@@ -992,7 +1003,7 @@ mod tests {
             4 * 1024 * 1024 * 1024,  // 4GB wired
             1.0,                     // 100% pressure
         );
-        
+
         assert_eq!(full_memory.usage_percentage(), 100.0);
         assert_eq!(full_memory.pressure_percentage(), 100.0);
         assert_eq!(full_memory.pressure_level(), PressureLevel::Critical);
@@ -1003,7 +1014,7 @@ mod tests {
         let handle = MemoryMonitorHandle {
             active: Arc::new(AtomicBool::new(true)),
         };
-        
+
         assert!(handle.is_active());
         handle.stop();
         assert!(!handle.is_active());
@@ -1016,36 +1027,39 @@ mod tests {
         if std::env::var("CI").is_ok() {
             return;
         }
-        
+
         let memory = Memory::with_basic_info(
             16 * 1024 * 1024 * 1024, // 16GB total
             8 * 1024 * 1024 * 1024,  // 8GB available
             8 * 1024 * 1024 * 1024,  // 8GB used
             2 * 1024 * 1024 * 1024,  // 2GB wired
-            0.5,                      // 50% pressure
+            0.5,                     // 50% pressure
         );
-        
+
         let callback_counter = Arc::new(AtomicU64::new(0));
         let counter_clone = callback_counter.clone();
-        
+
         memory.on_pressure_change(move |_level| {
             counter_clone.fetch_add(1, Ordering::SeqCst);
         });
-        
+
         // Very short interval for testing
-        let handle = memory.start_monitoring(10).await.expect("Failed to start monitoring");
-        
+        let handle = memory
+            .start_monitoring(10)
+            .await
+            .expect("Failed to start monitoring");
+
         // Wait briefly to allow some monitoring cycles
         tokio::time::sleep(Duration::from_millis(50)).await;
-        
+
         // Stop monitoring
         handle.stop();
         assert!(!handle.is_active());
-        
+
         // We can't reliably assert the exact number of callbacks in this test
         // but we can ensure the monitoring starts and stops properly
     }
-    
+
     #[test]
     fn test_swap_usage() {
         let swap = SwapUsage {
@@ -1056,14 +1070,14 @@ mod tests {
             outs: 5.2,
             pressure: 0.25,
         };
-        
+
         assert_eq!(swap.total, 8 * 1024 * 1024 * 1024);
         assert_eq!(swap.used, 2 * 1024 * 1024 * 1024);
         assert_eq!(swap.free, 6 * 1024 * 1024 * 1024);
         assert_eq!(swap.ins, 10.5);
         assert_eq!(swap.outs, 5.2);
         assert_eq!(swap.pressure, 0.25);
-        
+
         // Test Default implementation
         let default_swap = SwapUsage::default();
         assert_eq!(default_swap.total, 0);
@@ -1073,7 +1087,7 @@ mod tests {
         assert_eq!(default_swap.outs, 0.0);
         assert_eq!(default_swap.pressure, 0.0);
     }
-    
+
     #[test]
     fn test_page_states() {
         let pages = PageStates {
@@ -1083,13 +1097,13 @@ mod tests {
             free: 8 * 1024 * 1024 * 1024,
             compressed: 1 * 1024 * 1024 * 1024,
         };
-        
+
         assert_eq!(pages.active, 4 * 1024 * 1024 * 1024);
         assert_eq!(pages.inactive, 2 * 1024 * 1024 * 1024);
         assert_eq!(pages.wired, 2 * 1024 * 1024 * 1024);
         assert_eq!(pages.free, 8 * 1024 * 1024 * 1024);
         assert_eq!(pages.compressed, 1 * 1024 * 1024 * 1024);
-        
+
         // Test Default implementation
         let default_pages = PageStates::default();
         assert_eq!(default_pages.active, 0);

@@ -1,10 +1,10 @@
 use crate::Error;
-use std::time::Duration;
+use async_trait::async_trait;
+use futures::Future;
 use futures::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use async_trait::async_trait;
-use futures::Future;
+use std::time::Duration;
 
 #[async_trait]
 pub trait ProcessInfo {
@@ -80,7 +80,7 @@ impl Stream for ProcessMetricsStream {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
-        
+
         // First check any pending future
         if let Some(fut) = &mut this.pending_future {
             match fut.as_mut().poll(cx) {
@@ -91,16 +91,14 @@ impl Stream for ProcessMetricsStream {
                 Poll::Pending => return Poll::Pending,
             }
         }
-        
+
         // Then poll the interval
         match this.interval.poll_tick(cx) {
             Poll::Ready(_) => {
                 // Start fetching the next metric
                 let pid = this.pid;
-                this.pending_future = Some(Box::pin(async move {
-                    Process::get_by_pid(pid).await
-                }));
-                
+                this.pending_future = Some(Box::pin(async move { Process::get_by_pid(pid).await }));
+
                 // Try polling the new future immediately
                 if let Some(fut) = &mut this.pending_future {
                     match fut.as_mut().poll(cx) {
@@ -128,7 +126,7 @@ mod tests {
     #[tokio::test]
     async fn test_process_metrics_stream() {
         let mut stream = Process::monitor_metrics(1, Duration::from_millis(100));
-        
+
         // Should return NotImplemented error as the actual implementation isn't ready
         match stream.next().await {
             Some(Err(Error::NotImplemented(_))) => (),

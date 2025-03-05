@@ -9,7 +9,5 @@
   "go.alternateTools": {
     "go": "${workspaceFolder}/.vscode/mise-tools/go",
     "dlv": "${workspaceFolder}/.vscode/mise-tools/dlv"
-  },
-  "rust-analyzer.cargo.features": ["test-utils"]
-  // "rust-analyzer.checkOnSave.features": ["test-utils"]
+  }
 }

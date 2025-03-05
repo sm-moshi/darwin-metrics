@@ -34,4 +34,4 @@ impl Network {
     pub fn get_stats() -> Result<Vec<Self>, Error> {
         Err(Error::not_implemented("Network statistics collection"))
     }
-} 
+}

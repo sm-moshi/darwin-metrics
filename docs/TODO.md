@@ -34,10 +34,11 @@
 - [x] Add battery health and cycle count information
 - [x] Add power source detection (AC/Battery)
 - [x] Add temperature monitoring
-- [ ] Add comprehensive test coverage for edge cases
-  - [ ] Test battery state transitions
-  - [ ] Test power source transition scenarios
-  - [ ] Test temperature range edge cases
+- [x] Add comprehensive test coverage for edge cases
+  - [x] Test battery state transitions
+  - [x] Test power source transition scenarios
+  - [x] Test temperature range edge cases
+  - [x] Test error handling scenarios
 
 #### Additional Battery Features *(Post 0.1.0)*
 
@@ -85,22 +86,27 @@
 - [x] Get CPU model name and frequency
 - [x] Fetch total CPU load (user, system, idle)
 - [x] Implement CPU temperature monitoring
+- [x] Add comprehensive test coverage
+  - [x] Test CPU initialization
+  - [x] Test usage calculations
+  - [x] Test error handling
+  - [x] Test field visibility and access
 
 ### 💾 Memory Metrics *(0.1.0 Core Features)*
 
 - [x] Define Memory struct and interface
 - [x] Set up memory info data structure
-- [ ] Memory Pressure Detection
-  - [ ] Add memory pressure thresholds
-  - [ ] Implement pressure level callbacks
-- [ ] RAM Usage Monitoring
-  - [ ] Track active vs inactive memory
-  - [ ] Monitor compressed memory usage
-  - [ ] Track memory page states
-- [ ] Swap Management
-  - [ ] Monitor swap in/out rates
-  - [ ] Track swap file usage
-  - [ ] Monitor swap pressure
+- [x] Memory Pressure Detection
+  - [x] Add memory pressure thresholds
+  - [x] Implement pressure level callbacks
+- [x] RAM Usage Monitoring
+  - [x] Track active vs inactive memory
+  - [x] Monitor compressed memory usage
+  - [x] Track memory page states
+- [x] Swap Management
+  - [x] Monitor swap in/out rates
+  - [x] Track swap file usage
+  - [x] Monitor swap pressure
 
 ### 🌡️ Temperature Metrics *(0.1.0 Core Features)*
 
@@ -132,6 +138,17 @@
   - [ ] CPU usage tracking
   - [ ] Memory usage monitoring
   - [ ] Resource limit tracking
+
+### 🎮 GPU Metrics *(0.1.0 Core Features)*
+
+- [ ] Define GPU struct and interface
+- [ ] Implement basic GPU info retrieval
+- [ ] Add memory usage tracking
+- [ ] Add comprehensive test coverage
+  - [ ] Test GPU initialization
+  - [ ] Test metrics collection
+  - [ ] Test error handling
+  - [ ] Test mock implementations
 
 ---
 

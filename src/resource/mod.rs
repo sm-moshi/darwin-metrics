@@ -1,9 +1,9 @@
-use std::sync::{Arc, RwLock};
+use crate::Error;
+use parking_lot::RwLock as PLRwLock;
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
-use parking_lot::RwLock as PLRwLock;
-use crate::Error;
 
 /// Cache entry with value and expiration
 struct CacheEntry<T> {
@@ -54,7 +54,7 @@ impl<T> ResourcePool<T> {
 }
 
 /// Thread-safe cache with TTL support
-pub struct Cache<K, V> 
+pub struct Cache<K, V>
 where
     K: Eq + std::hash::Hash,
     V: Clone,
@@ -131,7 +131,7 @@ struct ResourceUsageState {
 impl ResourceManager {
     pub fn new() -> Self {
         let (usage_tx, _) = broadcast::channel(100);
-        
+
         Self {
             metric_cache: Arc::new(Cache::new(Duration::from_secs(60))),
             usage_tx,
@@ -155,10 +155,16 @@ impl ResourceManager {
         // Update usage state
         {
             let mut state = self.usage_state.write().unwrap();
-            let count = state.active_resources.entry(resource_type.to_string()).or_insert(0);
+            let count = state
+                .active_resources
+                .entry(resource_type.to_string())
+                .or_insert(0);
             *count += 1;
-            
-            let peak = state.peak_usage.entry(resource_type.to_string()).or_insert(0.0);
+
+            let peak = state
+                .peak_usage
+                .entry(resource_type.to_string())
+                .or_insert(0.0);
             *peak = f64::max(*peak, usage.usage_percent);
         }
 
@@ -217,12 +223,12 @@ mod tests {
     #[tokio::test]
     async fn test_async_resource_pool() {
         let pool = ResourcePool::new(2);
-        
+
         pool.release(1).await.unwrap();
         pool.release(2).await.unwrap();
-        
+
         assert!(pool.release(3).await.is_err());
-        
+
         assert_eq!(pool.acquire().await, Some(2));
         assert_eq!(pool.acquire().await, Some(1));
         assert_eq!(pool.acquire().await, None);
@@ -231,11 +237,11 @@ mod tests {
     #[test]
     fn test_cache() {
         let cache = Cache::new(Duration::from_millis(100));
-        
+
         // Set and get
         cache.set("key1", 42);
         assert_eq!(cache.get(&"key1"), Some(42));
-        
+
         // Wait for expiration
         thread::sleep(Duration::from_millis(150));
         assert_eq!(cache.get(&"key1"), None);
@@ -245,15 +251,15 @@ mod tests {
     async fn test_resource_manager() {
         let manager = ResourceManager::new();
         let mut rx = manager.subscribe();
-        
+
         // Track usage
         manager.track_resource_usage("cpu", 50.0).await;
-        
+
         // Receive usage update
         let usage = rx.recv().await.unwrap();
         assert_eq!(usage.resource_type, "cpu");
         assert_eq!(usage.usage_percent, 50.0);
-        
+
         // Check stats
         let stats = manager.get_usage_stats();
         assert_eq!(stats.get("cpu"), Some(&50.0));
