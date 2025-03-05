@@ -143,7 +143,7 @@ pub mod resource;
 
 // Internal modules
 pub mod iokit;
-mod utils;
+pub mod utils;
 #[cfg(test)]
 pub(crate) mod testing {
     use crate::battery::{Battery, PowerSource};
