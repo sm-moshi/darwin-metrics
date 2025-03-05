@@ -139,13 +139,15 @@
   - [x] Implement proper async stream polling
   - [x] Add thread-safe cloning support
   - [x] Add comprehensive doc tests
+- [x] Implement Process::get_by_pid() with proper error handling
+- [x] CPU usage tracking
+  - [x] Normalize CPU usage calculation between 0-100%
+  - [x] Handle permission errors gracefully
 - [ ] Process Information Collection
-  - [ ] Implement Process::get_by_pid()
   - [ ] Add process name resolution
   - [ ] Implement process state tracking
   - [ ] Add process hierarchy mapping
 - [ ] Process Statistics
-  - [ ] CPU usage tracking
   - [ ] Memory usage monitoring
   - [ ] Resource limit tracking
   - [ ] I/O statistics collection

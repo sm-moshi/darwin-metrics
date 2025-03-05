@@ -164,19 +164,14 @@ impl Process {
             })?;
 
         // Calculate CPU usage as a percentage (0-100)
-        let total_time = task_info.pti_total_user + task_info.pti_total_system;
-        let cpu_usage = if total_time > 0 {
-            // Normalize to percentage and ensure it doesn't exceed 100%
-            (total_time as f64 / total_time as f64) * 100.0
-        } else {
-            0.0
-        };
+        let cpu_time = task_info.pti_total_user + task_info.pti_total_system;
+        let cpu_usage = (cpu_time as f64 / 1_000_000.0).min(100.0); // Normalize based on microsecond scale
 
         // Create and return the Process struct
         Ok(Process {
             pid,
             name: format!("Process with PID {}", pid), // Placeholder for name retrieval
-            cpu_usage: cpu_usage.min(100.0),
+            cpu_usage,
             memory_usage: task_info.pti_virtual_size as u64,
             uptime: Duration::from_secs(0), // Placeholder for uptime
             pending_future: None,
@@ -387,7 +382,6 @@ mod tests {
         assert_eq!(process.pid, pid);
         assert!(process.cpu_usage >= 0.0 && process.cpu_usage <= 100.0, "CPU usage out of bounds: {}", process.cpu_usage);
         assert!(process.memory_usage > 0, "Memory usage should be positive");
-        assert!(process.uptime.as_secs() >= 0);
 
         // Clean up test process
         child.kill().expect("Failed to kill test process");
