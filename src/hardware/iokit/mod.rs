@@ -35,11 +35,11 @@
 //! }
 //! ```
 
+use objc2::class;
 use objc2::msg_send;
-use objc2::rc::{Retained, autoreleasepool}; // Added autoreleasepool import
+use objc2::rc::{autoreleasepool, Retained}; // Added autoreleasepool import
 use objc2::runtime::{AnyClass, AnyObject};
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
-use objc2::class;
 
 use crate::Error;
 
@@ -58,34 +58,35 @@ impl IOKit for IOKitImpl {
             unsafe {
                 // First create the service name as an NSString
                 let ns_service_name = NSString::from_str(service_name);
-                
+
                 // Safe fallback is an empty dictionary
                 let empty_dict = {
                     let dict_class = class!(NSDictionary);
                     let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-                    
+
                     if dict_ptr.is_null() {
                         panic!("Failed to create empty dictionary");
                     }
-                    
+
                     match Retained::from_raw(dict_ptr.cast()) {
                         Some(dict) => dict,
                         None => panic!("Failed to retain empty dictionary"),
                     }
                 };
-                
+
                 // Try to get the IOService class
                 if let Some(io_class) = AnyClass::get(c"IOService") {
-                    let dict_ptr: *mut AnyObject = msg_send![io_class, serviceMatching: &*ns_service_name];
-                    
+                    let dict_ptr: *mut AnyObject =
+                        msg_send![io_class, serviceMatching: &*ns_service_name];
+
                     // If result is null or can't be retained, return our empty fallback
                     if dict_ptr.is_null() {
                         return empty_dict;
                     }
-                    
+
                     match Retained::from_raw(dict_ptr.cast()) {
                         Some(dict) => dict,
-                        None => empty_dict
+                        None => empty_dict,
                     }
                 } else {
                     // IOService class not found, return empty dictionary
@@ -102,9 +103,10 @@ impl IOKit for IOKitImpl {
         unsafe {
             // Use the master port (0) and the matching dictionary
             let master_port: u32 = 0; // kIOMasterPortDefault
-            // Fixed syntax with proper comma separation
-            let service: *mut AnyObject = msg_send![class!(IOService), getMatchingService: master_port, matching: matching];
-            
+                                      // Fixed syntax with proper comma separation
+            let service: *mut AnyObject =
+                msg_send![class!(IOService), getMatchingService: master_port, matching: matching];
+
             if service.is_null() {
                 None
             } else {
@@ -196,7 +198,7 @@ pub use mockall::automock;
 #[cfg_attr(test, automock)]
 pub trait IOKit: Send + Sync + std::fmt::Debug {
     fn io_service_matching(&self, service_name: &str)
-    -> Retained<NSDictionary<NSString, NSObject>>;
+        -> Retained<NSDictionary<NSString, NSObject>>;
     fn io_service_get_matching_service(
         &self,
         matching: &NSDictionary<NSString, NSObject>,
@@ -217,7 +219,7 @@ pub trait IOKit: Send + Sync + std::fmt::Debug {
         key: &str,
     ) -> Option<i64>;
     fn get_bool_property(&self, dict: &NSDictionary<NSString, NSObject>, key: &str)
-    -> Option<bool>;
+        -> Option<bool>;
 }
 
 // MockIOKit is automatically defined by automock on the IOKit trait
@@ -225,7 +227,7 @@ pub trait IOKit: Send + Sync + std::fmt::Debug {
 mod tests {
     use super::*;
     use mockall::predicate::*;
-    
+
     // Using the MockIOKit from the mock module
 
     /// Create an empty dictionary for safe testing
@@ -234,10 +236,10 @@ mod tests {
             unsafe {
                 let dict_class = class!(NSDictionary);
                 let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-                
+
                 // Ensure we got a valid dictionary
                 assert!(!dict_ptr.is_null(), "Failed to create empty dictionary");
-                
+
                 // Convert to retained dictionary
                 match Retained::from_raw(dict_ptr.cast()) {
                     Some(dict) => dict,
@@ -249,32 +251,26 @@ mod tests {
 
     /// Create a safe dictionary for testing
     fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
-        autoreleasepool(|_| {
-            unsafe {
-                let dict_class = class!(NSDictionary);
-                let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-                Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
-            }
+        autoreleasepool(|_| unsafe {
+            let dict_class = class!(NSDictionary);
+            let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
+            Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
         })
     }
 
     /// Create a safe NSObject for testing
     fn create_test_object() -> Retained<AnyObject> {
-        autoreleasepool(|_| {
-            unsafe {
-                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
-                Retained::from_raw(obj).expect("Failed to create test object")
-            }
+        autoreleasepool(|_| unsafe {
+            let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+            Retained::from_raw(obj).expect("Failed to create test object")
         })
     }
 
     /// Create a safe empty AnyObject for testing
     fn create_test_anyobject() -> Retained<AnyObject> {
-        autoreleasepool(|_| {
-            unsafe {
-                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
-                Retained::from_raw(obj).expect("Failed to create test object")
-            }
+        autoreleasepool(|_| unsafe {
+            let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+            Retained::from_raw(obj).expect("Failed to create test object")
         })
     }
 
@@ -308,12 +304,12 @@ mod tests {
     fn test_io_service_get_matching_service() {
         let mut mock = MockIOKit::new();
         let dict = create_test_dictionary();
-        
+
         // Mock the response with a simple test object
         mock.expect_io_service_get_matching_service()
             .with(always())
             .returning(|_| Some(create_test_object()));
-            
+
         // Call the method with our mock instead of a real IOKit implementation
         let service = mock.io_service_get_matching_service(&dict);
         assert!(service.is_some());
@@ -324,16 +320,16 @@ mod tests {
         let mut mock = MockIOKit::new();
         let key = "TestKey";
         let value = "TestValue";
-        
+
         // Mock the responses
         mock.expect_get_string_property()
             .with(always(), eq(key))
             .returning(|_, _| Some(value.to_string()));
-            
+
         mock.expect_get_string_property()
             .with(always(), eq("NonExistentKey"))
             .returning(|_, _| None);
-            
+
         // Test property retrieval using the mock
         let result = mock.get_string_property(&create_test_dictionary(), key);
         assert_eq!(result, Some(value.to_string()));
@@ -348,16 +344,16 @@ mod tests {
         let mut mock = MockIOKit::new();
         let key = "TestNumberKey";
         let value: i64 = 42;
-        
+
         // Mock the responses
         mock.expect_get_number_property()
             .with(always(), eq(key))
             .returning(move |_, _| Some(value));
-            
+
         mock.expect_get_number_property()
             .with(always(), eq("NonExistentKey"))
             .returning(|_, _| None);
-            
+
         // Test property retrieval using the mock
         let result = mock.get_number_property(&create_test_dictionary(), key);
         assert_eq!(result, Some(value));
@@ -371,16 +367,16 @@ mod tests {
     fn test_get_bool_property() {
         let mut mock = MockIOKit::new();
         let key = "TestBoolKey";
-        
+
         // Mock the responses
         mock.expect_get_bool_property()
             .with(always(), eq(key))
             .returning(|_, _| Some(true));
-            
+
         mock.expect_get_bool_property()
             .with(always(), eq("NonExistentKey"))
             .returning(|_, _| None);
-            
+
         // Test property retrieval using the mock
         let result = mock.get_bool_property(&create_test_dictionary(), key);
         assert_eq!(result, Some(true));
@@ -405,12 +401,12 @@ mod tests {
     fn test_io_registry_entry_create_cf_properties() {
         let mut mock = MockIOKit::new();
         let test_obj = create_test_object();
-        
+
         // Set up mock to return a dictionary
         mock.expect_io_registry_entry_create_cf_properties()
             .with(always())
             .returning(|_| Ok(create_test_dictionary()));
-            
+
         // Call and verify it returns Ok
         let result = mock.io_registry_entry_create_cf_properties(&test_obj);
         assert!(result.is_ok());
@@ -420,53 +416,53 @@ mod tests {
     fn test_integration() {
         let mut mock = MockIOKit::new();
         let test_name = "IOPlatformExpertDevice";
-        
+
         // Set up all the mocks we need for the full flow
         mock.expect_io_service_matching()
             .with(eq(test_name))
             .returning(|_| create_test_dictionary());
-            
+
         mock.expect_io_service_get_matching_service()
             .with(always())
             .returning(|_| Some(create_test_object()));
-            
+
         mock.expect_io_registry_entry_create_cf_properties()
             .with(always())
             .returning(|_| Ok(create_test_dictionary()));
-            
+
         mock.expect_get_string_property()
             .with(always(), always())
             .returning(|_, _| Some("Test Value".to_string()));
-            
+
         mock.expect_get_number_property()
             .with(always(), always())
             .returning(|_, _| Some(42));
-            
+
         mock.expect_get_bool_property()
             .with(always(), always())
             .returning(|_, _| Some(true));
-            
+
         // Now call the methods in sequence
         let matching = mock.io_service_matching(test_name);
         let service = mock.io_service_get_matching_service(&matching);
-        
+
         assert!(service.is_some());
-        
+
         if let Some(service) = service {
             let result = mock.io_registry_entry_create_cf_properties(&service);
             assert!(result.is_ok());
-            
+
             if let Ok(props) = result {
                 // Check a few common properties
                 let model = mock.get_string_property(&props, "model");
                 assert_eq!(model, Some("Test Value".to_string()));
-                
+
                 let manufacturer = mock.get_string_property(&props, "manufacturer");
                 assert_eq!(manufacturer, Some("Test Value".to_string()));
-                
+
                 let board_id = mock.get_number_property(&props, "board-id");
                 assert_eq!(board_id, Some(42));
-                
+
                 let secure_boot = mock.get_bool_property(&props, "secure-boot");
                 assert_eq!(secure_boot, Some(true));
             }

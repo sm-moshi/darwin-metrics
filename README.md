@@ -13,11 +13,13 @@ A Rust library that provides native access to macOS system metrics through low-l
 ### 🔄 System Monitoring
 
 - **CPU Monitoring**
+
   - Per-core usage statistics
   - CPU model and frequency information
   - System load metrics (user, system, idle)
 
 - **Memory Analysis**
+
   - RAM usage and availability
   - Swap space monitoring
   - Memory pressure levels
@@ -30,16 +32,19 @@ A Rust library that provides native access to macOS system metrics through low-l
 ### 💾 Resource Tracking
 
 - **Storage Metrics**
+
   - Disk space utilization
   - I/O performance monitoring
   - Read/write speed tracking
 
 - **Power Management**
+
   - Battery status and health
   - Charging state detection
   - Remaining battery time estimation
 
 - **Thermal Monitoring**
+
   - Fan speed readings
   - CPU and GPU temperature tracking
   - System-wide thermal status

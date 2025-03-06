@@ -16,7 +16,7 @@
 //!     // Get comprehensive metrics
 //!     let metrics = gpu.metrics()?;
 //!     println!("Utilization: {}%", metrics.utilization);
-//!     println!("Memory: {} MB used of {} MB total", 
+//!     println!("Memory: {} MB used of {} MB total",
 //!              metrics.memory.used / 1024 / 1024,
 //!              metrics.memory.total / 1024 / 1024);
 //!     
@@ -28,7 +28,7 @@
 //! }
 //! ```
 
-use crate::iokit::{IOKit, IOKitImpl};
+use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::utils::{autorelease_pool, objc_safe_exec};
 use crate::{Error, Result};
 use objc2::msg_send;
@@ -96,18 +96,18 @@ impl GPU {
     pub fn new() -> Result<Self> {
         // Get the default Metal device (GPU)
         let device = unsafe { MTLCreateSystemDefaultDevice() };
-        
+
         // Check if we found a valid device
         if device.is_null() {
             return Err(Error::NotAvailable("No GPU device found".into()));
         }
-        
+
         // Create the IOKit implementation
         let iokit = Box::new(IOKitImpl::default());
-        
+
         Ok(Self { device, iokit })
     }
-    
+
     /// Gets the name of the GPU
     ///
     /// # Returns
@@ -118,33 +118,35 @@ impl GPU {
         if self.device.is_null() {
             return Err(Error::NotAvailable("No GPU device available".into()));
         }
-        
+
         // Safely execute Objective-C code within an autorelease pool
         autorelease_pool(|| {
             objc_safe_exec(|| {
                 unsafe {
                     // Cast the device pointer to AnyObject before sending messages to it
                     let device_obj: *mut AnyObject = self.device.cast();
-                    
+
                     // Get the name property using Metal API
                     let name_obj: *mut AnyObject = msg_send![device_obj, name];
-                    
+
                     // Check if we got a valid name object
                     if name_obj.is_null() {
                         return Err(Error::NotAvailable("Could not get GPU name".into()));
                     }
-                    
+
                     // Convert to Rust string
                     let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
-                    
+
                     if utf8_string.is_null() {
-                        return Err(Error::NotAvailable("Could not convert GPU name to string".into()));
+                        return Err(Error::NotAvailable(
+                            "Could not convert GPU name to string".into(),
+                        ));
                     }
-                    
+
                     // Convert C string to Rust string
                     let c_str = std::ffi::CStr::from_ptr(utf8_string as *const i8);
                     let name = c_str.to_string_lossy().into_owned();
-                    
+
                     Ok(name)
                 }
             })
@@ -232,27 +234,27 @@ impl GPU {
         }
 
         // Use objc_safe_exec to catch any exceptions from Metal
-        objc_safe_exec(|| {
-            unsafe {
-                let device = self.device as *const AnyObject;
-                
-                if device.is_null() {
-                    return Err(Error::not_available("Invalid Metal device"));
-                }
-                
-                let device_ref = device.as_ref()
-                    .ok_or_else(|| Error::not_available("Invalid Metal device reference"))?;
+        objc_safe_exec(|| unsafe {
+            let device = self.device as *const AnyObject;
 
-                let name: *mut AnyObject = msg_send![device_ref, name];
-                if name.is_null() {
-                    return Err(Error::not_available("Could not get GPU name"));
-                }
-
-                let ns_string = (name as *const NSString).as_ref()
-                    .ok_or_else(|| Error::not_available("Invalid name string"))?;
-                    
-                Ok(ns_string.to_string())
+            if device.is_null() {
+                return Err(Error::not_available("Invalid Metal device"));
             }
+
+            let device_ref = device
+                .as_ref()
+                .ok_or_else(|| Error::not_available("Invalid Metal device reference"))?;
+
+            let name: *mut AnyObject = msg_send![device_ref, name];
+            if name.is_null() {
+                return Err(Error::not_available("Could not get GPU name"));
+            }
+
+            let ns_string = (name as *const NSString)
+                .as_ref()
+                .ok_or_else(|| Error::not_available("Invalid name string"))?;
+
+            Ok(ns_string.to_string())
         })
     }
 
@@ -266,7 +268,7 @@ impl GPU {
         let name = self.get_name()?;
         let memory = self.get_memory_info()?;
         let utilization = self.get_utilization()?;
-        
+
         // Optional metrics with fallback
         let temperature = self.get_temperature().ok();
         let power_usage = self.get_power_usage().ok();
@@ -289,7 +291,9 @@ impl GPU {
             return Err(Error::not_available("Could not find GPU service"));
         };
 
-        let _properties = self.iokit.io_registry_entry_create_cf_properties(&service)?;
+        let _properties = self
+            .iokit
+            .io_registry_entry_create_cf_properties(&service)?;
 
         // For now return placeholder values until we implement the full memory info collection
         // TODO: Parse the properties dictionary to get actual memory values
@@ -342,46 +346,48 @@ unsafe impl Sync for GPU {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iokit::MockIOKit; // This is now re-exported from iokit module
-    // We don't need mockall::predicate imports yet
-    use objc2::rc::{Retained, autoreleasepool};
+    use crate::hardware::iokit::MockIOKit;
+    use objc2::rc::{autoreleasepool, Retained};
     use objc2::runtime::AnyObject;
-    use objc2_foundation::{NSObject, NSString, NSDictionary};
-    use objc2::{msg_send, class};
+    use objc2::{class, msg_send};
+    use objc2_foundation::{NSDictionary, NSObject, NSString};
     use std::ptr;
-    
+
     // Test that GPU name returns an error when device is null
     #[test]
     fn test_gpu_name_null_device() {
         // Create a mock IOKit
         let mock_iokit = MockIOKit::new();
-        
+
         // Create GPU with null device to simulate no GPU
         let gpu = GPU {
             device: ptr::null_mut(),
             iokit: Box::new(mock_iokit),
         };
-        
+
         // Should return appropriate error for null device
         let result = gpu.name();
         assert!(result.is_err());
         if let Err(Error::NotAvailable(_)) = result {
             // Expected error
         } else {
-            panic!("Expected NotAvailable error for null device, got: {:?}", result);
+            panic!(
+                "Expected NotAvailable error for null device, got: {:?}",
+                result
+            );
         }
     }
-    
+
     // Create an empty dictionary for safe testing
     fn create_empty_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
         autoreleasepool(|_| {
             unsafe {
                 let dict_class = class!(NSDictionary);
                 let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-                
+
                 // Ensure we got a valid dictionary
                 assert!(!dict_ptr.is_null(), "Failed to create empty dictionary");
-                
+
                 // Convert to retained dictionary
                 match Retained::from_raw(dict_ptr.cast()) {
                     Some(dict) => dict,
@@ -390,78 +396,77 @@ mod tests {
             }
         })
     }
-    
+
     // Helper function to create a test dictionary
     fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
-        autoreleasepool(|_| {
-            unsafe {
-                let dict_class = class!(NSDictionary);
-                let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-                Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
-            }
+        autoreleasepool(|_| unsafe {
+            let dict_class = class!(NSDictionary);
+            let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
+            Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
         })
     }
-    
+
     // Create a test AnyObject safely
     fn create_test_anyobject() -> Retained<AnyObject> {
-        autoreleasepool(|_| {
-            unsafe {
-                let obj: *mut AnyObject = msg_send![class!(NSObject), new];
-                Retained::from_raw(obj).expect("Failed to create test object")
-            }
+        autoreleasepool(|_| unsafe {
+            let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+            Retained::from_raw(obj).expect("Failed to create test object")
         })
     }
-    
+
     // Test that GPU metrics returns an error when device is null
     #[test]
     fn test_gpu_metrics_null_device() {
         // Create a mock IOKit
         let mock_iokit = MockIOKit::new();
-        
+
         // Create GPU with null device
         let gpu = GPU {
             device: ptr::null_mut(),
             iokit: Box::new(mock_iokit),
         };
-        
+
         // Should return appropriate error
         let result = gpu.metrics();
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_gpu_memory_info() -> Result<()> {
         // Skip test if no Metal device is available
         if unsafe { MTLCreateSystemDefaultDevice() }.is_null() {
             return Ok(());
         }
-        
+
         let mut mock_iokit = MockIOKit::new();
-        
+
         // Set expectations for the mock
-        mock_iokit.expect_io_service_matching()
+        mock_iokit
+            .expect_io_service_matching()
             .returning(|_| create_test_dictionary());
-            
-        mock_iokit.expect_io_service_get_matching_service()
+
+        mock_iokit
+            .expect_io_service_get_matching_service()
             .returning(|_| Some(create_test_anyobject()));
-            
-        mock_iokit.expect_io_registry_entry_create_cf_properties()
+
+        mock_iokit
+            .expect_io_registry_entry_create_cf_properties()
             .returning(|_| Ok(create_test_dictionary()));
-            
+
         let device = unsafe { MTLCreateSystemDefaultDevice() };
         if device.is_null() {
             return Ok(());
         }
-        
+
         let gpu = GPU {
             device,
             iokit: Box::new(mock_iokit),
         };
-        
+
         let _memory = gpu.memory_info()?; // Prefixed with _ to indicate intentional unused variable
-        // Just verify we get some kind of result without error
-        // The total value should be populated based on actual system info
-        
+                                          // Just verify we get some kind of result without error
+                                          // The total value should be populated based on actual system info
+
         Ok(())
     }
 }

@@ -19,10 +19,10 @@
 //! }
 //! ```
 
-use crate::iokit::{IOKit, IOKitImpl};
+use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
 use objc2::runtime::AnyObject;
-use objc2::{msg_send, class};
+use objc2::{class, msg_send};
 use objc2_foundation::NSNumber;
 
 /// Represents CPU information and metrics for macOS systems.
@@ -42,13 +42,13 @@ use objc2_foundation::NSNumber;
 /// use darwin_metrics::prelude::*;
 ///
 /// let mut cpu = CPU::new()?;
-/// 
+///
 /// // Get current metrics
 /// println!("CPU Usage: {}%", cpu.average_usage());
-/// 
+///
 /// // Update metrics
 /// cpu.update()?;
-/// 
+///
 /// // Get per-core usage
 /// for (i, usage) in cpu.core_usage().iter().enumerate() {
 ///     println!("Core {}: {}%", i, usage);
@@ -61,32 +61,32 @@ pub struct CPU {
     physical_cores: u32,
     #[cfg(test)]
     pub(crate) physical_cores: u32,
-    
+
     #[cfg(not(test))]
     logical_cores: u32,
     #[cfg(test)]
     pub(crate) logical_cores: u32,
-    
+
     #[cfg(not(test))]
     frequency_mhz: f64,
     #[cfg(test)]
     pub(crate) frequency_mhz: f64,
-    
+
     #[cfg(not(test))]
     core_usage: Vec<f64>,
     #[cfg(test)]
     pub(crate) core_usage: Vec<f64>,
-    
+
     #[cfg(not(test))]
     model_name: String,
     #[cfg(test)]
     pub(crate) model_name: String,
-    
+
     #[cfg(not(test))]
     temperature: Option<f64>,
     #[cfg(test)]
     pub(crate) temperature: Option<f64>,
-    
+
     #[cfg(not(test))]
     iokit: Box<dyn IOKit>,
     #[cfg(test)]
@@ -175,13 +175,18 @@ impl CPU {
             let service = self.iokit.io_service_get_matching_service(&matching);
 
             if let Some(service) = service {
-                let properties = self.iokit.io_registry_entry_create_cf_properties(&service)?;
+                let properties = self
+                    .iokit
+                    .io_registry_entry_create_cf_properties(&service)?;
                 if let Some(name) = self.iokit.get_string_property(&properties, "cpu-type") {
                     self.model_name = name;
                 }
 
                 // Try to get CPU temperature if available
-                if let Some(temp) = self.iokit.get_number_property(&properties, "cpu-die-temperature") {
+                if let Some(temp) = self
+                    .iokit
+                    .get_number_property(&properties, "cpu-die-temperature")
+                {
                     self.temperature = Some(temp as f64 / 100.0); // Convert to Celsius
                 }
             }
@@ -342,8 +347,7 @@ impl Clone for CPU {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iokit::MockIOKit; // This is now re-exported from iokit module
-    
+    use crate::hardware::iokit::MockIOKit; // This is now re-exported from iokit module
 
     fn setup_test_environment() {
         // No setup needed for now, but keeping the function for consistency
@@ -351,12 +355,14 @@ mod tests {
 
     fn create_test_cpu() -> CPU {
         let mut mock_iokit = MockIOKit::new();
-        mock_iokit.expect_io_service_matching()
-            .returning(|_| unsafe { 
-                let dict: *mut objc2::runtime::AnyObject = objc2::msg_send![objc2::class!(NSDictionary), new];
+        mock_iokit
+            .expect_io_service_matching()
+            .returning(|_| unsafe {
+                let dict: *mut objc2::runtime::AnyObject =
+                    objc2::msg_send![objc2::class!(NSDictionary), new];
                 objc2::rc::Retained::from_raw(dict.cast()).unwrap()
             });
-        
+
         CPU {
             physical_cores: 4,
             logical_cores: 8,
@@ -372,7 +378,7 @@ mod tests {
     fn test_new_cpu() {
         setup_test_environment();
         let cpu = create_test_cpu();
-        
+
         // Test basic properties
         assert_eq!(cpu.physical_cores(), 4);
         assert_eq!(cpu.logical_cores(), 8);
@@ -394,7 +400,5 @@ mod tests {
         let mut cpu = create_test_cpu();
         cpu.core_usage = vec![];
         assert_eq!(cpu.average_usage(), 0.0);
-
     }
 }
-

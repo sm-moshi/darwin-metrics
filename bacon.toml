@@ -52,7 +52,14 @@ command = ["cargo", "test"]
 need_stdout = true
 
 [jobs.nextest]
-command = ["cargo", "nextest", "run", "--hide-progress-bar", "--failure-output", "final"]
+command = [
+  "cargo",
+  "nextest",
+  "run",
+  "--hide-progress-bar",
+  "--failure-output",
+  "final",
+]
 need_stdout = true
 analyzer = "nextest"
 
@@ -71,9 +78,9 @@ on_success = "back"                               # so that we don't open the br
 # if it makes sense for this crate.
 [jobs.run]
 command = [
-    "cargo",
-    "run",
-    # put launch parameters for your program behind a `--` separator
+  "cargo",
+  "run",
+  # put launch parameters for your program behind a `--` separator
 ]
 need_stdout = true
 allow_warnings = true
@@ -89,9 +96,9 @@ background = true
 # a binding `r = job:run-long` at the end of this file .
 [jobs.run-long]
 command = [
-    "cargo",
-    "run",
-    # put launch parameters for your program behind a `--` separator
+  "cargo",
+  "run",
+  # put launch parameters for your program behind a `--` separator
 ]
 need_stdout = true
 allow_warnings = true
@@ -117,14 +124,14 @@ c = "job:clippy-all" # comment this to have 'c' run clippy on only the default t
 
 [jobs.bacon-ls]
 command = [
-    "cargo",
-    "clippy",
-    "--workspace",
-    "--tests",
-    "--all-targets",
-    "--all-features",
-    "--message-format",
-    "json-diagnostic-rendered-ansi",
+  "cargo",
+  "clippy",
+  "--workspace",
+  "--tests",
+  "--all-targets",
+  "--all-features",
+  "--message-format",
+  "json-diagnostic-rendered-ansi",
 ]
 analyzer = "cargo_json"
 need_stdout = true

@@ -1,11 +1,11 @@
 //! Error types for darwin-metrics operations
-//! 
+//!
 //! This module provides a comprehensive error handling system for all metrics collection
 //! operations. Each subsystem (Battery, GPU, CPU, etc.) has its own specific error types,
 //! and all errors can be converted into the main Error type.
 
-use thiserror::Error;
 use std::ffi::NulError;
+use thiserror::Error;
 
 /// Main error type for darwin-metrics operations
 #[derive(Debug, Error)]
@@ -101,10 +101,10 @@ mod tests {
     fn test_error_creation() {
         let err = Error::io_kit("test error");
         assert!(matches!(err, Error::IOKit(_)));
-        
+
         let err = Error::metal("test error");
         assert!(matches!(err, Error::Metal(_)));
-        
+
         let err = Error::not_available("test error");
         assert!(matches!(err, Error::NotAvailable(_)));
     }
@@ -113,8 +113,8 @@ mod tests {
     fn test_error_display() {
         let err = Error::io_kit("test error");
         assert_eq!(err.to_string(), "IOKit error: test error");
-        
+
         let err = Error::metal("test error");
         assert_eq!(err.to_string(), "Metal error: test error");
     }
-} 
+}

@@ -1,5 +1,4 @@
-use std::ffi::CStr;
-use std::os::raw::c_char;
+use std::ffi::c_void;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -45,17 +44,36 @@ pub fn detect_architecture() -> Result<Architecture, ArchitectureError> {
     let mut size = 0;
 
     unsafe {
-        if sysctl(mib.as_mut_ptr(), 2, std::ptr::null_mut(), &mut size, std::ptr::null(), 0) != 0 {
+        if sysctl(
+            mib.as_mut_ptr(),
+            2,
+            std::ptr::null_mut(),
+            &mut size,
+            std::ptr::null(),
+            0,
+        ) != 0
+        {
             return Err(ArchitectureError::SystemCallFailed);
         }
 
         let mut buffer = vec![0u8; size];
-        if sysctl(mib.as_mut_ptr(), 2, buffer.as_mut_ptr() as *mut c_void, &mut size, std::ptr::null(), 0) != 0 {
+        if sysctl(
+            mib.as_mut_ptr(),
+            2,
+            buffer.as_mut_ptr() as *mut c_void,
+            &mut size,
+            std::ptr::null(),
+            0,
+        ) != 0
+        {
             return Err(ArchitectureError::SystemCallFailed);
         }
 
-        let cstr = CStr::from_bytes_with_nul(&buffer).map_err(|_| ArchitectureError::InvalidStringEncoding)?;
-        let arch = cstr.to_str().map_err(|_| ArchitectureError::InvalidStringEncoding)?;
+        let cstr = std::ffi::CStr::from_bytes_with_nul(&buffer)
+            .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
+        let arch = cstr
+            .to_str()
+            .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
 
         Ok(match arch {
             "arm64" => Architecture::AppleSilicon,
@@ -82,16 +100,33 @@ fn get_model_identifier() -> Result<String, ArchitectureError> {
     let mut size = 0;
 
     unsafe {
-        if sysctl(mib.as_mut_ptr(), 2, std::ptr::null_mut(), &mut size, std::ptr::null(), 0) != 0 {
+        if sysctl(
+            mib.as_mut_ptr(),
+            2,
+            std::ptr::null_mut(),
+            &mut size,
+            std::ptr::null(),
+            0,
+        ) != 0
+        {
             return Err(ArchitectureError::SystemCallFailed);
         }
 
         let mut buffer = vec![0u8; size];
-        if sysctl(mib.as_mut_ptr(), 2, buffer.as_mut_ptr() as *mut c_void, &mut size, std::ptr::null(), 0) != 0 {
+        if sysctl(
+            mib.as_mut_ptr(),
+            2,
+            buffer.as_mut_ptr() as *mut c_void,
+            &mut size,
+            std::ptr::null(),
+            0,
+        ) != 0
+        {
             return Err(ArchitectureError::SystemCallFailed);
         }
 
-        let cstr = CStr::from_bytes_with_nul(&buffer).map_err(|_| ArchitectureError::InvalidStringEncoding)?;
+        let cstr = std::ffi::CStr::from_bytes_with_nul(&buffer)
+            .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
         Ok(cstr.to_string_lossy().into_owned())
     }
 }
@@ -101,16 +136,33 @@ fn get_processor_name() -> Result<String, ArchitectureError> {
     let mut size = 0;
 
     unsafe {
-        if sysctl(mib.as_ptr(), 2, std::ptr::null_mut(), &mut size, std::ptr::null(), 0) != 0 {
+        if sysctl(
+            mib.as_ptr(),
+            2,
+            std::ptr::null_mut(),
+            &mut size,
+            std::ptr::null(),
+            0,
+        ) != 0
+        {
             return Err(ArchitectureError::SystemCallFailed);
         }
 
         let mut buffer = vec![0u8; size];
-        if sysctl(mib.as_ptr(), 2, buffer.as_mut_ptr() as *mut c_void, &mut size, std::ptr::null(), 0) != 0 {
+        if sysctl(
+            mib.as_ptr(),
+            2,
+            buffer.as_mut_ptr() as *mut c_void,
+            &mut size,
+            std::ptr::null(),
+            0,
+        ) != 0
+        {
             return Err(ArchitectureError::SystemCallFailed);
         }
 
-        let cstr = CStr::from_bytes_with_nul(&buffer).map_err(|_| ArchitectureError::InvalidStringEncoding)?;
+        let cstr = std::ffi::CStr::from_bytes_with_nul(&buffer)
+            .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
         Ok(cstr.to_string_lossy().into_owned())
     }
 }

@@ -1,31 +1,31 @@
 //! Utility functions for safe FFI interactions and memory management
-//! 
+//!
 //! This module provides utilities for:
 //! - Safe Objective-C interoperability
 //! - Exception handling
 //! - Memory management
 //! - FFI data conversion utilities
 
-use std::ffi::{CStr, c_char};
-use std::os::raw::c_double;
-use std::slice;
-use std::panic::AssertUnwindSafe;
-use objc2::rc::autoreleasepool;
-use objc2::msg_send;
-use objc2::runtime::AnyObject;
 use crate::Error;
+use objc2::msg_send;
+use objc2::rc::autoreleasepool;
+use objc2::runtime::AnyObject;
+use std::ffi::{c_char, CStr};
+use std::os::raw::c_double;
+use std::panic::AssertUnwindSafe;
+use std::slice;
 
 /// Safely executes Objective-C code that might throw exceptions
-/// 
+///
 /// This function wraps Objective-C code in a way that prevents uncaught exceptions
 /// from crashing the Rust process
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * [f](http://_vscodecontentref_/9) - The closure containing potentially exception-throwing Objective-C code
-/// 
+///
 /// # Returns
-/// 
+///
 /// * [Result<T, crate::Error>](http://_vscodecontentref_/10) - Success value or converted error
 pub fn objc_safe_exec<T, F>(f: F) -> crate::Result<T>
 where
@@ -37,23 +37,23 @@ where
         // Just run the function directly
         f()
     }));
-    
+
     match result {
         Ok(value) => value,
         Err(_) => Err(crate::Error::system_error(
             // Fix: Remove the .into() call since &str implements Into<String> automatically
-            "Panic occurred during Objective-C operation"
-        ))
+            "Panic occurred during Objective-C operation",
+        )),
     }
 }
 
 /// Creates an autorelease pool for safely managing Objective-C objects
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust,no_run
 /// use darwin_metrics::utils::autorelease_pool;
-/// 
+///
 /// let result = autorelease_pool(|| {
 ///     // Code that creates Objective-C objects
 ///     // They will be automatically released when this closure returns
@@ -61,13 +61,13 @@ where
 /// });
 /// assert_eq!(result, 42);
 /// ```
-/// 
+///
 /// # Returns
-/// 
+///
 /// A guard object that will drain the autorelease pool when dropped
-pub fn autorelease_pool<T, F>(f: F) -> T 
-where 
-    F: FnOnce() -> T
+pub fn autorelease_pool<T, F>(f: F) -> T
+where
+    F: FnOnce() -> T,
 {
     // This properly adapts our closure to the objc2 autoreleasepool function
     autoreleasepool(|_| f())
@@ -79,14 +79,14 @@ where
 /// The pointer must be valid and point to a null-terminated C string
 ///
 /// # Examples
-/// 
+///
 /// ```rust,no_run
 /// use darwin_metrics::utils::c_str_to_string;
 /// use std::ffi::CString;
-/// 
+///
 /// let c_string = CString::new("hello").unwrap();
 /// let ptr = c_string.as_ptr();
-/// 
+///
 /// unsafe {
 ///     let rust_string = c_str_to_string(ptr);
 ///     assert_eq!(rust_string, Some("hello".to_string()));
@@ -154,33 +154,35 @@ pub fn get_name(device: *mut std::ffi::c_void) -> crate::Result<String> {
     if device.is_null() {
         return Err(Error::NotAvailable("No GPU device available".into()));
     }
-    
+
     // Safely execute Objective-C code within an autorelease pool
     autorelease_pool(|| {
         objc_safe_exec(|| {
             unsafe {
                 // Cast the device pointer to AnyObject before sending messages to it
                 let device_obj: *mut AnyObject = device.cast();
-                
+
                 // Get the name property using Metal API
                 let name_obj: *mut AnyObject = msg_send![device_obj, name];
-                
+
                 // Check if we got a valid name object
                 if name_obj.is_null() {
                     return Err(Error::NotAvailable("Could not get GPU name".into()));
                 }
-                
+
                 // Convert to Rust string
                 let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
-                
+
                 if utf8_string.is_null() {
-                    return Err(Error::NotAvailable("Could not convert GPU name to string".into()));
+                    return Err(Error::NotAvailable(
+                        "Could not convert GPU name to string".into(),
+                    ));
                 }
-                
+
                 // Convert C string to Rust string
                 let c_str = std::ffi::CStr::from_ptr(utf8_string as *const i8);
                 let name = c_str.to_string_lossy().into_owned();
-                
+
                 Ok(name)
             }
         })
@@ -201,7 +203,7 @@ mod tests {
         unsafe {
             let result = c_str_to_string(ptr);
             assert_eq!(result, Some(test_str.to_string()));
-            
+
             // Test null pointer
             let null_result = c_str_to_string(std::ptr::null());
             assert_eq!(null_result, None);
@@ -218,11 +220,11 @@ mod tests {
         unsafe {
             let result = raw_str_to_string(ptr, len);
             assert_eq!(result, Some(test_str.to_string()));
-            
+
             // Test null pointer
             let null_result = raw_str_to_string(std::ptr::null(), 10);
             assert_eq!(null_result, None);
-            
+
             // Test zero length
             let zero_len_result = raw_str_to_string(ptr, 0);
             assert_eq!(zero_len_result, None);
@@ -238,11 +240,11 @@ mod tests {
         unsafe {
             let result = raw_f64_slice_to_vec(ptr, len);
             assert_eq!(result, Some(test_doubles));
-            
+
             // Test null pointer
             let null_result = raw_f64_slice_to_vec(std::ptr::null(), 10);
             assert_eq!(null_result, None);
-            
+
             // Test zero length
             let zero_len_result = raw_f64_slice_to_vec(ptr, 0);
             assert_eq!(zero_len_result, None);

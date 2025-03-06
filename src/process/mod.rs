@@ -37,11 +37,11 @@ use crate::Error;
 use async_trait::async_trait;
 use futures::Future;
 use futures::Stream;
-use libproc::libproc::proc_pid;
+use libproc::task_info;
 use std::fmt;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 #[async_trait]
 pub trait ProcessInfo {
@@ -155,27 +155,103 @@ impl Process {
     /// }
     /// ```
     pub async fn get_by_pid(pid: u32) -> Result<Self, Error> {
-        // Retrieve task information using the correct method
-        let task_info = proc_pid::pidinfo::<libproc::task_info::TaskInfo>(pid as i32, 0)
-            .map_err(|e| {
-                // Log the error for permission issues
-                println!("Failed to get task info for PID {}: {}", pid, e);
-                Error::NotAvailable(format!("Failed to get task info: {}", e))
-            })?;
+        // Get process name using libproc
+        let name = libproc::proc_pid::name(pid as i32)
+            .map_err(|e| Error::NotAvailable(format!("Failed to get process name: {}", e)))?;
 
-        // Calculate CPU usage as a percentage (0-100)
-        let cpu_time = task_info.pti_total_user + task_info.pti_total_system;
-        let cpu_usage = (cpu_time as f64 / 1_000_000.0).min(100.0); // Normalize based on microsecond scale
+        // Use correct BSDInfo path and fields
+        let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)?;
+        // Convert macOS timestamp to SystemTime
+        let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
+            SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
+        } else {
+            return Err(Error::InvalidData);
+        };
+        // Ensure start time is in the past
+        let now = SystemTime::now();
+        match start_time.duration_since(now) {
+            Ok(_) => {
+                // Start time is in the future
+                return Err(Error::InvalidData);
+            }
+            Err(_) => {
+                // Start time is in the past (valid case)
+                match now.duration_since(start_time) {
+                    Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
+                        // Sanity check: start time shouldn't be more than 50 years ago
+                        return Err(Error::InvalidData);
+                    }
+                    Ok(_) => (), // Valid age
+                    Err(_) => return Err(Error::InvalidData),
+                }
+            }
+        }
+        let cpu_time = proc_info.ptinfo.pti_total_user + proc_info.ptinfo.pti_total_system;
+        let memory_usage = proc_info.ptinfo.pti_resident_size;
 
-        // Create and return the Process struct
         Ok(Process {
             pid,
-            name: format!("Process with PID {}", pid), // Placeholder for name retrieval
-            cpu_usage,
-            memory_usage: task_info.pti_virtual_size as u64,
-            uptime: Duration::from_secs(0), // Placeholder for uptime
+            name,
+            cpu_usage: (cpu_time as f64 / 1_000_000.0).min(100.0),
+            memory_usage,
+            uptime: SystemTime::now()
+                .duration_since(start_time)
+                .unwrap_or(Duration::ZERO),
             pending_future: None,
         })
+    }
+
+    /// Get process start time asynchronously
+    ///
+    /// # Arguments
+    /// * `pid` - Process ID to query
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<SystemTime>` which is:
+    /// - `Ok(SystemTime)` containing the start time of the specified process
+    /// - `Err(Error)` if the information cannot be retrieved
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use darwin_metrics::process::Process;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> darwin_metrics::Result<()> {
+    ///     let start_time = Process::get_process_start_time(1234).await?;
+    ///     println!("Process start time: {:?}", start_time);
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn get_process_start_time(pid: u32) -> Result<SystemTime, Error> {
+        let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)?;
+        // Convert macOS timestamp to SystemTime
+        let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
+            SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
+        } else {
+            return Err(Error::InvalidData);
+        };
+        // Ensure start time is in the past
+        let now = SystemTime::now();
+        match start_time.duration_since(now) {
+            Ok(_) => {
+                // Start time is in the future
+                return Err(Error::InvalidData);
+            }
+            Err(_) => {
+                // Start time is in the past (valid case)
+                match now.duration_since(start_time) {
+                    Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
+                        // Sanity check: start time shouldn't be more than 50 years ago
+                        return Err(Error::InvalidData);
+                    }
+                    Ok(_) => (), // Valid age
+                    Err(_) => return Err(Error::InvalidData),
+                }
+            }
+        }
+        Ok(start_time)
     }
 
     /// Monitor process metrics with specified interval
@@ -225,7 +301,10 @@ impl fmt::Debug for Process {
             .field("cpu_usage", &self.cpu_usage)
             .field("memory_usage", &self.memory_usage)
             .field("uptime", &self.uptime)
-            .field("pending_future", &self.pending_future.as_ref().map(|_| "Future"))
+            .field(
+                "pending_future",
+                &self.pending_future.as_ref().map(|_| "Future"),
+            )
             .finish()
     }
 }
@@ -273,7 +352,10 @@ impl fmt::Debug for ProcessMetricsStream {
         f.debug_struct("ProcessMetricsStream")
             .field("pid", &self.pid)
             .field("interval", &self.interval)
-            .field("pending_future", &self.pending_future.as_ref().map(|_| "Future"))
+            .field(
+                "pending_future",
+                &self.pending_future.as_ref().map(|_| "Future"),
+            )
             .finish()
     }
 }
@@ -357,7 +439,7 @@ mod tests {
                 assert_eq!(process.pid, pid);
                 assert!(process.cpu_usage >= 0.0 && process.cpu_usage <= 100.0);
                 assert!(process.memory_usage > 0);
-            },
+            }
             Some(Err(e)) => panic!("Unexpected error for our test process: {:?}", e),
             None => panic!("Stream ended unexpectedly"),
         }
@@ -378,9 +460,15 @@ mod tests {
         let (mut child, pid) = spawn_test_process().await;
 
         // Test getting process info for our test process
-        let process = Process::get_by_pid(pid).await.expect("Failed to get process info");
+        let process = Process::get_by_pid(pid)
+            .await
+            .expect("Failed to get process info");
         assert_eq!(process.pid, pid);
-        assert!(process.cpu_usage >= 0.0 && process.cpu_usage <= 100.0, "CPU usage out of bounds: {}", process.cpu_usage);
+        assert!(
+            process.cpu_usage >= 0.0 && process.cpu_usage <= 100.0,
+            "CPU usage out of bounds: {}",
+            process.cpu_usage
+        );
         assert!(process.memory_usage > 0, "Memory usage should be positive");
 
         // Clean up test process
@@ -400,5 +488,28 @@ mod tests {
             Err(Error::NotAvailable(_)) => (),
             other => panic!("Unexpected result: {:?}", other),
         }
+    }
+
+    #[tokio::test]
+    async fn test_get_process_start_time() {
+        let (mut child, pid) = spawn_test_process().await;
+
+        // Test getting process start time for our test process
+        let start_time = Process::get_process_start_time(pid)
+            .await
+            .expect("Failed to get process start time");
+        assert!(
+            start_time.elapsed().unwrap().as_secs() > 0,
+            "Start time should be in the past"
+        );
+
+        // Clean up test process
+        child.kill().expect("Failed to kill test process");
+
+        // Test with PID 1 (system process) - should fail with permission error
+        match Process::get_process_start_time(1).await {
+            Err(Error::NotAvailable(_)) => (), // Permission denied is expected
+            other => panic!("Unexpected result for privileged process: {:?}", other),
+        };
     }
 }

@@ -5,10 +5,10 @@ LLVM_PROFILE_FILE = "coverage/default_%p_%m.profraw"
 rustflags = ["-C", "instrument-coverage=all", "-C", "link-dead-code"]
 
 [llvm-cov]
-output-dir  = "coverage"
+output-dir = "coverage"
 output-path = "coverage/lcov.info"
 
 [test]
 # Enable test-utils feature for all test runs
-harness   = true
+harness = true
 rustflags = ["--cfg", "test", "--cfg", "feature=\"test-utils\""]

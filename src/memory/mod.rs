@@ -21,12 +21,12 @@
 //! }
 //! ```
 
-use crate::iokit::{IOKit, IOKitImpl};
+use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
 use std::collections::VecDeque;
 use std::sync::{
-    Arc, Mutex,
     atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
 };
 use std::time::{Duration, Instant};
 
@@ -1039,6 +1039,7 @@ mod tests {
         let callback_counter = Arc::new(AtomicU64::new(0));
         let counter_clone = callback_counter.clone();
 
+        // Register callback
         memory.on_pressure_change(move |_level| {
             counter_clone.fetch_add(1, Ordering::SeqCst);
         });

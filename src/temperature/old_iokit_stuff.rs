@@ -11,8 +11,8 @@ use core_foundation::{
 };
 use std::collections::VecDeque;
 use std::ffi::c_void;
-use sysinfo::{System, CpuRefreshKind};
 use std::time::Instant;
+use sysinfo::{CpuRefreshKind, System};
 
 // IOKit constants
 const K_HIDPAGE_APPLE_VENDOR: i32 = 0xff00;
@@ -143,7 +143,8 @@ impl TemperatureHistory {
 
     pub fn update(&mut self, stats: &TemperatureStats) {
         self.temperature_history.pop_front();
-        self.temperature_history.push_back(stats.temperatures.clone());
+        self.temperature_history
+            .push_back(stats.temperatures.clone());
 
         self.frequency_history.pop_front();
         self.frequency_history.push_back(stats.frequencies.clone());
