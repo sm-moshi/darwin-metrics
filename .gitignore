@@ -1,7 +1,6 @@
 # Rust specific
 debug/
 target/
-Cargo.lock
 **/*.rs.bk
 
 # Obj-C/Swift specific
@@ -40,6 +39,7 @@ generated/
 .bacon-locations
 .vscode/mise-tools
 .cursor
+.references
 .github
 .repomix
 

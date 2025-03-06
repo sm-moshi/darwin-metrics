@@ -70,6 +70,24 @@
 - [ ] Advanced error handling
 - [ ] Memory leak prevention
 
+## 📈 Architecture Roadmap
+
+### v0.2.0 Architecture Improvements
+
+#### Module Separation
+- Dedicated modules for specific metrics
+- Clear boundaries between functionality
+
+#### API Design
+- Consistent function naming
+- Comprehensive error handling
+- Builder pattern for configuration
+
+#### User Experience
+- Usage examples
+- Sensible defaults
+- Clear documentation
+
 ## 🎮 Phase 3: Hardware Monitoring (0.3.0)
 
 **Timeline: 6-8 weeks after 0.2.0**

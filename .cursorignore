@@ -1,6 +1,9 @@
 .vscode/mise-tools/
-.references/
-# Coverage files
-/coverage/*.profraw
-/coverage/*.profdata
+coverage/*.profraw
+coverage/*.profdata
+.github/
 .repomix/
+.references/
+CLAUDE.md
+NOTICE
+.gitattributes

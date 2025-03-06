@@ -153,7 +153,7 @@
   - [ ] I/O statistics collection
   - [ ] Thread count monitoring
 
-### **GPU Metrics** *(0.1.0 Core Features)*
+### **GPU Metrics via Metal API!!** *(0.1.0 Core Features)*
 
 - [ ] Define GPU struct and interface
 - [ ] Implement basic GPU info retrieval
@@ -163,6 +163,23 @@
   - [ ] Test metrics collection
   - [ ] Test error handling
   - [ ] Test mock implementations
+
+### **Module Separation Plan** *(Post 0.1.0)*
+
+### **Module Architecture**
+- [ ] Create dedicated frequency monitoring module
+- [ ] Implement separate power consumption module
+- [ ] Maintain temperature-specific functionality
+
+### **API Design**
+- [ ] Implement unified top-level API
+- [ ] Add clear, descriptive function names
+- [ ] Include comprehensive documentation
+
+### **User Experience**
+- [ ] Add usage examples
+- [ ] Implement builder pattern for configuration
+- [ ] Include sensible defaults
 
 ---
 
