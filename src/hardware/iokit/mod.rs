@@ -42,6 +42,7 @@ use objc2::runtime::{AnyClass, AnyObject};
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
 
 use crate::Error;
+use crate::utils::{objc_utils, property_utils, test_utils};
 
 // The IOKit trait is now defined below with #[cfg_attr(test, automock)]
 
@@ -226,37 +227,7 @@ pub trait IOKit: Send + Sync + std::fmt::Debug {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockall::predicate::*;
-
-    // Using the MockIOKit from the mock module
-
-    /// Create an empty dictionary for safe testing
-    fn create_empty_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
-        autoreleasepool(|_| {
-            unsafe {
-                let dict_class = class!(NSDictionary);
-                let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-
-                // Ensure we got a valid dictionary
-                assert!(!dict_ptr.is_null(), "Failed to create empty dictionary");
-
-                // Convert to retained dictionary
-                match Retained::from_raw(dict_ptr.cast()) {
-                    Some(dict) => dict,
-                    None => panic!("Could not retain dictionary"),
-                }
-            }
-        })
-    }
-
-    /// Create a safe dictionary for testing
-    fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
-        autoreleasepool(|_| unsafe {
-            let dict_class = class!(NSDictionary);
-            let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-            Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
-        })
-    }
+    use crate::utils::test_utils::{create_mock_iokit, create_test_dictionary};
 
     /// Create a safe NSObject for testing
     fn create_test_object() -> Retained<AnyObject> {
@@ -266,17 +237,9 @@ mod tests {
         })
     }
 
-    /// Create a safe empty AnyObject for testing
-    fn create_test_anyobject() -> Retained<AnyObject> {
-        autoreleasepool(|_| unsafe {
-            let obj: *mut AnyObject = msg_send![class!(NSObject), new];
-            Retained::from_raw(obj).expect("Failed to create test object")
-        })
-    }
-
     #[test]
     fn test_mock_iokit() {
-        let mut mock = MockIOKit::new();
+        let mut mock = create_mock_iokit();
         let service_name = "TestService";
 
         // Set up expectations with safer test code
@@ -302,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_io_service_get_matching_service() {
-        let mut mock = MockIOKit::new();
+        let mut mock = create_mock_iokit();
         let dict = create_test_dictionary();
 
         // Mock the response with a simple test object
@@ -317,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_get_string_property() {
-        let mut mock = MockIOKit::new();
+        let mut mock = create_mock_iokit();
         let key = "TestKey";
         let value = "TestValue";
 
@@ -341,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_get_number_property() {
-        let mut mock = MockIOKit::new();
+        let mut mock = create_mock_iokit();
         let key = "TestNumberKey";
         let value: i64 = 42;
 
@@ -365,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_get_bool_property() {
-        let mut mock = MockIOKit::new();
+        let mut mock = create_mock_iokit();
         let key = "TestBoolKey";
 
         // Mock the responses
@@ -399,7 +362,7 @@ mod tests {
 
     #[test]
     fn test_io_registry_entry_create_cf_properties() {
-        let mut mock = MockIOKit::new();
+        let mut mock = create_mock_iokit();
         let test_obj = create_test_object();
 
         // Set up mock to return a dictionary
@@ -414,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_integration() {
-        let mut mock = MockIOKit::new();
+        let mut mock = create_mock_iokit();
         let test_name = "IOPlatformExpertDevice";
 
         // Set up all the mocks we need for the full flow

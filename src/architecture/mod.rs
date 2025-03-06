@@ -16,13 +16,6 @@ pub enum Architecture {
     Unknown,
 }
 
-#[derive(Debug)]
-pub struct SystemInfo {
-    pub architecture: Architecture,
-    pub model_identifier: String,
-    pub processor_name: String,
-}
-
 #[link(name = "System", kind = "framework")]
 extern "C" {
     fn sysctl(
@@ -37,7 +30,6 @@ extern "C" {
 
 const CTL_HW: i32 = 6;
 const HW_MACHINE: i32 = 1;
-const HW_MODEL: i32 = 2;
 
 pub fn detect_architecture() -> Result<Architecture, ArchitectureError> {
     let mut mib = [CTL_HW, HW_MACHINE];
@@ -80,89 +72,5 @@ pub fn detect_architecture() -> Result<Architecture, ArchitectureError> {
             "x86_64" => Architecture::Intel,
             _ => Architecture::Unknown,
         })
-    }
-}
-
-pub fn get_system_info() -> Result<SystemInfo, ArchitectureError> {
-    let architecture = detect_architecture()?;
-    let model_identifier = get_model_identifier()?;
-    let processor_name = get_processor_name()?;
-
-    Ok(SystemInfo {
-        architecture,
-        model_identifier,
-        processor_name,
-    })
-}
-
-fn get_model_identifier() -> Result<String, ArchitectureError> {
-    let mut mib = [CTL_HW, HW_MODEL];
-    let mut size = 0;
-
-    unsafe {
-        if sysctl(
-            mib.as_mut_ptr(),
-            2,
-            std::ptr::null_mut(),
-            &mut size,
-            std::ptr::null(),
-            0,
-        ) != 0
-        {
-            return Err(ArchitectureError::SystemCallFailed);
-        }
-
-        let mut buffer = vec![0u8; size];
-        if sysctl(
-            mib.as_mut_ptr(),
-            2,
-            buffer.as_mut_ptr() as *mut c_void,
-            &mut size,
-            std::ptr::null(),
-            0,
-        ) != 0
-        {
-            return Err(ArchitectureError::SystemCallFailed);
-        }
-
-        let cstr = std::ffi::CStr::from_bytes_with_nul(&buffer)
-            .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
-        Ok(cstr.to_string_lossy().into_owned())
-    }
-}
-
-fn get_processor_name() -> Result<String, ArchitectureError> {
-    let mib = [CTL_HW, 25]; // HW_MODEL
-    let mut size = 0;
-
-    unsafe {
-        if sysctl(
-            mib.as_ptr(),
-            2,
-            std::ptr::null_mut(),
-            &mut size,
-            std::ptr::null(),
-            0,
-        ) != 0
-        {
-            return Err(ArchitectureError::SystemCallFailed);
-        }
-
-        let mut buffer = vec![0u8; size];
-        if sysctl(
-            mib.as_ptr(),
-            2,
-            buffer.as_mut_ptr() as *mut c_void,
-            &mut size,
-            std::ptr::null(),
-            0,
-        ) != 0
-        {
-            return Err(ArchitectureError::SystemCallFailed);
-        }
-
-        let cstr = std::ffi::CStr::from_bytes_with_nul(&buffer)
-            .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
-        Ok(cstr.to_string_lossy().into_owned())
     }
 }

@@ -29,7 +29,7 @@
 //! ```
 
 use crate::hardware::iokit::{IOKit, IOKitImpl};
-use crate::utils::{autorelease_pool, objc_safe_exec};
+use crate::utils::{autorelease_pool, objc_safe_exec, objc_utils, property_utils, test_utils};
 use crate::{Error, Result};
 use objc2::msg_send;
 use objc2::runtime::AnyObject;
@@ -346,22 +346,17 @@ unsafe impl Sync for GPU {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hardware::iokit::MockIOKit;
-    use objc2::rc::{autoreleasepool, Retained};
-    use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send};
-    use objc2_foundation::{NSDictionary, NSObject, NSString};
-    use std::ptr;
+    use crate::utils::test_utils::{create_mock_iokit, create_test_dictionary};
 
     // Test that GPU name returns an error when device is null
     #[test]
     fn test_gpu_name_null_device() {
         // Create a mock IOKit
-        let mock_iokit = MockIOKit::new();
+        let mock_iokit = create_mock_iokit();
 
         // Create GPU with null device to simulate no GPU
         let gpu = GPU {
-            device: ptr::null_mut(),
+            device: std::ptr::null_mut(),
             iokit: Box::new(mock_iokit),
         };
 
@@ -378,51 +373,15 @@ mod tests {
         }
     }
 
-    // Create an empty dictionary for safe testing
-    fn create_empty_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
-        autoreleasepool(|_| {
-            unsafe {
-                let dict_class = class!(NSDictionary);
-                let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-
-                // Ensure we got a valid dictionary
-                assert!(!dict_ptr.is_null(), "Failed to create empty dictionary");
-
-                // Convert to retained dictionary
-                match Retained::from_raw(dict_ptr.cast()) {
-                    Some(dict) => dict,
-                    None => panic!("Could not retain dictionary"),
-                }
-            }
-        })
-    }
-
-    // Helper function to create a test dictionary
-    fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
-        autoreleasepool(|_| unsafe {
-            let dict_class = class!(NSDictionary);
-            let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionary];
-            Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
-        })
-    }
-
-    // Create a test AnyObject safely
-    fn create_test_anyobject() -> Retained<AnyObject> {
-        autoreleasepool(|_| unsafe {
-            let obj: *mut AnyObject = msg_send![class!(NSObject), new];
-            Retained::from_raw(obj).expect("Failed to create test object")
-        })
-    }
-
     // Test that GPU metrics returns an error when device is null
     #[test]
     fn test_gpu_metrics_null_device() {
         // Create a mock IOKit
-        let mock_iokit = MockIOKit::new();
+        let mock_iokit = create_mock_iokit();
 
         // Create GPU with null device
         let gpu = GPU {
-            device: ptr::null_mut(),
+            device: std::ptr::null_mut(),
             iokit: Box::new(mock_iokit),
         };
 
@@ -438,7 +397,7 @@ mod tests {
             return Ok(());
         }
 
-        let mut mock_iokit = MockIOKit::new();
+        let mut mock_iokit = create_mock_iokit();
 
         // Set expectations for the mock
         mock_iokit
@@ -447,7 +406,7 @@ mod tests {
 
         mock_iokit
             .expect_io_service_get_matching_service()
-            .returning(|_| Some(create_test_anyobject()));
+            .returning(|_| Some(create_test_dictionary()));
 
         mock_iokit
             .expect_io_registry_entry_create_cf_properties()

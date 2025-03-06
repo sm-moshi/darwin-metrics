@@ -155,17 +155,16 @@ pub type Result<T> = std::result::Result<T, Error>;
 // Public modules
 pub mod battery;
 pub mod disk;
-pub mod memory;
-pub mod network;
-pub mod process;
-pub mod resource;
-pub mod temperature;
-
 pub mod hardware {
     pub mod cpu;
     pub mod gpu;
     pub mod iokit;
+    pub mod memory;
 }
+pub mod network;
+pub mod process;
+pub mod resource;
+pub mod temperature;
 
 // Internal modules
 mod architecture;
@@ -177,7 +176,7 @@ pub mod utils;
 pub(crate) mod testing {
     use crate::battery::{Battery, PowerSource};
     use crate::hardware::cpu::CPU;
-    use crate::iokit::MockIOKit;
+    use crate::hardware::iokit::MockIOKit;
     use objc2::rc::Retained;
     use objc2::runtime::AnyObject;
     use objc2::{class, msg_send};
@@ -257,7 +256,7 @@ pub use battery::Battery;
 pub use hardware::cpu::CPU;
 pub use disk::Disk;
 pub use hardware::gpu::{GPUMetrics, GPU};
-pub use memory::Memory;
+pub use hardware::memory::Memory;
 pub use network::Network;
 pub use process::Process;
 pub use resource::{Cache, ResourceManager, ResourcePool};

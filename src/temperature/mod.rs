@@ -74,7 +74,7 @@ pub async fn get_core_temperatures() -> Result<CoreTemperature> {
         }
 
         let cstr = CStr::from_bytes_with_nul(&buffer).map_err(|_| TemperatureError::InvalidData)?;
-        let sensor_data = cstr.to_str().map_err(|_| TemperatureError::InvalidData)?;
+        let _sensor_data = cstr.to_str().map_err(|_| TemperatureError::InvalidData)?;
 
         // Parse sensor data into core temperatures
         // This is a placeholder - actual implementation will parse the sensor data

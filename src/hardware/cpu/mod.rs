@@ -24,6 +24,7 @@ use crate::{Error, Result};
 use objc2::runtime::AnyObject;
 use objc2::{class, msg_send};
 use objc2_foundation::NSNumber;
+use crate::utils::{objc_utils, property_utils, test_utils};
 
 /// Represents CPU information and metrics for macOS systems.
 ///
@@ -347,22 +348,14 @@ impl Clone for CPU {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hardware::iokit::MockIOKit; // This is now re-exported from iokit module
+    use crate::utils::test_utils::{create_mock_iokit, create_test_dictionary};
 
     fn setup_test_environment() {
         // No setup needed for now, but keeping the function for consistency
     }
 
     fn create_test_cpu() -> CPU {
-        let mut mock_iokit = MockIOKit::new();
-        mock_iokit
-            .expect_io_service_matching()
-            .returning(|_| unsafe {
-                let dict: *mut objc2::runtime::AnyObject =
-                    objc2::msg_send![objc2::class!(NSDictionary), new];
-                objc2::rc::Retained::from_raw(dict.cast()).unwrap()
-            });
-
+        let mut mock_iokit = create_mock_iokit();
         CPU {
             physical_cores: 4,
             logical_cores: 8,

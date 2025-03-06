@@ -6,6 +6,10 @@
 //! - Memory management
 //! - FFI data conversion utilities
 
+pub mod objc_utils;
+pub mod test_utils;
+pub mod property_utils;
+
 use crate::Error;
 use objc2::msg_send;
 use objc2::rc::autoreleasepool;

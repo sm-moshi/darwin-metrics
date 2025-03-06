@@ -23,6 +23,7 @@
 
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
+use crate::utils::{objc_utils, property_utils, test_utils};
 use std::collections::VecDeque;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -792,7 +793,7 @@ unsafe extern "C" {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicI32, AtomicU64};
+    use crate::utils::test_utils::{create_mock_iokit, create_test_dictionary};
 
     #[test]
     fn test_memory_with_basic_info() {

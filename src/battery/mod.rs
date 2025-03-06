@@ -409,7 +409,7 @@ impl PartialEq for Battery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iokit::MockIOKit; // This is now re-exported from iokit module
+    use crate::hardware::iokit::MockIOKit; // This is now re-exported from iokit module
     use crate::testing::{create_safe_dictionary, setup_test_environment};
 
     use objc2::rc::Retained;
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_battery_update_no_battery() {
-        let mut mock = crate::iokit::MockIOKit::new();
+        let mut mock = crate::hardware::iokit::MockIOKit::new();
 
         // Setup mock for service matching
         mock.expect_io_service_matching()
@@ -680,7 +680,7 @@ mod tests {
 
         #[test]
         fn test_get_info_service_not_found() {
-            let mut mock = crate::iokit::MockIOKit::new();
+            let mut mock = crate::hardware::iokit::MockIOKit::new();
             mock.expect_io_service_matching()
                 .with(eq("AppleSmartBattery"))
                 .returning(|_| unsafe {
@@ -708,7 +708,7 @@ mod tests {
 
         #[test]
         fn test_get_info_properties_failure() {
-            let mut mock = crate::iokit::MockIOKit::new();
+            let mut mock = crate::hardware::iokit::MockIOKit::new();
 
             mock.expect_io_service_matching()
                 .with(eq("AppleSmartBattery"))
