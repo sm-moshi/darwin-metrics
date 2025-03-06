@@ -1,30 +1,22 @@
-//! CPU metrics and information for macOS systems.
-//!
-//! This module provides functionality to gather CPU-related metrics and information
-//! on macOS systems using IOKit and Foundation frameworks. It supports both Intel
-//! and Apple Silicon processors.
-//!
-//! # Examples
-//!
-//! ```no_run
-//! use darwin_metrics::prelude::*;
-//!
-//! fn main() -> darwin_metrics::Result<()> {
-//!     let cpu = CPU::new()?;
-//!     println!("CPU Model: {}", cpu.model_name());
-//!     println!("Physical cores: {}", cpu.physical_cores());
-//!     println!("Current frequency: {} MHz", cpu.frequency_mhz());
-//!     println!("Average CPU usage: {}%", cpu.average_usage());
-//!     Ok(())
-//! }
-//! ```
+//! CPU metrics module
+
+/// CPU-related constants
+pub const MAX_CORES: u32 = 64;
+pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
+
+/// Trait for CPU metrics functionality
+pub trait CpuMetrics {
+    fn get_cpu_usage(&self) -> f64;
+    fn get_cpu_temperature(&self) -> Option<f64>;
+    fn get_cpu_frequency(&self) -> f64;
+}
 
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
 use objc2::runtime::AnyObject;
 use objc2::{class, msg_send};
 use objc2_foundation::NSNumber;
-use crate::utils::{objc_utils, property_utils, test_utils};
+use crate::utils::{property_utils, test_utils};
 
 /// Represents CPU information and metrics for macOS systems.
 ///
@@ -331,6 +323,20 @@ impl CPU {
     }
 }
 
+impl CpuMetrics for CPU {
+    fn get_cpu_usage(&self) -> f64 {
+        self.average_usage()
+    }
+
+    fn get_cpu_temperature(&self) -> Option<f64> {
+        self.temperature
+    }
+
+    fn get_cpu_frequency(&self) -> f64 {
+        self.frequency_mhz
+    }
+}
+
 impl Clone for CPU {
     fn clone(&self) -> Self {
         Self {
@@ -344,6 +350,10 @@ impl Clone for CPU {
         }
     }
 }
+
+mod cpu;
+
+pub use cpu::CPU;
 
 #[cfg(test)]
 mod tests {

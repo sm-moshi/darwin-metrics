@@ -45,7 +45,7 @@
 //! This module requires macOS-specific IOKit functionality and will only work on macOS systems.
 //! All battery metrics are updated atomically when calling `update()` to ensure consistency.
 
-use crate::hardware::iokit::{IOKit, IOKitImpl};
+use crate::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
 use std::time::Duration;
 
@@ -94,10 +94,10 @@ pub enum PowerSource {
 /// use darwin_metrics::battery::Battery;
 ///
 /// let mut battery = Battery::new()?;
-///
+/// 
 /// // Update battery metrics
 /// battery.update()?;
-///
+/// 
 /// // Check battery status
 /// if battery.is_present {
 ///     println!("Battery at {}%", battery.percentage);
@@ -167,18 +167,13 @@ impl Battery {
         };
 
         // Get battery properties
-        let properties = self
-            .iokit
-            .io_registry_entry_create_cf_properties(&service)?;
-
+        let properties = self.iokit.io_registry_entry_create_cf_properties(&service)?;
+        
         // Update battery presence
-        self.is_present = self
-            .iokit
-            .get_bool_property(&properties, BATTERY_IS_PRESENT)
+        self.is_present = self.iokit.get_bool_property(&properties, BATTERY_IS_PRESENT)
             .unwrap_or(false);
 
-        if !self.is_present {
-            // Fixed parentheses here
+        if !self.is_present {  // Fixed parentheses here
             // Reset all values if no battery is present
             self.is_charging = false;
             self.percentage = 0.0;
@@ -191,15 +186,11 @@ impl Battery {
         }
 
         // Update charging status
-        self.is_charging = self
-            .iokit
-            .get_bool_property(&properties, BATTERY_IS_CHARGING)
+        self.is_charging = self.iokit.get_bool_property(&properties, BATTERY_IS_CHARGING)
             .unwrap_or(false);
 
         // Update power source
-        let is_external = self
-            .iokit
-            .get_bool_property(&properties, BATTERY_POWER_SOURCE)
+        let is_external = self.iokit.get_bool_property(&properties, BATTERY_POWER_SOURCE)
             .unwrap_or(false);
         self.power_source = if is_external {
             PowerSource::AC
@@ -208,13 +199,9 @@ impl Battery {
         };
 
         // Update capacity and percentage
-        let current = self
-            .iokit
-            .get_number_property(&properties, BATTERY_CURRENT_CAPACITY)
+        let current = self.iokit.get_number_property(&properties, BATTERY_CURRENT_CAPACITY)
             .unwrap_or(0) as f64;
-        let max = self
-            .iokit
-            .get_number_property(&properties, BATTERY_MAX_CAPACITY)
+        let max = self.iokit.get_number_property(&properties, BATTERY_MAX_CAPACITY)
             .unwrap_or(100) as f64;
         self.percentage = if max > 0.0 {
             (current / max * 100.0).clamp(0.0, 100.0)
@@ -223,9 +210,7 @@ impl Battery {
         };
 
         // Update health percentage
-        let design = self
-            .iokit
-            .get_number_property(&properties, BATTERY_DESIGN_CAPACITY)
+        let design = self.iokit.get_number_property(&properties, BATTERY_DESIGN_CAPACITY)
             .unwrap_or(max as i64) as f64;
         self.health_percentage = if design > 0.0 {
             (max / design * 100.0).clamp(0.0, 100.0)
@@ -234,22 +219,16 @@ impl Battery {
         };
 
         // Update cycle count
-        self.cycle_count = self
-            .iokit
-            .get_number_property(&properties, BATTERY_CYCLE_COUNT)
+        self.cycle_count = self.iokit.get_number_property(&properties, BATTERY_CYCLE_COUNT)
             .unwrap_or(0) as u32;
 
         // Update time remaining (in minutes)
-        let time = self
-            .iokit
-            .get_number_property(&properties, BATTERY_TIME_REMAINING)
+        let time = self.iokit.get_number_property(&properties, BATTERY_TIME_REMAINING)
             .unwrap_or(0);
         self.time_remaining = Duration::from_secs((time.max(0) * 60) as u64);
 
         // Update temperature (convert from celsius * 100 to celsius)
-        let temp = self
-            .iokit
-            .get_number_property(&properties, BATTERY_TEMPERATURE)
+        let temp = self.iokit.get_number_property(&properties, BATTERY_TEMPERATURE)
             .unwrap_or(0) as f64;
         self.temperature = temp / 100.0;
 
@@ -367,10 +346,10 @@ impl Battery {
     }
 
     /// Checks if the battery temperature is in a critical range
-    ///
+    /// 
     /// Returns true if the battery temperature is outside the safe operating range.
     /// Most lithium-ion batteries should operate between -10°C and 40°C.
-    /// Temperatures outside this range can cause reduced battery life,
+    /// Temperatures outside this range can cause reduced battery life, 
     /// performance issues, or safety concerns.
     pub fn is_temperature_critical(&self) -> bool {
         self.temperature < -10.0 || self.temperature > 40.0
@@ -409,18 +388,20 @@ impl PartialEq for Battery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hardware::iokit::MockIOKit; // This is now re-exported from iokit module
+    use crate::iokit::MockIOKit; // This is now re-exported from iokit module
     use crate::testing::{create_safe_dictionary, setup_test_environment};
-
-    use objc2::rc::Retained;
+    
+    use objc2::{msg_send, class};
     use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send};
+    use objc2::rc::Retained;
 
     #[test]
     fn test_basic_battery_properties() {
-        let battery =
-            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 35.0);
-
+        let battery = Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
+        );
+        
         // Test simple properties only
         assert!(battery.percentage <= 100.0);
         assert!(battery.percentage >= 0.0);
@@ -444,18 +425,18 @@ mod tests {
             temperature: 35.0,
             iokit: Box::new(mock),
         };
-
+        
         assert_eq!(battery.percentage, 75.5);
         assert_eq!(battery.is_present, true);
         assert_eq!(battery.power_source, PowerSource::Battery);
     }
-
+    
     #[test]
     fn test_battery_mock() {
         let mut mock = MockIOKit::new();
         mock.expect_io_service_matching()
             .returning(|_| create_safe_dictionary());
-
+            
         let battery = Battery {
             is_present: true,
             is_charging: false,
@@ -467,15 +448,17 @@ mod tests {
             temperature: 35.0,
             iokit: Box::new(mock),
         };
-
+        
         assert_eq!(battery.percentage, 75.5);
     }
 
     #[test]
     fn test_battery_constructor() {
         setup_test_environment();
-        let battery =
-            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 35.0);
+        let battery = Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
+        );
         assert_eq!(battery.is_present, true);
         assert_eq!(battery.is_charging, false);
         assert_eq!(battery.percentage, 75.5);
@@ -489,8 +472,10 @@ mod tests {
     #[test]
     fn test_battery_status_display() {
         setup_test_environment();
-        let battery =
-            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 35.0);
+        let battery = Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
+        );
         assert_eq!(battery.time_remaining_display(), "1 hours 30 minutes");
         assert!(!battery.is_low());
         assert!(!battery.is_critical());
@@ -499,8 +484,8 @@ mod tests {
 
     #[test]
     fn test_battery_update_no_battery() {
-        let mut mock = crate::hardware::iokit::MockIOKit::new();
-
+        let mut mock = crate::iokit::MockIOKit::new();
+        
         // Setup mock for service matching
         mock.expect_io_service_matching()
             .with(eq("AppleSmartBattery"))
@@ -558,31 +543,34 @@ mod tests {
     #[test]
     fn test_battery_health() {
         let battery = Battery::with_values(
-            true,
-            false,
-            75.5,
-            90,
-            PowerSource::Battery,
-            1200,
-            65.0,
-            35.0,
+            true, false, 75.5, 90,
+            PowerSource::Battery, 1200, 65.0, 35.0
         );
         assert!(battery.is_health_poor());
         assert!(battery.has_high_cycle_count());
 
-        let battery =
-            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 35.0);
+        let battery = Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
+        );
         assert!(!battery.is_health_poor());
         assert!(!battery.has_high_cycle_count());
     }
 
     #[test]
     fn test_power_source_variants() {
-        let battery_power =
-            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 35.0);
-        let ac_power = Battery::with_values(true, true, 95.5, 0, PowerSource::AC, 500, 85.0, 35.0);
-        let unknown_power =
-            Battery::with_values(true, false, 75.5, 90, PowerSource::Unknown, 500, 85.0, 35.0);
+        let battery_power = Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
+        );
+        let ac_power = Battery::with_values(
+            true, true, 95.5, 0,
+            PowerSource::AC, 500, 85.0, 35.0
+        );
+        let unknown_power = Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Unknown, 500, 85.0, 35.0
+        );
 
         assert_eq!(battery_power.power_source_display(), "Battery Power");
         assert_eq!(ac_power.power_source_display(), "AC Power");
@@ -592,64 +580,44 @@ mod tests {
     #[test]
     fn test_battery_percentage_bounds() {
         let battery = Battery::with_values(
-            true,
-            false,
-            150.0,
-            90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0,
+            true, false, 150.0, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
         );
         assert!(battery.percentage <= 100.0);
 
         let battery = Battery::with_values(
-            true,
-            false,
-            -10.0,
-            90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0,
+            true, false, -10.0, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
         );
         assert!(battery.percentage >= 0.0);
     }
 
     #[test]
     fn test_time_remaining_edge_cases() {
-        let battery =
-            Battery::with_values(true, false, 75.5, 0, PowerSource::Battery, 500, 85.0, 35.0);
+        let battery = Battery::with_values(
+            true, false, 75.5, 0,
+            PowerSource::Battery, 500, 85.0, 35.0
+        );
         assert_eq!(battery.time_remaining_display(), "0 minutes");
 
         let battery = Battery::with_values(
-            true,
-            false,
-            75.5,
-            180,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0,
+            true, false, 75.5, 180,
+            PowerSource::Battery, 500, 85.0, 35.0
         );
         assert_eq!(battery.time_remaining_display(), "3 hours 0 minutes");
     }
 
     #[test]
     fn test_battery_health_edge_cases() {
-        let battery =
-            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 0, 100.0, 35.0);
+        let battery = Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Battery, 0, 100.0, 35.0
+        );
         assert!(!battery.has_high_cycle_count());
 
         let battery = Battery::with_values(
-            true,
-            false,
-            75.5,
-            90,
-            PowerSource::Battery,
-            5000,
-            50.0,
-            35.0,
+            true, false, 75.5, 90,
+            PowerSource::Battery, 5000, 50.0, 35.0
         );
         assert!(battery.has_high_cycle_count());
         assert!(battery.is_health_poor());
@@ -657,19 +625,15 @@ mod tests {
 
     #[test]
     fn test_battery_temperature_bounds() {
-        let cold_battery =
-            Battery::with_values(true, false, 75.5, 90, PowerSource::Battery, 500, 85.0, 0.0);
+        let cold_battery = Battery::with_values(
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 0.0
+        );
         assert!(cold_battery.temperature >= 0.0);
 
         let hot_battery = Battery::with_values(
-            true,
-            false,
-            75.5,
-            90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            100.0,
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 100.0
         );
         assert!(hot_battery.temperature <= 100.0);
     }
@@ -680,7 +644,7 @@ mod tests {
 
         #[test]
         fn test_get_info_service_not_found() {
-            let mut mock = crate::hardware::iokit::MockIOKit::new();
+            let mut mock = crate::iokit::MockIOKit::new();
             mock.expect_io_service_matching()
                 .with(eq("AppleSmartBattery"))
                 .returning(|_| unsafe {
@@ -708,8 +672,8 @@ mod tests {
 
         #[test]
         fn test_get_info_properties_failure() {
-            let mut mock = crate::hardware::iokit::MockIOKit::new();
-
+            let mut mock = crate::iokit::MockIOKit::new();
+            
             mock.expect_io_service_matching()
                 .with(eq("AppleSmartBattery"))
                 .returning(|_| unsafe {
@@ -746,45 +710,49 @@ mod tests {
     fn test_battery_state_transitions() {
         // Create a battery with initial state
         let battery = Battery::with_values(
-            true,                 // is_present
-            false,                // is_charging
-            75.5,                 // percentage
-            90,                   // time_remaining_min
-            PowerSource::Battery, // power_source
-            500,                  // cycle_count
-            85.0,                 // health_percentage
-            35.0,                 // temperature
+            true,                  // is_present
+            false,                 // is_charging
+            75.5,                  // percentage
+            90,                    // time_remaining_min
+            PowerSource::Battery,  // power_source
+            500,                   // cycle_count
+            85.0,                  // health_percentage
+            35.0,                  // temperature
         );
-
+        
         // Initial state verification
         assert_eq!(battery.power_source, PowerSource::Battery);
         assert!(!battery.is_charging);
         assert_eq!(battery.percentage, 75.5);
-
+        
         // Test state transitions with new battery instances
         // 1. Connect to power
-        let charging_battery =
-            Battery::with_values(true, true, 75.5, 90, PowerSource::AC, 500, 85.0, 35.0);
+        let charging_battery = Battery::with_values(
+            true, true, 75.5, 90, PowerSource::AC, 500, 85.0, 35.0
+        );
         assert_eq!(charging_battery.power_source, PowerSource::AC);
         assert!(charging_battery.is_charging);
-
+        
         // 2. Fully charged
-        let fully_charged =
-            Battery::with_values(true, false, 100.0, 0, PowerSource::AC, 500, 85.0, 35.0);
+        let fully_charged = Battery::with_values(
+            true, false, 100.0, 0, PowerSource::AC, 500, 85.0, 35.0
+        );
         assert_eq!(fully_charged.power_source, PowerSource::AC);
         assert!(!fully_charged.is_charging);
         assert_eq!(fully_charged.percentage, 100.0);
-
+        
         // 3. Low battery
-        let low_battery =
-            Battery::with_values(true, false, 10.0, 30, PowerSource::Battery, 500, 85.0, 35.0);
+        let low_battery = Battery::with_values(
+            true, false, 10.0, 30, PowerSource::Battery, 500, 85.0, 35.0
+        );
         assert_eq!(low_battery.percentage, 10.0);
         assert!(low_battery.is_low());
         assert!(!low_battery.is_critical());
-
+        
         // 4. Critical battery
-        let critical_battery =
-            Battery::with_values(true, false, 5.0, 15, PowerSource::Battery, 500, 85.0, 35.0);
+        let critical_battery = Battery::with_values(
+            true, false, 5.0, 15, PowerSource::Battery, 500, 85.0, 35.0
+        );
         assert_eq!(critical_battery.percentage, 5.0);
         assert!(critical_battery.is_low());
         assert!(critical_battery.is_critical());
@@ -793,157 +761,91 @@ mod tests {
     #[test]
     fn test_power_source_transition_scenarios() {
         // Scenario 1: AC to Battery transition
-        let battery_ac =
-            Battery::with_values(true, true, 60.0, 120, PowerSource::AC, 300, 95.0, 30.0);
+        let battery_ac = Battery::with_values(
+            true, true, 60.0, 120, PowerSource::AC, 300, 95.0, 30.0
+        );
         assert_eq!(battery_ac.power_source, PowerSource::AC);
         assert!(battery_ac.is_charging);
-
+        
         let battery_disconnected = Battery::with_values(
-            true,
-            false,
-            60.0,
-            120,
-            PowerSource::Battery,
-            300,
-            95.0,
-            30.0,
+            true, false, 60.0, 120, PowerSource::Battery, 300, 95.0, 30.0
         );
         assert_eq!(battery_disconnected.power_source, PowerSource::Battery);
         assert!(!battery_disconnected.is_charging);
-
+        
         // Scenario 2: Connect to AC when battery is low
-        let low_battery =
-            Battery::with_values(true, false, 15.0, 45, PowerSource::Battery, 300, 95.0, 30.0);
+        let low_battery = Battery::with_values(
+            true, false, 15.0, 45, PowerSource::Battery, 300, 95.0, 30.0
+        );
         assert_eq!(low_battery.power_source, PowerSource::Battery);
         assert!(low_battery.is_low());
-
-        let charging_low_battery =
-            Battery::with_values(true, true, 15.0, 45, PowerSource::AC, 300, 95.0, 30.0);
+        
+        let charging_low_battery = Battery::with_values(
+            true, true, 15.0, 45, PowerSource::AC, 300, 95.0, 30.0
+        );
         assert_eq!(charging_low_battery.power_source, PowerSource::AC);
         assert!(charging_low_battery.is_charging);
         assert!(charging_low_battery.is_low());
-
+        
         // Scenario 3: Unknown power source
         let unknown_source = Battery::with_values(
-            true,
-            false,
-            80.0,
-            240,
-            PowerSource::Unknown,
-            300,
-            95.0,
-            30.0,
+            true, false, 80.0, 240, PowerSource::Unknown, 300, 95.0, 30.0
         );
         assert_eq!(unknown_source.power_source, PowerSource::Unknown);
-        assert_eq!(
-            unknown_source.power_source_display(),
-            "Unknown Power Source"
-        );
+        assert_eq!(unknown_source.power_source_display(), "Unknown Power Source");
     }
-
+    
     #[test]
     fn test_temperature_range_edge_cases() {
         // Test very low temperature
         let very_cold = Battery::with_values(
-            true,
-            false,
-            80.0,
-            120,
-            PowerSource::Battery,
-            500,
-            90.0,
-            -20.0, // -20°C is extremely cold for a battery
+            true, false, 80.0, 120, PowerSource::Battery, 
+            500, 90.0, -20.0, // -20°C is extremely cold for a battery
         );
         assert_eq!(very_cold.temperature, -20.0);
-        assert!(
-            very_cold.temperature < -10.0,
-            "Temperature should be below critical threshold"
-        );
-
+        assert!(very_cold.temperature < -10.0, "Temperature should be below critical threshold");
+        
         // Test normal operating temperature
         let normal_temp = Battery::with_values(
-            true,
-            false,
-            80.0,
-            120,
-            PowerSource::Battery,
-            500,
-            90.0,
-            25.0, // 25°C is normal
+            true, false, 80.0, 120, PowerSource::Battery, 
+            500, 90.0, 25.0, // 25°C is normal
         );
         assert_eq!(normal_temp.temperature, 25.0);
-        assert!(
-            normal_temp.temperature > -10.0 && normal_temp.temperature < 40.0,
-            "Temperature should be in normal range"
-        );
-
+        assert!(normal_temp.temperature > -10.0 && normal_temp.temperature < 40.0, 
+                "Temperature should be in normal range");
+        
         // Test elevated temperature
         let warm = Battery::with_values(
-            true,
-            false,
-            80.0,
-            120,
-            PowerSource::Battery,
-            500,
-            90.0,
-            35.0, // 35°C is warm but not critical
+            true, false, 80.0, 120, PowerSource::Battery, 
+            500, 90.0, 35.0, // 35°C is warm but not critical
         );
         assert_eq!(warm.temperature, 35.0);
-        assert!(
-            warm.temperature < 40.0,
-            "Temperature should be below critical threshold"
-        );
-
+        assert!(warm.temperature < 40.0, "Temperature should be below critical threshold");
+        
         // Test critical high temperature
         let very_hot = Battery::with_values(
-            true,
-            false,
-            80.0,
-            120,
-            PowerSource::Battery,
-            500,
-            90.0,
-            45.0, // 45°C is very hot for a battery
+            true, false, 80.0, 120, PowerSource::Battery, 
+            500, 90.0, 45.0, // 45°C is very hot for a battery
         );
         assert_eq!(very_hot.temperature, 45.0);
-        assert!(
-            very_hot.temperature > 40.0,
-            "Temperature should be above critical threshold"
-        );
-
+        assert!(very_hot.temperature > 40.0, "Temperature should be above critical threshold");
+        
         // Test extreme temperature that might be from a sensor error
         let extreme = Battery::with_values(
-            true,
-            false,
-            80.0,
-            120,
-            PowerSource::Battery,
-            500,
-            90.0,
-            100.0, // 100°C would be a dangerous battery condition
+            true, false, 80.0, 120, PowerSource::Battery, 
+            500, 90.0, 100.0, // 100°C would be a dangerous battery condition
         );
         assert_eq!(extreme.temperature, 100.0);
-        assert!(
-            extreme.temperature > 40.0,
-            "Temperature should be above critical threshold"
-        );
-
+        assert!(extreme.temperature > 40.0, "Temperature should be above critical threshold");
+        
         // Test 0°C
         let freezing = Battery::with_values(
-            true,
-            false,
-            80.0,
-            120,
-            PowerSource::Battery,
-            500,
-            90.0,
-            0.0, // 0°C is at freezing point
+            true, false, 80.0, 120, PowerSource::Battery, 
+            500, 90.0, 0.0, // 0°C is at freezing point
         );
         assert_eq!(freezing.temperature, 0.0);
-        assert!(
-            freezing.temperature > -10.0 && freezing.temperature < 40.0,
-            "Temperature should be in normal range"
-        );
+        assert!(freezing.temperature > -10.0 && freezing.temperature < 40.0, 
+                "Temperature should be in normal range");
     }
 
     #[test]

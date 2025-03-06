@@ -93,25 +93,11 @@
 //! allowing safe usage in multi-threaded applications. Resource cleanup is
 //! handled automatically through Drop implementations.
 
-use log::error;
-use std::fmt;
 use thiserror::Error;
 
 /// Error type for darwin-metrics operations
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("System call failed")]
-    SystemCallFailed,
-    #[error("Invalid data")]
-    InvalidData,
-    #[error("Feature not supported")]
-    FeatureNotSupported,
-    #[error("IOKit initialization failed")]
-    IOKitInitFailed,
-    #[error("Sensor read failed")]
-    SensorReadFailed,
-    #[error("Permission denied")]
-    PermissionDenied,
     #[error("Service not found")]
     ServiceNotFound,
     #[error("Feature not available: {0}")]
@@ -120,14 +106,6 @@ pub enum Error {
     NotImplemented(String),
     #[error("System error: {0}")]
     SystemError(String),
-    #[error("Temperature error: {0}")]
-    Temperature(String),
-    #[error("Frequency error: {0}")]
-    Frequency(String),
-    #[error("Power error: {0}")]
-    Power(String),
-    #[error("Architecture error: {0}")]
-    Architecture(String),
 }
 
 impl Error {
@@ -138,7 +116,7 @@ impl Error {
     pub(crate) fn not_implemented(msg: impl Into<String>) -> Self {
         Error::NotImplemented(msg.into())
     }
-
+    
     pub(crate) fn invalid_value(msg: impl Into<String>) -> Self {
         Error::SystemError(msg.into())
     }
@@ -154,37 +132,29 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 // Public modules
 pub mod battery;
+pub mod cpu;
 pub mod disk;
-pub mod hardware {
-    pub mod cpu;
-    pub mod gpu;
-    pub mod iokit;
-    pub mod memory;
-}
+pub mod gpu;
+pub mod memory;
 pub mod network;
 pub mod process;
-pub mod resource;
 pub mod temperature;
+pub mod resource;
 
 // Internal modules
-mod architecture;
-mod frequency;
-mod power;
+pub mod iokit;
 pub mod utils;
-
 #[cfg(test)]
 pub(crate) mod testing {
     use crate::battery::{Battery, PowerSource};
-    use crate::hardware::cpu::CPU;
-    use crate::hardware::iokit::MockIOKit;
-    use objc2::rc::Retained;
+    use crate::cpu::CPU;
+    use crate::iokit::MockIOKit;
     use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send};
-
+    use objc2::rc::Retained;
+    use objc2::{msg_send, class};
+    
     /// Creates a safe test dictionary for tests
-    pub(crate) fn create_safe_dictionary() -> Retained<
-        objc2_foundation::NSDictionary<objc2_foundation::NSString, objc2_foundation::NSObject>,
-    > {
+    pub(crate) fn create_safe_dictionary() -> Retained<objc2_foundation::NSDictionary<objc2_foundation::NSString, objc2_foundation::NSObject>> {
         unsafe {
             let dict: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
             Retained::from_raw(dict.cast()).unwrap()
@@ -217,9 +187,9 @@ pub(crate) mod testing {
             75.5,                 // percentage
             90,                   // time_remaining
             PowerSource::Battery, // power_source
-            500,                  // cycle_count
-            85.0,                 // health_percentage
-            35.0,                 // temperature
+            500,                 // cycle_count
+            85.0,                // health_percentage
+            35.0                 // temperature
         )
     }
 
@@ -241,11 +211,7 @@ pub(crate) mod testing {
         std::panic::set_hook(Box::new(|panic_info| {
             eprintln!("Test panic: {}", panic_info);
             if let Some(location) = panic_info.location() {
-                eprintln!(
-                    "Panic occurred in file '{}' at line {}",
-                    location.file(),
-                    location.line()
-                );
+                eprintln!("Panic occurred in file '{}' at line {}", location.file(), location.line());
             }
         }));
     }
@@ -253,20 +219,30 @@ pub(crate) mod testing {
 
 // Re-exports for convenience
 pub use battery::Battery;
-pub use hardware::cpu::CPU;
+pub use cpu::CPU;
 pub use disk::Disk;
-pub use hardware::gpu::{GPUMetrics, GPU};
-pub use hardware::memory::Memory;
+pub use gpu::{GPU, GPUMetrics};
+pub use memory::Memory;
 pub use network::Network;
 pub use process::Process;
-pub use resource::{Cache, ResourceManager, ResourcePool};
-pub use temperature::CoreTemperature;
+pub use temperature::Temperature;
+pub use resource::{ResourceManager, ResourcePool, Cache};
 
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{
-        Battery, Cache, CoreTemperature, Disk, Error, GPUMetrics, Memory, Network, Process,
-        ResourceManager, ResourcePool, Result, CPU, GPU,
+        Error,
+        Result,
+        Battery,
+        CPU,
+        Disk,
+        GPU,
+        GPUMetrics,
+        Memory,
+        Network,
+        Process,
+        Temperature,
+        ResourceManager,
     };
 }
 
@@ -275,7 +251,7 @@ mod tests {
     use super::*;
     use crate::battery::PowerSource;
     use std::panic;
-
+    
     /// Setup crash handlers for tests
     fn setup_test_environment() {
         // Set up a panic hook to get better information on segfaults
@@ -283,27 +259,21 @@ mod tests {
             eprintln!("Test panic: {}", panic_info);
         }));
     }
-
+    
     #[test]
     fn test_gpu_metrics() -> Result<()> {
         setup_test_environment();
         // Skip this test as it requires real hardware
         Ok(())
     }
-
+    
     #[test]
     fn test_battery_metrics() -> Result<()> {
         setup_test_environment();
         // Create a battery with known test values
         let battery = battery::Battery::with_values(
-            true,
-            false,
-            75.5,
-            90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0,
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
         );
         assert!(battery.percentage >= 0.0 && battery.percentage <= 100.0);
         Ok(())
@@ -314,13 +284,10 @@ mod tests {
         fn get_service_not_found() -> Result<()> {
             Err(Error::ServiceNotFound)
         }
-
+        
+        assert!(matches!(get_service_not_found(), Err(Error::ServiceNotFound)));
         assert!(matches!(
-            get_service_not_found(),
-            Err(Error::ServiceNotFound)
-        ));
-        assert!(matches!(
-            Error::not_available("test"),
+            Error::not_available("test"), 
             Error::NotAvailable(_)
         ));
     }
@@ -328,110 +295,14 @@ mod tests {
     #[test]
     fn test_public_api() {
         use crate::battery::PowerSource;
-
+        
         let battery = battery::Battery::with_values(
-            true,
-            false,
-            75.5,
-            90,
-            PowerSource::Battery,
-            500,
-            85.0,
-            35.0,
+            true, false, 75.5, 90,
+            PowerSource::Battery, 500, 85.0, 35.0
         );
-
+        
         assert_eq!(battery.power_source, PowerSource::Battery);
         assert!(!battery.is_critical());
         assert_eq!(battery.time_remaining_display(), "1 hours 30 minutes");
     }
-
-    #[tokio::test]
-    async fn test_get_system_metrics() {
-        let metrics = get_system_metrics().await;
-        assert!(metrics.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_get_system_metrics_comprehensive() {
-        let result = get_system_metrics().await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_error_handling() {
-        // Test error handling for each module
-        let architecture_result = crate::architecture::detect_architecture();
-        let frequency_result = crate::frequency::get_core_frequencies().await;
-        let power_result = crate::power::get_power_consumption().await;
-
-        assert!(architecture_result.is_ok());
-        assert!(frequency_result.is_ok());
-        assert!(power_result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_metrics_structure() {
-        let metrics = get_system_metrics().await.unwrap();
-
-        assert!(!metrics.architecture.is_empty());
-        assert!(!metrics.frequencies.efficiency_cores.is_empty());
-        assert!(!metrics.frequencies.performance_cores.is_empty());
-        assert!(metrics.power.package > 0.0);
-    }
-}
-
-impl From<String> for Error {
-    fn from(err: String) -> Self {
-        Error::SystemError(err)
-    }
-}
-
-impl From<frequency::FrequencyError> for Error {
-    fn from(err: frequency::FrequencyError) -> Self {
-        Error::Frequency(err.to_string())
-    }
-}
-
-impl From<power::PowerError> for Error {
-    fn from(err: power::PowerError) -> Self {
-        Error::Power(err.to_string())
-    }
-}
-
-impl From<architecture::ArchitectureError> for Error {
-    fn from(err: architecture::ArchitectureError) -> Self {
-        Error::Architecture(err.to_string())
-    }
-}
-
-impl fmt::Display for architecture::Architecture {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            architecture::Architecture::Intel => write!(f, "Intel"),
-            architecture::Architecture::AppleSilicon => write!(f, "Apple Silicon"),
-            architecture::Architecture::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
-
-/// System metrics structure
-pub type CoreFrequencies = frequency::CoreFrequencies;
-pub type PowerConsumption = power::PowerConsumption;
-
-pub struct SystemMetrics {
-    pub architecture: String,
-    pub frequencies: CoreFrequencies,
-    pub power: PowerConsumption,
-}
-
-pub async fn get_system_metrics() -> Result<SystemMetrics> {
-    let frequencies = crate::frequency::get_core_frequencies().await?;
-    let power = crate::power::get_power_consumption().await?;
-    let architecture = crate::architecture::detect_architecture()?;
-
-    Ok(SystemMetrics {
-        architecture: architecture.to_string(),
-        frequencies,
-        power,
-    })
 }

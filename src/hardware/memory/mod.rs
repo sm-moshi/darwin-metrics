@@ -23,10 +23,10 @@
 
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::{Error, Result};
-use crate::utils::{objc_utils, property_utils, test_utils};
+use crate::utils::{property_utils, test_utils};
 use std::collections::VecDeque;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering},
     Arc, Mutex,
 };
 use std::time::{Duration, Instant};

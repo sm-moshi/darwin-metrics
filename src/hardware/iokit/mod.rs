@@ -42,7 +42,9 @@ use objc2::runtime::{AnyClass, AnyObject};
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
 
 use crate::Error;
-use crate::utils::{objc_utils, property_utils, test_utils};
+use crate::utils::{property_utils, test_utils};
+
+use mockall::predicate::{eq, always};
 
 // The IOKit trait is now defined below with #[cfg_attr(test, automock)]
 
