@@ -38,7 +38,7 @@ generated/
 
 # local VS Code stuff
 .bacon-locations
-.vscode/mise-tools
+.vscode/
 .cursor/
 .references/
 .windsurfrules
