@@ -1,13 +1,6 @@
-//! Error types for darwin-metrics operations
-//!
-//! This module provides a comprehensive error handling system for all metrics collection
-//! operations. Each subsystem (Battery, GPU, CPU, etc.) has its own specific error types,
-//! and all errors can be converted into the main Error type.
-
 use std::ffi::NulError;
 use thiserror::Error;
 
-/// Main error type for darwin-metrics operations
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("IOKit error: {0}")]
@@ -54,43 +47,35 @@ pub enum Error {
 }
 
 impl Error {
-    /// Create a new IOKit error
     pub fn io_kit(msg: impl Into<String>) -> Self {
         Error::IOKit(msg.into())
     }
 
-    /// Create a new Metal error
     pub fn metal(msg: impl Into<String>) -> Self {
         Error::Metal(msg.into())
     }
 
-    /// Create a new service not found error
     pub fn service_not_found(msg: impl Into<String>) -> Self {
         Error::ServiceNotFound(msg.into())
     }
 
-    /// Create a new not available error
     pub fn not_available(msg: impl Into<String>) -> Self {
         Error::NotAvailable(msg.into())
     }
 
-    /// Create a new not implemented error
     pub fn not_implemented(msg: impl Into<String>) -> Self {
         Error::NotImplemented(msg.into())
     }
 
-    /// Create a new system error
     pub fn system(msg: impl Into<String>) -> Self {
         Error::System(msg.into())
     }
 
-    /// Create a new invalid data error
     pub fn invalid_data(msg: impl Into<String>) -> Self {
         Error::InvalidData(msg.into())
     }
 }
 
-/// Result type for darwin-metrics operations
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]

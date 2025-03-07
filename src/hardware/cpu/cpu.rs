@@ -1,13 +1,10 @@
-//! CPU implementation module
-
 use super::{CpuMetrics, MAX_CORES, MAX_FREQUENCY_MHZ};
 use crate::hardware::iokit::{IOKit, IOKitImpl};
-use crate::{Error, Result};
+use crate::error::{Error, Result};
 use objc2::runtime::AnyObject;
 use objc2::{class, msg_send};
 use objc2_foundation::NSNumber;
 
-/// CPU implementation struct
 #[derive(Debug)]
 pub struct CPU {
     physical_cores: u32,
@@ -35,18 +32,15 @@ impl CPU {
     }
 
     fn update(&mut self) -> Result<()> {
-        // Get the number of physical and logical cores
         let service = self.iokit.get_service("AppleACPICPU")?;
         let physical_cores: u32 = msg_send![service, numberOfCores];
         let logical_cores: u32 = msg_send![service, numberOfProcessorCores];
         self.physical_cores = physical_cores;
         self.logical_cores = logical_cores;
 
-        // Get the CPU frequency
         let freq: f64 = msg_send![service, currentProcessorClockSpeed];
         self.frequency_mhz = freq / 1000000.0;
 
-        // Get the CPU usage
         let usage: Vec<f64> = (0..logical_cores)
             .map(|i| {
                 let core = self.iokit.get_service("AppleACPICPU")?.get_core(i);
@@ -56,11 +50,9 @@ impl CPU {
             .collect();
         self.core_usage = usage;
 
-        // Get the CPU model name
         let model_name: String = msg_send![service, name];
         self.model_name = model_name;
 
-        // Get the CPU temperature
         let temperature: f64 = self.iokit.get_temperature()?;
         self.temperature = Some(temperature);
 

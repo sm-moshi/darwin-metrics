@@ -2,7 +2,7 @@
 
 ---
 
-## **Project Setup** *(Completed - 0.1.0)*
+## **Project Setup**
 
 - [x] Initialize Rust crate with `cargo init --lib`
 - [x] Configure library crate types (staticlib, cdylib, rlib)
@@ -12,243 +12,126 @@
 
 ---
 
-## **Core Features**
+## **Phase 1: Codebase Refactoring & Cleanup (0.1.0)**
 
-### **Thread Safety & Resource Management** *(0.1.0)*
+**Goal:** Improve structure, maintainability, and performance before implementing new features.
 
-- [x] Implement global thread-safe resource management
-  - [x] Add atomic updates for shared state
-  - [x] Implement thread-safe caching layer
-  - [x] Add resource pooling for heavy operations
-  - [x] Handle concurrent access patterns
-  - [x] Implement proper cleanup mechanisms
-  - [x] Add memory leak detection
-  - [x] Monitor resource usage patterns
+### **Code Refactoring & Cleanup**
 
-### **Battery Metrics** *(0.1.0 Core Features)*
+- [ ] **Process Monitoring**
+  - [ ] Improve modularity by separating concerns into dedicated functions and modules.
+  - [ ] Refactor function and variable names to follow Rust conventions (`snake_case` for functions, `PascalCase` for structs).
+  - [ ] Implement async-friendly architecture where necessary, ensuring minimal blocking operations.
+  - [ ] Enhance process I/O tracking by gathering read/write statistics.
+  - [ ] Add structured error handling for process-related failures.
+  - [ ] Write additional unit tests for process enumeration, resource usage, and error scenarios.
 
-- [x] Define Battery struct and interface
-- [x] Implement basic battery info functions
-- [x] Add bounds checking for percentage values
-- [x] Implement macOS-specific battery info retrieval
-- [x] Add battery health and cycle count information
-- [x] Add power source detection (AC/Battery)
-- [x] Add temperature monitoring
-- [x] Add comprehensive test coverage for edge cases
-  - [x] Test battery state transitions
-  - [x] Test power source transition scenarios
-  - [x] Test temperature range edge cases
-  - [x] Test error handling scenarios
+- [ ] **GPU Metrics**
+  - [ ] Refactor Metal API usage for better VRAM tracking and GPU utilization reporting.
+  - [ ] Implement multi-GPU support by iterating through all available GPUs.
+  - [ ] Add structured error handling for failed Metal API calls.
+  - [ ] Optimize memory usage by caching retrieved GPU information.
+  - [ ] Improve documentation on GPU monitoring capabilities.
 
-#### Additional Battery Features *(Post 0.1.0)*
+- [ ] **Network Monitoring**
+  - [ ] Implement bandwidth tracking, ensuring accurate upload/download speed calculations.
+  - [ ] Introduce real-time network state monitoring to detect active/inactive connections.
+  - [ ] Improve packet loss and error tracking by gathering statistics from system interfaces.
+  - [ ] Implement asynchronous network data collection to avoid blocking operations.
+  - [ ] Write unit tests for different network conditions and interface types.
 
-- [ ] Battery Serial Number Information
-  - [ ] Add BatterySerialNumber field to Battery struct
-  - [ ] Implement serial number retrieval using IOKit
-  - [ ] Add tests for serial number handling
-- [ ] Battery Manufacture Date
-  - [ ] Add ManufactureDate field with proper timestamp parsing
-  - [ ] Implement date retrieval and formatting
-  - [ ] Add tests for date parsing edge cases
-- [ ] Power Adapter Information
-  - [ ] Create PowerAdapter struct
-  - [ ] Add adapter serial number support
-  - [ ] Add adapter power rating information
-  - [ ] Add adapter name and model details
-  - [ ] Implement comprehensive adapter info tests
-- [ ] Battery Calibration Status
-  - [ ] Add calibration state tracking
-  - [ ] Implement calibration needs detection
-  - [ ] Add last calibration date tracking
-  - [ ] Add tests for calibration state transitions
+- [ ] **Temperature Monitoring**
+  - [ ] Add fan speed tracking by retrieving RPM values from available system sensors.
+  - [ ] Implement thermal zone monitoring to track system heat distribution.
+  - [ ] Detect and report thermal throttling by monitoring CPU/GPU clock adjustments.
+  - [ ] Improve efficiency of temperature polling to avoid unnecessary resource consumption.
 
-### **IOKit Integration** *(0.1.0)*
-
-- [x] Define IOKit trait and implementation
-- [x] Implement mock IOKit for testing
-- [x] Add proper error handling for IOKit operations
-- [x] Implement safe FFI boundaries for IOKit calls
-- [x] Add null pointer safety checks
-- [x] Fix remaining type conflicts and import issues
-  - [x] Strengthen type safety around AnyObject casts
-  - [x] Add proper error handling for type conversions
-  - [x] Resolve unsafe block type conflicts
-- [x] Add comprehensive IOKit error types
-  - [x] Implement custom error types for IOKit operations
-  - [x] Add detailed error messages and context
-  - [x] Implement error conversion traits
-
-### **CPU Metrics** *(0.1.0 Core Features)*
-
-- [x] Define CPU struct and interface
-- [x] Set up thread-safe CPU info data structure
-- [x] Get CPU usage percentage per core
-- [x] Get CPU model name and frequency
-- [x] Fetch total CPU load (user, system, idle)
-- [x] Implement CPU temperature monitoring
-- [x] Normalize CPU usage calculation between 0-100%
-- [x] Add comprehensive test coverage
-  - [x] Test CPU initialization
-  - [x] Test usage calculations
-  - [x] Test error handling
-  - [x] Test field visibility and access
-
-### **Memory Metrics** *(0.1.0 Core Features)*
-
-- [x] Define Memory struct and interface
-- [x] Set up memory info data structure
-- [x] Memory Pressure Detection
-  - [x] Add memory pressure thresholds
-  - [x] Implement pressure level callbacks
-- [x] RAM Usage Monitoring
-  - [x] Track active vs inactive memory
-  - [x] Monitor compressed memory usage
-  - [x] Track memory page states
-- [x] Swap Management
-  - [x] Monitor swap in/out rates
-  - [x] Track swap file usage
-  - [x] Monitor swap pressure
-
-### **Temperature Metrics** *(0.1.0 Core Features)*
-
-- [x] Define Temperature struct and interface
-- [x] Implement temperature unit conversion (F/C)
-- [ ] Hardware Monitoring
-  - [ ] Track fan RPM speeds
-  - [ ] Monitor thermal zones
-  - [ ] Track thermal throttling
-  - [ ] Monitor power impact
-  - [ ] Implement thermal warnings
-
-### **Network Metrics** *(0.1.0)*
-
-- [x] Define Network struct and interface
-- [x] Implement network interface enumeration
-- [ ] Network Monitoring
-  - [ ] Monitor throughput (upload/download)
-  - [ ] Track interface states
-  - [ ] Collect interface statistics
-
-### **Process Monitoring** *(0.1.0)*
-
-- [x] Define Process struct and interface
-- [x] Implement process info collection trait
-- [x] Add async process monitoring
-- [x] Implement process metrics stream
-  - [x] Fix interval state management
-  - [x] Implement proper async stream polling
-  - [x] Add thread-safe cloning support
-  - [x] Add comprehensive doc tests
-- [x] Implement Process::get_by_pid() with proper error handling
-- [x] CPU usage tracking
-  - [x] Normalize CPU usage calculation between 0-100%
-  - [x] Handle permission errors gracefully
-- [ ] Process Information Collection
-  - [ ] Add process name resolution
-  - [ ] Implement process state tracking
-  - [ ] Add process hierarchy mapping
-- [ ] Process Statistics
-  - [ ] Memory usage monitoring
-  - [ ] Resource limit tracking
-  - [ ] I/O statistics collection
-  - [ ] Thread count monitoring
-
-### **GPU Metrics via Metal API!!** *(0.1.0 Core Features)*
-
-- [ ] Define GPU struct and interface
-- [ ] Implement basic GPU info retrieval
-- [ ] Add memory usage tracking
-- [ ] Add comprehensive test coverage
-  - [ ] Test GPU initialization
-  - [ ] Test metrics collection
-  - [ ] Test error handling
-  - [ ] Test mock implementations
-
-### **Module Separation Plan** *(Post 0.1.0)*
-
-### **Module Architecture**
-- [ ] Create dedicated frequency monitoring module
-- [ ] Implement separate power consumption module
-- [ ] Maintain temperature-specific functionality
-
-### **API Design**
-- [ ] Implement unified top-level API
-- [ ] Add clear, descriptive function names
-- [ ] Include comprehensive documentation
-
-### **User Experience**
-- [ ] Add usage examples
-- [ ] Implement builder pattern for configuration
-- [ ] Include sensible defaults
+- [ ] **General Code Cleanup**
+  - [ ] Apply Rust idiomatic principles from `.windsurfrules`, ensuring consistent formatting.
+  - [ ] Enforce modular structure by separating concerns into dedicated files and modules.
+  - [ ] Remove redundant or unused code.
+  - [ ] Improve error handling and ensure meaningful propagation of system errors.
+  - [ ] Ensure existing tests pass after refactoring, updating them where necessary.
 
 ---
 
-## **Quality Assurance**
+## **Phase 2: Enhanced System Metrics (0.2.0)**
 
-### **Testing Strategy** *(0.1.0)*
+**Goal:** Expand monitoring capabilities with additional system metrics.
 
-- [x] Test Suite Implementation
-  - [x] Unit tests for all metric types
-  - [x] Integration tests for IOKit interactions
-  - [x] Concurrent access tests
-  - [x] Error handling tests
-  - [x] Resource cleanup tests
-  - [x] Memory leak detection
-  - [x] FFI layer fuzzing tests
+### **New Features**
 
-### **Documentation** *(0.1.0)*
+- [ ] **GPU Performance Metrics**
+  - [ ] Track GPU utilization over time to monitor workload distribution.
+  - [ ] Measure GPU memory consumption and optimize reporting.
 
-- [x] Set up basic module documentation
-- [x] Write comprehensive API documentation for Battery module
-- [x] Write comprehensive API documentation for IOKit module
-- [x] Add proper examples in docstrings
-- [x] Add usage examples for each metric type
-- [x] Document error handling and safety considerations
-- [x] Write documentation for remaining modules
-- [ ] Create example applications
+- [ ] **Advanced Process Monitoring**
+  - [ ] Implement parent-child process hierarchy tracking for improved system visibility.
+  - [ ] Add per-process thread monitoring to gather insights on concurrency behavior.
+  - [ ] Improve resource usage tracking with additional data on CPU/memory consumption.
 
----
+- [ ] **Disk & Storage Monitoring**
+  - [ ] Track I/O performance by measuring read/write speeds for individual drives.
+  - [ ] Monitor volume usage, including available/free space calculations.
+  - [ ] Implement tracking for mounted disk devices and storage partitions.
 
-## **Distribution**
+- [ ] **Network Enhancements**
+  - [ ] Implement packet loss and error tracking to improve network diagnostics.
+  - [ ] Add connection state tracking to detect when network interfaces go up or down.
 
-### **Packaging** *(0.1.0)*
-
-- [x] Configure crate features
-- [x] Set up release profile optimizations
-- [x] Architecture Support
-  - [x] apple-silicon (default)
-- [x] Compatibility
-  - [~] Ensure macOS 15+ support
-  - [~] Add version compatibility matrix
-- [ ] Publish to `crates.io`
-
-### **Future Enhancements** *(Post 0.1.0)*
-
-- [ ] Add metric history tracking
-- [ ] Support power management profiles
-- [ ] Add network interface monitoring
-- [ ] Implement advanced thermal management
-- [ ] Add power efficiency analytics
+- [ ] **Testing & Stability**
+  - [ ] Expand test coverage for new system metrics, ensuring accuracy in collected data.
+  - [ ] Improve async testing to validate non-blocking behavior.
 
 ---
 
-## **Code Quality & Safety**
+## **Phase 3: Optimization & Advanced Features (0.3.0)**
 
-### **Completed** *(0.1.0)*
+**Goal:** Optimize for performance and introduce advanced tracking.
 
-- [x] Implement proper error propagation
-- [x] Implement safe FFI boundaries
-- [x] Add null pointer safety checks
+- [ ] **Hardware Monitoring**
+  - [ ] Implement fan control features for supported macOS devices.
+  - [ ] Improve power management insights by tracking energy consumption.
+  
+- [ ] **Performance Optimizations**
+  - [ ] Reduce memory footprint by optimizing data structures.
+  - [ ] Improve CPU efficiency by limiting unnecessary polling intervals.
+  - [ ] Enhance async handling to ensure minimal blocking operations.
 
-### **In Progress** *(0.1.0)*
+- [ ] **Event-based Monitoring**
+  - [ ] Implement event-driven hooks for tracking system state changes.
+  - [ ] Reduce reliance on polling where possible.
 
-- [~] Implement thread-safe resource management
-- [~] Add proper cleanup for system resources
-- [~] Fix type conflicts and import issues
+- [ ] **Testing Improvements**
+  - [ ] Introduce performance benchmarks to measure impact on system resources.
+  - [ ] Conduct stress testing under heavy system load conditions.
 
-### **Pending** *(0.1.0)*
+---
 
-- [ ] Add memory leak detection tests
-- [ ] Implement fuzzing tests for FFI layer
-- [ ] Add objc2 runtime safety checks
-- [ ] Implement comprehensive objc2 error handling
+## **Phase 4: Final Optimizations & Production Release (1.0.0)**
+
+**Goal:** Prepare for stable, production-ready release.
+
+- [ ] **Full Documentation & Examples**
+  - [ ] Complete API documentation for all modules.
+  - [ ] Provide real-world usage examples for developers.
+  - [ ] Improve README with installation and usage instructions.
+
+- [ ] **Comprehensive Test Coverage**
+  - [ ] Ensure all modules have unit and integration tests.
+  - [ ] Validate async correctness in real-world scenarios.
+
+- [ ] **Performance Benchmarking**
+  - [ ] Conduct final performance tests and fine-tune any remaining bottlenecks.
+
+- [ ] **Ensure API Consistency Before `1.0.0`**
+  - [ ] Conduct final API review to ensure consistency in function signatures.
+  - [ ] Deprecate or remove unused experimental features.
+
+- [ ] **Release on Crates.io**
+  - [ ] Finalize release notes and versioning.
+  - [ ] Publish `darwin-metrics` to `crates.io` for public use.
+
+---
+
+This more detailed roadmap ensures **clear action items and structured development** while maintaining readability and long-term maintainability.

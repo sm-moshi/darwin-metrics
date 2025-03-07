@@ -18,8 +18,6 @@ pub struct PowerConsumption {
 }
 
 pub async fn get_power_consumption() -> Result<PowerConsumption, PowerError> {
-    // Implementation of power consumption collection
-    // ...
     Ok(PowerConsumption {
         package: 10.0,
         cores: 5.0,

@@ -1,6 +1,7 @@
 # Rust specific
 debug/
 target/
+#Cargo.lock
 **/*.rs.bk
 
 # Obj-C/Swift specific
@@ -38,12 +39,9 @@ generated/
 # local VS Code stuff
 .bacon-locations
 .vscode/mise-tools
-.cursor
-.references
-.github
-.repomix
-
-# Coverage files
-coverage/*.profraw
-coverage/*.profdata
-CLAUDE.md
+.cursor/
+.references/
+.windsurfrules
+.repomix/
+coverage/
+.trunk/

@@ -11,7 +11,7 @@ pub fn create_mock_iokit() -> iokit::MockIOKit {
     mock.expect_io_service_matching()
         .returning(|_| create_test_dictionary());
     mock.expect_io_service_get_matching_service()
-        .returning(|_| Some(create_test_dictionary().into()));
+        .returning(|_| unsafe { Retained::new(NSObject::new()) });
     mock
 }
 
@@ -23,4 +23,4 @@ pub fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
             Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
         }
     })
-}
+} 

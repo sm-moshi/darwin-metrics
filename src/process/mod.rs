@@ -1,39 +1,5 @@
-//! Process metrics and information for macOS systems.
-//!
-//! This module provides functionality to gather process-related metrics and information
-//! on macOS systems. It supports monitoring of:
-//! - Process CPU and memory usage
-//! - Process uptime and status
-//! - Real-time process metrics
-//!
-//! # Examples
-//!
-//! ```no_run
-//! use darwin_metrics::process::Process;
-//! use std::time::Duration;
-//! use futures_util::stream::StreamExt;
-//!
-//! #[tokio::main]
-//! async fn main() -> darwin_metrics::Result<()> {
-//!     // Get information about all processes
-//!     let processes = Process::get_all().await?;
-//!     for process in processes {
-//!         println!("Process: {} (PID: {})", process.name, process.pid);
-//!     }
-//!     
-//!     // Monitor a specific process
-//!     let mut stream = Process::monitor_metrics(1234, Duration::from_secs(1));
-//!     while let Some(metrics) = stream.next().await {
-//!         match metrics {
-//!             Ok(process) => println!("CPU: {}%, Memory: {} MB", process.cpu_usage, process.memory_usage / 1024 / 1024),
-//!             Err(err) => eprintln!("Error: {}", err),
-//!         }
-//!     }
-//!     Ok(())
-//! }
-//! ```
-
-use crate::Error;
+use crate::error::Result;
+use crate::utils::{autorelease_pool, objc_safe_exec};
 use async_trait::async_trait;
 use futures::Future;
 use futures::Stream;
@@ -45,56 +11,20 @@ use std::time::{Duration, SystemTime};
 
 #[async_trait]
 pub trait ProcessInfo {
-    /// Collect process information asynchronously
-    async fn collect(&self) -> Result<Vec<u8>, Error>;
+    async fn collect(&self) -> crate::Result<Vec<u8>>;
 }
 
-/// Represents process information and metrics
-///
-/// This struct provides access to various process metrics, including:
-/// - Process ID and name
-/// - CPU and memory usage
-/// - Process uptime
-///
-/// # Examples
-///
-/// ```
-/// use darwin_metrics::process::Process;
-///
-/// let process = Process::new(1234, "my_process");
-/// println!("Process: {} (PID: {})", process.name, process.pid);
-/// ```
 pub struct Process {
-    /// Process ID
     pub pid: u32,
-    /// Process name
     pub name: String,
-    /// CPU usage percentage (0-100)
     pub cpu_usage: f64,
-    /// Memory usage in bytes
     pub memory_usage: u64,
-    /// Process uptime
     pub uptime: Duration,
-    pending_future: Option<Pin<Box<dyn Future<Output = Result<Process, Error>> + Send>>>,
+    pending_future: Option<Pin<Box<dyn Future<Output = crate::Result<Process>> + Send>>>,
 }
 
 impl Process {
-    /// Create a new Process instance
-    ///
-    /// # Arguments
-    /// * `pid` - Process ID
-    /// * `name` - Process name
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use darwin_metrics::process::Process;
-    ///
-    /// let process = Process::new(1234, "my_process");
-    /// assert_eq!(process.pid, 1234);
-    /// assert_eq!(process.name, "my_process");
-    /// ```
-    pub fn new(pid: u32, name: impl Into<String>) -> Self {
+        pub fn new(pid: u32, name: impl Into<String>) -> Self {
         Self {
             pid,
             name: name.into(),
@@ -105,84 +35,33 @@ impl Process {
         }
     }
 
-    /// Get information about all running processes asynchronously
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result<Vec<Process>>` which is:
-    /// - `Ok(Vec<Process>)` containing information for all running processes
-    /// - `Err(Error)` if the information cannot be retrieved
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use darwin_metrics::process::Process;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> darwin_metrics::Result<()> {
-    ///     let processes = Process::get_all().await?;
-    ///     for process in processes {
-    ///         println!("Process: {} (PID: {})", process.name, process.pid);
-    ///     }
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn get_all() -> Result<Vec<Self>, Error> {
-        Err(Error::not_implemented("Process information collection"))
+    pub async fn get_all() -> crate::Result<Vec<Self>> {
+        Err(crate::Error::not_implemented("Process information collection"))
     }
 
-    /// Get information about a specific process asynchronously
-    ///
-    /// # Arguments
-    /// * `pid` - Process ID to query
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result<Process>` which is:
-    /// - `Ok(Process)` containing information for the specified process
-    /// - `Err(Error)` if the information cannot be retrieved
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use darwin_metrics::process::Process;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> darwin_metrics::Result<()> {
-    ///     let process = Process::get_by_pid(1234).await?;
-    ///     println!("Process: {} (PID: {})", process.name, process.pid);
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn get_by_pid(pid: u32) -> Result<Self, Error> {
-        // Get process name using libproc
+    pub async fn get_by_pid(pid: u32) -> crate::Result<Self> {
         let name = libproc::proc_pid::name(pid as i32)
-            .map_err(|e| Error::NotAvailable(format!("Failed to get process name: {}", e)))?;
+            .map_err(|e| crate::Error::NotAvailable(format!("Failed to get process name: {}", e)))?;
 
-        // Use correct BSDInfo path and fields
-        let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)?;
-        // Convert macOS timestamp to SystemTime
+        let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)
+            .map_err(|e| crate::Error::system_error(format!("Failed to get process info: {}", e)))?;
         let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
             SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
         } else {
-            return Err(Error::InvalidData);
+            return Err(crate::Error::system_error("Invalid process start time"));
         };
-        // Ensure start time is in the past
         let now = SystemTime::now();
         match start_time.duration_since(now) {
             Ok(_) => {
-                // Start time is in the future
-                return Err(Error::InvalidData);
+                return Err(crate::Error::system_error("Invalid process start time"));
             }
             Err(_) => {
-                // Start time is in the past (valid case)
                 match now.duration_since(start_time) {
                     Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
-                        // Sanity check: start time shouldn't be more than 50 years ago
-                        return Err(Error::InvalidData);
+                        return Err(crate::Error::system_error("Invalid process start time"));
                     }
-                    Ok(_) => (), // Valid age
-                    Err(_) => return Err(Error::InvalidData),
+                    Ok(_) => (),
+                    Err(_) => return Err(crate::Error::system_error("Invalid process data")),
                 }
             }
         }
@@ -201,94 +80,36 @@ impl Process {
         })
     }
 
-    /// Get process start time asynchronously
-    ///
-    /// # Arguments
-    /// * `pid` - Process ID to query
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result<SystemTime>` which is:
-    /// - `Ok(SystemTime)` containing the start time of the specified process
-    /// - `Err(Error)` if the information cannot be retrieved
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use darwin_metrics::process::Process;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> darwin_metrics::Result<()> {
-    ///     let start_time = Process::get_process_start_time(1234).await?;
-    ///     println!("Process start time: {:?}", start_time);
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn get_process_start_time(pid: u32) -> Result<SystemTime, Error> {
-        let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)?;
-        // Convert macOS timestamp to SystemTime
+    pub async fn get_process_start_time(pid: u32) -> crate::Result<SystemTime> {
+        let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)
+            .map_err(|e| crate::Error::system_error(format!("Failed to get process info: {}", e)))?;
         let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
             SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
         } else {
-            return Err(Error::InvalidData);
+            return Err(crate::Error::system_error("Invalid process start time"));
         };
-        // Ensure start time is in the past
         let now = SystemTime::now();
         match start_time.duration_since(now) {
             Ok(_) => {
-                // Start time is in the future
-                return Err(Error::InvalidData);
+                return Err(crate::Error::system_error("Invalid process start time"));
             }
             Err(_) => {
-                // Start time is in the past (valid case)
                 match now.duration_since(start_time) {
                     Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
-                        // Sanity check: start time shouldn't be more than 50 years ago
-                        return Err(Error::InvalidData);
+                        return Err(crate::Error::system_error("Invalid process start time"));
                     }
-                    Ok(_) => (), // Valid age
-                    Err(_) => return Err(Error::InvalidData),
+                    Ok(_) => (),
+                    Err(_) => return Err(crate::Error::system_error("Invalid process data")),
                 }
             }
         }
         Ok(start_time)
     }
 
-    /// Monitor process metrics with specified interval
-    ///
-    /// This method returns a stream that periodically fetches process metrics.
-    ///
-    /// # Arguments
-    /// * `pid` - Process ID to monitor
-    /// * `interval` - Interval between metric updates
-    ///
-    /// # Returns
-    ///
-    /// Returns a stream of `Result<Process, Error>` that yields process metrics
-    /// at the specified interval.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use darwin_metrics::process::Process;
-    /// use std::time::Duration;
-    /// use futures_util::stream::StreamExt;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let mut stream = Process::monitor_metrics(1234, Duration::from_secs(1));
-    ///     while let Some(metrics) = stream.next().await {
-    ///         match metrics {
-    ///             Ok(process) => println!("CPU: {}%, Memory: {} MB", process.cpu_usage, process.memory_usage / 1024 / 1024),
-    ///             Err(err) => eprintln!("Error: {}", err),
-    ///         }
-    ///     }
-    /// }
-    /// ```
     pub fn monitor_metrics(
         pid: u32,
         interval: Duration,
-    ) -> impl Stream<Item = Result<Self, Error>> {
+    ) -> impl Stream<Item = crate::Result<Self>> {
         ProcessMetricsStream::new(pid, interval)
     }
 }
@@ -322,22 +143,13 @@ impl Clone for Process {
     }
 }
 
-/// Stream implementation for process metrics monitoring
-///
-/// This struct implements a stream that periodically fetches process metrics
-/// at a specified interval.
 pub struct ProcessMetricsStream {
     pid: u32,
     interval: tokio::time::Interval,
-    pending_future: Option<Pin<Box<dyn Future<Output = Result<Process, Error>> + Send>>>,
+    pending_future: Option<Pin<Box<dyn Future<Output = crate::Result<Process>> + Send>>>,
 }
 
 impl ProcessMetricsStream {
-    /// Create a new stream for process metrics
-    ///
-    /// # Arguments
-    /// * `pid` - Process ID to monitor
-    /// * `interval` - Interval between metric updates
     pub fn new(pid: u32, interval: Duration) -> Self {
         Self {
             pid,
@@ -371,12 +183,11 @@ impl Clone for ProcessMetricsStream {
 }
 
 impl Stream for ProcessMetricsStream {
-    type Item = Result<Process, Error>;
+    type Item = crate::Result<Process>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
 
-        // First check any pending future
         if let Some(fut) = &mut this.pending_future {
             match fut.as_mut().poll(cx) {
                 Poll::Ready(result) => {
@@ -387,14 +198,11 @@ impl Stream for ProcessMetricsStream {
             }
         }
 
-        // Then poll the interval
         match this.interval.poll_tick(cx) {
             Poll::Ready(_) => {
-                // Start fetching the next metric
                 let pid = this.pid;
                 this.pending_future = Some(Box::pin(async move { Process::get_by_pid(pid).await }));
 
-                // Try polling the new future immediately
                 if let Some(fut) = &mut this.pending_future {
                     match fut.as_mut().poll(cx) {
                         Poll::Ready(result) => {
@@ -404,7 +212,6 @@ impl Stream for ProcessMetricsStream {
                         Poll::Pending => Poll::Pending,
                     }
                 } else {
-                    // This should never happen
                     Poll::Ready(None)
                 }
             }
@@ -430,7 +237,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_process_metrics_stream() {
-        // First test with our own process which we should have access to
         let (mut child, pid) = spawn_test_process().await;
         let mut stream = Process::monitor_metrics(pid, Duration::from_millis(100));
 
@@ -444,13 +250,11 @@ mod tests {
             None => panic!("Stream ended unexpectedly"),
         }
 
-        // Clean up test process
         child.kill().expect("Failed to kill test process");
 
-        // Now test with PID 1 which typically requires elevated permissions
         let mut stream = Process::monitor_metrics(1, Duration::from_millis(100));
         match stream.next().await {
-            Some(Err(Error::NotAvailable(_))) => (), // Permission denied is expected
+            Some(Err(crate::Error::NotAvailable(_))) => (), // Permission denied is expected
             other => panic!("Unexpected result for privileged process: {:?}", other),
         }
     }
@@ -459,7 +263,6 @@ mod tests {
     async fn test_get_by_pid() {
         let (mut child, pid) = spawn_test_process().await;
 
-        // Test getting process info for our test process
         let process = Process::get_by_pid(pid)
             .await
             .expect("Failed to get process info");
@@ -471,21 +274,18 @@ mod tests {
         );
         assert!(process.memory_usage > 0, "Memory usage should be positive");
 
-        // Clean up test process
         child.kill().expect("Failed to kill test process");
 
-        // Test with PID 1 (system process) - should fail with permission error
         match Process::get_by_pid(1).await {
-            Err(Error::NotAvailable(_)) => (), // Permission denied is expected
+            Err(crate::Error::NotAvailable(_)) => (), // Permission denied is expected
             other => panic!("Unexpected result for privileged process: {:?}", other),
         };
     }
 
     #[tokio::test]
     async fn test_get_by_pid_invalid() {
-        // Test with invalid PID
         match Process::get_by_pid(u32::MAX).await {
-            Err(Error::NotAvailable(_)) => (),
+            Err(crate::Error::NotAvailable(_)) => (),
             other => panic!("Unexpected result: {:?}", other),
         }
     }
@@ -494,7 +294,6 @@ mod tests {
     async fn test_get_process_start_time() {
         let (mut child, pid) = spawn_test_process().await;
 
-        // Test getting process start time for our test process
         let start_time = Process::get_process_start_time(pid)
             .await
             .expect("Failed to get process start time");
@@ -503,12 +302,10 @@ mod tests {
             "Start time should be in the past"
         );
 
-        // Clean up test process
         child.kill().expect("Failed to kill test process");
 
-        // Test with PID 1 (system process) - should fail with permission error
         match Process::get_process_start_time(1).await {
-            Err(Error::NotAvailable(_)) => (), // Permission denied is expected
+            Err(crate::Error::NotAvailable(_)) => (),
             other => panic!("Unexpected result for privileged process: {:?}", other),
         };
     }

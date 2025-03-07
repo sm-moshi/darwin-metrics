@@ -1,9 +1,11 @@
 .vscode/mise-tools/
-coverage/*.profraw
-coverage/*.profdata
+coverage/
 .github/
 .repomix/
 .references/
 CLAUDE.md
 NOTICE
 .gitattributes
+.windsurfrules
+.trunk/
+bacon.toml

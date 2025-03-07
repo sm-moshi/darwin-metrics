@@ -1,42 +1,64 @@
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
+use objc2::rc::autoreleasepool;
+use objc2::msg_send;
 
-/// Trait for common property access patterns
-pub trait PropertyAccess {
-    /// Get a string property from a dictionary
-    fn get_string_property(
+pub struct PropertyUtils;
+
+impl PropertyUtils {
+    pub fn get_string_property(
         dict: &NSDictionary<NSString, NSObject>,
         key: &str,
     ) -> Option<String> {
-        let ns_key = NSString::from_str(key);
-        dict.get(&ns_key)
-            .and_then(|obj| obj.downcast_ref::<NSString>())
-            .map(|ns_str| ns_str.to_string())
+        autoreleasepool(|pool| {
+            let ns_key = NSString::from_str(key);
+            let value: *mut NSObject = unsafe { msg_send![dict, objectForKey:&*ns_key] };
+            if value.is_null() {
+                return None;
+            }
+            let ns_string: *mut NSString = unsafe { msg_send![value, description] };
+            if ns_string.is_null() {
+                return None;
+            }
+            Some(unsafe { (*ns_string).to_str(pool).to_string() })
+        })
     }
 
-    /// Get a number property from a dictionary
-    fn get_number_property(
+    pub fn get_number_property(
         dict: &NSDictionary<NSString, NSObject>,
         key: &str,
-    ) -> Option<i64> {
-        let ns_key = NSString::from_str(key);
-        dict.get(&ns_key)
-            .and_then(|obj| obj.downcast_ref::<NSNumber>())
-            .map(|num| num.int_value())
+    ) -> Option<f64> {
+        autoreleasepool(|_pool| {
+            let ns_key = NSString::from_str(key);
+            let value: *mut NSNumber = unsafe { msg_send![dict, objectForKey:&*ns_key] };
+            if value.is_null() {
+                return None;
+            }
+            Some(unsafe { msg_send![value, doubleValue] })
+        })
     }
 
-    /// Get a boolean property from a dictionary
-    fn get_bool_property(
+    pub fn get_bool_property(
         dict: &NSDictionary<NSString, NSObject>,
         key: &str,
     ) -> Option<bool> {
-        let ns_key = NSString::from_str(key);
-        dict.get(&ns_key)
-            .and_then(|obj| obj.downcast_ref::<NSNumber>())
-            .map(|num| num.bool_value())
+        autoreleasepool(|_pool| {
+            let ns_key = NSString::from_str(key);
+            let value: *mut NSNumber = unsafe { msg_send![dict, objectForKey:&*ns_key] };
+            if value.is_null() {
+                return None;
+            }
+            Some(unsafe { msg_send![value, boolValue] })
+        })
     }
 }
 
-/// Default implementation of PropertyAccess
 pub struct PropertyAccessor;
 
-impl PropertyAccess for PropertyAccessor {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_property_access() {
+    }
+}

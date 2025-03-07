@@ -1,24 +1,6 @@
-//! Temperature sensor monitoring for macOS systems
-//!
-//! This module provides functionality to monitor and retrieve temperature readings
-//! from various system sensors. It supports both Celsius and Fahrenheit readings
-//! and provides automatic conversion between the two units.
-//!
-//! # Examples
-//!
-//! ```no_run
-//! use darwin_metrics::temperature::Temperature;
-//!
-//! // Get temperature readings from all sensors
-//! let sensors = Temperature::get_all().unwrap();
-//! for sensor in sensors {
-//!     println!("{}: {:.1}°C", sensor.sensor, sensor.celsius);
-//! }
-//! ```
-
 use crate::Result;
-use crate::hardware::iokit::{IOKit, IOKitImpl};
-use crate::utils::property_utils::PropertyAccess;
+use crate::hardware::iokit::{IOKitImpl, IOKit};
+use crate::utils::property_utils;
 use std::ffi::{c_void, CStr};
 use thiserror::Error;
 
@@ -86,10 +68,6 @@ pub enum SensorLocation {
 }
 
 impl CoreTemperature {
-    /// Retrieves core temperatures from the system.
-    ///
-    /// This function uses sysctl to retrieve sensor data and then parses the data
-    /// to extract core temperatures.
     pub async fn get_core_temperatures() -> Result<CoreTemperature> {
         let mut mib = [CTL_HW, HW_SENSORS];
         let mut size = 0;
@@ -123,8 +101,6 @@ impl CoreTemperature {
             let cstr = CStr::from_bytes_with_nul(&buffer).map_err(|_| TemperatureError::InvalidData)?;
             let _sensor_data = cstr.to_str().map_err(|_| TemperatureError::InvalidData)?;
 
-            // Parse sensor data into core temperatures
-            // This is a placeholder - actual implementation will parse the sensor data
             Ok(CoreTemperature {
                 efficiency_cores: vec![32.0, 33.0],
                 performance_cores: vec![45.0, 46.0],
@@ -133,32 +109,19 @@ impl CoreTemperature {
         }
     }
 
-    /// Retrieves fan RPMs from the system.
-    ///
-    /// This function uses IOKit to find fan devices and then retrieves their RPMs.
     pub async fn get_fan_rpms() -> Result<Vec<FanInfo>> {
         let mut fans = Vec::new();
         unsafe {
-            // Use IOKit to find fan devices
-            let matching = IOKitServiceMatching(b"IOFan");
+            let matching = IOKitServiceMatching(b"IOFan".as_ptr());
             let iterator = IOKitIteratorNext(matching);
             while let Some(service) = iterator {
                 let properties = IOKitRegistryEntryCreateCFProperties(service, std::ptr::null_mut(), std::ptr::null_mut(), 0);
-                let rpm = PropertyAccess::get_number_property(properties, "rpm")
-                    .map_err(|e| {
-                        log::warn!("Failed to get RPM property: {}", e);
-                        TemperatureError::InvalidData
-                    })? as u32;
-                let identifier = PropertyAccess::get_string_property(properties, "model")
-                    .map_err(|e| {
-                        log::warn!("Failed to get model property: {}", e);
-                        TemperatureError::InvalidData
-                    })?;
-                let location = PropertyAccess::get_string_property(properties, "location")
-                    .map_err(|e| {
-                        log::warn!("Failed to get location property: {}", e);
-                        TemperatureError::InvalidData
-                    })?;
+                let rpm = property_utils::PropertyUtils::get_number_property(&properties, "rpm")
+                    .ok_or(TemperatureError::InvalidData)? as u32;
+                let identifier = property_utils::PropertyUtils::get_string_property(&properties, "model")
+                    .map_err(|_| TemperatureError::InvalidData)?;
+                let location = property_utils::PropertyUtils::get_string_property(&properties, "location")
+                    .map_err(|_| TemperatureError::InvalidData)?;
                 fans.push(FanInfo {
                     rpm,
                     identifier,
@@ -169,13 +132,9 @@ impl CoreTemperature {
         Ok(fans)
     }
 
-    /// Retrieves thermal zones from the system.
-    ///
-    /// This function uses sysctl to retrieve thermal zone information.
     pub async fn get_thermal_zones() -> Result<Vec<ThermalZone>> {
         let mut zones = Vec::new();
         unsafe {
-            // Use sysctl to get thermal zone information
             let mut mib = [CTL_HW, HW_THERMAL];
             let mut size = 0;
             if sysctl(mib.as_mut_ptr(), 2, std::ptr::null_mut(), &mut size, std::ptr::null(), 0) == 0 {
@@ -189,9 +148,6 @@ impl CoreTemperature {
         Ok(zones)
     }
 
-    /// Retrieves the thermal state from the system.
-    ///
-    /// This function uses IOKit to retrieve the thermal state.
     pub async fn get_thermal_state() -> Result<ThermalState> {
         log::debug!("Retrieving thermal state from system");
         let mut state = ThermalState {
@@ -206,23 +162,16 @@ impl CoreTemperature {
                 log::trace!("Successfully retrieved IOPMPowerSource service");
                 let properties = IOKitRegistryEntryCreateCFProperties(service, std::ptr::null_mut(), std::ptr::null_mut(), 0);
                 log::debug!("Retrieving throttling status");
-                state.throttling = PropertyAccess::get_bool_property(properties, "throttling")
-                    .map_err(|e| {
-                        log::warn!("Failed to get throttling property: {}", e);
-                        TemperatureError::InvalidData
-                    })?;
+                state.throttling = property_utils::PropertyUtils::get_bool_property(&properties, "throttling")
+                    .map_err(|_| TemperatureError::InvalidData)?;
+
                 log::debug!("Retrieving power limit");
-                state.power_limit = PropertyAccess::get_number_property(properties, "power-limit")
-                    .map_err(|e| {
-                        log::warn!("Failed to get power limit property: {}", e);
-                        TemperatureError::InvalidData
-                    })? as f32;
+                state.power_limit = property_utils::PropertyUtils::get_number_property(&properties, "power-limit")
+                    .map_err(|_| TemperatureError::InvalidData)?;
+
                 log::debug!("Retrieving current power");
-                state.current_power = PropertyAccess::get_number_property(properties, "current-power")
-                    .map_err(|e| {
-                        log::warn!("Failed to get current power property: {}", e);
-                        TemperatureError::InvalidData
-                    })? as f32;
+                state.current_power = property_utils::PropertyUtils::get_number_property(&properties, "current-power")
+                    .map_err(|_| TemperatureError::InvalidData)?;
                 log::info!("Successfully retrieved thermal state: throttling={}, power_limit={}, current_power={}", state.throttling, state.power_limit, state.current_power);
             } else {
                 log::warn!("Failed to retrieve IOPMPowerSource service");
@@ -231,9 +180,6 @@ impl CoreTemperature {
         Ok(state)
     }
 
-    /// Checks for thermal warnings.
-    ///
-    /// This function retrieves thermal zones and checks if any of them have critical temperatures.
     pub async fn check_thermal_warnings() -> Result<Vec<String>> {
         let mut warnings = Vec::new();
         let zones = Self::get_thermal_zones().await?;
@@ -245,17 +191,15 @@ impl CoreTemperature {
         Ok(warnings)
     }
 
-    /// Retrieves temperature readings from all sensors using IOKit
     pub async fn get_all_sensors() -> Result<Vec<SensorReading>> {
         let mut readings = Vec::new();
         unsafe {
-            let client = IOKit::create_event_system_client()?;
-            let matching = IOKit::create_matching_dictionary(
-                K_HIDPAGE_APPLE_VENDOR,
-                K_HIDUSAGE_APPLE_VENDOR_TEMPERATURE_SENSOR,
+            let client = IOKitImpl::create_event_system_client()?;
+            let matching = IOKitImpl::create_matching_dictionary(
+                kIOHIDEventTypeTemperature,
+                std::ptr::null_mut()
             )?;
-
-            let services = IOKit::copy_services(client, matching)?;
+            let services = IOKitImpl::copy_services(client, matching)?;
             for service in services {
                 if let Some((name, temp)) = Self::read_sensor(service)? {
                     readings.push(SensorReading {
@@ -271,17 +215,15 @@ impl CoreTemperature {
 
     fn read_sensor(service: *mut c_void) -> Result<Option<(String, f32)>> {
         unsafe {
-            let name = PropertyAccess::get_string_property(service, "Product")
+            let name = property_utils::PropertyUtils::get_string_property(&service, "Product")
                 .map_err(|_| TemperatureError::InvalidData)?;
 
-            let event = IOKit::copy_event(
+            let event = IOKitImpl::copy_event(
                 service,
-                K_IOHIDEVENT_TYPE_TEMPERATURE,
-                0,
-                0,
+                kIOHIDEventTypeTemperature,
+                std::ptr::null_mut()
             )?;
-
-            let temp = IOKit::get_float_value(event, K_IOHIDEVENT_TYPE_TEMPERATURE << 16)?;
+            let temp = IOKitImpl::get_float_value(event, K_IOHIDEVENT_TYPE_TEMPERATURE << 16)?;
             Ok(Some((name, temp as f32)))
         }
     }
@@ -310,28 +252,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_fan_rpms() {
-        // Test fan RPM retrieval
         let result = CoreTemperature::get_fan_rpms().await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_get_thermal_zones() {
-        // Test thermal zone retrieval
         let result = CoreTemperature::get_thermal_zones().await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_get_thermal_state() {
-        // Test thermal state retrieval
         let result = CoreTemperature::get_thermal_state().await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_check_thermal_warnings() {
-        // Test thermal warning detection
         let result = CoreTemperature::check_thermal_warnings().await;
         assert!(result.is_ok());
     }
@@ -361,7 +299,5 @@ const CTL_HW: i32 = 6;
 const HW_SENSORS: i32 = 25;
 const HW_THERMAL: i32 = 26;
 
-// IOKit constants for temperature monitoring
-const K_HIDPAGE_APPLE_VENDOR: i32 = 0xff00;
-const K_HIDUSAGE_APPLE_VENDOR_TEMPERATURE_SENSOR: i32 = 0x0005;
+const kIOHIDEventTypeTemperature: i64 = 15;
 const K_IOHIDEVENT_TYPE_TEMPERATURE: i64 = 15;
