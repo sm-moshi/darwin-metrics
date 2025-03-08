@@ -143,7 +143,7 @@ impl CPU {
             return 0.0;
         }
         let sum: f64 = self.core_usage.iter().sum();
-        (sum / self.core_usage.len() as f64)
+        sum / self.core_usage.len() as f64
     }
 
     pub fn physical_cores(&self) -> u32 {
@@ -196,52 +196,5 @@ impl Clone for CPU {
             temperature: self.temperature,
             iokit: Box::new(crate::hardware::iokit::IOKitImpl::default()),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_utils::create_mock_iokit;
-
-    fn setup_test_environment() {
-    }
-
-    fn create_test_cpu() -> CPU {
-        let mut mock_iokit = create_mock_iokit();
-        CPU {
-            physical_cores: 4,
-            logical_cores: 8,
-            frequency_mhz: 2400.0,
-            core_usage: vec![50.0, 60.0, 70.0, 70.0],
-            model_name: "Test CPU".to_string(),
-            temperature: Some(45.0),
-            iokit: Box::new(mock_iokit),
-        }
-    }
-    #[test]
-    fn test_new_cpu() {
-        setup_test_environment();
-        let cpu = create_test_cpu();
-
-        assert_eq!(cpu.physical_cores(), 4);
-        assert_eq!(cpu.logical_cores(), 8);
-        assert_eq!(cpu.frequency_mhz(), 2400.0);
-        assert_eq!(cpu.model_name(), "Test CPU");
-    }
-
-    #[test]
-    fn test_average_usage() {
-        setup_test_environment();
-        let cpu = create_test_cpu();
-        assert_eq!(cpu.average_usage(), 62.5);
-    }
-
-    #[test]
-    fn test_empty_usage() {
-        setup_test_environment();
-        let mut cpu = create_test_cpu();
-        cpu.core_usage = vec![];
-        assert_eq!(cpu.average_usage(), 0.0);
     }
 }

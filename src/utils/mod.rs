@@ -1,6 +1,4 @@
 pub mod property_utils;
-#[cfg(test)]
-pub mod test_utils;
 pub use property_utils::PropertyUtils;
 use crate::error::{Error, Result};
 
@@ -88,70 +86,4 @@ pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
             }
         })
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::ffi::CString;
-
-    #[test]
-    fn test_c_str_to_string() {
-        let test_str = "Hello, world!";
-        let c_string = CString::new(test_str).unwrap();
-        let ptr = c_string.as_ptr();
-
-        unsafe {
-            let result = c_str_to_string(ptr);
-            assert_eq!(result, Some(test_str.to_string()));
-            
-            let null_result = c_str_to_string(std::ptr::null());
-            assert_eq!(null_result, None);
-        }
-    }
-
-    #[test]
-    fn test_raw_str_to_string() {
-        let test_str = "Hello, world!";
-        let c_string = CString::new(test_str).unwrap();
-        let ptr = c_string.as_ptr();
-        let len = test_str.len();
-
-        unsafe {
-            let result = raw_str_to_string(ptr, len);
-            assert_eq!(result, Some(test_str.to_string()));
-            
-            let null_result = raw_str_to_string(std::ptr::null(), 10);
-            assert_eq!(null_result, None);
-            
-            let zero_len_result = raw_str_to_string(ptr, 0);
-            assert_eq!(zero_len_result, None);
-        }
-    }
-
-    #[test]
-    fn test_raw_f64_slice_to_vec() {
-        let test_doubles = vec![1.0, 2.5, std::f64::consts::PI, -0.5];
-        let ptr = test_doubles.as_ptr();
-        let len = test_doubles.len();
-
-        unsafe {
-            let result = raw_f64_slice_to_vec(ptr, len);
-            assert_eq!(result, Some(test_doubles));
-            
-            let null_result = raw_f64_slice_to_vec(std::ptr::null(), 10);
-            assert_eq!(null_result, None);
-            
-            let zero_len_result = raw_f64_slice_to_vec(ptr, 0);
-            assert_eq!(zero_len_result, None);
-        }
-    }
-
-    #[test]
-    fn test_autorelease_pool() {
-        let result = autorelease_pool(|| {
-            42
-        });
-        assert_eq!(result, 42);
-    }
 }

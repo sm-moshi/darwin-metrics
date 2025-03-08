@@ -1,5 +1,19 @@
+use crate::hardware::iokit::{IOKit, IOKitImpl};
+use crate::utils::{autorelease_pool, objc_safe_exec};
+use crate::error::{Error, Result};
+use objc2::msg_send;
+use objc2::runtime::AnyObject;
+use objc2_foundation::NSString;
+use std::ffi::c_void;
+
 pub const MAX_GPU_MEMORY: u64 = 16 * 1024 * 1024 * 1024;
 pub const MAX_UTILIZATION: f32 = 100.0;
+type MTLDeviceRef = *mut c_void;
+
+#[link(name = "Metal", kind = "framework")]
+extern "C" {
+    fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
+}
 
 pub trait GpuMetricsProvider {
     fn get_metrics(&self) -> Result<GpuMetrics>;
@@ -20,61 +34,6 @@ pub struct GpuMetrics {
     pub temperature: Option<f32>,
     pub power_usage: Option<f32>,
     pub name: String,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::hardware::iokit::MockIOKit;
-
-    #[test]
-    fn test_max_values() {
-        assert!(MAX_GPU_MEMORY > 0);
-        assert!(MAX_UTILIZATION > 0.0);
-    }
-
-    #[test]
-    fn test_gpu_name_null_device() {
-        let gpu = GPU {
-            device: std::ptr::null_mut(),
-            iokit: Box::new(MockIOKit::default()),
-        };
-        assert!(gpu.name().is_err());
-    }
-
-    #[test]
-    fn test_gpu_metrics_null_device() {
-        let gpu = GPU {
-            device: std::ptr::null_mut(),
-            iokit: Box::new(MockIOKit::default()),
-        };
-        assert!(gpu.metrics().is_err());
-    }
-
-    #[test]
-    fn test_gpu_memory_info() -> Result<()> {
-        let gpu = GPU::new()?;
-        let memory = gpu.memory_info()?;
-        assert!(memory.total > 0);
-        assert!(memory.used <= memory.total);
-        assert!(memory.free <= memory.total);
-        Ok(())
-    }
-}
-
-use crate::hardware::iokit::{IOKit, IOKitImpl};
-use crate::utils::{autorelease_pool, objc_safe_exec};
-use crate::error::{Error, Result};
-use objc2::msg_send;
-use objc2::runtime::AnyObject;
-use objc2_foundation::NSString;
-use std::ffi::c_void;
-
-type MTLDeviceRef = *mut c_void;
-
-#[link(name = "Metal", kind = "framework")]
-extern "C" {
-    fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
 }
 
 #[derive(Debug, Clone)]

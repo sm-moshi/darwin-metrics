@@ -1,4 +1,3 @@
-// System metrics structure
 pub struct SystemMetrics {
     pub architecture: String,
     pub frequency: CoreFrequencies,
@@ -6,7 +5,6 @@ pub struct SystemMetrics {
     pub temperature: CoreTemperatures,
 }
 
-// Get system metrics
 pub async fn get_system_metrics() -> Result<SystemMetrics, Error> {
     let architecture = architecture::detect_architecture();
     let frequency = frequency::get_core_frequencies().await?;

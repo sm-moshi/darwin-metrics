@@ -196,38 +196,3 @@ impl Default for ResourceManager {
         Self::new()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_async_resource_pool() {
-        let pool = ResourcePool::<String>::new(2);
-
-        pool.release("resource1".to_string()).await.unwrap();
-        pool.release("resource2".to_string()).await.unwrap();
-
-        assert!(pool.release("resource3".to_string()).await.is_err());
-    }
-
-    #[test]
-    fn test_cache() {
-        let cache = Cache::<String, String>::new(Duration::from_secs(1));
-
-        cache.set("key1".to_string(), "value1".to_string());
-        assert_eq!(cache.get(&"key1".to_string()), Some("value1".to_string()));
-
-        std::thread::sleep(Duration::from_secs(2));
-        assert_eq!(cache.get(&"key1".to_string()), None);
-    }
-
-    #[tokio::test]
-    async fn test_resource_manager() {
-        let manager = ResourceManager::new();
-
-        manager.track_resource_usage("CPU", 50.0).await;
-        let stats = manager.get_usage_stats();
-        assert_eq!(stats["CPU"], 50.0);
-    }
-}

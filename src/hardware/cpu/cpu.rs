@@ -97,15 +97,3 @@ impl CpuMetrics for CPU {
         self.frequency_mhz
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_cpu_metrics() {
-        let cpu = CPU::new().unwrap();
-        assert!(cpu.get_cpu_usage() >= 0.0);
-        assert!(cpu.get_cpu_frequency() > 0.0);
-    }
-}

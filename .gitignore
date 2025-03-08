@@ -1,7 +1,6 @@
 # Rust specific
 debug/
 target/
-#Cargo.lock
 **/*.rs.bk
 
 # Obj-C/Swift specific
@@ -43,5 +42,6 @@ generated/
 .references/
 .windsurfrules
 .repomix/
+repomix*
 coverage/
 .trunk/

@@ -1,11 +1,11 @@
 .vscode/
 coverage/
 .github/
-.repomix/
-.references/
-CLAUDE.md
-NOTICE
 .gitattributes
+.gitignore
+.repomix/
+repomix*
+.references/
 .windsurfrules
 .trunk/
 bacon.toml

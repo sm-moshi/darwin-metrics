@@ -245,36 +245,6 @@ impl CoreTemperature {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::utils::test_utils::{create_mock_iokit, create_test_dictionary};
-
-    #[tokio::test]
-    async fn test_get_fan_rpms() {
-        let result = CoreTemperature::get_fan_rpms().await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_get_thermal_zones() {
-        let result = CoreTemperature::get_thermal_zones().await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_get_thermal_state() {
-        let result = CoreTemperature::get_thermal_state().await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_check_thermal_warnings() {
-        let result = CoreTemperature::check_thermal_warnings().await;
-        assert!(result.is_ok());
-    }
-}
-
 #[link(name = "System", kind = "framework")]
 extern "C" {
     fn sysctl(

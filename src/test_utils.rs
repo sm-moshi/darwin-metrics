@@ -10,8 +10,10 @@ pub fn create_mock_iokit() -> iokit::MockIOKit {
     let mut mock = iokit::MockIOKit::new();
     mock.expect_io_service_matching()
         .returning(|_| create_test_dictionary());
+    
     mock.expect_io_service_get_matching_service()
-        .returning(|_| unsafe { Retained::new(NSObject::new()) });
+        .returning(|_| Some(create_test_object()));
+    
     mock
 }
 
@@ -23,4 +25,11 @@ pub fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
             Retained::from_raw(dict_ptr.cast()).expect("Failed to create test dictionary")
         }
     })
-} 
+}
+
+fn create_test_object() -> Retained<AnyObject> {
+    autoreleasepool(|_| unsafe {
+        let obj: *mut AnyObject = msg_send![class!(NSObject), new];
+        Retained::from_raw(obj).expect("Failed to create test object")
+    })
+}

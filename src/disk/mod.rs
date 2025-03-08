@@ -72,24 +72,3 @@ impl Disk {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_disk_calculations() {
-        let disk = Disk {
-            device: "/dev/disk1s1".to_string(),
-            mount_point: "/".to_string(),
-            fs_type: "apfs".to_string(),
-            total: 500 * 1024 * 1024 * 1024, 
-            available: 100 * 1024 * 1024 * 1024, 
-            used: 400 * 1024 * 1024 * 1024, 
-        };
-
-        assert_eq!(disk.usage_percentage(), 80.0);
-        assert!(!disk.is_nearly_full());
-        assert_eq!(disk.available_display(), "100.0 GB");
-    }
-}

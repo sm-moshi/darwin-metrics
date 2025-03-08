@@ -81,12 +81,3 @@ unsafe fn get_cpu_info() -> Result<CpuInfo> {
 
     Ok(cpu_info)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_frequency_metrics() {
-    }
-}

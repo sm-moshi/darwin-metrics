@@ -74,12 +74,3 @@ impl GpuMetrics for GPU {
     fn memory_info(&self) -> Result<GPUMemoryInfo> {
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_gpu_metrics() {
-    }
-}

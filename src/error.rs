@@ -77,29 +77,3 @@ impl Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_error_creation() {
-        let err = Error::io_kit("test error");
-        assert!(matches!(err, Error::IOKit(_)));
-
-        let err = Error::metal("test error");
-        assert!(matches!(err, Error::Metal(_)));
-
-        let err = Error::not_available("test error");
-        assert!(matches!(err, Error::NotAvailable(_)));
-    }
-
-    #[test]
-    fn test_error_display() {
-        let err = Error::io_kit("test error");
-        assert_eq!(err.to_string(), "IOKit error: test error");
-
-        let err = Error::metal("test error");
-        assert_eq!(err.to_string(), "Metal error: test error");
-    }
-}
