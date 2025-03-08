@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Process hierarchy and tree visualization
   - Child process tracking
   - Thread count monitoring
+- Added comprehensive mdBook documentation structure in `/docs`
+- Added documentation for modules, FFI bindings, and architecture
 
 ### Changed
 
@@ -106,3 +108,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add support for multiple GPU configurations
   - Improve GPU memory tracking accuracy with Metal API for dedicated GPUs
   - Implement Neural Engine usage monitoring for Apple Silicon
+
+- Environment Compatibility:
+  - Ensure compatibility with Fish shell environment and aliases:
+    - Use `rg` instead of `grep` (ripgrep)
+    - Use `fd` instead of `find`
+    - Use `bat` instead of `cat`
+    - Use `eza --tree` instead of `tree`
+    - Note: Some tools are installed in `/Users/smeya/.cargo/bin/` and others in `/opt/homebrew/bin/`

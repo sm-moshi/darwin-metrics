@@ -135,6 +135,12 @@
 
 - [ ] **Ensure CPU and memory modules are feature-complete**
 - [ ] **Full Documentation & Examples**
+  - [~] Complete API documentation for all modules.
+  - [~] Provide real-world usage examples for developers.
+  - [~] Improve README with installation and usage instructions.
+  - [x] Set up mdBook structure for comprehensive documentation
+  - [x] Create module documentation with examples
+  - [x] Document internal architecture and contributing guidelines
 
 - [ ] **Comprehensive Test Coverage**
   - [ ] Ensure all modules have unit and integration tests.

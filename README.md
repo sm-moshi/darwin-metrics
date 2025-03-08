@@ -67,7 +67,7 @@ darwin-metrics = "0.1.0"
 
 ### 🔧 Requirements
 
-- macOS 15 or later
+- macOS 14 or later
 - Rust 1.75 or later
 - Xcode Command Line Tools
 
@@ -120,10 +120,10 @@ Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed
 
 - [x] Initial project setup
 - [x] Basic crate structure
-- [x] Core metric collection implementations
 
 ### 🚧 In Progress
 
+- [ ] Core metric collection implementations
 - [ ] Async support integration
 - [ ] Documentation improvements
 - [ ] Performance optimizations
@@ -143,19 +143,19 @@ git clone https://github.com/sm-moshi/darwin-metrics.git
 cd darwin-metrics
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 xcode-select --install  # Install Xcode Command Line Tools
 ```
 
-3. Build the project:
+2. Build the project:
 
 ```bash
 cargo build --all-features
 ```
 
-4. Run tests:
+3. Run tests:
 
 ```bash
 cargo test --all-features
@@ -169,20 +169,20 @@ If you use darwin-metrics in your projects, please include one of the following 
 
 ### 💻 For Software Projects
 
-```
+```markdown
 This project uses darwin-metrics (https://github.com/sm-moshi/darwin-metrics) by Stuart Meya.
 ```
 
 ### 📚 For Documentation or Technical Writing
 
-```
+```markdown
 darwin-metrics: A Rust library for native macOS system metrics, developed by Stuart Meya.
 GitHub repository: https://github.com/sm-moshi/darwin-metrics
 ```
 
 ### 🎓 For Academic or Research Use
 
-```
+```markdown
 Meya, S. (2025). darwin-metrics: A Rust library for native macOS system metrics.
 GitHub repository: https://github.com/sm-moshi/darwin-metrics
 ```

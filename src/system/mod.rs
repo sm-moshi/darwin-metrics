@@ -11,6 +11,12 @@ pub enum ArchitectureError {
     InvalidStringEncoding,
 }
 
+impl From<ArchitectureError> for Error {
+    fn from(err: ArchitectureError) -> Self {
+        Error::system(err.to_string())
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Architecture {
     Intel,

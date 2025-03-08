@@ -8,6 +8,24 @@ use objc2::rc::Retained;
 #[cfg(test)]
 use crate::hardware::iokit::MockIOKit;
 
+/// Primary structure for accessing macOS CPU information and metrics.
+///
+/// `CPU` provides a comprehensive interface for monitoring and reporting CPU statistics
+/// on macOS systems. It leverages the IOKit framework to communicate with the hardware
+/// and retrieve accurate, real-time data about the system's processor.
+///
+/// This implementation works with both Intel and Apple Silicon processors and provides
+/// consistent metrics across different macOS hardware configurations.
+///
+/// # Fields
+///
+/// * `physical_cores` - Number of physical CPU cores
+/// * `logical_cores` - Number of logical CPU cores (including hyperthreading)
+/// * `frequency_mhz` - Current CPU frequency in MHz
+/// * `core_usage` - Per-core CPU usage values (0.0 to 1.0)
+/// * `model_name` - CPU model name as reported by the system
+/// * `temperature` - Current CPU temperature in Celsius (if available)
+/// * `iokit` - IOKit interface for hardware communication
 #[derive(Debug)]
 pub struct CPU {
     physical_cores: u32,
@@ -20,6 +38,33 @@ pub struct CPU {
 }
 
 impl CPU {
+    /// Creates a new CPU instance with real-time metrics.
+    ///
+    /// This constructor initializes a new CPU monitor and immediately populates it
+    /// with the current system CPU metrics by calling `update()`.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Self>` - A new CPU instance or an error if initialization failed
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// * The IOKit service cannot be accessed
+    /// * Required system calls fail
+    /// * CPU metrics cannot be retrieved
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use darwin_metrics::hardware::cpu::CPU;
+    ///
+    /// fn main() -> darwin_metrics::error::Result<()> {
+    ///     let cpu = CPU::new()?;
+    ///     println!("CPU: {}", cpu.model_name());
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn new() -> Result<Self> {
         let mut cpu = Self {
             physical_cores: 0,
@@ -34,6 +79,18 @@ impl CPU {
         Ok(cpu)
     }
 
+    /// Updates all CPU metrics with current values.
+    ///
+    /// This method refreshes all CPU data by querying the system for the latest metrics.
+    /// It should be called periodically to ensure that the CPU information is current.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Success or an error if updating failed
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any of the system calls or IOKit operations fail.
     pub fn update(&mut self) -> Result<()> {
         let service = self.iokit.get_service("AppleACPICPU")?;
 
@@ -61,6 +118,21 @@ impl CPU {
         Ok(())
     }
 
+    /// Retrieves the current usage for each CPU core.
+    ///
+    /// This method queries the system for per-core CPU usage statistics,
+    /// returning a vector of usage values where each value is between 0.0 (idle)
+    /// and 1.0 (100% utilized).
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Vec<f64>>` - Vector of core usage values or an error
+    ///
+    /// # Implementation Notes
+    ///
+    /// The current implementation uses the IOKit AppleACPICPU service, but alternative
+    /// implementations using host_processor_info() from the Mach kernel API or sysctlbyname()
+    /// may be more reliable and are planned for future updates.
     fn fetch_core_usage(&self) -> Result<Vec<f64>> {
         // TODO: Verify if AppleACPICPU provides getCoreUsage method
         // Alternative implementation options:
@@ -88,44 +160,125 @@ impl CPU {
         Ok(usages)
     }
 
+    /// Retrieves the current CPU temperature.
+    ///
+    /// This method attempts to read the CPU temperature from the system
+    /// using the IOKit framework. Temperature readings may not be available
+    /// on all systems.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<f64>` - Temperature in degrees Celsius, or None if unavailable
     fn fetch_cpu_temperature(&self) -> Option<f64> {
         self.iokit.get_cpu_temperature().ok()
     }
 
+    /// Returns the number of physical CPU cores.
+    ///
+    /// Physical cores represent the actual hardware cores on the CPU die.
+    /// This count does not include virtual cores created by technologies
+    /// like Intel Hyper-Threading.
+    ///
+    /// # Returns
+    ///
+    /// * `u32` - Number of physical CPU cores
     pub fn physical_cores(&self) -> u32 {
         self.physical_cores
     }
 
+    /// Returns the number of logical CPU cores.
+    ///
+    /// Logical cores include both physical cores and virtual cores created
+    /// by technologies like Intel Hyper-Threading. This value represents
+    /// the total number of independent processing units available to the OS.
+    ///
+    /// # Returns
+    ///
+    /// * `u32` - Number of logical CPU cores
     pub fn logical_cores(&self) -> u32 {
         self.logical_cores
     }
 
+    /// Returns the current CPU frequency in MHz.
+    ///
+    /// This value represents the current operating frequency of the CPU
+    /// and may vary based on power management policies and CPU load.
+    ///
+    /// # Returns
+    ///
+    /// * `f64` - Current CPU frequency in MHz
     pub fn frequency_mhz(&self) -> f64 {
         self.frequency_mhz
     }
 
+    /// Returns the current usage for each CPU core.
+    ///
+    /// This method provides a slice of CPU usage values, with one value per core.
+    /// Each value is between 0.0 (idle) and 1.0 (100% utilized).
+    ///
+    /// # Returns
+    ///
+    /// * `&[f64]` - Slice of core usage values
     pub fn core_usage(&self) -> &[f64] {
         &self.core_usage
     }
 
+    /// Returns the CPU model name.
+    ///
+    /// The model name is the marketing name for the processor as reported
+    /// by the system (e.g., "Apple M1 Pro" or "Intel Core i9").
+    ///
+    /// # Returns
+    ///
+    /// * `&str` - CPU model name
     pub fn model_name(&self) -> &str {
         &self.model_name
     }
 
+    /// Returns the current CPU temperature in degrees Celsius, if available.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<f64>` - Temperature in degrees Celsius, or None if unavailable
     pub fn temperature(&self) -> Option<f64> {
         self.temperature
     }
 }
 
+/// Implementation of the CpuMetrics trait for the CPU struct.
+///
+/// This implementation provides a standardized interface for accessing
+/// key CPU metrics, allowing consumers to interact with the CPU information
+/// through the trait without needing to know the details of the underlying
+/// implementation.
 impl CpuMetrics for CPU {
+    /// Returns the average CPU usage across all cores.
+    ///
+    /// This method calculates the average CPU usage by summing the usage values
+    /// for all cores and dividing by the number of logical cores. The result
+    /// is a value between 0.0 (completely idle) and 1.0 (100% utilized).
+    ///
+    /// # Returns
+    ///
+    /// * `f64` - Average CPU usage (0.0 to 1.0)
     fn get_cpu_usage(&self) -> f64 {
         self.core_usage.iter().sum::<f64>() / self.logical_cores as f64
     }
 
+    /// Returns the current CPU temperature in degrees Celsius, if available.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<f64>` - Temperature in degrees Celsius, or None if unavailable
     fn get_cpu_temperature(&self) -> Option<f64> {
         self.temperature
     }
 
+    /// Returns the current CPU frequency in MHz.
+    ///
+    /// # Returns
+    ///
+    /// * `f64` - Current CPU frequency in MHz
     fn get_cpu_frequency(&self) -> f64 {
         self.frequency_mhz
     }

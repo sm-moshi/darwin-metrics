@@ -1,22 +1,86 @@
 use libc;
 use crate::error::{Error, Result};
 
+/// Container for CPU frequency-related metrics.
+///
+/// This structure holds comprehensive information about CPU frequency
+/// capabilities and current state, including minimum, maximum, and
+/// current operating frequencies.
+///
+/// # Fields
+///
+/// * `current` - Current CPU frequency in MHz
+/// * `min` - Minimum supported CPU frequency in MHz
+/// * `max` - Maximum supported CPU frequency in MHz
+/// * `available` - List of all available frequency steps in MHz
+///
+/// # Example
+///
+/// ```
+/// use darwin_metrics::hardware::cpu::FrequencyMetrics;
+///
+/// // Example of using FrequencyMetrics
+/// let metrics = FrequencyMetrics {
+///     current: 2400.0,
+///     min: 1200.0,
+///     max: 3600.0,
+///     available: vec![1200.0, 1800.0, 2400.0, 3000.0, 3600.0],
+/// };
+///
+/// println!("Current frequency: {} MHz", metrics.current);
+/// println!("Min frequency: {} MHz", metrics.min);
+/// println!("Max frequency: {} MHz", metrics.max);
+/// println!("Available steps: {:?} MHz", metrics.available);
+/// ```
 #[derive(Debug, Clone)]
 pub struct FrequencyMetrics {
+    /// Current CPU frequency in MHz
     pub current: f64,
+    
+    /// Minimum supported CPU frequency in MHz
     pub min: f64,
+    
+    /// Maximum supported CPU frequency in MHz
     pub max: f64,
+    
+    /// List of all available frequency steps in MHz
     pub available: Vec<f64>,
 }
 
+/// Monitor for CPU frequency metrics.
+///
+/// This struct provides methods to retrieve detailed CPU frequency information
+/// from the macOS system, including current operating frequency and the range
+/// of supported frequencies.
+///
+/// Note: This implementation is still in development and might be improved
+/// in future versions to provide more accurate frequency data.
 #[derive(Debug)]
 pub struct FrequencyMonitor;
 
 impl FrequencyMonitor {
+    /// Creates a new FrequencyMonitor instance.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - A new FrequencyMonitor instance
     pub fn new() -> Self {
         Self
     }
 
+    /// Retrieves the current CPU frequency metrics.
+    ///
+    /// This method queries the system for detailed frequency information,
+    /// including current, minimum, and maximum frequencies.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<FrequencyMetrics>` - CPU frequency metrics or an error
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the system calls fail or if the frequency
+    /// information cannot be retrieved.
     pub fn get_metrics(&self) -> Result<FrequencyMetrics> {
         fetch_cpu_frequencies()
     }

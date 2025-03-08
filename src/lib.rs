@@ -3,7 +3,7 @@
 //! `darwin-metrics` is a Rust library that provides native access to macOS system metrics
 //! through low-level system APIs. This crate offers efficient, safe, and async-capable
 //! interfaces for monitoring system resources on macOS.
-//!
+//! 
 
 pub mod battery;
 pub mod hardware;
@@ -16,7 +16,7 @@ pub mod system;
 pub use battery::*;
 pub use hardware::*;
 pub use power::*;
-pub use error::*;
+// Error is already re-exported below, so we don't need this line
 pub use process::*;
 pub use system::*;
 
