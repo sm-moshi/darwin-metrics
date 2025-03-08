@@ -1,7 +1,6 @@
 # Rust specific
 debug/
 target/
-#Cargo.lock
 **/*.rs.bk
 
 # Obj-C/Swift specific
@@ -36,12 +35,19 @@ generated/
 .TemporaryItems
 .Trashes
 
-# local VS Code stuff
+# local stuff
 .bacon-locations
 .vscode/
 .cursor/
 .references/
 .windsurfrules
 .repomix/
-coverage/
+repomix*
+coverage/*
 .trunk/
+.cursorignore
+bacon.toml
+CLAUDE.md
+
+# mdBook
+docs/book/

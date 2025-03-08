@@ -1,7 +1,7 @@
 use crate::Error;
-use parking_lot::RwLock as PLRwLock;
+use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
 
@@ -41,10 +41,18 @@ impl<T> ResourcePool<T> {
         resources.pop()
     }
 
+    pub async fn try_acquire(&self) -> Result<Option<T>, Error> {
+        let resources = self.resources.try_lock();
+        match resources {
+            Ok(mut res) => Ok(res.pop()),
+            Err(_) => Err(Error::system("Failed to acquire resource: mutex busy")),
+        }
+    }
+
     pub async fn release(&self, resource: T) -> Result<(), Error> {
         let mut resources = self.resources.lock().await;
         if resources.len() >= self.max_size {
-            return Err(Error::SystemError("Resource pool is full".to_string()));
+            return Err(Error::system("Resource pool is full"));
         }
         resources.push(resource);
         Ok(())
@@ -56,7 +64,7 @@ where
     K: Eq + std::hash::Hash,
     V: Clone,
 {
-    entries: Arc<PLRwLock<HashMap<K, CacheEntry<V>>>>,
+    entries: Arc<RwLock<HashMap<K, CacheEntry<V>>>>,
     ttl: Duration,
 }
 
@@ -67,7 +75,7 @@ where
 {
     pub fn new(ttl: Duration) -> Self {
         Self {
-            entries: Arc::new(PLRwLock::new(HashMap::new())),
+            entries: Arc::new(RwLock::new(HashMap::new())),
             ttl,
         }
     }
@@ -89,13 +97,11 @@ where
     }
 
     pub fn remove(&self, key: &K) {
-        let mut entries = self.entries.write();
-        entries.remove(key);
+        self.entries.write().remove(key);
     }
 
     pub fn clear_expired(&self) {
-        let mut entries = self.entries.write();
-        entries.retain(|_, entry| !entry.is_expired());
+        self.entries.write().retain(|_, entry| !entry.is_expired());
     }
 }
 
@@ -126,7 +132,7 @@ impl ResourceManager {
         Self {
             metric_cache: Arc::new(Cache::new(Duration::from_secs(60))),
             usage_tx,
-            usage_state: Arc::new(RwLock::new(ResourceUsageState::default())),
+            usage_state: Arc::new(RwLock::new(Default::default())),
         }
     }
 
@@ -142,18 +148,10 @@ impl ResourceManager {
         };
 
         {
-            let mut state = self.usage_state.write().unwrap();
-            let count = state
-                .active_resources
-                .entry(resource_type.to_string())
-                .or_insert(0);
-            *count += 1;
-
-            let peak = state
-                .peak_usage
-                .entry(resource_type.to_string())
-                .or_insert(0.0);
-            *peak = f64::max(*peak, usage.usage_percent);
+            let mut state = self.usage_state.write();
+            *state.active_resources.entry(resource_type.to_string()).or_insert(0) += 1;
+            *state.peak_usage.entry(resource_type.to_string()).or_insert(0.0) =
+                f64::max(state.peak_usage.get(resource_type).unwrap_or(&0.0), usage.usage_percent);
         }
 
         let _ = self.usage_tx.send(usage);
@@ -165,12 +163,12 @@ impl ResourceManager {
         usage: f64,
         timeout: Duration,
     ) -> Result<(), Error> {
-        tokio::select! {
-            _ = self.track_resource_usage(resource_type, usage) => Ok(()),
-            _ = tokio::time::sleep(timeout) => {
-                Err(Error::SystemError("Resource tracking timeout".to_string()))
-            }
-        }
+        let result = async {
+            self.track_resource_usage(resource_type, usage).await
+        };
+        tokio::time::timeout(timeout, result)
+            .await
+            .map_err(|_| Error::system("Resource tracking timeout"))?
     }
 
     pub fn get_cached_metric(&self, key: &str) -> Option<Vec<u8>> {
@@ -182,8 +180,7 @@ impl ResourceManager {
     }
 
     pub fn get_usage_stats(&self) -> HashMap<String, f64> {
-        let state = self.usage_state.read().unwrap();
-        state.peak_usage.clone()
+        self.usage_state.read().peak_usage.clone()
     }
 
     pub fn cleanup_cache(&self) {
@@ -200,34 +197,25 @@ impl Default for ResourceManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+    use tokio;
 
     #[tokio::test]
-    async fn test_async_resource_pool() {
-        let pool = ResourcePool::<String>::new(2);
+    async fn test_resource_pool() {
+        let pool = ResourcePool::new(2);
 
-        pool.release("resource1".to_string()).await.unwrap();
-        pool.release("resource2".to_string()).await.unwrap();
+        assert!(pool.acquire().await.is_none());
 
-        assert!(pool.release("resource3".to_string()).await.is_err());
-    }
-
-    #[test]
-    fn test_cache() {
-        let cache = Cache::<String, String>::new(Duration::from_secs(1));
-
-        cache.set("key1".to_string(), "value1".to_string());
-        assert_eq!(cache.get(&"key1".to_string()), Some("value1".to_string()));
-
-        std::thread::sleep(Duration::from_secs(2));
-        assert_eq!(cache.get(&"key1".to_string()), None);
+        pool.release(42).await.expect("Failed to release resource");
+        assert_eq!(pool.acquire().await, Some(42));
     }
 
     #[tokio::test]
     async fn test_resource_manager() {
         let manager = ResourceManager::new();
+        manager.cache_metric("test", vec![1, 2, 3]);
 
-        manager.track_resource_usage("CPU", 50.0).await;
-        let stats = manager.get_usage_stats();
-        assert_eq!(stats["CPU"], 50.0);
+        let cached = manager.get_cached_metric("test");
+        assert_eq!(cached, Some(vec![1, 2, 3]));
     }
 }

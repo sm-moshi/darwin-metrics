@@ -4,13 +4,12 @@
   },
   "shellcheck.executablePath": "${workspaceFolder}/.vscode/mise-tools/shellcheck",
   "python.defaultInterpreterPath": "${workspaceFolder}/.vscode/mise-tools/python",
-  "ruff.path": [
-    "${workspaceFolder}/.vscode/mise-tools/ruff"
-  ],
+  "ruff.path": "${workspaceFolder}/.vscode/mise-tools/ruff",
   "go.goroot": "${workspaceFolder}/.vscode/mise-tools/goRoot",
   "go.alternateTools": {
     "go": "${workspaceFolder}/.vscode/mise-tools/go",
     "dlv": "${workspaceFolder}/.vscode/mise-tools/dlv"
   },
-  "python.languageServer": "None"
+  "python.languageServer": "None",
+  "ruff.interpreter": "${workspaceFolder}/.vscode/mise-tools/python"
 }

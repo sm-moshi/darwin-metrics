@@ -1,247 +1,80 @@
+//! # CPU Module
+//! 
+//! The CPU module provides access to macOS CPU metrics including usage statistics,
+//! temperature data, and frequency information.
+//! 
+//! This module interfaces with the macOS IOKit framework to retrieve detailed CPU
+//! information from the AppleACPICPU service and other system sources. It offers
+//! a simple API to monitor CPU performance metrics on macOS systems.
+//! 
+//! ## Features
+//! 
+//! - CPU usage statistics per core and aggregated
+//! - Physical and logical core count detection
+//! - CPU frequency monitoring (current, min, max)
+//! - CPU temperature readings (when available)
+//! - CPU model name identification
+//! 
+//! ## Example
+//! 
+//! ```rust
+//! use darwin_metrics::hardware::cpu::CPU;
+//! use darwin_metrics::hardware::cpu::CpuMetrics;
+//! 
+//! fn main() -> darwin_metrics::error::Result<()> {
+//!     let cpu = CPU::new()?;
+//!     
+//!     // Get basic CPU information
+//!     println!("CPU Model: {}", cpu.model_name());
+//!     println!("Physical cores: {}", cpu.physical_cores());
+//!     println!("Logical cores: {}", cpu.logical_cores());
+//!     
+//!     // Get current CPU metrics
+//!     println!("CPU Usage: {:.2}%", cpu.get_cpu_usage() * 100.0);
+//!     println!("CPU Frequency: {:.2} MHz", cpu.get_cpu_frequency());
+//!     
+//!     if let Some(temp) = cpu.get_cpu_temperature() {
+//!         println!("CPU Temperature: {:.1}°C", temp);
+//!     } else {
+//!         println!("CPU Temperature: Not available");
+//!     }
+//!     
+//!     // Access per-core usage
+//!     for (i, usage) in cpu.core_usage().iter().enumerate() {
+//!         println!("Core {}: {:.2}%", i, usage * 100.0);
+//!     }
+//!     
+//!     Ok(())
+//! }
+//! ```
+
+mod cpu;
 mod frequency;
 
+pub use cpu::CPU;
 pub use frequency::FrequencyMetrics;
 
+/// Maximum number of CPU cores supported by the library.
 pub const MAX_CORES: u32 = 64;
+
+/// Maximum CPU frequency in MHz supported by the library.
 pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
 
+/// Trait defining the standard interface for accessing CPU metrics.
+///
+/// This trait provides a consistent API for retrieving common CPU metrics
+/// regardless of the underlying CPU architecture or implementation details.
 pub trait CpuMetrics {
+    /// Returns the average CPU usage across all cores as a value between 0.0 (0%) and 1.0 (100%).
     fn get_cpu_usage(&self) -> f64;
+    
+    /// Returns the CPU temperature in degrees Celsius, if available.
+    ///
+    /// On macOS, temperature readings may not be available on all hardware, particularly
+    /// on older systems or in virtualized environments. Returns `None` if temperature
+    /// data cannot be retrieved.
     fn get_cpu_temperature(&self) -> Option<f64>;
+    
+    /// Returns the current CPU frequency in MHz.
     fn get_cpu_frequency(&self) -> f64;
-}
-
-use crate::error::{Error, Result};
-use objc2::runtime::AnyObject;
-use objc2::{class, msg_send};
-use objc2_foundation::NSNumber;
-
-#[derive(Debug)]
-pub struct CPU {
-    #[cfg(not(test))]
-    physical_cores: u32,
-    #[cfg(test)]
-    pub(crate) physical_cores: u32,
-
-    #[cfg(not(test))]
-    logical_cores: u32,
-    #[cfg(test)]
-    pub(crate) logical_cores: u32,
-
-    #[cfg(not(test))]
-    frequency_mhz: f64,
-    #[cfg(test)]
-    pub(crate) frequency_mhz: f64,
-
-    #[cfg(not(test))]
-    core_usage: Vec<f64>,
-    #[cfg(test)]
-    pub(crate) core_usage: Vec<f64>,
-
-    #[cfg(not(test))]
-    model_name: String,
-    #[cfg(test)]
-    pub(crate) model_name: String,
-
-    #[cfg(not(test))]
-    temperature: Option<f64>,
-    #[cfg(test)]
-    pub(crate) temperature: Option<f64>,
-
-    #[cfg(not(test))]
-    iokit: Box<dyn crate::hardware::iokit::IOKit>,
-    #[cfg(test)]
-    pub(crate) iokit: Box<dyn crate::hardware::iokit::IOKit>,
-}
-
-impl CPU {
-    pub fn new() -> Result<Self> {
-        let mut cpu = Self {
-            physical_cores: 0,
-            logical_cores: 0,
-            frequency_mhz: 0.0,
-            core_usage: Vec::new(),
-            model_name: String::new(),
-            temperature: None,
-            iokit: Box::new(crate::hardware::iokit::IOKitImpl::default()),
-        };
-        cpu.update()?;
-        Ok(cpu)
-    }
-
-    pub fn update(&mut self) -> Result<()> {
-        unsafe {
-            let process_info: *mut AnyObject = msg_send![class!(NSProcessInfo), processInfo];
-            if process_info.is_null() {
-                return Err(Error::not_available("Could not get process info"));
-            }
-
-            let physical_cores: u32 = msg_send![process_info, activeProcessorCount];
-            self.physical_cores = physical_cores;
-            self.logical_cores = physical_cores;
-
-            let freq: f64 = msg_send![process_info, processorFrequency];
-            self.frequency_mhz = freq / 1_000_000.0;
-
-            let matching = self.iokit.io_service_matching("IOPlatformExpertDevice");
-            let service = self.iokit.io_service_get_matching_service(&matching);
-
-            if let Some(service) = service {
-                let properties = self
-                    .iokit
-                    .io_registry_entry_create_cf_properties(&service)?;
-                if let Some(name) = self.iokit.get_string_property(&properties, "cpu-type") {
-                    self.model_name = name;
-                }
-
-                if let Some(temp) = self
-                    .iokit
-                    .get_number_property(&properties, "cpu-die-temperature")
-                {
-                    self.temperature = Some(temp as f64 / 100.0);
-                }
-            }
-
-            self.update_cpu_usage()?;
-        }
-
-        Ok(())
-    }
-
-    fn update_cpu_usage(&mut self) -> Result<()> {
-        unsafe {
-            let host: *mut AnyObject = msg_send![class!(NSHost), currentHost];
-            if host.is_null() {
-                return Err(Error::not_available("Could not get host info"));
-            }
-
-            let cpu_load: *mut AnyObject = msg_send![host, cpuLoadInfo];
-            if cpu_load.is_null() {
-                return Err(Error::not_available("Could not get CPU load info"));
-            }
-
-            let usage_array: *mut AnyObject = msg_send![cpu_load, cpuUsagePerProcessor];
-            let count: usize = msg_send![usage_array, count];
-
-            self.core_usage.clear();
-            for i in 0..count {
-                let usage: *mut NSNumber = msg_send![usage_array, objectAtIndex:i];
-                let value: f64 = msg_send![usage, doubleValue];
-                self.core_usage.push(value);
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn get_info(&self) -> Result<Self> {
-        Ok(self.clone())
-    }
-
-    pub fn average_usage(&self) -> f64 {
-        if self.core_usage.is_empty() {
-            return 0.0;
-        }
-        let sum: f64 = self.core_usage.iter().sum();
-        (sum / self.core_usage.len() as f64)
-    }
-
-    pub fn physical_cores(&self) -> u32 {
-        self.physical_cores
-    }
-
-    pub fn logical_cores(&self) -> u32 {
-        self.logical_cores
-    }
-
-    pub fn frequency_mhz(&self) -> f64 {
-        self.frequency_mhz
-    }
-
-    pub fn core_usage(&self) -> &[f64] {
-        &self.core_usage
-    }
-
-    pub fn model_name(&self) -> &str {
-        &self.model_name
-    }
-
-    pub fn temperature(&self) -> Option<f64> {
-        self.temperature
-    }
-}
-
-impl CpuMetrics for CPU {
-    fn get_cpu_usage(&self) -> f64 {
-        self.average_usage()
-    }
-
-    fn get_cpu_temperature(&self) -> Option<f64> {
-        self.temperature
-    }
-
-    fn get_cpu_frequency(&self) -> f64 {
-        self.frequency_mhz
-    }
-}
-
-impl Clone for CPU {
-    fn clone(&self) -> Self {
-        Self {
-            physical_cores: self.physical_cores,
-            logical_cores: self.logical_cores,
-            frequency_mhz: self.frequency_mhz,
-            core_usage: self.core_usage.clone(),
-            model_name: self.model_name.clone(),
-            temperature: self.temperature,
-            iokit: Box::new(crate::hardware::iokit::IOKitImpl::default()),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_utils::create_mock_iokit;
-
-    fn setup_test_environment() {
-    }
-
-    fn create_test_cpu() -> CPU {
-        let mut mock_iokit = create_mock_iokit();
-        CPU {
-            physical_cores: 4,
-            logical_cores: 8,
-            frequency_mhz: 2400.0,
-            core_usage: vec![50.0, 60.0, 70.0, 70.0],
-            model_name: "Test CPU".to_string(),
-            temperature: Some(45.0),
-            iokit: Box::new(mock_iokit),
-        }
-    }
-    #[test]
-    fn test_new_cpu() {
-        setup_test_environment();
-        let cpu = create_test_cpu();
-
-        assert_eq!(cpu.physical_cores(), 4);
-        assert_eq!(cpu.logical_cores(), 8);
-        assert_eq!(cpu.frequency_mhz(), 2400.0);
-        assert_eq!(cpu.model_name(), "Test CPU");
-    }
-
-    #[test]
-    fn test_average_usage() {
-        setup_test_environment();
-        let cpu = create_test_cpu();
-        assert_eq!(cpu.average_usage(), 62.5);
-    }
-
-    #[test]
-    fn test_empty_usage() {
-        setup_test_environment();
-        let mut cpu = create_test_cpu();
-        cpu.core_usage = vec![];
-        assert_eq!(cpu.average_usage(), 0.0);
-    }
 }
