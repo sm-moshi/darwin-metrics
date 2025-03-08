@@ -35,7 +35,7 @@ generated/
 .TemporaryItems
 .Trashes
 
-# local VS Code stuff
+# local stuff
 .bacon-locations
 .vscode/
 .cursor/
@@ -43,5 +43,11 @@ generated/
 .windsurfrules
 .repomix/
 repomix*
-coverage/
+coverage/*
 .trunk/
+.cursorignore
+bacon.toml
+CLAUDE.md
+
+# mdBook
+docs/book/
