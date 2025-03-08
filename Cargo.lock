@@ -476,6 +476,7 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation",
+ "once_cell",
  "parking_lot 0.12.3",
  "proptest",
  "scopeguard",

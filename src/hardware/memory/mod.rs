@@ -1,10 +1,16 @@
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::error::{Error, Result};
+use crate::utils::bindings::{
+    sysctl, vm_statistics64, xsw_usage, vm_kernel_page_size,
+    host_statistics64, mach_host_self, 
+    KERN_SUCCESS, HOST_VM_INFO64, HOST_VM_INFO64_COUNT,
+    HostInfoT,
+    sysctl_constants::{CTL_HW, HW_MEMSIZE, CTL_VM, VM_SWAPUSAGE}
+};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::ffi::c_void;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PressureLevel {
@@ -528,74 +534,4 @@ impl Drop for MemoryMonitorHandle {
     fn drop(&mut self) {
         self.stop();
     }
-}
-
-const CTL_HW: i32 = 6;
-const HW_MEMSIZE: i32 = 24;
-const CTL_VM: i32 = 2;
-const VM_SWAPUSAGE: i32 = 5;
-const KERN_SUCCESS: i32 = 0;
-const HOST_VM_INFO64: i32 = 4;
-const HOST_VM_INFO64_COUNT: u32 = 38;
-
-type HostInfoT = *mut i32;
-type MachPortT = u32;
-
-#[repr(C)]
-#[derive(Debug, Default)]
-struct vm_statistics64 {
-    free_count: u32,
-    active_count: u32,
-    inactive_count: u32,
-    wire_count: u32,
-    zero_fill_count: u64,
-    reactivations: u64,
-    pageins: u64,
-    pageouts: u64,
-    faults: u64,
-    cow_faults: u64,
-    lookups: u64,
-    hits: u64,
-    purges: u64,
-    purgeable_count: u32,
-    speculative_count: u32,
-    decompressions: u64,
-    compressions: u64,
-    swapins: u64,
-    swapouts: u64,
-    compressor_page_count: u32,
-    throttled_count: u32,
-    external_page_count: u32,
-    internal_page_count: u32,
-    total_uncompressed_pages_in_compressor: u64,
-}
-
-#[repr(C)]
-#[derive(Debug, Default)]
-struct xsw_usage {
-    xsu_total: u64,
-    xsu_used: u64,
-    xsu_avail: u64,
-}
-
-unsafe extern "C" {
-    static vm_kernel_page_size: u32;
-
-    fn host_statistics64(
-        host_priv: MachPortT,
-        flavor: i32,
-        host_info_out: HostInfoT,
-        host_info_outCnt: *mut u32,
-    ) -> i32;
-
-    fn mach_host_self() -> MachPortT;
-
-    fn sysctl(
-        name: *const i32,
-        namelen: u32,
-        oldp: *mut c_void,
-        oldlenp: *mut usize,
-        newp: *const c_void,
-        newlen: usize,
-    ) -> i32;
 }

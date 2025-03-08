@@ -1,88 +1,121 @@
-pub mod property_utils;
-pub use property_utils::PropertyUtils;
-use crate::error::{Error, Result};
+//! Utility functions and modules for the darwin-metrics crate.
+//! 
+//! This module contains various utilities used throughout the crate, including:
+//! 
+//! - `bindings`: FFI bindings for macOS system APIs (sysctl, IOKit, etc.)
+//! - `property_utils`: Utilities for working with property lists and dictionaries
+//! - `test_utils`: Utilities for testing
 
+pub mod property_utils;
+pub mod test_utils;
+pub mod bindings;
+
+use crate::error::{Error, Result};
+use objc2::rc::autoreleasepool;
+use objc2::runtime::AnyObject;
+use objc2::msg_send;
 use std::ffi::{CStr, c_char};
 use std::os::raw::c_double;
 use std::slice;
 use std::panic::AssertUnwindSafe;
-use objc2::rc::autoreleasepool;
-use objc2::msg_send;
-use objc2::runtime::AnyObject;
+use objc2_foundation::{NSDictionary, NSString, NSObject, NSNumber};
+use objc2::rc::Retained;
 
-pub fn objc_safe_exec<T, F>(f: F) -> Result<T>
-where
-    F: FnOnce() -> Result<T>,
-{
-    let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        f()
-    }));
-    match result {
-        Ok(value) => value,
-        Err(_) => Err(Error::system("Panic occurred during Objective-C operation"))
+pub trait PropertyUtils {
+    fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| obj.downcast::<NSString>().ok())
+            .map(|s| s.to_string())
+    }
+
+    fn get_number_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| Some(obj.downcast::<NSNumber>().ok()?))
+            .map(|n: Retained<NSNumber>| n.as_f64())
+    }
+
+    fn get_bool_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| Some(obj.downcast::<NSNumber>().ok()?))
+            .map(|n: Retained<NSNumber>| n.as_bool())
     }
 }
 
+pub struct PropertyAccessor;
+
+impl PropertyUtils for PropertyAccessor {}
+
+/// Executes a closure safely within an Objective-C autorelease pool.
 pub fn autorelease_pool<T, F>(f: F) -> T 
 where 
-    F: FnOnce() -> T
+    F: FnOnce() -> T,
 {
     autoreleasepool(|_| f())
 }
 
-#[allow(dead_code)]
+/// Safely executes Objective-C code, catching any Rust panics.
+pub fn objc_safe_exec<T, F>(f: F) -> Result<T>
+where
+    F: FnOnce() -> Result<T>,
+{
+    let result = std::panic::catch_unwind(AssertUnwindSafe(f));
+    match result {
+        Ok(value) => value,
+        Err(_) => Err(Error::System("Panic occurred during Objective-C operation".to_string())),
+    }
+}
+
+/// Converts a C string pointer to a Rust `String`.
 pub unsafe fn c_str_to_string(ptr: *const c_char) -> Option<String> {
     if ptr.is_null() {
         return None;
     }
-
-    CStr::from_ptr(ptr).to_str().ok().map(|s| s.to_string())
+    CStr::from_ptr(ptr).to_str().ok().map(String::from)
 }
 
-#[allow(dead_code)]
+/// Converts a raw string pointer and length to a `String`.
 pub unsafe fn raw_str_to_string(ptr: *const c_char, len: usize) -> Option<String> {
     if ptr.is_null() || len == 0 {
         return None;
     }
-
     let slice = slice::from_raw_parts(ptr as *const u8, len);
     String::from_utf8(slice.to_vec()).ok()
 }
 
-#[allow(dead_code)]
+/// Converts a raw f64 slice pointer and length into a `Vec<f64>`.
 pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<Vec<f64>> {
     if ptr.is_null() || len == 0 {
         return None;
     }
-
     Some(slice::from_raw_parts(ptr, len).to_vec())
 }
 
+/// Retrieves the name of an Objective-C device.
 pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
     if device.is_null() {
-        return Err(Error::not_available("No GPU device available"));
+        return Err(Error::NotAvailable("No device available".to_string()));
     }
     
     autorelease_pool(|| {
         objc_safe_exec(|| {
             unsafe {
                 let device_obj: *mut AnyObject = device.cast();
-                
                 let name_obj: *mut AnyObject = msg_send![device_obj, name];
                 
                 if name_obj.is_null() {
-                    return Err(Error::not_available("Could not get GPU name".to_string()));
+                    return Err(Error::NotAvailable("Could not get device name".to_string()));
                 }
                 
                 let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
                 if utf8_string.is_null() {
-                    return Err(Error::not_available("Could not convert GPU name to string".to_string()));
+                    return Err(Error::NotAvailable("Could not convert name to string".to_string()));
                 }
                 
-                let c_str = std::ffi::CStr::from_ptr(utf8_string as *const i8);
-                let name = c_str.to_string_lossy().into_owned();
-                
-                Ok(name)
+                let c_str = CStr::from_ptr(utf8_string as *const i8);
+                Ok(c_str.to_string_lossy().into_owned())
             }
         })
     })
