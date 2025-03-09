@@ -60,13 +60,17 @@
   - [x] Improve packet loss and error tracking by gathering statistics from system interfaces.
   - [x] Implement synchronous network data collection with efficient error handling.
   - [x] Write unit tests for network interface detection and updates.
+  - [x] Add comprehensive documentation with usage examples.
+  - [x] Create interface categorization (Ethernet, WiFi, Loopback, etc.).
+  - [x] Implement IP/MAC address collection for each interface.
+  - [x] Add error monitoring (errors, collisions) for network diagnostics.
 
-- [ ] **Temperature Monitoring**
+- [x] **Temperature Monitoring**
 
-  - [ ] Add fan speed tracking by retrieving RPM values from available system sensors.
-  - [ ] Implement thermal zone monitoring to track system heat distribution.
-  - [ ] Detect and report thermal throttling by monitoring CPU/GPU clock adjustments.
-  - [ ] Improve efficiency of temperature polling to avoid unnecessary resource consumption.
+  - [x] Add fan speed tracking by retrieving RPM values from available system sensors.
+  - [x] Implement thermal zone monitoring to track system heat distribution.
+  - [x] Detect and report thermal throttling by monitoring CPU/GPU clock adjustments.
+  - [x] Improve efficiency of temperature polling to avoid unnecessary resource consumption.
 
 - [ ] **General Code Cleanup** _(In Progress)_
   - [x] Refactored system module and merged architecture detection.

@@ -183,19 +183,88 @@ pub const SMC_KEY_CPU_TEMP: [c_char; 4] = [
     b'C' as c_char,
     b'0' as c_char,
     b'P' as c_char,
-]; // CPU Temp
+]; // CPU Temp (TC0P)
+
 pub const SMC_KEY_GPU_TEMP: [c_char; 4] = [
     b'T' as c_char,
     b'G' as c_char,
     b'0' as c_char,
     b'P' as c_char,
-]; // GPU Temp
+]; // GPU Temp (TG0P)
+
+// Fan speed keys
+pub const SMC_KEY_FAN_NUM: [c_char; 4] = [
+    b'F' as c_char,
+    b'N' as c_char,
+    b'u' as c_char,
+    b'm' as c_char,
+]; // Number of fans (FNum)
+
 pub const SMC_KEY_FAN_SPEED: [c_char; 4] = [
     b'F' as c_char,
     b'0' as c_char,
     b'A' as c_char,
     b'c' as c_char,
-]; // Fan Speed
+]; // Fan 0 Speed (F0Ac)
+
+pub const SMC_KEY_FAN1_SPEED: [c_char; 4] = [
+    b'F' as c_char,
+    b'1' as c_char,
+    b'A' as c_char,
+    b'c' as c_char,
+]; // Fan 1 Speed (F1Ac)
+
+// Fan speed min/max keys
+pub const SMC_KEY_FAN0_MIN: [c_char; 4] = [
+    b'F' as c_char,
+    b'0' as c_char,
+    b'M' as c_char,
+    b'n' as c_char,
+]; // Fan 0 Min Speed (F0Mn)
+
+pub const SMC_KEY_FAN0_MAX: [c_char; 4] = [
+    b'F' as c_char,
+    b'0' as c_char,
+    b'M' as c_char,
+    b'x' as c_char,
+]; // Fan 0 Max Speed (F0Mx)
+
+// Additional thermal sensors
+pub const SMC_KEY_HEATSINK_TEMP: [c_char; 4] = [
+    b'T' as c_char,
+    b'h' as c_char,
+    b'0' as c_char,
+    b'H' as c_char,
+]; // Heatsink temp (Th0H)
+
+pub const SMC_KEY_AMBIENT_TEMP: [c_char; 4] = [
+    b'T' as c_char,
+    b'A' as c_char,
+    b'0' as c_char,
+    b'P' as c_char,
+]; // Ambient temp (TA0P)
+
+pub const SMC_KEY_BATTERY_TEMP: [c_char; 4] = [
+    b'T' as c_char,
+    b'B' as c_char,
+    b'0' as c_char,
+    b'T' as c_char,
+]; // Battery temp (TB0T)
+
+// Power and thermal throttling keys
+pub const SMC_KEY_CPU_POWER: [c_char; 4] = [
+    b'P' as c_char,
+    b'C' as c_char,
+    b'P' as c_char,
+    b'C' as c_char,
+]; // CPU package power (PCPC)
+
+pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] = [
+    b'P' as c_char,
+    b'C' as c_char,
+    b'T' as c_char,
+    b'C' as c_char,
+]; // CPU thermal throttling (PCTC)
 
 // SMC data structures
 #[repr(C)]

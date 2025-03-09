@@ -5,6 +5,29 @@ All notable changes to the darwin-metrics project will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Completed Network module implementation with:
+  - Network interface discovery using getifaddrs
+  - Traffic statistics tracking using netstat
+  - Interface categorization (Ethernet, WiFi, Loopback, etc.)
+  - IP and MAC address collection
+  - Traffic monitoring (bytes/packets sent/received)
+  - Error tracking (errors, collisions)
+  - Upload/download speed calculations
+  - Interface state monitoring
+- Added comprehensive network module documentation with usage examples
+- Created example program demonstrating network monitoring capabilities
+- Completed Temperature module implementation with:
+  - Fan speed tracking with RPM values and utilization percentage
+  - Multiple thermal zone monitoring (CPU, GPU, heatsink, ambient, battery)
+  - Thermal throttling detection via SMC keys
+  - Efficient temperature polling with configurable intervals
+  - Comprehensive thermal metrics collection API
+  - Fan control and monitoring capabilities
+
 ## [0.1.x] - Previous Changes
 
 ### Fixed

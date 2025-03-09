@@ -4,6 +4,97 @@
 //! through low-level system APIs. This crate offers efficient, safe, and async-capable
 //! interfaces for monitoring system resources on macOS.
 //!
+//! ## Features
+//!
+//! - **CPU Monitoring**: Usage statistics, frequency information, model details
+//! - **Memory Analysis**: RAM usage, swap space, memory pressure
+//! - **GPU Information**: Model detection, utilization metrics, VRAM tracking
+//! - **Storage Metrics**: Disk space, I/O performance, read/write speeds
+//! - **Power Management**: Battery status, charging state, time estimation
+//! - **Thermal Monitoring**: Fan speeds, temperature tracking, thermal status
+//! - **Process Information**: Process enumeration, resource usage, system info
+//! - **Network Monitoring**: Interface discovery, traffic statistics, bandwidth
+//!
+//! ## Installation
+//!
+//! Add this to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! darwin-metrics = "0.1.0"
+//! ```
+//!
+//! ## Requirements
+//!
+//! - macOS 10.11 (El Capitan) or later
+//! - Rust 1.75 or later
+//! - Xcode Command Line Tools
+//!
+//! ## Quick Start
+//!
+//! ```ignore
+//! // This example won't be run by doctests but serves as API usage documentation
+//! use darwin_metrics::hardware::{cpu, gpu, temperature};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Get CPU information
+//!     let cpu_obj = cpu::CPU::new();
+//!     println!("CPU cores: {}", cpu_obj.cores());
+//!     
+//!     // Monitor temperature
+//!     let mut temp_monitor = temperature::Temperature::new();
+//!     let cpu_temp = temp_monitor.cpu_temperature()?;
+//!     println!("CPU Temperature: {:.1}°C", cpu_temp);
+//!     
+//!     // Check thermal metrics
+//!     let metrics = temp_monitor.get_thermal_metrics()?;
+//!     println!("Is CPU throttling: {}", metrics.is_throttling);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Feature Flags
+//!
+//! - `battery` - Enable battery monitoring
+//! - `cpu` - Enable CPU metrics
+//! - `memory` - Enable memory statistics
+//! - `gpu` - Enable GPU monitoring
+//! - `disk` - Enable storage metrics
+//! - `temperature` - Enable thermal monitoring
+//! - `async` - Enable async support (requires tokio)
+//! - `metrics-export` - Enable metrics export functionality
+//! - `cached-metrics` - Enable caching for expensive calls
+//!
+//! ## Module Structure
+//!
+//! - [`battery`] - Battery information and power metrics
+//! - [`hardware`] - Hardware monitoring:
+//!   - [`hardware::cpu`] - CPU usage, frequency, and core information
+//!   - [`hardware::gpu`] - GPU metrics and memory usage
+//!   - [`hardware::memory`] - System memory statistics
+//!   - [`hardware::temperature`] - Temperature sensors and fan control
+//! - [`network`] - Network interfaces and traffic statistics
+//! - [`power`] - Power consumption and management
+//! - [`process`] - Process monitoring and management
+//! - [`system`] - Overall system information
+//!
+//! ## Error Handling
+//!
+//! The crate provides a centralized [`Error`] type that encompasses all possible
+//! error conditions and a convenient [`Result`] type alias.
+//!
+//! ```
+//! # fn foo() {
+//! use darwin_metrics::Result;
+//!
+//! fn example() -> Result<()> {
+//!     // Function implementation...
+//!     Ok(())
+//! }
+//! # }
+//! ```
+//!
 
 pub mod battery;
 pub mod error;

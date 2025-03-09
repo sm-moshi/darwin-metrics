@@ -15,6 +15,7 @@ Goal: Improve structure, maintainability, and performance before implementing ne
 • Network Monitoring
 • Implement bandwidth tracking and real-time network metrics
 • Implement real-time connection state monitoring
+• Add interface categorization and address tracking
 • Temperature Monitoring
 • Add fan speed and thermal zone monitoring
 • Detect and report thermal throttling events
@@ -40,6 +41,7 @@ Goal: Expand monitoring capabilities with additional system metrics.
 • Track I/O performance and volume usage
 • Network Enhancements
 • Implement packet loss and error tracking
+• Add WiFi signal strength monitoring
 • Add test coverage for new system metrics and async behavior
 
 ⸻

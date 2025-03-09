@@ -4,6 +4,9 @@ use crate::utils::bindings::{
     IORegistryEntryCreateCFProperties, IOServiceClose, IOServiceGetMatchingService,
     IOServiceMatching, IOServiceOpen, SMCKeyData_t, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES,
     SMC_CMD_READ_KEYINFO, SMC_KEY_CPU_TEMP, SMC_KEY_FAN_SPEED, SMC_KEY_GPU_TEMP,
+    SMC_KEY_FAN_NUM, SMC_KEY_FAN1_SPEED, SMC_KEY_FAN0_MIN, SMC_KEY_FAN0_MAX,
+    SMC_KEY_HEATSINK_TEMP, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP,
+    SMC_KEY_CPU_POWER, SMC_KEY_CPU_THROTTLE,
 };
 use objc2::class;
 use objc2::msg_send;
@@ -36,6 +39,25 @@ pub struct GpuStats {
 #[cfg(test)]
 use mockall::automock;
 
+#[derive(Debug, Clone)]
+pub struct FanInfo {
+    pub speed_rpm: u32,
+    pub min_speed: u32,
+    pub max_speed: u32,
+    pub percentage: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ThermalInfo {
+    pub cpu_temp: f64,
+    pub gpu_temp: f64,
+    pub heatsink_temp: Option<f64>,
+    pub ambient_temp: Option<f64>,
+    pub battery_temp: Option<f64>,
+    pub is_throttling: bool,
+    pub cpu_power: Option<f64>, // in watts
+}
+
 #[cfg_attr(test, automock)]
 pub trait IOKit: Send + Sync + std::fmt::Debug {
     fn io_service_matching(&self, service_name: &str)
@@ -62,10 +84,25 @@ pub trait IOKit: Send + Sync + std::fmt::Debug {
     fn get_bool_property(&self, dict: &NSDictionary<NSString, NSObject>, key: &str)
         -> Option<bool>;
     fn get_service(&self, name: &str) -> Result<Retained<AnyObject>>;
+    
+    // Temperature related methods
     fn get_cpu_temperature(&self) -> Result<f64>;
     fn get_gpu_temperature(&self) -> Result<f64>;
-    fn get_fan_speed(&self) -> Result<u32>;
     fn get_gpu_stats(&self) -> Result<GpuStats>;
+    
+    // Fan related methods
+    fn get_fan_speed(&self) -> Result<u32>;
+    fn get_fan_count(&self) -> Result<u32>;
+    fn get_fan_info(&self, fan_index: u32) -> Result<FanInfo>;
+    fn get_all_fans(&self) -> Result<Vec<FanInfo>>;
+    
+    // Advanced thermal methods
+    fn get_heatsink_temperature(&self) -> Result<f64>;
+    fn get_ambient_temperature(&self) -> Result<f64>;
+    fn get_battery_temperature(&self) -> Result<f64>;
+    fn get_cpu_power(&self) -> Result<f64>;
+    fn check_thermal_throttling(&self) -> Result<bool>;
+    fn get_thermal_info(&self) -> Result<ThermalInfo>;
 }
 
 #[derive(Debug, Default)]
@@ -317,6 +354,7 @@ impl IOKit for IOKitImpl {
         Ok(service)
     }
 
+    // Temperature related methods
     fn get_cpu_temperature(&self) -> Result<f64> {
         self.smc_read_key(SMC_KEY_CPU_TEMP)
     }
@@ -325,10 +363,120 @@ impl IOKit for IOKitImpl {
         self.smc_read_key(SMC_KEY_GPU_TEMP)
     }
 
+    fn get_heatsink_temperature(&self) -> Result<f64> {
+        self.smc_read_key(SMC_KEY_HEATSINK_TEMP)
+    }
+
+    fn get_ambient_temperature(&self) -> Result<f64> {
+        self.smc_read_key(SMC_KEY_AMBIENT_TEMP)
+    }
+
+    fn get_battery_temperature(&self) -> Result<f64> {
+        self.smc_read_key(SMC_KEY_BATTERY_TEMP)
+    }
+
+    fn get_cpu_power(&self) -> Result<f64> {
+        self.smc_read_key(SMC_KEY_CPU_POWER)
+    }
+
+    fn check_thermal_throttling(&self) -> Result<bool> {
+        // Value above 0 indicates active thermal throttling
+        let throttle_value = self.smc_read_key(SMC_KEY_CPU_THROTTLE)?;
+        Ok(throttle_value > 0.0)
+    }
+
+    fn get_thermal_info(&self) -> Result<ThermalInfo> {
+        // Get required fields
+        let cpu_temp = self.get_cpu_temperature()?;
+        
+        // Get other fields, allowing failure for optional sensors
+        let gpu_temp = self.get_gpu_temperature().unwrap_or(0.0);
+        let heatsink_temp = self.get_heatsink_temperature().ok();
+        let ambient_temp = self.get_ambient_temperature().ok();
+        let battery_temp = self.get_battery_temperature().ok();
+        let cpu_power = self.get_cpu_power().ok();
+        let is_throttling = self.check_thermal_throttling().unwrap_or(false);
+        
+        Ok(ThermalInfo {
+            cpu_temp,
+            gpu_temp,
+            heatsink_temp,
+            ambient_temp,
+            battery_temp,
+            is_throttling,
+            cpu_power,
+        })
+    }
+
+    // Fan related methods
     fn get_fan_speed(&self) -> Result<u32> {
         // Fan speed needs to be converted from the raw value to RPM
         let raw_speed = self.smc_read_key(SMC_KEY_FAN_SPEED)?;
         Ok(raw_speed as u32)
+    }
+
+    fn get_fan_count(&self) -> Result<u32> {
+        let fans = self.smc_read_key(SMC_KEY_FAN_NUM)?;
+        Ok(fans as u32)
+    }
+
+    fn get_fan_info(&self, fan_index: u32) -> Result<FanInfo> {
+        // Create dynamic SMC keys for the specified fan
+        let fan_key = [
+            b'F' as c_char,
+            (b'0' + fan_index as u8) as c_char, // Fan index (F0, F1, etc.)
+            b'A' as c_char,
+            b'c' as c_char,
+        ];
+        
+        let fan_min_key = [
+            b'F' as c_char,
+            (b'0' + fan_index as u8) as c_char, // Fan index (F0, F1, etc.)
+            b'M' as c_char,
+            b'n' as c_char,
+        ];
+        
+        let fan_max_key = [
+            b'F' as c_char,
+            (b'0' + fan_index as u8) as c_char, // Fan index (F0, F1, etc.)
+            b'M' as c_char,
+            b'x' as c_char,
+        ];
+        
+        // Get the speeds
+        let speed_rpm = self.smc_read_key(fan_key)? as u32;
+        let min_speed = self.smc_read_key(fan_min_key).unwrap_or(0.0) as u32;
+        let max_speed = self.smc_read_key(fan_max_key).unwrap_or(0.0) as u32;
+        
+        // Calculate percentage
+        let percentage = if max_speed > min_speed && max_speed > 0 {
+            ((speed_rpm - min_speed) as f64 / (max_speed - min_speed) as f64) * 100.0
+        } else {
+            0.0
+        };
+        
+        Ok(FanInfo {
+            speed_rpm,
+            min_speed,
+            max_speed,
+            percentage,
+        })
+    }
+
+    fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
+        let fan_count = self.get_fan_count()?;
+        
+        // macOS typically has at most 2 fans, so cap the count to avoid issues
+        let fan_count = fan_count.min(4);
+        
+        let mut fans = Vec::with_capacity(fan_count as usize);
+        for i in 0..fan_count {
+            if let Ok(fan_info) = self.get_fan_info(i) {
+                fans.push(fan_info);
+            }
+        }
+        
+        Ok(fans)
     }
 
     fn get_gpu_stats(&self) -> Result<GpuStats> {

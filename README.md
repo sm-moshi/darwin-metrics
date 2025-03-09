@@ -1,25 +1,31 @@
 # 🦀 darwin-metrics
 
-A Rust library that provides native access to macOS system metrics through low-level system APIs. This crate offers efficient, safe, and async-capable interfaces for monitoring system resources on macOS.
+<div align="center">
 
 [![Crates.io](https://img.shields.io/crates/v/darwin-metrics.svg)](https://crates.io/crates/darwin-metrics)
 [![Documentation](https://docs.rs/darwin-metrics/badge.svg)](https://docs.rs/darwin-metrics)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Build Status](https://img.shields.io/github/actions/workflow/status/sm-moshi/darwin-metrics/ci.yml?branch=main)
+![Crates.io Downloads](https://img.shields.io/crates/d/darwin-metrics)
 
----
+</div>
 
-## ✨ Features
+A Rust library providing native access to macOS system metrics through low-level system APIs. This crate offers efficient, safe, and async-capable interfaces for monitoring system resources on macOS.
 
-### 🔄 System Monitoring
+## 🌟 Features
+
+<table>
+<tr>
+<td>
+
+### 🖥️ System Monitoring
 
 - **CPU Monitoring**
-
   - Per-core usage statistics
   - CPU model and frequency information
   - System load metrics (user, system, idle)
 
 - **Memory Analysis**
-
   - RAM usage and availability
   - Swap space monitoring
   - Memory pressure levels
@@ -29,32 +35,46 @@ A Rust library that provides native access to macOS system metrics through low-l
   - GPU utilization metrics
   - VRAM consumption tracking
 
-### 💾 Resource Tracking
+</td>
+<td>
+
+### 📊 Resource Tracking
 
 - **Storage Metrics**
-
   - Disk space utilization
   - I/O performance monitoring
   - Read/write speed tracking
 
 - **Power Management**
-
   - Battery status and health
   - Charging state detection
   - Remaining battery time estimation
 
 - **Thermal Monitoring**
-
   - Fan speed readings
   - CPU and GPU temperature tracking
   - System-wide thermal status
+
+</td>
+</tr>
+<tr>
+<td colspan="2">
+
+### 🔌 Additional Features
 
 - **Process Information**
   - Running process enumeration
   - Per-process resource usage
   - System uptime and version info
 
----
+- **Network Monitoring**
+  - Interface discovery and state tracking
+  - Traffic statistics (bytes/packets sent/received)
+  - Bandwidth calculations
+
+</td>
+</tr>
+</table>
 
 ## 📦 Installation
 
@@ -67,13 +87,11 @@ darwin-metrics = "0.1.0"
 
 ### 🔧 Requirements
 
-- macOS 14 or later
+- macOS 10.11 (El Capitan) or later
 - Rust 1.75 or later
 - Xcode Command Line Tools
 
----
-
-## 🚀 Usage
+## 🚀 Quick Start
 
 ```rust
 use darwin_metrics::{cpu, memory, gpu};
@@ -96,76 +114,83 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
----
-
 ## 🎯 Feature Flags
 
-- `battery` - Enable battery monitoring
-- `cpu` - Enable CPU metrics
-- `memory` - Enable memory statistics
-- `gpu` - Enable GPU monitoring
-- `disk` - Enable storage metrics
-- `temperature` - Enable thermal monitoring
-- `async` - Enable async support (requires tokio)
-- `metrics-export` - Enable metrics export functionality
-- `cached-metrics` - Enable caching for expensive calls
-
----
+| Flag | Description |
+|------|-------------|
+| `battery` | Enable battery monitoring |
+| `cpu` | Enable CPU metrics |
+| `memory` | Enable memory statistics |
+| `gpu` | Enable GPU monitoring |
+| `disk` | Enable storage metrics |
+| `temperature` | Enable thermal monitoring |
+| `async` | Enable async support (requires tokio) |
+| `metrics-export` | Enable metrics export functionality |
+| `cached-metrics` | Enable caching for expensive calls |
 
 ## 📈 Development Status
 
 Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed development plans.
 
+<details>
+<summary><b>Development Progress</b></summary>
+
 ### ✅ Completed
 
 - [x] Initial project setup
 - [x] Basic crate structure
+- [x] CPU monitoring module implementation
+- [x] Network monitoring module implementation
 
 ### 🚧 In Progress
 
-- [ ] Core metric collection implementations
-- [ ] Async support integration
+- [ ] Memory analysis module implementation
+- [ ] GPU monitoring refinement
 - [ ] Documentation improvements
 - [ ] Performance optimizations
 
----
+</details>
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
-### 🛠️ Development Setup
+<details>
+<summary><b>Development Setup</b></summary>
 
 1. Clone the repository:
 
-```bash
-git clone https://github.com/sm-moshi/darwin-metrics.git
-cd darwin-metrics
-```
+   ```bash
+   git clone https://github.com/sm-moshi/darwin-metrics.git
+   cd darwin-metrics
+   ```
 
-1. Install dependencies:
+2. Install dependencies:
 
-```bash
-xcode-select --install  # Install Xcode Command Line Tools
-```
+   ```bash
+   xcode-select --install  # Install Xcode Command Line Tools
+   ```
 
-1. Build the project:
+3. Build the project:
 
-```bash
-cargo build --all-features
-```
+   ```bash
+   cargo build --all-features
+   ```
 
-1. Run tests:
+4. Run tests:
 
-```bash
-cargo test --all-features
-```
+   ```bash
+   cargo test --all-features
+   ```
 
----
+</details>
 
 ## 📝 How to Cite
 
 If you use darwin-metrics in your projects, please include one of the following attributions:
+
+<details>
+<summary><b>Citation Formats</b></summary>
 
 ### 💻 For Software Projects
 
@@ -188,22 +213,15 @@ GitHub repository: https://github.com/sm-moshi/darwin-metrics
 ```
 
 For more detailed attribution requirements, please see the [NOTICE](NOTICE) file.
-
----
+</details>
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
----
-
 ## 🙏 Acknowledgments
 
-- Apple's [IOKit](https://developer.apple.com/documentation/iokit) documentation
-- Apple's [Foundation](https://developer.apple.com/documentation/foundation) documentation
-- Apple's [Core Foundation](https://developer.apple.com/documentation/corefoundation) documentation
-- Apple's [Core Graphics](https://developer.apple.com/documentation/coregraphics) documentation
-- Apple's [Metal](https://developer.apple.com/documentation/metal) documentation
-- Mads Marquart's [objc2](https://github.com/mattn/objc2) crate
+- Apple's [IOKit](https://developer.apple.com/documentation/iokit), [Foundation](https://developer.apple.com/documentation/foundation), [Core Foundation](https://developer.apple.com/documentation/corefoundation), and [Metal](https://developer.apple.com/documentation/metal) documentation
+- [objc2](https://github.com/mattn/objc2) crate by Mads Marquart
 - The Rust and Swift communities
 - Contributors to the core dependencies
