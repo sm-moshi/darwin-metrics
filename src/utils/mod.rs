@@ -8,9 +8,9 @@
 //! - `test_utils`: Utilities for testing
 
 // Conditional compilation flag for docs.rs environment
-#[cfg(docsrs)]
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 pub const IS_DOCS_RS: bool = true;
-#[cfg(not(docsrs))]
+#[cfg(not(any(docsrs, use_stubs, not(target_os = "macos"))))]
 pub const IS_DOCS_RS: bool = false;
 
 pub mod bindings;
