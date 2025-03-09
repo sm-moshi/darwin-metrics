@@ -399,25 +399,25 @@ pub mod proc_state {
 
 /// Network Address Family constants
 pub mod address_family {
-    pub const AF_UNSPEC: u8 = 0;      // Unspecified
-    pub const AF_INET: u8 = 2;        // IPv4 
-    pub const AF_INET6: u8 = 30;      // IPv6
-    pub const AF_LINK: u8 = 18;       // Link level interface
+    pub const AF_UNSPEC: u8 = 0; // Unspecified
+    pub const AF_INET: u8 = 2; // IPv4
+    pub const AF_INET6: u8 = 30; // IPv6
+    pub const AF_LINK: u8 = 18; // Link level interface
 }
 
 /// Interface Flags constants
 pub mod if_flags {
-    pub const IFF_UP: u32 = 0x1;              // Interface is up
-    pub const IFF_BROADCAST: u32 = 0x2;       // Broadcast address valid
-    pub const IFF_DEBUG: u32 = 0x4;           // Turn on debugging
-    pub const IFF_LOOPBACK: u32 = 0x8;        // Is a loopback net
-    pub const IFF_POINTOPOINT: u32 = 0x10;    // Interface is point-to-point link
-    pub const IFF_RUNNING: u32 = 0x40;        // Resources allocated
-    pub const IFF_NOARP: u32 = 0x80;          // No address resolution protocol
-    pub const IFF_PROMISC: u32 = 0x100;       // Receive all packets
-    pub const IFF_ALLMULTI: u32 = 0x200;      // Receive all multicast packets
-    pub const IFF_MULTICAST: u32 = 0x8000;    // Supports multicast
-    pub const IFF_WIRELESS: u32 = 0x20;       // Wireless
+    pub const IFF_UP: u32 = 0x1; // Interface is up
+    pub const IFF_BROADCAST: u32 = 0x2; // Broadcast address valid
+    pub const IFF_DEBUG: u32 = 0x4; // Turn on debugging
+    pub const IFF_LOOPBACK: u32 = 0x8; // Is a loopback net
+    pub const IFF_POINTOPOINT: u32 = 0x10; // Interface is point-to-point link
+    pub const IFF_RUNNING: u32 = 0x40; // Resources allocated
+    pub const IFF_NOARP: u32 = 0x80; // No address resolution protocol
+    pub const IFF_PROMISC: u32 = 0x100; // Receive all packets
+    pub const IFF_ALLMULTI: u32 = 0x200; // Receive all multicast packets
+    pub const IFF_MULTICAST: u32 = 0x8000; // Supports multicast
+    pub const IFF_WIRELESS: u32 = 0x20; // Wireless
 }
 
 #[repr(C)]
@@ -511,7 +511,7 @@ pub struct if_data {
 extern "C" {
     pub fn getifaddrs(ifap: *mut *mut ifaddrs) -> c_int;
     pub fn freeifaddrs(ifp: *mut ifaddrs) -> c_void;
-    
+
     // sysctl functions for network statistics
     pub fn sysctlbyname(
         name: *const c_char,

@@ -95,6 +95,22 @@
 //! # }
 //! ```
 //!
+//! ## Async Support
+//!
+//! When the `async` feature is enabled, the crate provides async versions of monitoring
+//! functions that can be used with the tokio runtime.
+//!
+//! ```ignore
+//! use darwin_metrics::hardware::temperature::Temperature;
+//!
+//! async fn example() -> darwin_metrics::Result<()> {
+//!     let mut temp = Temperature::new();
+//!     let metrics = temp.get_thermal_metrics_async().await?;
+//!     println!("CPU temperature: {:?}°C", metrics.cpu_temperature);
+//!     Ok(())
+//! }
+//! ```
+//!
 
 pub mod battery;
 pub mod error;
