@@ -1,6 +1,5 @@
 #![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.2")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-
 // Explicitly configure for platform-specific code
 #![cfg_attr(not(target_os = "macos"), allow(unused_imports))]
 #![cfg_attr(not(target_os = "macos"), allow(dead_code))]
@@ -153,42 +152,13 @@ pub mod system;
 pub mod utils;
 
 // Re-export the core error types for easier use
-#[doc(inline)]
-pub use error::{Error, Result};
-
 // Re-export primary modules for direct access
 #[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
 #[doc(inline)]
 pub use battery::Battery;
-
 #[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
 #[doc(inline)]
 pub use disk::{Disk, DiskConfig, DiskType};
-
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
-#[doc(inline)]
-pub use hardware::cpu::{FrequencyMetrics, CPU};
-
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
-#[doc(inline)]
-pub use hardware::gpu::{Gpu, GpuMetrics};
-
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
-#[doc(inline)]
-pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
-
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
-#[doc(inline)]
-pub use hardware::temperature::{Fan, Temperature, ThermalMetrics};
-
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
-#[doc(inline)]
-pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
-
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
-#[doc(inline)]
-pub use process::{Process, ProcessInfo};
-
 // When building on docs.rs, use the stub implementations instead
 #[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 #[doc(inline)]
@@ -197,3 +167,23 @@ pub use docs_rs_stubs::{
     NetworkInterface, NetworkTraffic, PageStates, PressureLevel, Process, ProcessInfo, SwapUsage,
     Temperature, ThermalMetrics, CPU,
 };
+#[doc(inline)]
+pub use error::{Error, Result};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use hardware::cpu::{FrequencyMetrics, CPU};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use hardware::gpu::{Gpu, GpuMetrics};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use hardware::temperature::{Fan, Temperature, ThermalMetrics};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use process::{Process, ProcessInfo};
