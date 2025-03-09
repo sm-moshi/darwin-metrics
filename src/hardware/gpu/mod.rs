@@ -164,7 +164,7 @@ impl Gpu {
             let mut total: u64 = 0;
             let mut total_size = std::mem::size_of::<u64>();
             // Create CString and store it so it doesn't get dropped
-            let total_name_cstring = std::ffi::CString::new("hw.memsize").unwrap_or_default(); 
+            let total_name_cstring = std::ffi::CString::new("hw.memsize").unwrap_or_default();
             let total_name = total_name_cstring.as_ptr();
 
             let result = libc::sysctlbyname(
