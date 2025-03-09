@@ -5,6 +5,7 @@ use objc2_foundation::NSProcessInfo;
 
 // Import the necessary macOS frameworks
 #[link(name = "IOKit", kind = "framework")]
+#[allow(dead_code)]
 extern "C" {
     fn IOServiceMatching(service_name: *const c_char) -> *mut std::ffi::c_void;
     fn IOServiceGetMatchingService(master_port: u32, matching: *mut std::ffi::c_void) -> u32;
@@ -16,6 +17,7 @@ extern "C" {
     ) -> i32;
 }
 
+#[allow(clippy::disallowed_methods, dead_code)]
 fn main() {
     println!("Darwin Metrics - Static GPU Info");
     println!("This example displays basic GPU information without ongoing monitoring");

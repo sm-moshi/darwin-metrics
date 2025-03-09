@@ -61,7 +61,10 @@ static CPU_HISTORY: SyncLazy<Mutex<HashMap<u32, (Instant, u64)>>> =
 
 /// Get CPU history tracking map
 fn get_cpu_history() -> std::sync::MutexGuard<'static, HashMap<u32, (Instant, u64)>> {
-    CPU_HISTORY.lock().unwrap()
+    #[allow(clippy::disallowed_methods)]
+    {
+        CPU_HISTORY.lock().unwrap()
+    }
 }
 
 pub struct Process {
@@ -447,11 +450,15 @@ impl Process {
             let mut root_pids = Vec::new();
             for &pid in pid_to_process.keys() {
                 if let Ok(ppid) = Self::get_parent_pid(pid).await {
-                    if ppid.is_none()
-                        || ppid.unwrap() == 0
-                        || !pid_to_process.contains_key(&ppid.unwrap())
-                    {
-                        root_pids.push(pid);
+                    match ppid {
+                        None => {
+                            root_pids.push(pid);
+                        }
+                        Some(parent_pid) => {
+                            if parent_pid == 0 || !pid_to_process.contains_key(&parent_pid) {
+                                root_pids.push(pid);
+                            }
+                        }
                     }
                 }
             }

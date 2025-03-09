@@ -4,38 +4,40 @@ This document outlines the planned development roadmap for the `darwin-metrics` 
 
 ## Current Status
 
-The library is currently in Phase 1 of development, focusing on code refactoring and cleanup to establish a solid foundation for future feature development.
+The library is currently transitioning from Phase 1 to Phase 2 of development, with core functionality implemented and optimizations ongoing.
 
 ## Development Phases
 
-### Phase 1: Codebase Refactoring & Cleanup (0.1.0) - In Progress
+### Phase 1: Codebase Refactoring & Cleanup (0.1.x) - Completed
 
 **Goal:** Improve structure, maintainability, and performance before implementing new features.
 
 **Key Tasks:**
 
 - ✅ Process Monitoring: Implement comprehensive process monitoring capabilities
-- 🔄 CPU Metrics: Refactor and enhance CPU monitoring functionality
-- 🔄 GPU Metrics: Implement and refine GPU metrics collection
-- ⏳ Network Monitoring: Implement bandwidth tracking and network state monitoring
-- ⏳ Temperature Monitoring: Enhance thermal sensor data collection
-- 🔄 General Code Cleanup: Refactor and improve code quality
+- ✅ CPU Metrics: Refactor and enhance CPU monitoring functionality
+- ✅ GPU Metrics: Implement and refine GPU metrics collection
+- ✅ Network Monitoring: Implement bandwidth tracking and network state monitoring
+- ✅ Temperature Monitoring: Enhance thermal sensor data collection
+- ✅ Disk Monitoring: Implement volume detection and I/O monitoring
+- ✅ General Code Cleanup: Refactor and improve code quality
   - ✅ Centralized FFI bindings in src/utils/bindings.rs
   - ✅ Improved error handling and propagation
   - ✅ Enhanced code organization and documentation
 
-### Phase 2: Enhanced System Metrics (0.2.0) - Planned
+### Phase 2: Enhanced System Metrics (0.2.0) - In Progress
 
 **Goal:** Expand monitoring capabilities with additional system metrics.
 
 **Key Tasks:**
 
-- Enhance CPU and GPU monitoring with async processing
-- Implement detailed CPU and GPU frequency tracking
-- Add advanced process monitoring features
-- Implement comprehensive disk and storage monitoring
-- Enhance network monitoring capabilities
-- Expand test coverage
+- 🔄 Enhance CPU and GPU monitoring with improved async processing
+- ✅ Implement detailed CPU and GPU frequency tracking
+- 🔄 Add advanced process monitoring features
+- ✅ Implement comprehensive disk and storage monitoring
+- ✅ Enhance network monitoring capabilities with async support
+- 🔄 Complete battery and power management functionality
+- 🔄 Expand test coverage and benchmarking
 
 ### Phase 3: Optimization & Advanced Features (0.3.0) - Planned
 
@@ -74,9 +76,13 @@ These are our current feature priorities, ranked from highest to lowest:
 
 ## Release Schedule
 
-While we don't have exact dates, our general timeline is:
+Our current timeline is:
 
-- **0.1.0**: Q2 2024 (Alpha release with core functionality)
+- **0.1.x**: Q1-Q2 2024 (Alpha releases with core functionality)
+  - ✅ 0.1.0: Initial release with basic monitoring
+  - ✅ 0.1.1: Improved GPU and memory monitoring
+  - ✅ 0.1.2: Enhanced process tracking and disc metrics
+  - ✅ 0.1.3: Improved documentation and CI workflow
 - **0.2.0**: Q3 2024 (Beta release with enhanced features)
 - **0.3.0**: Q4 2024 (Release candidate with optimizations)
 - **1.0.0**: Q1 2025 (Stable release with complete documentation)

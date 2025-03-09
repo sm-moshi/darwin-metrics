@@ -10,22 +10,27 @@ The darwin-metrics library follows a domain-driven design approach, organizing c
 src/
   battery/           # Battery monitoring
   disk/              # Storage monitoring
+  docs_rs_stubs.rs   # Documentation stubs for docs.rs
   error.rs           # Centralized error handling
   hardware/          # Hardware-related metrics
     cpu/             # CPU monitoring (usage, frequency)
     gpu/             # GPU monitoring (usage, memory)
     iokit/           # IOKit bindings and abstractions
     memory/          # RAM and swap monitoring
+    mod.rs           # Hardware module exports
     temperature/     # Temperature sensors
   lib.rs             # Public API and re-exports
   network/           # Network interface monitoring
+    interface.rs     # Network interface information
+    mod.rs           # Network module exports
+    traffic.rs       # Network traffic monitoring
   power/             # Power management
   process/           # Process monitoring
   resource/          # Resource management
   system/            # System-wide information
-  temperature/       # Global temperature monitoring
   utils/             # Shared utilities
     bindings.rs      # Centralized FFI bindings
+    mod.rs           # Utilities exports
     property_utils.rs # Property list utilities
     test_utils.rs    # Testing helpers
 ```

@@ -30,6 +30,7 @@ pub struct TrafficData {
 
 impl TrafficData {
     /// Creates a new TrafficData instance with the given metrics.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         bytes_received: u64,
         bytes_sent: u64,
@@ -64,6 +65,7 @@ pub struct TrafficTracker {
 
 impl TrafficTracker {
     /// Creates a new TrafficTracker with initial values.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         bytes_received: u64,
         bytes_sent: u64,

@@ -1,87 +1,70 @@
 # 🦀 darwin-metrics
 
-<div align="center">
-
 [![Crates.io](https://img.shields.io/crates/v/darwin-metrics.svg)](https://crates.io/crates/darwin-metrics)
 [![Documentation](https://docs.rs/darwin-metrics/badge.svg)](https://docs.rs/darwin-metrics)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://github.com/sm-moshi/darwin-metrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sm-moshi/darwin-metrics/actions/workflows/ci.yml)
 [![Crates.io Downloads](https://img.shields.io/crates/d/darwin-metrics)](https://crates.io/crates/darwin-metrics)
 
-</div>
-
 A Rust library providing native access to macOS system metrics through low-level system APIs. This crate offers efficient, safe, and async-capable interfaces for monitoring system resources on macOS.
 
 ## 🌟 Features
 
-<table>
-<tr>
-<td>
-
 ### 🖥️ System Monitoring
 
-- **CPU Monitoring**
+- #### CPU Monitoring
 
   - [x] Per-core usage statistics
   - [x] CPU model and frequency information
   - [x] System load metrics (user, system, idle)
 
-- **Memory Analysis**
+- #### Memory Analysis
 
   - [x] RAM usage and availability
   - [x] Swap space monitoring
   - [x] Memory pressure levels
 
-- **GPU Information**
+- #### GPU Information
+
   - [x] Active GPU model detection
   - [x] GPU utilization metrics
   - [x] VRAM consumption tracking
 
-</td>
-<td>
-
 ### 📊 Resource Tracking
 
-- **Storage Metrics**
+- #### Storage Metrics
 
   - [x] Disk space utilization
   - [x] I/O performance monitoring
   - [x] Read/write speed tracking
 
-- **Power Management**
+- #### Power Management
 
   - [x] Battery status and health
   - [x] Charging state detection
   - [x] Remaining battery time estimation
 
-- **Thermal Monitoring**
+- #### Thermal Monitoring
+
   - [x] Fan speed readings
   - [x] CPU and GPU temperature tracking
   - [x] System-wide thermal status
 
-</td>
-</tr>
-<tr>
-<td colspan="2">
-
 ### 🔌 Additional Features
 
-- **Process Information**
+- #### Process Information
 
   - [x] Running process enumeration
   - [x] Per-process resource usage
   - [x] Parent-child process relationship tracking
   - [x] Process tree visualization
 
-- **Network Monitoring**
+- #### Network Monitoring
+
   - [x] Interface discovery and state tracking
   - [x] Traffic statistics (bytes/packets sent/received)
   - [x] Bandwidth calculations
   - [x] Async network monitoring
-
-</td>
-</tr>
-</table>
 
 ## 📦 Installation
 
@@ -89,13 +72,13 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-darwin-metrics = "0.1.0"
+darwin-metrics = "0.1.3"
 ```
 
 ### 🔧 Requirements
 
 - macOS 10.11 (El Capitan) or later
-- Rust 1.75 or later
+- Rust 1.85 or later
 - Xcode Command Line Tools
 
 ## 🚀 Quick Start
@@ -144,10 +127,9 @@ All features are enabled by default, but you can selectively enable only what yo
 
 Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed development plans.
 
-<details>
-<summary><b>Development Progress</b></summary>
+### Development Progress
 
-### ✅ Completed (v0.1.0)
+#### ✅ Completed (v0.1.0)
 
 - [x] Initial project setup
 - [x] Core architecture and error handling
@@ -159,7 +141,7 @@ Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed
 - [x] Process monitoring and hierarchy tracking
 - [x] Temperature sensors and fan speed tracking
 
-### 🚧 In Progress (v0.2.0)
+#### 🚧 In Progress (v0.2.0)
 
 - [ ] Enhanced async support throughout
 - [ ] Cross-platform abstractions (Linux/Windows)
@@ -167,14 +149,13 @@ Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed
 - [ ] Performance optimizations
 - [ ] Event-based monitoring
 
-</details>
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
-<details>
-<summary><b>Development Setup</b></summary>
+### Development Setup
+
+**Setup Instructions:**
 
 1. Clone the repository:
 
@@ -189,41 +170,56 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
    xcode-select --install  # Install Xcode Command Line Tools
    ```
 
-3. Build the project:
+3. Set up the Rust toolchains:
+
+   ```bash
+   rustup install beta stable
+   rustup component add clippy rustfmt --toolchain beta
+   ```
+
+   Our workflow uses:
+   - Beta toolchain for linting and formatting
+   - Stable toolchain for building, testing, and releases
+
+4. Build the project:
 
    ```bash
    cargo build --all-features
    ```
 
-4. Run tests:
+5. Run tests:
 
    ```bash
    cargo test --all-features
    ```
 
-</details>
+6. Format and lint your code:
+
+   ```bash
+   cargo +beta fmt
+   cargo +beta clippy --workspace --all-targets --all-features
+   ```
 
 ## 📝 How to Cite
 
 If you use darwin-metrics in your projects, please include one of the following attributions:
 
-<details>
-<summary><b>Citation Formats</b></summary>
+### Citation Formats
 
-### 💻 For Software Projects
+#### 💻 For Software Projects
 
 ```markdown
 This project uses darwin-metrics (https://github.com/sm-moshi/darwin-metrics) by Stuart Meya.
 ```
 
-### 📚 For Documentation or Technical Writing
+#### 📚 For Documentation or Technical Writing
 
 ```markdown
 darwin-metrics: A Rust library for native macOS system metrics, developed by Stuart Meya.
 GitHub repository: https://github.com/sm-moshi/darwin-metrics
 ```
 
-### 🎓 For Academic or Research Use
+#### 🎓 For Academic or Research Use
 
 ```markdown
 Meya, S. (2025). darwin-metrics: A Rust library for native macOS system metrics.
@@ -231,8 +227,6 @@ GitHub repository: https://github.com/sm-moshi/darwin-metrics
 ```
 
 For more detailed attribution requirements, please see the [NOTICE](NOTICE) file.
-
-</details>
 
 ## 📄 License
 

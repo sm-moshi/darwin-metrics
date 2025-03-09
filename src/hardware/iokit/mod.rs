@@ -245,7 +245,11 @@ impl IOKit for IOKitImpl {
                     .expect("Failed to create dictionary");
 
                 // Direct C function call for IOServiceMatching
-                let matching_dict = IOServiceMatching(CString::new(service_name).unwrap().as_ptr());
+                let c_service_name = match CString::new(service_name) {
+                    Ok(s) => s,
+                    Err(_) => return empty_dict, // Return empty dict if service name contains NUL
+                };
+                let matching_dict = IOServiceMatching(c_service_name.as_ptr());
                 if !matching_dict.is_null() {
                     // Try to convert the dictionary to the expected type
                     let dict_ptr = matching_dict as *mut NSDictionary<NSString, NSObject>;
@@ -396,7 +400,10 @@ impl IOKit for IOKitImpl {
             let mut parent_id: c_uint = 0;
 
             // Get the parent in the IOService plane
-            let plane = CString::new("IOService").unwrap();
+            let plane = match CString::new("IOService") {
+                Ok(p) => p,
+                Err(_) => return None, // Should never happen as "IOService" is a valid C string
+            };
             let result = IORegistryEntryGetParentEntry(entry_id, plane.as_ptr(), &mut parent_id);
 
             if result != IO_RETURN_SUCCESS || parent_id == 0 {
@@ -827,7 +834,7 @@ mod tests {
     fn test_real_gpu_stats() {
         // Wrap the entire test in an autoreleasepool to ensure proper memory cleanup
         autoreleasepool(|_| {
-            let iokit = IOKitImpl::default();
+            let iokit = IOKitImpl;
             let result = iokit.get_gpu_stats();
 
             // This test might fail if running in a CI environment without GPU

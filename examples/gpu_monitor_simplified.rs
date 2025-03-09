@@ -38,7 +38,7 @@ fn display_metrics(metrics: &GpuMetrics) {
     );
     println!("  Free:  {}", format_memory(metrics.memory.free));
 
-    println!(""); // Empty line for readability
+    println!(); // Empty line for readability
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
