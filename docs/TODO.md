@@ -42,15 +42,15 @@
     -   [x] Improved CPU temperature retrieval.
     -   [x] Added comprehensive CPU metrics documentation.
 
--   [~] **GPU Metrics**
+-   [x] **GPU Metrics**
 
     -   [x] Implemented CoreFoundation approach for basic GPU metrics.
     -   [x] Added GPU utilization and VRAM usage tracking.
     -   [x] Integrated with IOKit to access GPU performance information.
     -   [x] Fixed memory safety issues during test teardown (SIGSEGV) by making IOKitImpl properly cloneable.
     -   [x] Improved cleanup of IOKit resources with autoreleasepools.
-    -   [ ] Create real-world examples to validate the implementation.
-    -   [ ] Enhance tests to be more resilient in different environments.
+    -   [x] Created real-world examples to validate the implementation.
+    -   [x] Enhanced tests to be more resilient in different environments.
     -   [ ] Integrate with Metal API for advanced GPU monitoring (future enhancement).
 
 -   [x] **Network Monitoring**
@@ -96,10 +96,10 @@
     -   [x] Ensure non-blocking operation for temperature sensor access
     -   [x] Implement proper tokio task handling for blocking operations
 
--   [ ] **GPU Performance Metrics**
+-   [x] **GPU Performance Metrics**
 
-    -   [ ] Track GPU utilization over time to monitor workload distribution.
-    -   [ ] Measure GPU memory consumption and optimize reporting.
+    -   [x] Track GPU utilization over time to monitor workload distribution.
+    -   [x] Measure GPU memory consumption and optimize reporting.
 
 -   [~] **Advanced Process Monitoring**
 

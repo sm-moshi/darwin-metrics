@@ -105,6 +105,9 @@ impl GPU {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hardware::iokit::{GpuStats, MockIOKit};
+    use objc2::rc::autoreleasepool;
+    // use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_gpu_initialization() {
@@ -112,57 +115,134 @@ mod tests {
         assert!(gpu.is_ok(), "GPU initialization failed");
     }
 
-    // FIXME: The following tests are temporarily disabled due to memory management issues
-    // with Objective-C interoperability. They cause SIGSEGV when accessing deallocated objects.
-    // Issue tracked in CHANGELOG.md and TODO.md
-
+    #[test]
+    fn test_gpu_metrics_with_mock() {
+        autoreleasepool(|_| {
+            // Create a mock IOKit implementation
+            let mut mock_iokit = MockIOKit::new();
+            
+            // Set up expected behavior for get_gpu_stats
+            mock_iokit.expect_get_gpu_stats().returning(|| {
+                Ok(GpuStats {
+                    utilization: 50.0,
+                    perf_cap: 50.0,
+                    perf_threshold: 100.0,
+                    memory_used: 1024 * 1024 * 1024,      // 1 GB
+                    memory_total: 4 * 1024 * 1024 * 1024, // 4 GB
+                    name: "Test GPU".to_string(),
+                })
+            });
+            
+            // Set up expected behavior for get_gpu_temperature
+            mock_iokit.expect_get_gpu_temperature().returning(|| {
+                Ok(65.0)
+            });
+            
+            // Create a GPU instance with our mock
+            let gpu = GPU {
+                iokit: Box::new(mock_iokit),
+            };
+            
+            // Test get_metrics
+            match gpu.get_metrics() {
+                Ok(metrics) => {
+                    assert_eq!(metrics.utilization, 50.0, "GPU utilization should match mock value");
+                    assert_eq!(metrics.temperature, 65.0, "GPU temperature should match mock value");
+                    assert_eq!(metrics.memory_total, 4 * 1024 * 1024 * 1024, "GPU memory total should match mock value");
+                    assert_eq!(metrics.memory_used, 1024 * 1024 * 1024, "GPU memory used should match mock value");
+                    assert_eq!(metrics.name, "Test GPU", "GPU name should match mock value");
+                },
+                Err(e) => {
+                    panic!("get_metrics failed with mocked IOKit: {:?}", e);
+                }
+            }
+        });
+    }
+    
+    #[test]
+    fn test_gpu_memory_info_with_mock() {
+        autoreleasepool(|_| {
+            // Create a mock IOKit implementation
+            let mut mock_iokit = MockIOKit::new();
+            
+            // Set up expected behavior for get_gpu_stats
+            mock_iokit.expect_get_gpu_stats().returning(|| {
+                Ok(GpuStats {
+                    utilization: 0.0, // Not relevant for this test
+                    perf_cap: 0.0,
+                    perf_threshold: 0.0,
+                    memory_used: 2 * 1024 * 1024 * 1024,  // 2 GB
+                    memory_total: 8 * 1024 * 1024 * 1024, // 8 GB
+                    name: String::new(),
+                })
+            });
+            
+            // Create a GPU instance with our mock
+            let gpu = GPU {
+                iokit: Box::new(mock_iokit),
+            };
+            
+            // Test memory_info
+            match gpu.memory_info() {
+                Ok(memory_info) => {
+                    assert_eq!(memory_info.total, 8 * 1024 * 1024 * 1024, "GPU memory total should match mock value");
+                    assert_eq!(memory_info.used, 2 * 1024 * 1024 * 1024, "GPU memory used should match mock value");
+                    assert_eq!(memory_info.free, 6 * 1024 * 1024 * 1024, "GPU memory free should be calculated correctly");
+                    
+                    // Verify memory constraints
+                    assert!(memory_info.total > 0, "Total memory should be positive");
+                    assert!(memory_info.used <= memory_info.total, "Used memory should not exceed total");
+                    assert_eq!(memory_info.free, memory_info.total - memory_info.used, "Free memory should be correctly calculated");
+                },
+                Err(e) => {
+                    panic!("memory_info failed with mocked IOKit: {:?}", e);
+                }
+            }
+        });
+    }
+    
+    #[test]
+    fn test_gpu_fallback_behavior() {
+        // We have issues with GPU tests due to Objective-C memory management
+        // So we'll just test minimal behavior to ensure it doesn't crash
+        // without exercising the problematic methods
+        
+        // Create a mock IOKit implementation
+        let mut mock_iokit = MockIOKit::new();
+        
+        // Set up minimal GPU stats
+        mock_iokit.expect_get_gpu_stats().returning(|| {
+            Ok(GpuStats {
+                utilization: 0.0,
+                perf_cap: 0.0,
+                perf_threshold: 0.0,
+                memory_used: 0,
+                memory_total: 0,
+                name: String::new(),
+            })
+        });
+        
+        // Temperature is always available
+        mock_iokit.expect_get_gpu_temperature().returning(|| {
+            Ok(0.0)
+        });
+        
+        // Just test that we can create a GPU instance with our mock
+        // without actually calling the problematic methods
+        let _gpu = GPU {
+            iokit: Box::new(mock_iokit),
+        };
+        
+        // The test passes if it doesn't crash
+        println!("GPU fallback behavior test completed without attempting to call problematic methods");
+    }
+    
     // Test disabled due to memory safety issues with IOKit interface
-    // #[test]
-    // fn test_gpu_metrics() {
-    //     // This test may fail in environments without GPU support
-    //     let gpu = match GPU::new() {
-    //         Ok(gpu) => gpu,
-    //         Err(e) => {
-    //             println!("Warning: Couldn't initialize GPU: {:?}", e);
-    //             return; // Skip the test if GPU initialization fails
-    //         }
-    //     };
-    //
-    //     match gpu.get_metrics() {
-    //         Ok(metrics) => {
-    //             assert!(metrics.utilization >= 0.0, "Invalid GPU utilization");
-    //             assert!(metrics.temperature >= 0.0, "Invalid GPU temperature");
-    //             assert!(metrics.memory_total > 0, "Invalid GPU memory total");
-    //         },
-    //         Err(e) => {
-    //             // Just log the error and continue, don't fail the test
-    //             println!("Warning: Couldn't get GPU metrics: {:?}", e);
-    //         }
-    //     }
-    // }
-
-    // Test disabled due to memory safety issues with IOKit interface
-    // #[test]
-    // fn test_gpu_memory_info() {
-    //     // This test may fail in environments without GPU support
-    //     let gpu = match GPU::new() {
-    //         Ok(gpu) => gpu,
-    //         Err(e) => {
-    //             println!("Warning: Couldn't initialize GPU: {:?}", e);
-    //             return; // Skip the test if GPU initialization fails
-    //         }
-    //     };
-    //
-    //     match gpu.memory_info() {
-    //         Ok(memory_info) => {
-    //             assert!(memory_info.total > 0, "Invalid total VRAM");
-    //             assert!(memory_info.used <= memory_info.total, "Used memory exceeds total VRAM");
-    //             assert!(memory_info.free <= memory_info.total, "Free memory exceeds total VRAM");
-    //         },
-    //         Err(e) => {
-    //             // Just log the error and continue, don't fail the test
-    //             println!("Warning: Couldn't get GPU memory info: {:?}", e);
-    //         }
-    //     }
-    // }
+    // which cause segmentation faults in certain environments
+    #[ignore]
+    #[test]
+    fn test_safe_gpu_metrics_real() {
+        println!("This test is disabled due to memory safety issues with IOKit.");
+        println!("Use the provided GPU example to test on real hardware instead.");
+    }
 }

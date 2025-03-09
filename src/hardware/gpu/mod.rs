@@ -65,17 +65,23 @@ impl GPU {
     }
 
     pub fn name(&self) -> Result<String> {
-        // Get GPU stats using IOKit
-        let stats = self.iokit.get_gpu_stats()?;
+        // Use the autorelease pool to ensure proper memory management
+        autorelease_pool(|| {
+            // Get GPU stats using IOKit
+            match self.iokit.get_gpu_stats() {
+                Ok(stats) => {
+                    if !stats.name.is_empty() {
+                        return Ok(stats.name);
+                    }
+                }
+                Err(e) => {
+                    println!("Warning: Could not get GPU name from IOKit: {}", e);
+                }
+            }
 
-        if !stats.name.is_empty() {
-            return Ok(stats.name);
-        }
-
-        // Fallback to Metal API if needed
-        if let Some(device) = self.metal_device {
-            return autorelease_pool(|| {
-                objc_safe_exec(|| unsafe {
+            // Fallback to Metal API if needed
+            if let Some(device) = self.metal_device {
+                return objc_safe_exec(|| unsafe {
                     let device_obj: *mut AnyObject = device.cast();
                     let name_obj: *mut AnyObject = msg_send![device_obj, name];
                     if name_obj.is_null() {
@@ -90,73 +96,96 @@ impl GPU {
                     let c_str = std::ffi::CStr::from_ptr(utf8_string as *const i8);
                     let name = c_str.to_string_lossy().into_owned();
                     Ok(name)
-                })
-            });
-        }
+                });
+            }
 
-        // Final fallback
-        Ok("Unknown GPU".to_string())
+            // Final fallback
+            Ok("Unknown GPU".to_string())
+        })
     }
 
     pub fn metrics(&self) -> Result<GpuMetrics> {
-        // Get stats from IOKit
-        let gpu_stats = self.iokit.get_gpu_stats()?;
+        // Wrap all IOKit calls in an autorelease pool
+        autorelease_pool(|| {
+            // Get GPU stats from IOKit in an autoreleased context
+            let gpu_stats = self.iokit.get_gpu_stats()?;
 
-        // Try to get temperature
-        let temperature = match self.iokit.get_gpu_temperature() {
-            Ok(temp) => Some(temp as f32),
-            Err(_) => None,
-        };
+            // Create a metrics object to fill in
+            let mut metrics = GpuMetrics::default();
 
-        let memory = GpuMemoryInfo {
-            total: gpu_stats.memory_total,
-            used: gpu_stats.memory_used,
-            free: gpu_stats.memory_total.saturating_sub(gpu_stats.memory_used),
-        };
+            // Set name
+            metrics.name = if !gpu_stats.name.is_empty() {
+                gpu_stats.name 
+            } else {
+                "Unknown GPU".to_string()
+            };
 
-        // Fallback for memory if needed
-        let memory = if memory.total == 0 {
-            GpuMemoryInfo {
-                total: MAX_GPU_MEMORY,
-                used: 0,
-                free: MAX_GPU_MEMORY,
+            // Set utilization
+            metrics.utilization = gpu_stats.utilization as f32;
+
+            // Set memory info
+            let mut memory = GpuMemoryInfo {
+                total: gpu_stats.memory_total,
+                used: gpu_stats.memory_used,
+                free: gpu_stats.memory_total.saturating_sub(gpu_stats.memory_used),
+            };
+
+            // Fallback for memory if needed
+            if memory.total == 0 {
+                memory = GpuMemoryInfo {
+                    total: MAX_GPU_MEMORY,
+                    used: 0,
+                    free: MAX_GPU_MEMORY,
+                };
             }
-        } else {
-            memory
-        };
+            
+            metrics.memory = memory;
 
-        Ok(GpuMetrics {
-            name: gpu_stats.name,
-            utilization: gpu_stats.utilization as f32,
-            memory,
-            temperature,
-            power_usage: None, // We'll implement this in the future
+            // Set temperature in a separate autorelease context
+            metrics.temperature = match self.iokit.get_gpu_temperature() {
+                Ok(temp) => Some(temp as f32),
+                Err(_) => None,
+            };
+
+            // Power usage not yet implemented
+            metrics.power_usage = None;
+
+            Ok(metrics)
         })
     }
 
     pub fn memory_info(&self) -> Result<GpuMemoryInfo> {
-        let gpu_stats = self.iokit.get_gpu_stats()?;
+        // Wrap IOKit call in an autorelease pool
+        autorelease_pool(|| {
+            let gpu_stats = self.iokit.get_gpu_stats()?;
 
-        let total = if gpu_stats.memory_total > 0 {
-            gpu_stats.memory_total
-        } else {
-            MAX_GPU_MEMORY
-        };
+            let total = if gpu_stats.memory_total > 0 {
+                gpu_stats.memory_total
+            } else {
+                MAX_GPU_MEMORY
+            };
 
-        let used = gpu_stats.memory_used;
-        let free = total.saturating_sub(used);
+            let used = gpu_stats.memory_used;
+            let free = total.saturating_sub(used);
 
-        Ok(GpuMemoryInfo { total, used, free })
+            Ok(GpuMemoryInfo { total, used, free })
+        })
     }
 
     pub fn utilization(&self) -> Result<f32> {
-        let gpu_stats = self.iokit.get_gpu_stats()?;
-        Ok(gpu_stats.utilization as f32)
+        // Wrap IOKit call in an autorelease pool
+        autorelease_pool(|| {
+            let gpu_stats = self.iokit.get_gpu_stats()?;
+            Ok(gpu_stats.utilization as f32)
+        })
     }
 
     pub fn temperature(&self) -> Result<f32> {
-        let temp = self.iokit.get_gpu_temperature()?;
-        Ok(temp as f32)
+        // Wrap IOKit call in an autorelease pool
+        autorelease_pool(|| {
+            let temp = self.iokit.get_gpu_temperature()?;
+            Ok(temp as f32)
+        })
     }
 
     pub fn power_usage(&self) -> Result<f32> {

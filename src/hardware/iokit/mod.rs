@@ -82,7 +82,13 @@ pub trait IOKit: Send + Sync + std::fmt::Debug {
     ) -> Option<i64>;
     fn get_bool_property(&self, dict: &NSDictionary<NSString, NSObject>, key: &str)
         -> Option<bool>;
+    fn get_dict_property(
+        &self,
+        dict: &NSDictionary<NSString, NSObject>,
+        key: &str,
+    ) -> Option<Retained<NSDictionary<NSString, NSObject>>>;
     fn get_service(&self, name: &str) -> Result<Retained<AnyObject>>;
+    fn io_registry_entry_get_parent(&self, entry: &AnyObject) -> Option<Retained<AnyObject>>;
 
     // Temperature related methods
     fn get_cpu_temperature(&self) -> Result<f64>;
@@ -342,6 +348,62 @@ impl IOKit for IOKitImpl {
             dict.valueForKey(&key)
                 .and_then(|obj| obj.downcast::<NSNumber>().ok())
                 .map(|n| n.as_bool())
+        }
+    }
+
+    fn get_dict_property(
+        &self,
+        dict: &NSDictionary<NSString, NSObject>,
+        key: &str,
+    ) -> Option<Retained<NSDictionary<NSString, NSObject>>> {
+        let key = NSString::from_str(key);
+        unsafe {
+            if let Some(obj) = dict.valueForKey(&key) {
+                // Try to convert the object to a NSDictionary
+                // Use isKindOfClass directly
+                let cls = class!(NSDictionary);
+                let is_dict: bool = msg_send![&obj, isKindOfClass: cls];
+                if is_dict {
+                    // Get the raw pointer
+                    let obj_ref: &NSObject = &obj;
+                    let dict_ptr = obj_ref as *const NSObject as *mut NSDictionary<NSString, NSObject>;
+                    return Retained::from_raw(dict_ptr);
+                }
+            }
+            None
+        }
+    }
+
+    fn io_registry_entry_get_parent(&self, entry: &AnyObject) -> Option<Retained<AnyObject>> {
+        use std::os::raw::c_uint;
+        
+        extern "C" {
+            fn IORegistryEntryGetParentEntry(
+                entry: c_uint,
+                plane: *const c_char,
+                parent: *mut c_uint,
+            ) -> i32;
+        }
+        
+        unsafe {
+            let entry_id = entry as *const AnyObject as c_uint;
+            let mut parent_id: c_uint = 0;
+            
+            // Get the parent in the IOService plane
+            let plane = CString::new("IOService").unwrap();
+            let result = IORegistryEntryGetParentEntry(
+                entry_id, 
+                plane.as_ptr(), 
+                &mut parent_id
+            );
+            
+            if result != IO_RETURN_SUCCESS || parent_id == 0 {
+                return None;
+            }
+            
+            // Create an AnyObject from the parent ID
+            let parent_ptr = parent_id as *mut AnyObject;
+            Retained::from_raw(parent_ptr)
         }
     }
 

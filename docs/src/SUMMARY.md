@@ -7,7 +7,8 @@
 
 - [CPU Monitoring](./modules/cpu.md)
 - [Memory Analysis](./modules/memory.md)
-- [GPU Information](./modules/gpu.md)
+- [GPU Metrics](./modules/gpu.md)
+- [Disk Monitoring](./modules/disk.md)
 - [Network Monitoring](./modules/network.md)
 - [Process Monitoring](./modules/process.md)
 - [Thermal Sensors](./modules/thermal.md)

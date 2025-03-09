@@ -113,6 +113,7 @@
 //!
 
 pub mod battery;
+pub mod disk;
 pub mod error;
 pub mod hardware;
 pub mod network;
@@ -122,6 +123,7 @@ pub mod system;
 pub mod utils;
 
 pub use battery::*;
+pub use disk::*;
 pub use hardware::*;
 pub use network::*;
 pub use power::*;
