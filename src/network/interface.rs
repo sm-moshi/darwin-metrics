@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::ffi::{c_void, CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::ptr;
+use std::time::Instant;
 
 use crate::error::{Error, Result};
 use crate::network::traffic::TrafficTracker;
 use crate::network::NetworkMetrics;
 use crate::utils::bindings::{
-    address_family, freeifaddrs, getifaddrs, if_data, if_flags, ifaddrs, sockaddr, sockaddr_dl,
-    sockaddr_in, sockaddr_in6, sysctlbyname,
+    address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr, sockaddr_dl,
+    sockaddr_in, sockaddr_in6,
 };
 
 /// Represents the type of network interface.
@@ -43,21 +44,24 @@ impl std::fmt::Display for InterfaceType {
 pub struct Interface {
     /// Name of the interface (e.g., "en0", "lo0")
     name: String,
-
+    
     /// Type of interface
     interface_type: InterfaceType,
-
+    
     /// Flags associated with this interface
     flags: u32,
-
+    
     /// MAC address, if available
     mac_address: Option<String>,
-
+    
     /// IP addresses associated with this interface
     addresses: Vec<IpAddr>,
-
+    
     /// Traffic statistics tracker
     traffic: TrafficTracker,
+    
+    /// Last update time
+    last_update: Instant,
 }
 
 impl Interface {
@@ -91,24 +95,25 @@ impl Interface {
                 send_errors,
                 collisions,
             ),
+            last_update: Instant::now(),
         }
     }
-
+    
     /// Get the name of this interface
     pub fn name(&self) -> &str {
         &self.name
     }
-
+    
     /// Get the type of this interface
     pub fn interface_type(&self) -> &InterfaceType {
         &self.interface_type
     }
-
+    
     /// Get the MAC address of this interface, if available
     pub fn mac_address(&self) -> Option<&str> {
         self.mac_address.as_deref()
     }
-
+    
     /// Get the IP addresses associated with this interface
     pub fn addresses(&self) -> Option<&[IpAddr]> {
         if self.addresses.is_empty() {
@@ -117,7 +122,7 @@ impl Interface {
             Some(&self.addresses)
         }
     }
-
+    
     /// Updates the traffic statistics for this interface.
     pub fn update_traffic(
         &mut self,
@@ -138,58 +143,59 @@ impl Interface {
             send_errors,
             collisions,
         );
+        self.last_update = Instant::now();
     }
-
+    
     /// Determines if the interface is active based on its flags.
     fn is_flag_set(&self, flag: u32) -> bool {
         (self.flags & flag) == flag
     }
-
+    
     /// Gets the packet receive rate in packets per second.
     pub fn packet_receive_rate(&self) -> f64 {
         self.traffic.packet_receive_rate()
     }
-
+    
     /// Gets the packet send rate in packets per second.
     pub fn packet_send_rate(&self) -> f64 {
         self.traffic.packet_send_rate()
     }
-
+    
     /// Gets the receive error rate (errors per packet).
     pub fn receive_error_rate(&self) -> f64 {
         self.traffic.receive_error_rate()
     }
-
+    
     /// Gets the send error rate (errors per packet).
     pub fn send_error_rate(&self) -> f64 {
         self.traffic.send_error_rate()
     }
-
+    
     /// Gets whether this is a loopback interface.
     pub fn is_loopback(&self) -> bool {
         self.is_flag_set(if_flags::IFF_LOOPBACK)
     }
-
+    
     /// Gets whether this interface supports broadcast.
     pub fn supports_broadcast(&self) -> bool {
         self.is_flag_set(if_flags::IFF_BROADCAST)
     }
-
+    
     /// Gets whether this interface supports multicast.
     pub fn supports_multicast(&self) -> bool {
         self.is_flag_set(if_flags::IFF_MULTICAST)
     }
-
+    
     /// Gets whether this is a point-to-point interface.
     pub fn is_point_to_point(&self) -> bool {
         self.is_flag_set(if_flags::IFF_POINTOPOINT)
     }
-
+    
     /// Gets whether this is a wireless interface.
     pub fn is_wireless(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_WIRELESS)
-            || self.interface_type == InterfaceType::WiFi
-            || self.name.starts_with("wl")
+        self.is_flag_set(if_flags::IFF_WIRELESS) ||
+        self.interface_type == InterfaceType::WiFi ||
+        self.name.starts_with("wl")
     }
 }
 
@@ -197,39 +203,39 @@ impl NetworkMetrics for Interface {
     fn bytes_received(&self) -> u64 {
         self.traffic.bytes_received()
     }
-
+    
     fn bytes_sent(&self) -> u64 {
         self.traffic.bytes_sent()
     }
-
+    
     fn packets_received(&self) -> u64 {
         self.traffic.packets_received()
     }
-
+    
     fn packets_sent(&self) -> u64 {
         self.traffic.packets_sent()
     }
-
+    
     fn receive_errors(&self) -> u64 {
         self.traffic.receive_errors()
     }
-
+    
     fn send_errors(&self) -> u64 {
         self.traffic.send_errors()
     }
-
+    
     fn collisions(&self) -> u64 {
         self.traffic.collisions()
     }
-
+    
     fn download_speed(&self) -> f64 {
         self.traffic.download_speed()
     }
-
+    
     fn upload_speed(&self) -> f64 {
         self.traffic.upload_speed()
     }
-
+    
     fn is_active(&self) -> bool {
         self.is_flag_set(if_flags::IFF_UP) && self.is_flag_set(if_flags::IFF_RUNNING)
     }
@@ -248,258 +254,309 @@ impl NetworkManager {
         let mut manager = Self {
             interfaces: HashMap::new(),
         };
-
-        manager.update()?;
+        
+        // Try to initialize interfaces, but continue even if it fails
+        if let Err(e) = manager.update() {
+            log::warn!("Failed to initialize network interfaces: {}", e);
+            // Continue with empty interface list rather than crashing
+        }
+        
         Ok(manager)
     }
-
+    
     /// Updates all network interfaces and their metrics.
     pub fn update(&mut self) -> Result<()> {
-        // Get new interface data
-        let interfaces = Self::get_interfaces()?;
-
-        // Update existing interfaces or add new ones
+        // Get network interfaces list
+        let interfaces = self.get_interfaces()?;
+        
         for interface in interfaces {
             let name = interface.name().to_string();
-
-            if let Some(existing) = self.interfaces.get_mut(&name) {
-                // Update existing interface
-                existing.update_traffic(
-                    interface.bytes_received(),
-                    interface.bytes_sent(),
-                    interface.packets_received(),
-                    interface.packets_sent(),
-                    interface.receive_errors(),
-                    interface.send_errors(),
-                    interface.collisions(),
-                );
-            } else {
-                // Add new interface
-                self.interfaces.insert(name, interface);
-            }
+            self.interfaces.insert(name, interface);
         }
-
+        
         Ok(())
     }
-
+    
     /// Gets all network interfaces.
     pub fn interfaces(&self) -> Vec<&Interface> {
         self.interfaces.values().collect()
     }
-
+    
     /// Gets a specific interface by name.
     pub fn get_interface(&self, name: &str) -> Option<&Interface> {
         self.interfaces.get(name)
     }
-
+    
     /// Gets the total download speed across all interfaces.
     pub fn total_download_speed(&self) -> f64 {
         self.interfaces.values().map(|i| i.download_speed()).sum()
     }
-
+    
     /// Gets the total upload speed across all interfaces.
     pub fn total_upload_speed(&self) -> f64 {
         self.interfaces.values().map(|i| i.upload_speed()).sum()
     }
-
-    /// Gets interface metrics using the getifaddrs() system call.
-    fn get_interfaces() -> Result<Vec<Interface>> {
-        let mut result = Vec::new();
-        let mut ifap: *mut ifaddrs = ptr::null_mut();
-
-        // Call getifaddrs to get the list of interfaces
-        unsafe {
-            if getifaddrs(&mut ifap) != 0 {
-                return Err(Error::Network(
-                    "Failed to get network interfaces".to_string(),
-                ));
+    
+    /// Gets network interfaces using the getifaddrs() system call.
+    fn get_interfaces(&self) -> Result<Vec<Interface>> {
+        // Store network interfaces
+        let mut interfaces = Vec::new();
+        
+        // First get addresses from getifaddrs()
+        let addresses = self.get_network_addresses()?;
+        
+        // Create a map to store interface details
+        let mut interface_map: HashMap<String, Interface> = HashMap::new();
+        
+        // Process all addresses
+        for (name, data) in addresses {
+            // If this interface is already in the map, update it
+            let (flags, mac_addr, ip_addrs) = data;
+            
+            if let Some(existing) = interface_map.get_mut(&name) {
+                // Only update mac_address if it's currently None and new address exists
+                if existing.mac_address.is_none() && mac_addr.is_some() {
+                    existing.mac_address = mac_addr;
+                }
+                
+                // Add all new IP addresses
+                for addr in ip_addrs {
+                    if !existing.addresses.contains(&addr) {
+                        existing.addresses.push(addr);
+                    }
+                }
+            } else {
+                // Create new interface
+                let interface_type = Self::determine_interface_type(&name, flags);
+                
+                let interface = Interface::new(
+                    name.clone(),
+                    interface_type,
+                    flags,
+                    mac_addr,
+                    ip_addrs,
+                    0, 0, 0, 0, 0, 0, 0, // Initial traffic stats are 0
+                );
+                
+                interface_map.insert(name, interface);
             }
-
-            // Safety: ifap was properly initialized by getifaddrs
-            let _ = scopeguard::guard(ifap, |ifap| {
+        }
+        
+        // Get existing traffic data
+        let existing_traffic = self.update_traffic_stats();
+        
+        // Process traffic data if we got it
+        if let Some(traffic_data) = existing_traffic {
+            for (name, (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions)) in traffic_data {
+                if let Some(interface) = interface_map.get_mut(&name) {
+                    // Update with real traffic stats
+                    interface.update_traffic(
+                        rx_bytes,
+                        tx_bytes,
+                        rx_packets,
+                        tx_packets,
+                        rx_errors,
+                        tx_errors,
+                        collisions,
+                    );
+                } else if !name.is_empty() {
+                    // If we have traffic data but no interface, create a placeholder
+                    let interface = Interface::new(
+                        name.clone(),
+                        InterfaceType::Other,
+                        0,  // No flags
+                        None,
+                        Vec::new(),
+                        rx_bytes,
+                        tx_bytes,
+                        rx_packets,
+                        tx_packets,
+                        rx_errors,
+                        tx_errors,
+                        collisions,
+                    );
+                    
+                    interface_map.insert(name, interface);
+                }
+            }
+        }
+        
+        // Convert map to vector
+        for (_, interface) in interface_map {
+            interfaces.push(interface);
+        }
+        
+        Ok(interfaces)
+    }
+    
+    /// Gets network addresses using getifaddrs().
+    fn get_network_addresses(&self) -> Result<HashMap<String, (u32, Option<String>, Vec<IpAddr>)>> {
+        let mut result = HashMap::new();
+        let mut ifap: *mut ifaddrs = ptr::null_mut();
+        
+        unsafe {
+            // Call getifaddrs() to get list of interfaces
+            if getifaddrs(&mut ifap) != 0 {
+                return Err(Error::Network("Failed to get network interfaces".to_string()));
+            }
+            
+            // Use scopeguard to ensure ifap is freed
+            let _guard = scopeguard::guard(ifap, |ifap| {
                 freeifaddrs(ifap);
             });
-
-            // Track interfaces we've seen to avoid duplicates
-            let mut seen_interfaces = HashMap::new();
-
-            // Iterate through the linked list of interfaces
+            
+            // Iterate through linked list of interfaces
             let mut current = ifap;
             while !current.is_null() {
                 let ifa = &*current;
-                let name = if ifa.ifa_name.is_null() {
+                
+                // Skip entries with null names
+                if ifa.ifa_name.is_null() {
+                    current = ifa.ifa_next;
                     continue;
-                } else {
-                    let c_name = CStr::from_ptr(ifa.ifa_name);
-                    c_name.to_string_lossy().to_string()
+                }
+                
+                // Get name as string
+                let name = match CStr::from_ptr(ifa.ifa_name).to_str() {
+                    Ok(s) => s.to_string(),
+                    Err(_) => {
+                        current = ifa.ifa_next;
+                        continue;
+                    }
                 };
-
-                // Skip invalid interfaces
+                
+                // Skip empty names
                 if name.is_empty() {
                     current = ifa.ifa_next;
                     continue;
                 }
-
-                // Process this interface
-                Self::process_interface(&mut seen_interfaces, ifa, &name)?;
-
-                // Move to the next interface
+                
+                // Get or create entry in result map
+                let entry = result.entry(name).or_insert_with(|| (ifa.ifa_flags, None, Vec::new()));
+                
+                // Process address if available
+                if !ifa.ifa_addr.is_null() {
+                    let addr = &*ifa.ifa_addr;
+                    
+                    match addr.sa_family {
+                        family if family == address_family::AF_INET => {
+                            // IPv4 address
+                            let addr_in = &*(ifa.ifa_addr as *mut sockaddr_in);
+                            let ip = Ipv4Addr::from(u32::from_be(addr_in.sin_addr.s_addr));
+                            entry.2.push(IpAddr::V4(ip));
+                        }
+                        family if family == address_family::AF_INET6 => {
+                            // IPv6 address
+                            let addr_in6 = &*(ifa.ifa_addr as *mut sockaddr_in6);
+                            let ip = Ipv6Addr::from(addr_in6.sin6_addr.s6_addr);
+                            entry.2.push(IpAddr::V6(ip));
+                        }
+                        family if family == address_family::AF_LINK => {
+                            // MAC address
+                            let addr_dl = &*(ifa.ifa_addr as *mut sockaddr_dl);
+                            
+                            let mac_len = addr_dl.sdl_alen as usize;
+                            if mac_len == 6 {
+                                let offset = addr_dl.sdl_nlen as usize;
+                                
+                                // Safety check for buffer size
+                                if offset + mac_len <= addr_dl.sdl_data.len() {
+                                    let mac_bytes = &addr_dl.sdl_data[offset..offset + mac_len];
+                                    
+                                    // Format MAC address
+                                    let mac = format!(
+                                        "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+                                        mac_bytes[0] as u8,
+                                        mac_bytes[1] as u8,
+                                        mac_bytes[2] as u8,
+                                        mac_bytes[3] as u8,
+                                        mac_bytes[4] as u8,
+                                        mac_bytes[5] as u8
+                                    );
+                                    
+                                    entry.1 = Some(mac);
+                                }
+                            }
+                        }
+                        _ => {} // Ignore other address families
+                    }
+                }
+                
                 current = ifa.ifa_next;
             }
-
-            // Convert the HashMap to a Vec
-            for (_, interface) in seen_interfaces {
-                result.push(interface);
-            }
         }
-
+        
         Ok(result)
     }
-
-    /// Processes a single interface from the getifaddrs list.
-    unsafe fn process_interface(
-        seen_interfaces: &mut HashMap<String, Interface>,
-        ifa: &ifaddrs,
-        name: &str,
-    ) -> Result<()> {
-        // Get or create interface entry
-        let interface = seen_interfaces.entry(name.to_string()).or_insert_with(|| {
-            let interface_type = Self::determine_interface_type(name, ifa.ifa_flags);
-
-            // Initialize with zeros, we'll get real data later
-            Interface::new(
-                name.to_string(),
-                interface_type,
-                ifa.ifa_flags,
-                None,
-                Vec::new(),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            )
-        });
-
-        // Process address information
-        if !ifa.ifa_addr.is_null() {
-            Self::process_address(interface, ifa.ifa_addr);
+    
+    /// Updates traffic stats using a safer approach.
+    ///
+    /// Instead of using sysctlbyname which is causing issues,
+    /// we'll use command line tools and parse the output.
+    fn update_traffic_stats(&self) -> Option<HashMap<String, (u64, u64, u64, u64, u64, u64, u64)>> {
+        // This is a fallback method that's safer than sysctlbyname
+        // On macOS, we can use netstat to get network statistics
+        let output = std::process::Command::new("netstat")
+            .args(&["-ib"])
+            .output()
+            .ok()?;
+        
+        if !output.status.success() {
+            return None;
         }
-
-        // Get interface statistics using sysctl
-        Self::update_interface_stats(interface)?;
-
-        Ok(())
+        
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        
+        // Parse the output
+        let mut result = HashMap::new();
+        
+        // Skip the header line
+        let lines = output_str.lines().skip(1);
+        
+        for line in lines {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            
+            // Check if the line has enough parts
+            if parts.len() < 10 {
+                continue;
+            }
+            
+            // Get interface name
+            let name = parts[0].to_string();
+            
+            // Try to parse network stats
+            // Columns are: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Coll
+            let rx_packets = parts[4].parse::<u64>().unwrap_or(0);
+            let rx_errors = parts[5].parse::<u64>().unwrap_or(0);
+            let rx_bytes = parts[6].parse::<u64>().unwrap_or(0);
+            let tx_packets = parts[7].parse::<u64>().unwrap_or(0);
+            let tx_errors = parts[8].parse::<u64>().unwrap_or(0);
+            let tx_bytes = parts[9].parse::<u64>().unwrap_or(0);
+            let collisions = if parts.len() > 10 { parts[10].parse::<u64>().unwrap_or(0) } else { 0 };
+            
+            result.insert(name, (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions));
+        }
+        
+        Some(result)
     }
-
+    
     /// Determines the type of interface based on its name and flags.
     fn determine_interface_type(name: &str, flags: u32) -> InterfaceType {
         if (flags & if_flags::IFF_LOOPBACK) != 0 {
             InterfaceType::Loopback
         } else if name.starts_with("en") {
-            // On macOS, en0 is usually Ethernet, but could be WiFi
-            // A more accurate method would be to check IORegistry
-            if name == "en0" || name == "en1" {
-                // Simplified logic; in reality we should check if it's WiFi or Ethernet
+            // On macOS, en0 is usually WiFi
+            if name == "en0" {
                 InterfaceType::WiFi
             } else {
                 InterfaceType::Ethernet
             }
         } else if name.starts_with("wl") || name.starts_with("ath") {
             InterfaceType::WiFi
-        } else if name.starts_with("vnic") || name.starts_with("bridge") || name.starts_with("utun")
-        {
+        } else if name.starts_with("vnic") || name.starts_with("bridge") || name.starts_with("utun") {
             InterfaceType::Virtual
         } else {
             InterfaceType::Other
         }
-    }
-
-    /// Processes an address from the interface address structure.
-    unsafe fn process_address(interface: &mut Interface, addr_ptr: *mut sockaddr) {
-        let addr = &*addr_ptr;
-
-        match addr.sa_family {
-            family if family == address_family::AF_INET => {
-                // IPv4 address
-                let addr_in = &*(addr_ptr as *mut sockaddr_in);
-                let ip = Ipv4Addr::from(u32::from_be(addr_in.sin_addr.s_addr));
-                interface.addresses.push(IpAddr::V4(ip));
-            }
-            family if family == address_family::AF_INET6 => {
-                // IPv6 address
-                let addr_in6 = &*(addr_ptr as *mut sockaddr_in6);
-                let ip = Ipv6Addr::from(addr_in6.sin6_addr.s6_addr);
-                interface.addresses.push(IpAddr::V6(ip));
-            }
-            family if family == address_family::AF_LINK => {
-                // Link-layer (MAC) address
-                let addr_dl = &*(addr_ptr as *mut sockaddr_dl);
-
-                let mac_len = addr_dl.sdl_alen as usize;
-                if mac_len == 6 {
-                    // Typical MAC address length
-                    let offset = addr_dl.sdl_nlen as usize;
-                    let mac_bytes = &addr_dl.sdl_data[offset..offset + mac_len];
-
-                    // Format as MAC address "xx:xx:xx:xx:xx:xx"
-                    let mac = format!(
-                        "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-                        mac_bytes[0] as u8,
-                        mac_bytes[1] as u8,
-                        mac_bytes[2] as u8,
-                        mac_bytes[3] as u8,
-                        mac_bytes[4] as u8,
-                        mac_bytes[5] as u8
-                    );
-
-                    interface.mac_address = Some(mac);
-                }
-            }
-            _ => {} // Ignore other address families
-        }
-    }
-
-    /// Updates interface statistics using sysctl.
-    unsafe fn update_interface_stats(interface: &mut Interface) -> Result<()> {
-        // Create the sysctl name for this interface
-        let sysctl_name =
-            CString::new(format!("net.link.generic.system.ifdata.{}", interface.name)).map_err(
-                |_| Error::Network(format!("Invalid interface name: {}", interface.name)),
-            )?;
-
-        // Prepare variables for the sysctl call
-        let mut if_data_val: if_data = std::mem::zeroed();
-        let mut len = std::mem::size_of::<if_data>();
-
-        // Call sysctl to get the interface data
-        if sysctlbyname(
-            sysctl_name.as_ptr(),
-            &mut if_data_val as *mut _ as *mut c_void,
-            &mut len,
-            ptr::null(),
-            0,
-        ) != 0
-        {
-            return Err(Error::Network(format!(
-                "Failed to get statistics for interface {}",
-                interface.name
-            )));
-        }
-
-        // Update the interface with the retrieved statistics
-        interface.update_traffic(
-            if_data_val.ifi_ibytes as u64,
-            if_data_val.ifi_obytes as u64,
-            if_data_val.ifi_ipackets as u64,
-            if_data_val.ifi_opackets as u64,
-            if_data_val.ifi_ierrors as u64,
-            if_data_val.ifi_oerrors as u64,
-            if_data_val.ifi_collisions as u64,
-        );
-
-        Ok(())
     }
 }
