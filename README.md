@@ -22,20 +22,20 @@ A Rust library providing native access to macOS system metrics through low-level
 
 - **CPU Monitoring**
 
-  - Per-core usage statistics
-  - CPU model and frequency information
-  - System load metrics (user, system, idle)
+  - [x] Per-core usage statistics
+  - [x] CPU model and frequency information
+  - [x] System load metrics (user, system, idle)
 
 - **Memory Analysis**
 
-  - RAM usage and availability
-  - Swap space monitoring
-  - Memory pressure levels
+  - [x] RAM usage and availability
+  - [ ] Swap space monitoring
+  - [x] Memory pressure levels
 
 - **GPU Information**
-  - Active GPU model detection
-  - GPU utilization metrics
-  - VRAM consumption tracking
+  - [ ] Active GPU model detection
+  - [ ] GPU utilization metrics
+  - [ ] VRAM consumption tracking
 
 </td>
 <td>
@@ -44,20 +44,20 @@ A Rust library providing native access to macOS system metrics through low-level
 
 - **Storage Metrics**
 
-  - Disk space utilization
-  - I/O performance monitoring
-  - Read/write speed tracking
+  - [x] Disk space utilization
+  - [ ] I/O performance monitoring
+  - [x] Read/write speed tracking
 
 - **Power Management**
 
-  - Battery status and health
-  - Charging state detection
-  - Remaining battery time estimation
+  - [x] Battery status and health
+  - [x] Charging state detection
+  - [x] Remaining battery time estimation
 
 - **Thermal Monitoring**
-  - Fan speed readings
-  - CPU and GPU temperature tracking
-  - System-wide thermal status
+  - [x] Fan speed readings
+  - [x] CPU and GPU temperature tracking
+  - [x] System-wide thermal status
 
 </td>
 </tr>
@@ -68,14 +68,14 @@ A Rust library providing native access to macOS system metrics through low-level
 
 - **Process Information**
 
-  - Running process enumeration
-  - Per-process resource usage
-  - System uptime and version info
+  - [x] Running process enumeration
+  - [x] Per-process resource usage
+  - [x] System uptime and version info
 
 - **Network Monitoring**
-  - Interface discovery and state tracking
-  - Traffic statistics (bytes/packets sent/received)
-  - Bandwidth calculations
+  - [x] Interface discovery and state tracking
+  - [x] Traffic statistics (bytes/packets sent/received)
+  - [x] Bandwidth calculations
 
 </td>
 </tr>

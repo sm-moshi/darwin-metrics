@@ -12,7 +12,7 @@ keywords      = ["macos", "system", "metrics", "ffi", "swift"]
 categories    = ["os", "api-bindings"]
 readme        = "README.md"
 links         = "darwin_metrics"
-exclude       = [".github/", "coverage/", "target/", "CLAUDE.md", "**/.DS_Store"]
+exclude       = [".github/", "coverage/", "target/", "CLAUDE.md", "**/.DS_Store", ".DS_Store"]
 
 [lib]
 name       = "darwin_metrics"

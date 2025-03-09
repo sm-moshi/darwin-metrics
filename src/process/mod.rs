@@ -426,60 +426,65 @@ impl Process {
     pub async fn get_process_tree() -> crate::Result<Vec<(Self, usize)>> {
         // Start with all processes - use libproc directly to avoid sysctl errors
         let all_processes = Self::get_all_via_libproc().await?;
-
-        // Create a map of PID to process
-        let mut pid_to_process = std::collections::HashMap::new();
-        for process in all_processes {
-            pid_to_process.insert(process.pid, process);
-        }
-
-        // Create a map of parent PID to child PIDs
-        let mut parent_to_children = std::collections::HashMap::new();
-        for &pid in pid_to_process.keys() {
-            if let Ok(Some(parent_pid)) = Self::get_parent_pid(pid).await {
-                parent_to_children.entry(parent_pid).or_insert_with(Vec::new).push(pid);
+        
+        // Use a scope to limit the lifetime of temporary data structures
+        let result = {
+            // Create a map of PID to process
+            let mut pid_to_process = std::collections::HashMap::with_capacity(all_processes.len());
+            for process in all_processes {
+                pid_to_process.insert(process.pid, process);
             }
-        }
-
-        // Find root processes (usually PID 1 or processes with no parent)
-        let mut root_pids = Vec::new();
-        for &pid in pid_to_process.keys() {
-            if let Ok(ppid) = Self::get_parent_pid(pid).await {
-                if ppid.is_none()
-                    || ppid.unwrap() == 0
-                    || !pid_to_process.contains_key(&ppid.unwrap())
-                {
-                    root_pids.push(pid);
+    
+            // Create a map of parent PID to child PIDs
+            let mut parent_to_children = std::collections::HashMap::new();
+            for &pid in pid_to_process.keys() {
+                if let Ok(Some(parent_pid)) = Self::get_parent_pid(pid).await {
+                    parent_to_children.entry(parent_pid).or_insert_with(Vec::new).push(pid);
                 }
             }
-        }
-
-        // Build the tree using depth-first traversal
-        let mut result = Vec::new();
-        let mut stack = Vec::new();
-
-        // Push root processes to the stack with depth 0
-        for pid in root_pids {
-            if let Some(process) = pid_to_process.get(&pid) {
-                stack.push((process.clone(), 0));
-            }
-        }
-
-        // Perform depth-first traversal
-        while let Some((process, depth)) = stack.pop() {
-            result.push((process.clone(), depth));
-
-            // Push children to the stack with increased depth
-            if let Some(children) = parent_to_children.get(&process.pid) {
-                // Push in reverse order so they are processed in the original order
-                for &child_pid in children.iter().rev() {
-                    if let Some(child) = pid_to_process.get(&child_pid) {
-                        stack.push((child.clone(), depth + 1));
+    
+            // Find root processes (usually PID 1 or processes with no parent)
+            let mut root_pids = Vec::new();
+            for &pid in pid_to_process.keys() {
+                if let Ok(ppid) = Self::get_parent_pid(pid).await {
+                    if ppid.is_none()
+                        || ppid.unwrap() == 0
+                        || !pid_to_process.contains_key(&ppid.unwrap())
+                    {
+                        root_pids.push(pid);
                     }
                 }
             }
-        }
-
+    
+            // Build the tree using depth-first traversal
+            let mut result = Vec::with_capacity(pid_to_process.len());
+            let mut stack = Vec::new();
+    
+            // Push root processes to the stack with depth 0
+            for pid in root_pids {
+                if let Some(process) = pid_to_process.get(&pid) {
+                    stack.push((process.clone(), 0));
+                }
+            }
+    
+            // Perform depth-first traversal
+            while let Some((process, depth)) = stack.pop() {
+                result.push((process.clone(), depth));
+    
+                // Push children to the stack with increased depth
+                if let Some(children) = parent_to_children.get(&process.pid) {
+                    // Push in reverse order so they are processed in the original order
+                    for &child_pid in children.iter().rev() {
+                        if let Some(child) = pid_to_process.get(&child_pid) {
+                            stack.push((child.clone(), depth + 1));
+                        }
+                    }
+                }
+            }
+            
+            result
+        }; // End of scope - all temporary structures are dropped here
+        
         Ok(result)
     }
 }
@@ -700,5 +705,14 @@ mod tests {
                 "Note: Current process not found in process tree, this may be due to permissions"
             );
         }
+        
+        // Explicitly clear CPU_HISTORY to prevent memory leaks
+        {
+            let mut history = get_cpu_history();
+            history.clear();
+        }
+        
+        // Force drop of tree to clear memory
+        drop(tree);
     }
 }

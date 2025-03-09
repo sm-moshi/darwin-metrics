@@ -1,8 +1,18 @@
 use std::error::Error;
+use std::env;
+use std::path::Path;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=src/");
     println!("cargo:rerun-if-changed=build.rs");
+
+    // Stay within OUT_DIR for any file operations
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let out_path = Path::new(&out_dir);
+    println!("cargo:warning=OUT_DIR is: {}", out_path.display());
+    
+    // Ensure we're not creating any files in the source directory
+    // If needed, only write files to out_path.join("some_file")
 
     // Add framework search paths - order matters!
     println!(
