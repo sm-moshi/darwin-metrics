@@ -520,7 +520,7 @@ mod tests {
         let temp = Temperature::new();
         assert!(temp.sensors.is_empty());
         assert!(temp.fans.is_empty());
-        assert_eq!(temp.is_throttling, false);
+        assert!(!temp.is_throttling);
         assert_eq!(temp.cpu_power, None);
     }
 
@@ -535,7 +535,7 @@ mod tests {
         let temp = Temperature::with_config(config);
         assert_eq!(temp.config.poll_interval_ms, 5000);
         assert_eq!(temp.config.throttling_threshold, 90.0);
-        assert_eq!(temp.config.auto_refresh, false);
+        assert!(!temp.config.auto_refresh);
     }
 
     #[test]
@@ -719,12 +719,12 @@ mod tests {
 
         // Test default state
         let temp = Temperature::new();
-        assert_eq!(temp.is_throttling, false);
+        assert!(!temp.is_throttling);
 
         // Test setting the property manually
         let mut temp = Temperature::new();
         temp.is_throttling = true;
-        assert_eq!(temp.is_throttling, true);
+        assert!(temp.is_throttling);
     }
 
     #[test]
@@ -771,7 +771,7 @@ mod tests {
         assert_eq!(metrics.cpu_temperature, Some(42.5));
         assert_eq!(metrics.gpu_temperature, Some(55.0));
         assert_eq!(metrics.heatsink_temperature, Some(45.0));
-        assert_eq!(metrics.is_throttling, false);
+        assert!(!metrics.is_throttling);
         assert_eq!(metrics.cpu_power, Some(28.5));
         assert_eq!(metrics.fans.len(), 1);
         assert_eq!(metrics.fans[0].speed_rpm, 2000);

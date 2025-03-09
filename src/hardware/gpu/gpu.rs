@@ -48,11 +48,11 @@ impl GpuMetrics {
 }
 
 #[derive(Debug)]
-pub struct GPU {
+pub struct Gpu {
     iokit: Box<dyn IOKit>,
 }
 
-impl GPU {
+impl Gpu {
     pub fn new() -> Result<Self> {
         let iokit = Box::new(IOKitImpl);
         Ok(Self { iokit })
@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_gpu_initialization() {
-        let gpu = GPU::new();
+        let gpu = Gpu::new();
         assert!(gpu.is_ok(), "GPU initialization failed");
     }
 
@@ -120,7 +120,7 @@ mod tests {
         autoreleasepool(|_| {
             // Create a mock IOKit implementation
             let mut mock_iokit = MockIOKit::new();
-            
+
             // Set up expected behavior for get_gpu_stats
             mock_iokit.expect_get_gpu_stats().returning(|| {
                 Ok(GpuStats {
@@ -132,39 +132,53 @@ mod tests {
                     name: "Test GPU".to_string(),
                 })
             });
-            
+
             // Set up expected behavior for get_gpu_temperature
-            mock_iokit.expect_get_gpu_temperature().returning(|| {
-                Ok(65.0)
-            });
-            
+            mock_iokit
+                .expect_get_gpu_temperature()
+                .returning(|| Ok(65.0));
+
             // Create a GPU instance with our mock
-            let gpu = GPU {
+            let gpu = Gpu {
                 iokit: Box::new(mock_iokit),
             };
-            
+
             // Test get_metrics
             match gpu.get_metrics() {
                 Ok(metrics) => {
-                    assert_eq!(metrics.utilization, 50.0, "GPU utilization should match mock value");
-                    assert_eq!(metrics.temperature, 65.0, "GPU temperature should match mock value");
-                    assert_eq!(metrics.memory_total, 4 * 1024 * 1024 * 1024, "GPU memory total should match mock value");
-                    assert_eq!(metrics.memory_used, 1024 * 1024 * 1024, "GPU memory used should match mock value");
+                    assert_eq!(
+                        metrics.utilization, 50.0,
+                        "GPU utilization should match mock value"
+                    );
+                    assert_eq!(
+                        metrics.temperature, 65.0,
+                        "GPU temperature should match mock value"
+                    );
+                    assert_eq!(
+                        metrics.memory_total,
+                        4 * 1024 * 1024 * 1024,
+                        "GPU memory total should match mock value"
+                    );
+                    assert_eq!(
+                        metrics.memory_used,
+                        1024 * 1024 * 1024,
+                        "GPU memory used should match mock value"
+                    );
                     assert_eq!(metrics.name, "Test GPU", "GPU name should match mock value");
-                },
+                }
                 Err(e) => {
                     panic!("get_metrics failed with mocked IOKit: {:?}", e);
                 }
             }
         });
     }
-    
+
     #[test]
     fn test_gpu_memory_info_with_mock() {
         autoreleasepool(|_| {
             // Create a mock IOKit implementation
             let mut mock_iokit = MockIOKit::new();
-            
+
             // Set up expected behavior for get_gpu_stats
             mock_iokit.expect_get_gpu_stats().returning(|| {
                 Ok(GpuStats {
@@ -176,40 +190,59 @@ mod tests {
                     name: String::new(),
                 })
             });
-            
+
             // Create a GPU instance with our mock
-            let gpu = GPU {
+            let gpu = Gpu {
                 iokit: Box::new(mock_iokit),
             };
-            
+
             // Test memory_info
             match gpu.memory_info() {
                 Ok(memory_info) => {
-                    assert_eq!(memory_info.total, 8 * 1024 * 1024 * 1024, "GPU memory total should match mock value");
-                    assert_eq!(memory_info.used, 2 * 1024 * 1024 * 1024, "GPU memory used should match mock value");
-                    assert_eq!(memory_info.free, 6 * 1024 * 1024 * 1024, "GPU memory free should be calculated correctly");
-                    
+                    assert_eq!(
+                        memory_info.total,
+                        8 * 1024 * 1024 * 1024,
+                        "GPU memory total should match mock value"
+                    );
+                    assert_eq!(
+                        memory_info.used,
+                        2 * 1024 * 1024 * 1024,
+                        "GPU memory used should match mock value"
+                    );
+                    assert_eq!(
+                        memory_info.free,
+                        6 * 1024 * 1024 * 1024,
+                        "GPU memory free should be calculated correctly"
+                    );
+
                     // Verify memory constraints
                     assert!(memory_info.total > 0, "Total memory should be positive");
-                    assert!(memory_info.used <= memory_info.total, "Used memory should not exceed total");
-                    assert_eq!(memory_info.free, memory_info.total - memory_info.used, "Free memory should be correctly calculated");
-                },
+                    assert!(
+                        memory_info.used <= memory_info.total,
+                        "Used memory should not exceed total"
+                    );
+                    assert_eq!(
+                        memory_info.free,
+                        memory_info.total - memory_info.used,
+                        "Free memory should be correctly calculated"
+                    );
+                }
                 Err(e) => {
                     panic!("memory_info failed with mocked IOKit: {:?}", e);
                 }
             }
         });
     }
-    
+
     #[test]
     fn test_gpu_fallback_behavior() {
         // We have issues with GPU tests due to Objective-C memory management
         // So we'll just test minimal behavior to ensure it doesn't crash
         // without exercising the problematic methods
-        
+
         // Create a mock IOKit implementation
         let mut mock_iokit = MockIOKit::new();
-        
+
         // Set up minimal GPU stats
         mock_iokit.expect_get_gpu_stats().returning(|| {
             Ok(GpuStats {
@@ -221,22 +254,24 @@ mod tests {
                 name: String::new(),
             })
         });
-        
+
         // Temperature is always available
-        mock_iokit.expect_get_gpu_temperature().returning(|| {
-            Ok(0.0)
-        });
-        
+        mock_iokit
+            .expect_get_gpu_temperature()
+            .returning(|| Ok(0.0));
+
         // Just test that we can create a GPU instance with our mock
         // without actually calling the problematic methods
-        let _gpu = GPU {
+        let _gpu = Gpu {
             iokit: Box::new(mock_iokit),
         };
-        
+
         // The test passes if it doesn't crash
-        println!("GPU fallback behavior test completed without attempting to call problematic methods");
+        println!(
+            "GPU fallback behavior test completed without attempting to call problematic methods"
+        );
     }
-    
+
     // Test disabled due to memory safety issues with IOKit interface
     // which cause segmentation faults in certain environments
     #[ignore]

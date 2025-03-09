@@ -1,10 +1,10 @@
 use crate::error::{Error, Result};
 use crate::utils::bindings::{
-    IO_RETURN_SUCCESS, smc_key_from_chars, IOByteCount, IOConnectCallStructMethod,
-    IORegistryEntryCreateCFProperties, IOServiceClose, IOServiceGetMatchingService,
-    IOServiceMatching, IOServiceOpen, SMCKeyData_t, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES,
-    SMC_CMD_READ_KEYINFO, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER,
-    SMC_KEY_CPU_TEMP, SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM, SMC_KEY_FAN_SPEED, SMC_KEY_GPU_TEMP,
+    smc_key_from_chars, IOByteCount, IOConnectCallStructMethod, IORegistryEntryCreateCFProperties,
+    IOServiceClose, IOServiceGetMatchingService, IOServiceMatching, IOServiceOpen, SMCKeyData_t,
+    IO_RETURN_SUCCESS, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES, SMC_CMD_READ_KEYINFO,
+    SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER, SMC_KEY_CPU_TEMP,
+    SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM, SMC_KEY_FAN_SPEED, SMC_KEY_GPU_TEMP,
     SMC_KEY_HEATSINK_TEMP,
 };
 use objc2::class;
@@ -110,7 +110,7 @@ pub trait IOKit: Send + Sync + std::fmt::Debug {
     fn get_thermal_info(&self) -> Result<ThermalInfo>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct IOKitImpl;
 
 impl IOKitImpl {
@@ -360,13 +360,21 @@ impl IOKit for IOKitImpl {
         unsafe {
             if let Some(obj) = dict.valueForKey(&key) {
                 // Try to convert the object to a NSDictionary
-                // Use isKindOfClass directly
                 let cls = class!(NSDictionary);
                 let is_dict: bool = msg_send![&obj, isKindOfClass: cls];
+
                 if is_dict {
-                    // Get the raw pointer
+                    // Explicitly retain the object to ensure proper memory management
+                    // This is crucial because we're creating a new Retained<> from a reference
+                    let _: () = msg_send![&obj, retain];
+
+                    // Now create the Retained wrapper from the raw pointer
                     let obj_ref: &NSObject = &obj;
-                    let dict_ptr = obj_ref as *const NSObject as *mut NSDictionary<NSString, NSObject>;
+                    let dict_ptr =
+                        obj_ref as *const NSObject as *mut NSDictionary<NSString, NSObject>;
+
+                    // Retained::from_raw expects to receive ownership of a +1 retain count object,
+                    // which we've just done with the explicit retain above
                     return Retained::from_raw(dict_ptr);
                 }
             }
@@ -376,7 +384,7 @@ impl IOKit for IOKitImpl {
 
     fn io_registry_entry_get_parent(&self, entry: &AnyObject) -> Option<Retained<AnyObject>> {
         use std::os::raw::c_uint;
-        
+
         extern "C" {
             fn IORegistryEntryGetParentEntry(
                 entry: c_uint,
@@ -384,23 +392,19 @@ impl IOKit for IOKitImpl {
                 parent: *mut c_uint,
             ) -> i32;
         }
-        
+
         unsafe {
             let entry_id = entry as *const AnyObject as c_uint;
             let mut parent_id: c_uint = 0;
-            
+
             // Get the parent in the IOService plane
             let plane = CString::new("IOService").unwrap();
-            let result = IORegistryEntryGetParentEntry(
-                entry_id, 
-                plane.as_ptr(), 
-                &mut parent_id
-            );
-            
+            let result = IORegistryEntryGetParentEntry(entry_id, plane.as_ptr(), &mut parent_id);
+
             if result != IO_RETURN_SUCCESS || parent_id == 0 {
                 return None;
             }
-            
+
             // Create an AnyObject from the parent ID
             let parent_ptr = parent_id as *mut AnyObject;
             Retained::from_raw(parent_ptr)

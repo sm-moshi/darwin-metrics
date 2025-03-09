@@ -660,7 +660,10 @@ impl NetworkManager {
 
         // Try to initialize interfaces, but continue even if it fails
         if let Err(e) = manager.update_async().await {
-            log::warn!("Failed to initialize network interfaces asynchronously: {}", e);
+            log::warn!(
+                "Failed to initialize network interfaces asynchronously: {}",
+                e
+            );
             // Continue with empty interface list rather than crashing
         }
 

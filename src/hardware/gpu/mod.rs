@@ -38,13 +38,13 @@ pub struct GpuMetrics {
 }
 
 #[derive(Debug)]
-pub struct GPU {
+pub struct Gpu {
     iokit: Box<dyn IOKit>,
     // Keep the Metal device for future advanced metrics
     metal_device: Option<MTLDeviceRef>,
 }
 
-impl GPU {
+impl Gpu {
     pub fn new() -> Result<Self> {
         let iokit = Box::new(IOKitImpl);
 
@@ -115,7 +115,7 @@ impl GPU {
 
             // Set name
             metrics.name = if !gpu_stats.name.is_empty() {
-                gpu_stats.name 
+                gpu_stats.name
             } else {
                 "Unknown GPU".to_string()
             };
@@ -138,7 +138,7 @@ impl GPU {
                     free: MAX_GPU_MEMORY,
                 };
             }
-            
+
             metrics.memory = memory;
 
             // Set temperature in a separate autorelease context
@@ -195,7 +195,7 @@ impl GPU {
 }
 
 // We need to manually implement Drop to release the Metal device
-impl Drop for GPU {
+impl Drop for Gpu {
     fn drop(&mut self) {
         if let Some(device) = self.metal_device.take() {
             if !device.is_null() {
@@ -208,5 +208,5 @@ impl Drop for GPU {
     }
 }
 
-unsafe impl Send for GPU {}
-unsafe impl Sync for GPU {}
+unsafe impl Send for Gpu {}
+unsafe impl Sync for Gpu {}
