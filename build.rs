@@ -1,16 +1,41 @@
-use std::error::Error;
+use std::{env, error::Error};
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=src/");
     println!("cargo:rerun-if-changed=build.rs");
 
-    // Tell Rust that docsrs is a valid configuration flag
+    // Tell Rust that docsrs and use_stubs are valid configuration flags
     println!("cargo:rustc-check-cfg=cfg(docsrs)");
+    println!("cargo:rustc-check-cfg=cfg(use_stubs)");
 
-    // Skip linking macOS-specific libraries when building documentation on docs.rs
-    if cfg!(docsrs) {
-        println!("cargo:warning=Building for docs.rs, skipping macOS-specific linking");
+    // Get the target OS
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_else(|_| String::from("unknown"));
+
+    // Check if we're building for docs.rs or a non-macOS platform
+    let is_docs_rs = env::var("DOCS_RS").is_ok();
+    let is_non_macos = target_os != "macos";
+    
+    // Check if we're running llvm-cov
+    let is_coverage = std::env::args().any(|arg| arg.contains("llvm-cov"));
+
+    if is_docs_rs || is_non_macos {
+        println!(
+            "cargo:warning=Building for documentation or non-macOS platform. Skipping \
+             macOS-specific linking."
+        );
+
+        // Set custom cfg flags for docs.rs and stubs
+        if is_docs_rs {
+            println!("cargo:rustc-cfg=docsrs");
+        }
+        println!("cargo:rustc-cfg=use_stubs");
         return Ok(());
+    }
+    
+    // Enable skip-ffi-crashes feature if we're running coverage
+    if is_coverage {
+        println!("cargo:warning=Building with coverage instrumentation - enabling skip-ffi-crashes feature");
+        println!("cargo:rustc-cfg=feature=\"skip-ffi-crashes\"");
     }
 
     #[cfg(target_os = "macos")]

@@ -2,13 +2,14 @@
 
 ---
 
-## **HIGH PRIORITY: Pre-Release Checklist for 0.1.0**
+## **HIGH PRIORITY: Documentation and Release Management**
 
-> **IMPORTANT**: These items MUST be completed before releasing to crates.io
+> **IMPORTANT**: These items are for ongoing releases and documentation updates
 
 -   [x] **Version Consistency**
     -   [x] Update version in Cargo.toml from "0.0.1" to "0.1.0" to match README
     -   [x] Ensure consistent versioning across all documentation
+    -   [x] Keep html_root_url in lib.rs in sync with Cargo.toml version
 
 -   [x] **Feature Completion**
     -   [x] Complete the Disk module (marked as "Complete" in CLAUDE.md)
@@ -22,6 +23,7 @@
     -   [x] Add comprehensive documentation for the memory module
     -   [x] Ensure examples use the correct function signatures and have timeout limits
     -   [x] Verify API examples match actual code behavior
+    -   [x] Fix docs.rs compatibility issues for macOS-specific crate
 
 -   [x] **Testing Issues**
     -   [x] Fix disabled GPU tests causing SIGSEGV crashes
@@ -33,14 +35,16 @@
     -   [x] Create GitHub Actions workflow files
     -   [x] Set up proper CI pipeline referenced in README badge
     -   [x] Implement automated testing and release process
+    -   [x] Standardize toolchain usage (beta for linting, stable for building)
+    -   [x] Fix GitHub workflow compatibility issues
 
 -   [ ] **Critical Bugs**
     -   [x] Fix memory management issues with IOKit calls
     -   [x] Implement real system API calls instead of simulations
     -   [ ] Fix remaining clippy warnings about non-snake case fields (Optional - can be addressed post-release)
 
--   [x] **Final Steps**
-    -   [x] Update the changelog for 0.1.0 release
+-   [x] **Release Management**
+    -   [x] Update the changelog for each release
     -   [x] Move items from "Unreleased" to the proper version
     -   [x] Set up crates.io metadata and verify package information
 

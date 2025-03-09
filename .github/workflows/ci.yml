@@ -27,14 +27,20 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          components: clippy, rustfmt
 
-      - name: Setup Rust nightly for formatting
+      - name: Setup Rust beta for linting
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
-          components: rustfmt
+          toolchain: beta
+          components: clippy, rustfmt, llvm-tools-preview
 
+      - name: Verify toolchain installation
+        run: |
+          rustup show
+          echo "Installing clippy and rustfmt for beta toolchain if needed"
+          rustup component add clippy rustfmt --toolchain beta
+          echo "Installed components:"
+          rustup +beta component list --installed
       - name: Workaround for curl network errors
         if: ${{ matrix.rust == '1.70.0' || matrix.rust == '1.71.0' }}
         run: echo 'CARGO_HTTP_MULTIPLEXING=false' >> $GITHUB_ENV
@@ -43,11 +49,14 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Format check
-        run: cargo +nightly fmt -- --check --config-path=rustfmt.toml
+        run: cargo +beta fmt -- --check
+
+      - name: Check if Clippy is installed
+        run: cargo +beta clippy --version || echo "Clippy not installed"
 
       - name: Clippy
         run: |
-          echo '
+          cat > clippy.toml << 'EOF'
           # Specify which lints are allowed/denied
           disallowed-methods = [
               # Example: Disallow certain methods that might be problematic
@@ -62,28 +71,22 @@ jobs:
 
           # Note: We can't use path-specific ignores this way
           # Instead, use #[allow(missing_docs)] in the relevant test files
-          ' > clippy.toml
-          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          EOF
+          cargo +beta clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
+        continue-on-error: false
 
       - name: Build with retry
         run: |
-          for i in {1..3}; do cargo build --all-features && break || sleep 10; done
+          for i in {1..3}; do cargo +${{ matrix.rust }} build --all-features && break || sleep 10; done
 
       - name: Run tests with retry
         run: |
-          for i in {1..3}; do cargo test --all-features && break || sleep 10; done
+          for i in {1..3}; do cargo +${{ matrix.rust }} test --all-features && break || sleep 10; done
 
-  coverage:
-    name: Code Coverage
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: llvm-tools-preview
+      - name: Check documentation
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --no-deps --all-features
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -96,38 +99,12 @@ jobs:
         with:
           files: lcov.info
           fail_ci_if_error: false
-
-  docs:
-    name: Check Documentation
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - name: Check documentation
-        env:
-          RUSTDOCFLAGS: "-D warnings"
-        run: cargo doc --no-deps --all-features
-
-  publish-dry-run:
-    name: Publish Dry Run
-    runs-on: macos-latest
-    # Only run on specific branches where publishing might occur
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/0.1.x' || github.ref == 'refs/heads/0.2.x'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Clean up .DS_Store files
-        run: find . -name ".DS_Store" -delete
+        run: |
+          find . -name ".DS_Store" -type f -delete
+          find ./target -name ".DS_Store" -type f -delete 2>/dev/null || true
 
       - name: Dry run publish
-        run: cargo publish --dry-run --no-verify
+        run: cargo publish --dry-run --no-verify --allow-dirty

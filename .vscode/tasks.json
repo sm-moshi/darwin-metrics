@@ -1,0 +1,105 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cargo build",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["build"],
+      "problemMatcher": ["$rustc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "cargo build (release)",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["build", "--release"],
+      "problemMatcher": ["$rustc"],
+      "group": "build"
+    },
+    {
+      "label": "cargo test",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["test"],
+      "problemMatcher": ["$rustc"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "cargo test (with output)",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["test", "--", "--nocapture"],
+      "problemMatcher": ["$rustc"],
+      "group": "test"
+    },
+    {
+      "label": "cargo check",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["check", "--all-targets"],
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "cargo clippy",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["+beta", "clippy"],
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "cargo fmt",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["+beta", "fmt"],
+      "problemMatcher": []
+    },
+    {
+      "label": "cargo llvm-cov",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["llvm-cov", "--lcov", "--output-path", "coverage/lcov.info"],
+      "problemMatcher": ["$rustc"],
+      "group": "test"
+    },
+    {
+      "label": "cargo doc",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["doc", "--open"],
+      "problemMatcher": ["$rustc"],
+      "group": "build"
+    },
+    {
+      "label": "run example",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["run", "--example", "${input:exampleName}"],
+      "problemMatcher": ["$rustc"],
+      "group": "build"
+    },
+  ],
+  "inputs": [
+    {
+      "id": "exampleName",
+      "type": "pickString",
+      "description": "Which example would you like to run?",
+      "options": [
+        "disk_monitor",
+        "gpu_monitor_safe",
+        "gpu_monitor_simplified",
+        "gpu_static",
+        "memory_monitor",
+        "memory_monitor_async",
+        "network_async",
+        "network_info"
+      ]
+    }
+  ]
+}

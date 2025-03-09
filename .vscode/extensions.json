@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    "tamasfe.even-better-toml",
+    "serayuzgur.crates",
+    "ryanluker.vscode-coverage-gutters",
+    "ms-vscode.hexeditor",
+    "swellaby.vscode-rust-test-adapter",
+    "usernamehw.errorlens",
+    "gruntfuggly.todo-tree",
+    "matklad.rust-analyzer",
+    "mutantdino.resourcemonitor"
+  ]
+}

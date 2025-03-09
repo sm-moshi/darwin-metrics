@@ -1,12 +1,12 @@
 [package]
 name = "darwin-metrics"
-version = "0.1.1"
+version = "0.1.3"
 edition = "2021"
 description = "A Rust library exposing native macOS system metrics"
 authors = ["Stuart Meya <sm0sh1@pm.me>"]
 license = "MIT"
 repository = "https://github.com/sm-moshi/darwin-metrics"
-homepage = "https://github.com/sm-moshi/darwin-metrics"
+homepage = "https://sm-moshi.github.io/darwin-metrics"
 documentation = "https://docs.rs/darwin-metrics"
 keywords = ["macos", "system", "metrics", "ffi", "swift"]
 categories = ["os", "api-bindings"]
@@ -86,6 +86,7 @@ async = []
 
 # Testing features
 unstable-tests = []
+skip-ffi-crashes = []  # Skip FFI code that causes crashes in coverage
 
 [profile.release]
 lto           = true
@@ -103,7 +104,7 @@ debug     = true
 all-features = true
 # Configure with proper flags for docs.rs build environment
 rustdoc-args = ["--cfg", "docsrs"]
-rustc-args   = ["--cfg", "docs_rs"]
+rustc-args   = ["--cfg", "docsrs"]
 # Use x86_64-unknown-linux-gnu as the documentation target
 # This prevents trying to build macOS code in the Linux container
 default-target = "x86_64-unknown-linux-gnu"

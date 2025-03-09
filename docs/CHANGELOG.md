@@ -7,13 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Unreleased - Added
 
 - None yet
 
+## [0.1.3] - 2025-03-09
+
+### 0.1.3 - Fixed
+
+- Fixed docs.rs build issues by ensuring proper configuration flags are set
+- Made toolchain usage consistent (beta for linting, stable for building)
+- Improved GitHub CI workflow to properly handle linting and formatting
+- Fixed HTML root URL version consistency
+- Updated build.rs to correctly handle docs.rs environment
+
+## [0.1.2] - 2025-03-09
+
+### 0.1.2 - Fixed
+
+- Fixed docs.rs compatibility issues
+- Improved release workflow for macOS-specific crate
+
+## [0.1.1] - 2025-03-09
+
+### 0.1.1 - Changed
+
+- Applied formatting via rustfmt
+- Improved GitHub CI workflow
+
 ## [0.1.0] - 2025-03-09
 
-### Added
+### 0.1.0 - Added
 
 - Completed Network module implementation with:
   - Network interface discovery using getifaddrs
@@ -25,15 +49,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Upload/download speed calculations
   - Interface state monitoring
 - Added comprehensive network module documentation with usage examples
-- Created example program demonstrating network monitoring capabilities
-- Completed Temperature module implementation with:
+- Added comprehensive Temperature module implementation with:
   - Fan speed tracking with RPM values and utilization percentage
   - Multiple thermal zone monitoring (CPU, GPU, heatsink, ambient, battery)
   - Thermal throttling detection via SMC keys
   - Efficient temperature polling with configurable intervals
   - Comprehensive thermal metrics collection API
   - Fan control and monitoring capabilities
-- Completed Memory module implementation with:
+- Added comprehensive Memory module implementation with:
   - System memory tracking with detailed page state information
   - Memory pressure monitoring with configurable thresholds and callbacks
   - Swap usage tracking with pressure indicators
@@ -44,9 +67,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First public release with core functionality for CPU, GPU, memory, network, and thermal monitoring
 - GitHub Actions CI/CD pipeline for automated testing and releases
 
+### 0.1.0 - Changed
+
+- Refactored GPU module to be more resilient against hardware access failures
+- Simplified Objective-C message sending pattern to avoid UnwindSafe trait issues
+- Updated CLAUDE.md with improved development guidelines from Cursor rules
+- Enhanced CPU module with testable implementation patterns
+- Completely reimplemented IOKit interface to properly bridge with macOS APIs
+- Improved IOKit interface with proper SMC key temperature reading
+- Refactored Temperature module to use the new IOKit SMC implementation
+- Enhanced hardware temperature module with comprehensive sensor reading capabilities
+- Reimplemented GPU metrics collection to reduce dependency on Metal API
+- Improved GPU module error handling with proper fallbacks for different hardware configurations
+- Enhanced GPU module to work better with Apple Silicon's unified memory architecture
+- Improved memory management in IOKit interfaces with autoreleasepools
+- Fixed problematic GPU tests that caused SIGSEGV crashes during test execution
+- Centralized all FFI bindings in `src/utils/bindings.rs` for better maintainability
+  - Moved Metal framework bindings to central location
+  - Moved all statfs and filesystem bindings
+  - Added system process bindings
+  - Centralized all sysctl functions
+- Enhanced memory module with async support and resilient fallbacks
+- Improved swap usage tracking with better error handling in test environments
+- Refactored IOKit, System, and Memory modules to use centralized bindings
+- Enhanced lib.rs with comprehensive documentation for docs.rs compatibility
+- Improved error handling for FFI functions with explicit error messages
+
 ## [0.0.x] - Previous Iterations
 
-### Fixed
+### 0.0.x - Fixed
 
 - Fixed compilation errors in GPU module by resolving trait bound issues with `msg_send` macro
 - Resolved issues with Chart struct references by providing a metrics_summary method instead
@@ -60,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed type casting issues in IOKit bindings with proper ffi_c_void types
 - Resolved duplicate sysctl definitions across multiple modules
 
-### Added
+### 0.0.x - Added
 
 - Added better error handling for GPU device initialization
 - Added fallback values for GPU metrics when hardware access fails
@@ -101,7 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added comprehensive CPU module documentation with usage examples
 - Added comprehensive Network module documentation with usage examples
 
-### Changed
+### 0.0.x - Changed
 
 - Refactored GPU module to be more resilient against hardware access failures
 - Simplified Objective-C message sending pattern to avoid UnwindSafe trait issues
@@ -143,10 +192,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Verify AppleACPICPU service compatibility with Objective-C method calls (`numberOfCores`, `numberOfProcessorCores`, etc.)
 
 - System Integration Issues:
+
   - Add support for individual core temperature sensors through additional SMC keys
   - Fix system module API calls to properly detect M1/M2/M3 chip variants
   - Add support for additional SMC temperature sensors (battery, SSD, etc.)
   - Extend fan speed monitoring with RPM conversion for different fan types
+
 - GPU Advanced Metrics (Future):
 
   - Implement detailed GPU utilization metrics using Metal Performance Shaders

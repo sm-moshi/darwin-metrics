@@ -1,5 +1,11 @@
-#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.1")]
+#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.3")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+// Explicitly configure for platform-specific code
+#![cfg_attr(not(target_os = "macos"), allow(unused_imports))]
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#![cfg_attr(not(target_os = "macos"), allow(unused_variables))]
+// Allow unwrap() in test code since tests can safely panic
+#![cfg_attr(test, allow(clippy::disallowed_methods))]
 
 /// # darwin-metrics
 ///
@@ -24,7 +30,7 @@
 ///
 /// ```toml
 /// [dependencies]
-/// darwin-metrics = "0.1.1"
+/// darwin-metrics = "0.1.2"
 /// ```
 ///
 /// ## Requirements
@@ -122,12 +128,12 @@
 // When building on docs.rs, we provide stub implementations
 // that allow the documentation to be generated without actually
 // accessing macOS APIs, which are not available in the docs.rs environment.
-#[cfg(docsrs)]
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 mod docs_rs_stubs;
 
 // This macro is used throughout the codebase to conditionally compile code
 // for docs.rs, which runs on Linux and cannot access macOS APIs
-#[cfg(docsrs)]
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 macro_rules! docs_rs_only {
     ($($item:item)*) => {
         $(
@@ -148,47 +154,38 @@ pub mod system;
 pub mod utils;
 
 // Re-export the core error types for easier use
-#[doc(inline)]
-pub use error::{Error, Result};
-
 // Re-export primary modules for direct access
-#[cfg(not(docsrs))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
 #[doc(inline)]
 pub use battery::Battery;
-
-#[cfg(not(docsrs))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
 #[doc(inline)]
 pub use disk::{Disk, DiskConfig, DiskType};
-
-#[cfg(not(docsrs))]
-#[doc(inline)]
-pub use hardware::cpu::{FrequencyMetrics, CPU};
-
-#[cfg(not(docsrs))]
-#[doc(inline)]
-pub use hardware::gpu::{Gpu, GpuMetrics};
-
-#[cfg(not(docsrs))]
-#[doc(inline)]
-pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
-
-#[cfg(not(docsrs))]
-#[doc(inline)]
-pub use hardware::temperature::{Fan, Temperature, ThermalMetrics};
-
-#[cfg(not(docsrs))]
-#[doc(inline)]
-pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
-
-#[cfg(not(docsrs))]
-#[doc(inline)]
-pub use process::{Process, ProcessInfo};
-
 // When building on docs.rs, use the stub implementations instead
-#[cfg(docsrs)]
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 #[doc(inline)]
 pub use docs_rs_stubs::{
     Battery, Disk, DiskConfig, DiskType, Fan, FrequencyMetrics, Gpu, GpuMetrics, Memory,
     NetworkInterface, NetworkTraffic, PageStates, PressureLevel, Process, ProcessInfo, SwapUsage,
     Temperature, ThermalMetrics, CPU,
 };
+#[doc(inline)]
+pub use error::{Error, Result};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use hardware::cpu::{FrequencyMetrics, CPU};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use hardware::gpu::{Gpu, GpuMetrics};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use hardware::temperature::{Fan, Temperature, ThermalMetrics};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[doc(inline)]
+pub use process::{Process, ProcessInfo};
