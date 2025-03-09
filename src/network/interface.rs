@@ -12,6 +12,10 @@ use crate::utils::bindings::{
     sockaddr_in6,
 };
 
+// Type aliases to reduce clippy::type_complexity warnings
+type NetworkAddressMap = HashMap<String, (u32, Option<String>, Vec<IpAddr>)>;
+type TrafficStatsMap = HashMap<String, (u64, u64, u64, u64, u64, u64, u64)>;
+
 /// Represents the type of network interface.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterfaceType {
@@ -80,6 +84,7 @@ pub struct Interface {
 
 impl Interface {
     /// Creates a new Interface with the given name, type, and initial metrics.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         interface_type: InterfaceType,
@@ -138,6 +143,7 @@ impl Interface {
     }
 
     /// Updates the traffic statistics for this interface.
+    #[allow(clippy::too_many_arguments)]
     pub fn update_traffic(
         &mut self,
         bytes_received: u64,
@@ -450,7 +456,8 @@ impl NetworkManager {
     }
 
     /// Gets network addresses using getifaddrs().
-    fn get_network_addresses(&self) -> Result<HashMap<String, (u32, Option<String>, Vec<IpAddr>)>> {
+    fn get_network_addresses(&self) -> Result<NetworkAddressMap> {
+        // Using type alias defined at the top of the file
         let mut result = HashMap::new();
         let mut ifap: *mut ifaddrs = ptr::null_mut();
 
@@ -557,7 +564,8 @@ impl NetworkManager {
     ///
     /// Instead of using sysctlbyname which is causing issues,
     /// we'll use command line tools and parse the output.
-    fn update_traffic_stats(&self) -> Option<HashMap<String, (u64, u64, u64, u64, u64, u64, u64)>> {
+    fn update_traffic_stats(&self) -> Option<TrafficStatsMap> {
+        // Using type alias defined at the top of the file
         // This is a fallback method that's safer than sysctlbyname
         // On macOS, we can use netstat to get network statistics
         let output = std::process::Command::new("netstat")

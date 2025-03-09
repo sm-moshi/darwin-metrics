@@ -9,7 +9,7 @@ pub const MAX_GPU_MEMORY: u64 = 16 * 1024 * 1024 * 1024;
 pub const MAX_UTILIZATION: f32 = 100.0;
 type MTLDeviceRef = *mut c_void;
 
-pub mod gpu;
+mod gpu;
 
 #[link(name = "Metal", kind = "framework")]
 extern "C" {

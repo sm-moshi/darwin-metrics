@@ -90,6 +90,7 @@ impl TrafficTracker {
     }
 
     /// Updates the traffic data and shifts current data to previous.
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
         bytes_received: u64,

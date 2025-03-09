@@ -65,7 +65,7 @@
 //! }
 //! ```
 
-mod cpu;
+pub mod cpu;
 mod frequency;
 
 pub use cpu::CPU;

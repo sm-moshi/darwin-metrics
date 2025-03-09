@@ -166,7 +166,7 @@ extern "C" {
 pub const KERNEL_INDEX_SMC: u32 = 2;
 pub const SMC_CMD_READ_BYTES: u8 = 5;
 pub const SMC_CMD_READ_KEYINFO: u8 = 9;
-pub const kIOReturnSuccess: i32 = 0;
+pub const IO_RETURN_SUCCESS: i32 = 0; // Renamed from kIOReturnSuccess to follow Rust naming convention
 
 // IOKit basic types
 #[repr(C)]
@@ -298,6 +298,7 @@ pub struct SMCKeyData_vers_t {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct SMCKeyData_pLimitData_t {
+    #[allow(non_snake_case)]
     pub pLimitData: SMCPLimitData,
     pub reserved: [u8; 10],
 }
@@ -317,7 +318,9 @@ pub union SMCKeyData_t_data {
     pub float: f32,
     pub sint16: i16,
     pub vers: SMCKeyData_vers_t,
+    #[allow(non_snake_case)]
     pub pLimit: SMCKeyData_pLimitData_t,
+    #[allow(non_snake_case)]
     pub keyInfo: SMCKeyData_keyInfo_t,
 }
 
@@ -334,7 +337,9 @@ impl Copy for SMCKeyData_t_data {}
 pub struct SMCKeyData_t {
     pub key: u32,
     pub vers: u8,
+    #[allow(non_snake_case)]
     pub pLimitData: u8,
+    #[allow(non_snake_case)]
     pub keyInfo: u8,
     pub padding: u8,
     pub result: u8,

@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::utils::bindings::{
-    kIOReturnSuccess, smc_key_from_chars, IOByteCount, IOConnectCallStructMethod,
+    IO_RETURN_SUCCESS, smc_key_from_chars, IOByteCount, IOConnectCallStructMethod,
     IORegistryEntryCreateCFProperties, IOServiceClose, IOServiceGetMatchingService,
     IOServiceMatching, IOServiceOpen, SMCKeyData_t, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES,
     SMC_CMD_READ_KEYINFO, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER,
@@ -124,7 +124,7 @@ impl IOKitImpl {
 
             let mut connection = 0u32;
             let result = IOServiceOpen(service_id, 0, KERNEL_INDEX_SMC, &mut connection);
-            if result != kIOReturnSuccess {
+            if result != IO_RETURN_SUCCESS {
                 return Err(Error::io_kit(format!(
                     "Failed to open SMC connection: {}",
                     result
@@ -158,7 +158,7 @@ impl IOKitImpl {
                 &mut output_size,
             );
 
-            if result != kIOReturnSuccess {
+            if result != IO_RETURN_SUCCESS {
                 IOServiceClose(connection);
                 return Err(Error::io_kit(format!(
                     "Failed to read SMC key info: {}",
@@ -181,7 +181,7 @@ impl IOKitImpl {
 
             IOServiceClose(connection);
 
-            if result != kIOReturnSuccess {
+            if result != IO_RETURN_SUCCESS {
                 return Err(Error::io_kit(format!(
                     "Failed to read SMC key data: {}",
                     result

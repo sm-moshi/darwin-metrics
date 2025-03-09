@@ -122,31 +122,35 @@ fn fetch_cpu_frequencies() -> Result<FrequencyMetrics> {
 }
 
 unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
-    let mut cpu_info = CpuInfo::default();
-
     // Get CPU frequency using proper MIBs
     // On macOS, "hw.cpufrequency" gives current CPU frequency in Hz
     // "hw.cpufrequency_min" gives min frequency, "hw.cpufrequency_max" gives max
 
-    // Convert to MHz
-    cpu_info.current_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency")? / 1_000_000.0;
-    cpu_info.min_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency_min")? / 1_000_000.0;
-    cpu_info.max_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency_max")? / 1_000_000.0;
+    // Convert Hz to MHz
+    let current_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency")? / 1_000_000.0;
+    let min_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency_min")? / 1_000_000.0;
+    let max_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency_max")? / 1_000_000.0;
 
     // For available frequencies, we use min/max and interpolate
     // since macOS doesn't provide a direct way to get all steps
-    if cpu_info.min_frequency > 0.0 && cpu_info.max_frequency > cpu_info.min_frequency {
-        let step = (cpu_info.max_frequency - cpu_info.min_frequency) / 4.0;
-        cpu_info.available_frequencies = vec![
-            cpu_info.min_frequency,
-            cpu_info.min_frequency + step,
-            cpu_info.min_frequency + step * 2.0,
-            cpu_info.min_frequency + step * 3.0,
-            cpu_info.max_frequency,
+    let mut available_frequencies = Vec::new();
+    if min_frequency > 0.0 && max_frequency > min_frequency {
+        let step = (max_frequency - min_frequency) / 4.0;
+        available_frequencies = vec![
+            min_frequency,
+            min_frequency + step,
+            min_frequency + step * 2.0,
+            min_frequency + step * 3.0,
+            max_frequency,
         ];
     }
 
-    Ok(cpu_info)
+    Ok(CpuInfo {
+        current_frequency,
+        min_frequency,
+        max_frequency,
+        available_frequencies,
+    })
 }
 
 unsafe fn fetch_sysctl_frequency_by_name(name: &str) -> Result<f64> {
@@ -182,6 +186,7 @@ unsafe fn fetch_sysctl_frequency_by_name(name: &str) -> Result<f64> {
 }
 
 // Kept for testing and as fallback
+#[allow(dead_code)]
 unsafe fn fetch_sysctl_frequency(mib1: i32, mib2: i32, mut size: usize) -> Result<f64> {
     let mut freq: u64 = 0;
     let result = libc::sysctl(

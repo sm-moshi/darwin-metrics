@@ -153,6 +153,7 @@ impl Battery {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_values(
         is_present: bool,
         is_charging: bool,

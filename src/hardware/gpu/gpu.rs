@@ -4,10 +4,12 @@ use crate::Result;
 use objc2::rc::autoreleasepool;
 use std::ffi::c_void;
 
+#[allow(dead_code)]
 type MTLDeviceRef = *mut c_void;
 
 #[link(name = "Metal", kind = "framework")]
 extern "C" {
+    #[allow(dead_code)]
     fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
 }
 
