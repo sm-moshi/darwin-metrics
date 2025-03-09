@@ -65,10 +65,10 @@
 //! }
 //! ```
 
-pub mod cpu;
+mod cpu_impl;
 mod frequency;
 
-pub use cpu::CPU;
+pub use cpu_impl::CPU;
 pub use frequency::{FrequencyMetrics, FrequencyMonitor};
 
 /// Maximum number of CPU cores supported by the library.

@@ -16,6 +16,7 @@ const BATTERY_TIME_REMAINING: &str = "TimeRemaining";
 const BATTERY_POWER_SOURCE: &str = "ExternalConnected";
 
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[non_exhaustive]
 pub enum PowerSource {
     Battery,
     AC,

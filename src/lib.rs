@@ -58,6 +58,8 @@
 //!
 //! ## Feature Flags
 //!
+//! ### Core Features (Enabled by Default)
+//! 
 //! - `battery` - Enable battery monitoring
 //! - `cpu` - Enable CPU metrics
 //! - `memory` - Enable memory statistics
@@ -65,8 +67,11 @@
 //! - `disk` - Enable storage metrics
 //! - `temperature` - Enable thermal monitoring
 //! - `async` - Enable async support (requires tokio)
-//! - `metrics-export` - Enable metrics export functionality
-//! - `cached-metrics` - Enable caching for expensive calls
+//!
+//! ### Additional Features
+//!
+//! - `process_monitoring` - Enable detailed process monitoring
+//! - `unstable-tests` - Enable tests that may be unstable in CI environments
 //!
 //! ## Module Structure
 //!
@@ -123,13 +128,33 @@ pub mod process;
 pub mod system;
 pub mod utils;
 
-pub use battery::*;
-pub use disk::*;
-// Re-export important types at the crate root
+// Re-export the core error types for easier use
+#[doc(inline)]
 pub use error::{Error, Result};
-pub use hardware::*;
-pub use network::*;
-pub use power::*;
-// Error is already re-exported below, so we don't need this line
-pub use process::*;
-pub use system::*;
+
+// Re-export primary modules for direct access
+#[doc(inline)]
+pub use battery::Battery;
+
+#[doc(inline)]
+pub use disk::{Disk, DiskConfig, DiskType};
+
+#[doc(inline)]
+pub use hardware::cpu::{CPU, FrequencyMetrics};
+
+#[doc(inline)]
+pub use hardware::gpu::{Gpu, GpuMetrics}; 
+
+#[doc(inline)]
+pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
+
+#[doc(inline)]
+pub use hardware::temperature::{Temperature, ThermalMetrics, Fan};
+
+#[doc(inline)]
+pub use network::interface::Interface as NetworkInterface;
+#[doc(inline)]
+pub use network::traffic::TrafficData as NetworkTraffic;
+
+#[doc(inline)]
+pub use process::{Process, ProcessInfo};

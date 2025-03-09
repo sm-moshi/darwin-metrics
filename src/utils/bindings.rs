@@ -262,6 +262,7 @@ pub struct SMCKeyData_pLimitData_t {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct SMCKeyData_keyInfo_t {
+    #[allow(non_snake_case)]
     pub data_size: u32,
     pub data_type: [u8; 4],
     pub data_attributes: u8,

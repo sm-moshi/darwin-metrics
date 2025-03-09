@@ -88,10 +88,11 @@
 //! - The API is not thread-safe by default; use mutex locks when sharing across
 //!   threads
 
-mod interface;
-mod traffic;
+pub mod interface;
+pub mod traffic;
 
 pub use interface::{Interface, InterfaceType, NetworkManager};
+pub use traffic::TrafficData;
 
 /// Trait defining the standard interface for accessing network metrics.
 ///

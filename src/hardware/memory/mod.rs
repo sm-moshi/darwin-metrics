@@ -79,6 +79,7 @@ use crate::{
 ///
 /// Used to report the current memory pressure state of the system.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[non_exhaustive]
 pub enum PressureLevel {
     /// Normal memory pressure - sufficient memory available
     Normal,
@@ -795,7 +796,7 @@ mod tests {
         let memory = Memory::new().unwrap();
         let percentage = memory.usage_percentage();
         
-        assert!(percentage >= 0.0 && percentage <= 100.0, 
+        assert!((0.0..=100.0).contains(&percentage),
             "Usage percentage should be between 0 and 100, got {}", percentage);
     }
     

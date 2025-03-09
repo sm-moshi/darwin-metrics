@@ -75,13 +75,13 @@ impl Gpu {
 
     pub fn metrics(&self) -> Result<GpuMetrics> {
         autoreleasepool(|_| {
-            // Create a metrics object with defaults
-            let mut metrics = GpuMetrics::default();
-
-            // Get the name
-            metrics.name = match self.name() {
-                Ok(name) => name,
-                Err(_) => "Unknown GPU".to_string(),
+            // Create a metrics object with initial values
+            let mut metrics = GpuMetrics {
+                name: match self.name() {
+                    Ok(name) => name,
+                    Err(_) => "Unknown GPU".to_string(),
+                },
+                ..GpuMetrics::default()
             };
 
             // Get memory info
@@ -93,7 +93,7 @@ impl Gpu {
 
             // Try to get temperature using SMC first, then fall back to estimation
             let temp_result = self.get_temperature();
-            if let Err(_) = &temp_result {
+            if temp_result.is_err() {
                 // Temperature not available via SMC, use estimation instead
                 // On Apple Silicon, temperature tends to be between 40-60°C
                 // and correlates somewhat with utilization
@@ -163,10 +163,12 @@ impl Gpu {
             // Get total physical memory
             let mut total: u64 = 0;
             let mut total_size = std::mem::size_of::<u64>();
-            let total_name = std::ffi::CStr::from_bytes_with_nul(b"hw.memsize\0").unwrap();
+            // Create CString and store it so it doesn't get dropped
+            let total_name_cstring = std::ffi::CString::new("hw.memsize").unwrap_or_default(); 
+            let total_name = total_name_cstring.as_ptr();
 
             let result = libc::sysctlbyname(
-                total_name.as_ptr(),
+                total_name,
                 &mut total as *mut u64 as *mut libc::c_void,
                 &mut total_size,
                 std::ptr::null_mut(),
@@ -184,10 +186,12 @@ impl Gpu {
             // Try to get usable memory via sysctl
             let mut usable: u64 = 0;
             let mut usable_size = std::mem::size_of::<u64>();
-            let usable_name = std::ffi::CStr::from_bytes_with_nul(b"hw.usermem\0").unwrap();
+            // Create CString and store it so it doesn't get dropped
+            let usable_name_cstring = std::ffi::CString::new("hw.usermem").unwrap_or_default();
+            let usable_name = usable_name_cstring.as_ptr();
 
             let result = libc::sysctlbyname(
-                usable_name.as_ptr(),
+                usable_name,
                 &mut usable as *mut u64 as *mut libc::c_void,
                 &mut usable_size,
                 std::ptr::null_mut(),
@@ -361,8 +365,7 @@ impl Gpu {
 
             // More reasonable scaling for most Apple systems
             // Based on correlation with actual measurements
-            let normalized = ((loads[0] / 8.0) * 100.0).min(70.0) as f32;
-            normalized
+            ((loads[0] / 8.0) * 100.0).min(70.0) as f32
         }
     }
 
@@ -426,10 +429,6 @@ impl Gpu {
         // Instead of complex host_statistics calls, we'll use a simpler approach
         // that's more reliable across different macOS versions
 
-        // Static values to track CPU usage between calls
-        static mut LAST_TOTAL: u64 = 0;
-        static mut LAST_IDLE: u64 = 0;
-
         unsafe {
             // Get CPU load average as a fallback approach
             let mut loads: [f64; 3] = [0.0, 0.0, 0.0];
@@ -456,10 +455,12 @@ impl Gpu {
         unsafe {
             let mut cores: i32 = 0;
             let mut size = std::mem::size_of::<i32>();
-            let cores_name = std::ffi::CStr::from_bytes_with_nul(b"hw.physicalcpu\0").unwrap();
+            // Create CString and store it so it doesn't get dropped
+            let cores_name_cstring = std::ffi::CString::new("hw.physicalcpu").unwrap_or_default();
+            let cores_name = cores_name_cstring.as_ptr();
 
             let result = crate::utils::bindings::sysctlbyname(
-                cores_name.as_ptr(),
+                cores_name,
                 &mut cores as *mut i32 as *mut c_void,
                 &mut size,
                 std::ptr::null_mut(),

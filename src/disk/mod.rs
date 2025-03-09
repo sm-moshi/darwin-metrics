@@ -4,15 +4,24 @@ use crate::{Error, Result};
 
 /// The type of disk storage device
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum DiskType {
-    HDD,      // Hard Disk Drive
-    SSD,      // Solid State Drive
-    Fusion,   // Apple Fusion Drive (hybrid)
-    External, // External drive
-    Network,  // Network mount
-    RAM,      // RAM Disk
-    Virtual,  // Virtual drive
-    Unknown,  // Unknown drive type
+    /// Hard Disk Drive
+    HDD,
+    /// Solid State Drive
+    SSD,
+    /// Apple Fusion Drive (hybrid)
+    Fusion,
+    /// External drive
+    External,
+    /// Network mount
+    Network,
+    /// RAM Disk
+    RAM,
+    /// Virtual drive
+    Virtual,
+    /// Unknown drive type
+    Unknown,
 }
 
 impl Default for DiskType {

@@ -4,6 +4,7 @@ use thiserror::Error;
 
 /// Specific error types for darwin-metrics
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Error originating from the system's IO subsystem
     #[error("IO error: {0}")]
