@@ -28,6 +28,10 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           components: clippy, rustfmt
+
+      - name: Workaround for curl network errors
+        if: "matrix.rust == '1.70.0' || matrix.rust == '1.71.0'"
+        run: echo 'CARGO_HTTP_MULTIPLEXING=false' >> $GITHUB_ENV
       
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
