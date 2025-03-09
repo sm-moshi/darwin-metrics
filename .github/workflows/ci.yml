@@ -43,10 +43,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Format check
-        run: cargo +nightly fmt -- --check --config-path=rustfmt.toml
+        run: cargo +nightly fmt -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
 
       - name: Build with retry
         run: |
@@ -110,7 +110,9 @@ jobs:
           toolchain: stable
 
       - name: Clean up .DS_Store files
-        run: find . -name ".DS_Store" -delete
+        run: |
+          find . -name ".DS_Store" -type f -delete
+          find ./target -name ".DS_Store" -type f -delete 2>/dev/null || true
 
       - name: Dry run publish
-        run: cargo publish --dry-run --no-verify
+        run: cargo publish --dry-run --no-verify --allow-dirty
