@@ -13,8 +13,8 @@ darwin-metrics = "0.1.0"
 
 ### Requirements
 
-- macOS 10.15 or later
-- Rust 1.75 or later
+- macOS Sonoma (14.x) or later
+- Rust 1.85 or later
 - Xcode Command Line Tools (for macOS system headers)
 
 ## Basic Usage

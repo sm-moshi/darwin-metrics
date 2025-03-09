@@ -100,7 +100,47 @@ cpu.update()?;
 
 ## Frequency Monitoring
 
-For detailed CPU frequency information, darwin-metrics provides the `FrequencyMetrics` struct:
+For detailed CPU frequency information, darwin-metrics provides comprehensive access through both the `CPU` struct directly and the standalone `FrequencyMonitor`:
+
+### Using the CPU Struct (Recommended)
+
+```rust,no_run,ignore
+use darwin_metrics::hardware::cpu::CPU;
+use darwin_metrics::error::Result;
+
+fn monitor_cpu_frequency() -> Result<()> {
+    let cpu = CPU::new()?;
+
+    // Get current frequency
+    println!("Current frequency: {:.0} MHz", cpu.frequency_mhz());
+
+    // Get detailed frequency metrics (min/max/steps)
+    if let Some(min) = cpu.min_frequency_mhz() {
+        println!("Min frequency: {:.0} MHz", min);
+    }
+
+    if let Some(max) = cpu.max_frequency_mhz() {
+        println!("Max frequency: {:.0} MHz", max);
+    }
+
+    // Get all available frequency steps
+    if let Some(steps) = cpu.available_frequencies() {
+        println!("Available frequency steps: {:?} MHz", steps);
+    }
+
+    // Access the complete frequency metrics object
+    if let Some(metrics) = cpu.frequency_metrics() {
+        println!("Current: {:.0} MHz", metrics.current);
+        println!("Min: {:.0} MHz", metrics.min);
+        println!("Max: {:.0} MHz", metrics.max);
+        println!("Available steps: {:?} MHz", metrics.available);
+    }
+
+    Ok(())
+}
+```
+
+### Using the FrequencyMonitor Directly
 
 ```rust,no_run,ignore
 use darwin_metrics::hardware::cpu::FrequencyMonitor;
@@ -110,9 +150,9 @@ fn monitor_frequency() -> Result<()> {
     let monitor = FrequencyMonitor::new();
     let metrics = monitor.get_metrics()?;
 
-    println!("Current: {} MHz", metrics.current);
-    println!("Min: {} MHz", metrics.min);
-    println!("Max: {} MHz", metrics.max);
+    println!("Current: {:.0} MHz", metrics.current);
+    println!("Min: {:.0} MHz", metrics.min);
+    println!("Max: {:.0} MHz", metrics.max);
     println!("Available steps: {:?} MHz", metrics.available);
 
     Ok(())
@@ -128,6 +168,10 @@ On macOS, the CPU module uses a combination of:
 - **IOKit Framework**: For accessing low-level hardware information
 - **AppleACPICPU Service**: For core count and CPU model information
 - **System Management Controller (SMC)**: For temperature readings
+- **sysctl**: For retrieving accurate CPU frequency information
+  - `hw.cpufrequency` for current frequency
+  - `hw.cpufrequency_min` for minimum frequency
+  - `hw.cpufrequency_max` for maximum frequency
 
 ### Temperature Monitoring
 

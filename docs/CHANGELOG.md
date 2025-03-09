@@ -42,8 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Process hierarchy and tree visualization
   - Child process tracking
   - Thread count monitoring
+- Added comprehensive CPU metrics module with:
+  - Detailed frequency monitoring with min/max/available frequencies
+  - Per-core usage tracking
+  - Temperature monitoring
+  - Physical and logical core detection
+  - CPU model detection
+  - Standardized CPU metrics interface
 - Added comprehensive mdBook documentation structure in `/docs`
 - Added documentation for modules, FFI bindings, and architecture
+- Added comprehensive CPU module documentation with usage examples
 
 ### Changed
 

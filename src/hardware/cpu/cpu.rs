@@ -1,4 +1,4 @@
-use super::CpuMetrics;
+use super::{CpuMetrics, FrequencyMetrics, FrequencyMonitor};
 use crate::error::Result;
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use objc2::msg_send;
@@ -35,6 +35,8 @@ pub struct CPU {
     model_name: String,
     temperature: Option<f64>,
     iokit: Box<dyn IOKit>,
+    frequency_monitor: FrequencyMonitor,
+    frequency_metrics: Option<FrequencyMetrics>,
 }
 
 impl CPU {
@@ -74,6 +76,8 @@ impl CPU {
             model_name: String::new(),
             temperature: None,
             iokit: Box::new(IOKitImpl),
+            frequency_monitor: FrequencyMonitor::new(),
+            frequency_metrics: None,
         };
         cpu.update()?;
         Ok(cpu)
@@ -100,10 +104,20 @@ impl CPU {
         self.physical_cores = unsafe { msg_send![&*service, numberOfCores] };
         self.logical_cores = unsafe { msg_send![&*service, numberOfProcessorCores] };
 
-        // TODO: Verify frequency method, possibly use sysctl with
-        // sysctlbyname("hw.cpufrequency") instead
-        let frequency: f64 = unsafe { msg_send![&*service, currentProcessorClockSpeed] };
-        self.frequency_mhz = frequency / 1_000_000.0;
+        // Use the FrequencyMonitor to get detailed frequency information
+        // We try to get metrics from FrequencyMonitor first, with a fallback to IOKit
+        match self.frequency_monitor.get_metrics() {
+            Ok(metrics) => {
+                self.frequency_mhz = metrics.current;
+                self.frequency_metrics = Some(metrics);
+            }
+            Err(_) => {
+                // Fallback to IOKit method
+                let frequency: f64 = unsafe { msg_send![&*service, currentProcessorClockSpeed] };
+                self.frequency_mhz = frequency / 1_000_000.0;
+                self.frequency_metrics = None;
+            }
+        }
 
         self.core_usage = self.fetch_core_usage()?;
 
@@ -243,6 +257,47 @@ impl CPU {
     pub fn temperature(&self) -> Option<f64> {
         self.temperature
     }
+
+    /// Returns detailed CPU frequency metrics if available.
+    ///
+    /// This method provides access to the detailed frequency information
+    /// including minimum, maximum, and available frequency steps.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<&FrequencyMetrics>` - Detailed frequency metrics or None if not available
+    pub fn frequency_metrics(&self) -> Option<&FrequencyMetrics> {
+        self.frequency_metrics.as_ref()
+    }
+
+    /// Returns the minimum CPU frequency in MHz if available.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<f64>` - Minimum frequency in MHz or None if not available
+    pub fn min_frequency_mhz(&self) -> Option<f64> {
+        self.frequency_metrics.as_ref().map(|m| m.min)
+    }
+
+    /// Returns the maximum CPU frequency in MHz if available.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<f64>` - Maximum frequency in MHz or None if not available
+    pub fn max_frequency_mhz(&self) -> Option<f64> {
+        self.frequency_metrics.as_ref().map(|m| m.max)
+    }
+
+    /// Returns the available CPU frequency steps in MHz if available.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<&[f64]>` - Available frequency steps in MHz or None if not available
+    pub fn available_frequencies(&self) -> Option<&[f64]> {
+        self.frequency_metrics
+            .as_ref()
+            .map(|m| m.available.as_slice())
+    }
 }
 
 /// Implementation of the CpuMetrics trait for the CPU struct.
@@ -309,6 +364,13 @@ mod tests {
                 model_name: "Apple M1 Pro".to_string(),
                 temperature: Some(45.5),
                 iokit: Box::new(mock),
+                frequency_monitor: FrequencyMonitor::new(),
+                frequency_metrics: Some(FrequencyMetrics {
+                    current: 3200.0,
+                    min: 1200.0,
+                    max: 3600.0,
+                    available: vec![1200.0, 1800.0, 2400.0, 3000.0, 3600.0],
+                }),
             };
 
             Ok(cpu)
@@ -349,5 +411,28 @@ mod tests {
 
         // Make sure core usage is valid (between 0 and 1)
         assert!(cpu.get_cpu_usage() >= 0.0 && cpu.get_cpu_usage() <= 1.0);
+    }
+
+    #[test]
+    fn test_frequency_metrics() {
+        let cpu = CPU::new_with_mock().expect("Failed to create CPU instance");
+
+        // Test the frequency metrics methods
+        assert_eq!(cpu.frequency_mhz(), 3200.0);
+        assert_eq!(cpu.min_frequency_mhz(), Some(1200.0));
+        assert_eq!(cpu.max_frequency_mhz(), Some(3600.0));
+
+        // Test the available frequencies
+        let available = cpu.available_frequencies().unwrap();
+        assert_eq!(available.len(), 5);
+        assert_eq!(available[0], 1200.0);
+        assert_eq!(available[4], 3600.0);
+
+        // Test the detailed frequency metrics
+        let metrics = cpu.frequency_metrics().unwrap();
+        assert_eq!(metrics.current, 3200.0);
+        assert_eq!(metrics.min, 1200.0);
+        assert_eq!(metrics.max, 3600.0);
+        assert_eq!(metrics.available.len(), 5);
     }
 }

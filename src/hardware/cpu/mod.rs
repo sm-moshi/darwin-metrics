@@ -9,11 +9,14 @@
 //!
 //! ## Features
 //!
-//! - CPU usage statistics per core and aggregated
-//! - Physical and logical core count detection
-//! - CPU frequency monitoring (current, min, max)
-//! - CPU temperature readings (when available)
-//! - CPU model name identification
+//! - **CPU Usage Statistics**: Per-core and aggregated usage metrics (0.0 to 1.0 scale)
+//! - **Core Count Detection**: Physical and logical core enumeration
+//! - **Frequency Monitoring**: Comprehensive frequency information:
+//!   - Current operating frequency
+//!   - Minimum and maximum supported frequencies
+//!   - Available frequency steps
+//! - **Temperature Readings**: CPU temperature in Celsius when available
+//! - **CPU Model Information**: Detailed processor identification
 //!
 //! ## Example
 //!
@@ -31,8 +34,22 @@
 //!     
 //!     // Get current CPU metrics
 //!     println!("CPU Usage: {:.2}%", cpu.get_cpu_usage() * 100.0);
-//!     println!("CPU Frequency: {:.2} MHz", cpu.get_cpu_frequency());
+//!     println!("CPU Frequency: {:.2} MHz", cpu.frequency_mhz());
 //!     
+//!     // Get detailed frequency information
+//!     if let Some(min) = cpu.min_frequency_mhz() {
+//!         println!("Min Frequency: {:.2} MHz", min);
+//!     }
+//!     
+//!     if let Some(max) = cpu.max_frequency_mhz() {
+//!         println!("Max Frequency: {:.2} MHz", max);
+//!     }
+//!     
+//!     if let Some(steps) = cpu.available_frequencies() {
+//!         println!("Available frequency steps: {:?} MHz", steps);
+//!     }
+//!     
+//!     // Get temperature information
 //!     if let Some(temp) = cpu.get_cpu_temperature() {
 //!         println!("CPU Temperature: {:.1}°C", temp);
 //!     } else {
@@ -52,7 +69,7 @@ mod cpu;
 mod frequency;
 
 pub use cpu::CPU;
-pub use frequency::FrequencyMetrics;
+pub use frequency::{FrequencyMetrics, FrequencyMonitor};
 
 /// Maximum number of CPU cores supported by the library.
 pub const MAX_CORES: u32 = 64;

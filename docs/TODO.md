@@ -35,11 +35,12 @@
   - [ ] Add process environment variable retrieval - future enhancement.
   - [ ] Implement command-line arguments retrieval - future enhancement.
 
-- [~] **CPU Metrics**
+- [x] **CPU Metrics**
 
-  - [~] Refactored CPU module (mod.rs, cpu.rs, frequency.rs).
-  - [~] Implemented CPU frequency monitoring.
-  - [~] Improved CPU temperature retrieval.
+  - [x] Refactored CPU module (mod.rs, cpu.rs, frequency.rs).
+  - [x] Implemented CPU frequency monitoring with min/max/available frequencies.
+  - [x] Improved CPU temperature retrieval.
+  - [x] Added comprehensive CPU metrics documentation.
 
 - [~] **GPU Metrics**
 

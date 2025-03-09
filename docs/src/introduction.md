@@ -30,8 +30,7 @@ The library follows several important design principles:
 
 This library is specifically designed for macOS systems. It has been tested on:
 
-- macOS Monterey (12.x)
-- macOS Ventura (13.x)
 - macOS Sonoma (14.x)
+- macOS Sequoia (15.x)
 
 > **Note**: Because `darwin-metrics` uses platform-specific APIs, it will not work on non-macOS systems.
