@@ -3,23 +3,29 @@
 //! This module contains various utilities used throughout the crate, including:
 //!
 //! - `bindings`: FFI bindings for macOS system APIs (sysctl, IOKit, etc.)
-//! - `property_utils`: Utilities for working with property lists and dictionaries
+//! - `property_utils`: Utilities for working with property lists and
+//!   dictionaries
 //! - `test_utils`: Utilities for testing
 
 pub mod bindings;
 pub mod property_utils;
 pub mod test_utils;
 
-use crate::error::{Error, Result};
-use objc2::msg_send;
-use objc2::rc::autoreleasepool;
-use objc2::rc::Retained;
-use objc2::runtime::AnyObject;
+use std::{
+    ffi::{c_char, CStr},
+    os::raw::c_double,
+    panic::AssertUnwindSafe,
+    slice,
+};
+
+use objc2::{
+    msg_send,
+    rc::{autoreleasepool, Retained},
+    runtime::AnyObject,
+};
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
-use std::ffi::{c_char, CStr};
-use std::os::raw::c_double;
-use std::panic::AssertUnwindSafe;
-use std::slice;
+
+use crate::error::{Error, Result};
 
 pub trait PropertyUtils {
     fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
@@ -64,9 +70,7 @@ where
     let result = std::panic::catch_unwind(AssertUnwindSafe(f));
     match result {
         Ok(value) => value,
-        Err(_) => Err(Error::System(
-            "Panic occurred during Objective-C operation".to_string(),
-        )),
+        Err(_) => Err(Error::System("Panic occurred during Objective-C operation".to_string())),
     }
 }
 
@@ -114,7 +118,8 @@ pub unsafe fn raw_str_to_string(ptr: *const c_char, len: usize) -> Option<String
 ///
 /// The caller must ensure:
 /// - The pointer is valid and properly aligned for f64 values
-/// - The memory range [ptr, ptr+(len*sizeof(f64))) is valid and contains initialized f64 values
+/// - The memory range [ptr, ptr+(len*sizeof(f64))) is valid and contains
+///   initialized f64 values
 /// - The pointer remains valid for the duration of this function call
 /// - No other code will concurrently modify the memory being accessed
 ///
@@ -143,9 +148,7 @@ pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
 
             let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
             if utf8_string.is_null() {
-                return Err(Error::NotAvailable(
-                    "Could not convert name to string".to_string(),
-                ));
+                return Err(Error::NotAvailable("Could not convert name to string".to_string()));
             }
 
             let c_str = CStr::from_ptr(utf8_string as *const i8);

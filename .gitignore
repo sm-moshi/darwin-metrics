@@ -40,12 +40,12 @@ generated/
 bacon.toml
 .vscode/
 .cursor/
+.cursorignore
 .references/
 .windsurfrules
 .repomix/
 repomix*
 coverage/*
-.cursorignore
 CLAUDE.md
 
 # mdBook

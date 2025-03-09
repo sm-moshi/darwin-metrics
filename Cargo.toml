@@ -1,27 +1,21 @@
 [package]
-name = "darwin-metrics"
-version = "0.1.0"
-edition = "2021"
-description = "A Rust library exposing native macOS system metrics"
-authors = ["Stuart Meya <sm0sh1@pm.me>"]
-license = "MIT"
-repository = "https://github.com/sm-moshi/darwin-metrics"
-homepage = "https://github.com/sm-moshi/darwin-metrics"
+name          = "darwin-metrics"
+version       = "0.1.0"
+edition       = "2021"
+description   = "A Rust library exposing native macOS system metrics"
+authors       = ["Stuart Meya <sm0sh1@pm.me>"]
+license       = "MIT"
+repository    = "https://github.com/sm-moshi/darwin-metrics"
+homepage      = "https://github.com/sm-moshi/darwin-metrics"
 documentation = "https://docs.rs/darwin-metrics"
-keywords = ["macos", "system", "metrics", "ffi", "swift"]
-categories = ["os", "api-bindings"]
-readme = "README.md"
-links = "darwin_metrics"
-exclude = [
-    ".github/",
-    "coverage/",
-    "target/",
-    "CLAUDE.md",
-    "**/.DS_Store",
-]
+keywords      = ["macos", "system", "metrics", "ffi", "swift"]
+categories    = ["os", "api-bindings"]
+readme        = "README.md"
+links         = "darwin_metrics"
+exclude       = [".github/", "coverage/", "target/", "CLAUDE.md", "**/.DS_Store"]
 
 [lib]
-name = "darwin_metrics"
+name       = "darwin_metrics"
 crate-type = ["rlib", "cdylib", "staticlib"]
 
 [build-dependencies]
@@ -45,15 +39,15 @@ block2 = { version = "0.6.0", features = ["alloc", "std"] }
 scopeguard = "1.2.0"
 
 # Error handling and logging
-tokio = { version = "1.44.0", features = ["full"] }
-futures = "0.3.31"
-async-trait = "0.1.87"
-thiserror = "2.0.12"
-tracing = { version = "0.1.41", features = ["attributes"] }
+tokio              = { version = "1.44.0", features = ["full"] }
+futures            = "0.3.31"
+async-trait        = "0.1.87"
+thiserror          = "2.0.12"
+tracing            = { version = "0.1.41", features = ["attributes"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 # Serialization and data handling
-serde = { version = "1.0.218", features = ["derive"] }
+serde      = { version = "1.0.218", features = ["derive"] }
 serde_json = "1.0.140"
 
 # Testing
@@ -61,21 +55,22 @@ mockall = "0.13.1"
 
 # Additional dependencies
 parking_lot = "0.12.3"
-log = "0.4.26"
-once_cell = "1.20.3"
+log         = "0.4.26"
+once_cell   = "1.20.3"
 
 [dev-dependencies]
+version-sync = "0.9.5"
 
 [features]
 default = ["battery", "cpu", "memory", "gpu", "disk", "temperature", "async"]
 
 # Core features
-battery = []
-cpu = []
-memory = []
-gpu = []
-disk = []
-temperature = []
+battery            = []
+cpu                = []
+memory             = []
+gpu                = []
+disk               = []
+temperature        = []
 process_monitoring = []
 
 # Optional features
@@ -85,28 +80,28 @@ async = []
 unstable-tests = []
 
 [profile.release]
-lto = true
+lto           = true
 codegen-units = 1
-opt-level = 3
-debug = false
-strip = true
+opt-level     = 3
+debug         = false
+strip         = true
 
 [profile.dev]
 opt-level = 0
-debug = true
+debug     = true
 
 # Documentation configuration for docs.rs
 [package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
-targets = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
+all-features   = true
+rustdoc-args   = ["--cfg", "docsrs"]
+targets        = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
 default-target = "aarch64-apple-darwin"
-rustc-args = ["--cfg", "docs_rs"]
+rustc-args     = ["--cfg", "docs_rs"]
 
 [package.metadata]
 minimum-macos-version = "10.11"
 
 [package.metadata.llvm-cov]
-enable = ["line", "branch", "function", "mcdc"]
+enable    = ["line", "branch", "function", "mcdc"]
 threshold = 80
-exclude = ["tests/*", "target/*", "**/*_test.rs"]
+exclude   = ["tests/*", "target/*", "**/*_test.rs"]

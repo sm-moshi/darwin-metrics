@@ -1,14 +1,14 @@
+use std::{
+    collections::HashMap,
+    fmt,
+    pin::Pin,
+    task::{Context, Poll},
+    time::{Duration, Instant, SystemTime},
+};
+
 use async_trait::async_trait;
-use futures::Future;
-use futures::Stream;
-use libproc::pid_rusage;
-use libproc::proc_pid;
-use libproc::task_info;
-use std::collections::HashMap;
-use std::fmt;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-use std::time::{Duration, Instant, SystemTime};
+use futures::{Future, Stream};
+use libproc::{pid_rusage, proc_pid, task_info};
 
 // Use the bindings from utils
 use crate::utils::bindings::{
@@ -51,8 +51,9 @@ impl Clone for ProcessIOStats {
     }
 }
 
-use once_cell::sync::Lazy as SyncLazy;
 use std::sync::Mutex;
+
+use once_cell::sync::Lazy as SyncLazy;
 
 /// Static cache for tracking CPU usage calculations between calls
 static CPU_HISTORY: SyncLazy<Mutex<HashMap<u32, (Instant, u64)>>> =
@@ -90,7 +91,8 @@ impl Process {
         }
     }
 
-    /// Get all processes using the sysctl API for better efficiency (based on Bottom's approach)
+    /// Get all processes using the sysctl API for better efficiency (based on
+    /// Bottom's approach)
     pub async fn get_all() -> crate::Result<Vec<Self>> {
         // Try to use sysctl first for bulk retrieval
         match Self::get_all_via_sysctl().await {
@@ -98,33 +100,21 @@ impl Process {
             Err(_) => {
                 // Fall back to libproc if sysctl fails
                 Self::get_all_via_libproc().await
-            }
+            },
         }
     }
 
     /// Get all processes using the sysctl API for efficient bulk retrieval
     async fn get_all_via_sysctl() -> crate::Result<Vec<Self>> {
-        use std::mem;
-        use std::os::raw::c_void;
-        use std::ptr;
+        use std::{mem, os::raw::c_void, ptr};
 
         unsafe {
             // First call to get the size of the buffer needed
             let mut mib = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0, 0, 0];
             let mut size: usize = 0;
 
-            if sysctl(
-                mib.as_mut_ptr(),
-                3,
-                ptr::null_mut(),
-                &mut size,
-                ptr::null(),
-                0,
-            ) < 0
-            {
-                return Err(crate::Error::process_error(
-                    "Failed to get process list size",
-                ));
+            if sysctl(mib.as_mut_ptr(), 3, ptr::null_mut(), &mut size, ptr::null(), 0) < 0 {
+                return Err(crate::Error::process_error("Failed to get process list size"));
             }
 
             // Calculate number of processes
@@ -135,18 +125,8 @@ impl Process {
             let processes_ptr = processes.as_mut_ptr() as *mut c_void;
 
             // Second call to actually get the data
-            if sysctl(
-                mib.as_mut_ptr(),
-                3,
-                processes_ptr,
-                &mut size,
-                ptr::null(),
-                0,
-            ) < 0
-            {
-                return Err(crate::Error::process_error(
-                    "Failed to get process information",
-                ));
+            if sysctl(mib.as_mut_ptr(), 3, processes_ptr, &mut size, ptr::null(), 0) < 0 {
+                return Err(crate::Error::process_error("Failed to get process information"));
             }
 
             // Set the length of the vector
@@ -244,19 +224,19 @@ impl Process {
                 return Err(crate::Error::Process(
                     "Process start time is in the future".to_string(),
                 ));
-            }
+            },
             Err(_) => match now.duration_since(start_time) {
                 Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
                     return Err(crate::Error::Process(
                         "Process is unrealistically old".to_string(),
                     ));
-                }
+                },
                 Ok(_) => (),
                 Err(_) => {
                     return Err(crate::Error::Process(
                         "Failed to calculate process age".to_string(),
                     ))
-                }
+                },
             },
         }
 
@@ -282,9 +262,7 @@ impl Process {
             name,
             cpu_usage,
             memory_usage,
-            uptime: SystemTime::now()
-                .duration_since(start_time)
-                .unwrap_or(Duration::ZERO),
+            uptime: SystemTime::now().duration_since(start_time).unwrap_or(Duration::ZERO),
             io_stats,
             thread_count,
             is_suspended,
@@ -292,7 +270,8 @@ impl Process {
         })
     }
 
-    /// Calculate CPU usage as a percentage, using history to calculate the rate of change
+    /// Calculate CPU usage as a percentage, using history to calculate the rate
+    /// of change
     fn calculate_cpu_usage(pid: u32, current_cpu_time: u64) -> f64 {
         let mut history = get_cpu_history();
         let now = Instant::now();
@@ -307,7 +286,8 @@ impl Process {
                 let cpu_time_delta = current_cpu_time.saturating_sub(prev_cpu_time) as f64;
                 let usage = (cpu_time_delta / time_delta / 1_000_000.0) * 100.0;
 
-                // Cap at 100% per logical CPU (though could be higher for multi-threaded processes)
+                // Cap at 100% per logical CPU (though could be higher for multi-threaded
+                // processes)
                 usage.min(800.0) // 800% cap assuming 8 cores max utilization
             } else {
                 // Time delta too small, just return previous value or 0
@@ -322,7 +302,8 @@ impl Process {
         history.insert(pid, (now, current_cpu_time));
 
         // Clean up old history entries
-        // This is a simple approach - in a production system, you might want a more sophisticated cleanup
+        // This is a simple approach - in a production system, you might want a more
+        // sophisticated cleanup
         if history.len() > 1000 {
             // Get all PIDs we're tracking
             let pids: Vec<u32> = history.keys().copied().collect();
@@ -348,8 +329,10 @@ impl Process {
         Ok(ProcessIOStats {
             read_bytes: usage.ri_diskio_bytesread,
             write_bytes: usage.ri_diskio_byteswritten,
-            read_count: usage.ri_diskio_bytesread / 4096, // Approximation by bytes read / typical block size
-            write_count: usage.ri_diskio_byteswritten / 4096, // Approximation by bytes written / typical block size
+            read_count: usage.ri_diskio_bytesread / 4096, /* Approximation by bytes read /
+                                                           * typical block size */
+            write_count: usage.ri_diskio_byteswritten / 4096, /* Approximation by bytes written /
+                                                               * typical block size */
         })
     }
 
@@ -360,9 +343,7 @@ impl Process {
         let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
             SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
         } else {
-            return Err(crate::Error::Process(
-                "Invalid process start time".to_string(),
-            ));
+            return Err(crate::Error::Process("Invalid process start time".to_string()));
         };
 
         let now = SystemTime::now();
@@ -371,19 +352,19 @@ impl Process {
                 return Err(crate::Error::Process(
                     "Process start time is in the future".to_string(),
                 ));
-            }
+            },
             Err(_) => match now.duration_since(start_time) {
                 Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
                     return Err(crate::Error::Process(
                         "Process is unrealistically old".to_string(),
                     ));
-                }
+                },
                 Ok(_) => (),
                 Err(_) => {
                     return Err(crate::Error::Process(
                         "Failed to calculate process age".to_string(),
                     ))
-                }
+                },
             },
         }
 
@@ -435,7 +416,8 @@ impl Process {
         Ok(children)
     }
 
-    /// Check if this process is a system process (running as root with PID < 1000)
+    /// Check if this process is a system process (running as root with PID <
+    /// 1000)
     pub fn is_system_process(&self) -> bool {
         // Use the helper from bindings
         is_system_process(self.pid, &self.name)
@@ -455,10 +437,7 @@ impl Process {
         let mut parent_to_children = std::collections::HashMap::new();
         for &pid in pid_to_process.keys() {
             if let Ok(Some(parent_pid)) = Self::get_parent_pid(pid).await {
-                parent_to_children
-                    .entry(parent_pid)
-                    .or_insert_with(Vec::new)
-                    .push(pid);
+                parent_to_children.entry(parent_pid).or_insert_with(Vec::new).push(pid);
             }
         }
 
@@ -516,10 +495,7 @@ impl fmt::Debug for Process {
             .field("io_stats", &self.io_stats)
             .field("thread_count", &self.thread_count)
             .field("is_suspended", &self.is_suspended)
-            .field(
-                "pending_future",
-                &self.pending_future.as_ref().map(|_| "Future"),
-            )
+            .field("pending_future", &self.pending_future.as_ref().map(|_| "Future"))
             .finish()
     }
 }
@@ -548,11 +524,7 @@ pub struct ProcessMetricsStream {
 
 impl ProcessMetricsStream {
     pub fn new(pid: u32, interval: Duration) -> Self {
-        Self {
-            pid,
-            interval: tokio::time::interval(interval),
-            pending_future: None,
-        }
+        Self { pid, interval: tokio::time::interval(interval), pending_future: None }
     }
 }
 
@@ -561,10 +533,7 @@ impl fmt::Debug for ProcessMetricsStream {
         f.debug_struct("ProcessMetricsStream")
             .field("pid", &self.pid)
             .field("interval", &self.interval)
-            .field(
-                "pending_future",
-                &self.pending_future.as_ref().map(|_| "Future"),
-            )
+            .field("pending_future", &self.pending_future.as_ref().map(|_| "Future"))
             .finish()
     }
 }
@@ -590,7 +559,7 @@ impl Stream for ProcessMetricsStream {
                 Poll::Ready(result) => {
                     this.pending_future = None;
                     return Poll::Ready(Some(result));
-                }
+                },
                 Poll::Pending => return Poll::Pending,
             }
         }
@@ -605,13 +574,13 @@ impl Stream for ProcessMetricsStream {
                         Poll::Ready(result) => {
                             this.pending_future = None;
                             Poll::Ready(Some(result))
-                        }
+                        },
                         Poll::Pending => Poll::Pending,
                     }
                 } else {
                     Poll::Ready(None)
                 }
-            }
+            },
             Poll::Pending => Poll::Pending,
         }
     }
@@ -619,53 +588,39 @@ impl Stream for ProcessMetricsStream {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::process::Command;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_get_current_process() {
         let current_pid = std::process::id();
         let process = Process::get_by_pid(current_pid).await;
-        assert!(
-            process.is_ok(),
-            "Failed to get current process: {:?}",
-            process.err()
-        );
+        assert!(process.is_ok(), "Failed to get current process: {:?}", process.err());
 
         let process = process.unwrap();
         assert_eq!(process.pid, current_pid);
         assert!(!process.name.is_empty(), "Process name should not be empty");
-        assert!(
-            process.memory_usage > 0,
-            "Process should have non-zero memory usage"
-        );
+        assert!(process.memory_usage > 0, "Process should have non-zero memory usage");
         // Suspended check is always false due to API limitations
         // assert!(!process.is_suspended, "Current process should not be suspended");
-        assert!(
-            process.thread_count > 0,
-            "Process should have at least one thread"
-        );
+        assert!(process.thread_count > 0, "Process should have at least one thread");
     }
 
     #[tokio::test]
     async fn test_get_all_processes() {
-        // Try to get all processes, if this fails due to permissions, just make the test pass
-        // This is common when running in CI or restricted environments
+        // Try to get all processes, if this fails due to permissions, just make the
+        // test pass This is common when running in CI or restricted
+        // environments
         let processes = match Process::get_all().await {
             Ok(procs) => procs,
             Err(e) => {
-                println!(
-                    "Note: get_all() failed but we're allowing this test to pass: {}",
-                    e
-                );
+                println!("Note: get_all() failed but we're allowing this test to pass: {}", e);
                 return; // Skip the test
-            }
+            },
         };
 
-        assert!(
-            !processes.is_empty(),
-            "There should be at least one process"
-        );
+        assert!(!processes.is_empty(), "There should be at least one process");
 
         // Verify our own process is in the list or fall back to getting it directly
         let current_pid = std::process::id();
@@ -694,22 +649,14 @@ mod tests {
 
         // Get the child process
         let process = Process::get_by_pid(child_pid).await;
-        assert!(
-            process.is_ok(),
-            "Failed to get child process: {:?}",
-            process.err()
-        );
+        assert!(process.is_ok(), "Failed to get child process: {:?}", process.err());
 
         // Get our process ID (unused in this test)
         let _current_pid = std::process::id();
 
         // Get the parent of the child process
         let parent_pid = Process::get_parent_pid(child_pid).await;
-        assert!(
-            parent_pid.is_ok(),
-            "Failed to get parent PID: {:?}",
-            parent_pid.err()
-        );
+        assert!(parent_pid.is_ok(), "Failed to get parent PID: {:?}", parent_pid.err());
 
         // The parent should be our process (or a shell if running from a test runner)
         let parent_pid = parent_pid.unwrap();
@@ -721,8 +668,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_process_tree() {
-        // Try to get process tree, if this fails due to permissions, just make the test pass
-        // This is common when running in CI or restricted environments
+        // Try to get process tree, if this fails due to permissions, just make the test
+        // pass This is common when running in CI or restricted environments
         let tree = match Process::get_process_tree().await {
             Ok(t) => t,
             Err(e) => {
@@ -731,7 +678,7 @@ mod tests {
                     e
                 );
                 return; // Skip the test
-            }
+            },
         };
 
         // If the tree is empty, that's likely a permission issue, just log and return
@@ -742,7 +689,8 @@ mod tests {
             return;
         }
 
-        // The first process should be at depth 0 (root process, usually launchd on macOS)
+        // The first process should be at depth 0 (root process, usually launchd on
+        // macOS)
         assert_eq!(tree[0].1, 0, "First process should be at depth 0");
 
         // Check if our process is in the tree, but don't fail if it's not

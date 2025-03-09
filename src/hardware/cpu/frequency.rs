@@ -1,22 +1,27 @@
-use crate::error::{Error, Result};
 use libc;
+
+use crate::error::{Error, Result};
 
 /// Container for comprehensive CPU frequency-related metrics.
 ///
-/// This structure holds detailed information about a CPU's frequency capabilities
-/// and current operational state. It provides access to the full spectrum of
-/// frequency-related data, including current operating frequency, supported
-/// frequency ranges, and available frequency steps.
+/// This structure holds detailed information about a CPU's frequency
+/// capabilities and current operational state. It provides access to the full
+/// spectrum of frequency-related data, including current operating frequency,
+/// supported frequency ranges, and available frequency steps.
 ///
 /// On macOS, this information is retrieved through sysctl calls to access
 /// the hw.cpufrequency and related system parameters.
 ///
 /// # Fields
 ///
-/// * `current` - Current CPU frequency in MHz (processor's actual operating frequency)
-/// * `min` - Minimum supported CPU frequency in MHz (processor's lowest power state)
-/// * `max` - Maximum supported CPU frequency in MHz (processor's highest performance state)
-/// * `available` - List of all available frequency steps in MHz (for frequency scaling)
+/// * `current` - Current CPU frequency in MHz (processor's actual operating
+///   frequency)
+/// * `min` - Minimum supported CPU frequency in MHz (processor's lowest power
+///   state)
+/// * `max` - Maximum supported CPU frequency in MHz (processor's highest
+///   performance state)
+/// * `available` - List of all available frequency steps in MHz (for frequency
+///   scaling)
 ///
 /// # Example
 ///
@@ -53,19 +58,19 @@ pub struct FrequencyMetrics {
 
 /// Monitor for CPU frequency metrics with detailed frequency information.
 ///
-/// The FrequencyMonitor provides methods to retrieve comprehensive CPU frequency
-/// information from the macOS system with high precision. This includes the current
-/// operating frequency, minimum and maximum supported frequencies, and available
-/// frequency steps for dynamic frequency scaling.
+/// The FrequencyMonitor provides methods to retrieve comprehensive CPU
+/// frequency information from the macOS system with high precision. This
+/// includes the current operating frequency, minimum and maximum supported
+/// frequencies, and available frequency steps for dynamic frequency scaling.
 ///
-/// Under the hood, FrequencyMonitor uses macOS sysctl calls to access the system's
-/// hw.cpufrequency, hw.cpufrequency_min, and hw.cpufrequency_max parameters to
-/// provide accurate and up-to-date frequency information.
+/// Under the hood, FrequencyMonitor uses macOS sysctl calls to access the
+/// system's hw.cpufrequency, hw.cpufrequency_min, and hw.cpufrequency_max
+/// parameters to provide accurate and up-to-date frequency information.
 ///
-/// For most applications, it's recommended to use the CPU struct directly, which
-/// incorporates FrequencyMonitor functionality, but this standalone monitor is
-/// available for focused frequency monitoring without the overhead of the full
-/// CPU metrics collection.
+/// For most applications, it's recommended to use the CPU struct directly,
+/// which incorporates FrequencyMonitor functionality, but this standalone
+/// monitor is available for focused frequency monitoring without the overhead
+/// of the full CPU metrics collection.
 #[derive(Debug)]
 pub struct FrequencyMonitor;
 
@@ -145,12 +150,7 @@ unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
         ];
     }
 
-    Ok(CpuInfo {
-        current_frequency,
-        min_frequency,
-        max_frequency,
-        available_frequencies,
-    })
+    Ok(CpuInfo { current_frequency, min_frequency, max_frequency, available_frequencies })
 }
 
 unsafe fn fetch_sysctl_frequency_by_name(name: &str) -> Result<f64> {
@@ -158,10 +158,7 @@ unsafe fn fetch_sysctl_frequency_by_name(name: &str) -> Result<f64> {
 
     // Create null-terminated C string for the sysctl name
     let c_name = CString::new(name).map_err(|_| {
-        Error::system(format!(
-            "Failed to create C string for sysctl name: {}",
-            name
-        ))
+        Error::system(format!("Failed to create C string for sysctl name: {}", name))
     })?;
 
     let mut freq: u64 = 0;

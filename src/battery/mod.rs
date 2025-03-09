@@ -1,6 +1,9 @@
-use crate::error::{Error, Result};
-use crate::hardware::iokit::{IOKit, IOKitImpl};
 use std::time::Duration;
+
+use crate::{
+    error::{Error, Result},
+    hardware::iokit::{IOKit, IOKitImpl},
+};
 
 const BATTERY_IS_PRESENT: &str = "BatteryInstalled";
 const BATTERY_IS_CHARGING: &str = "IsCharging";
@@ -54,19 +57,13 @@ impl Battery {
         let service = self.iokit.io_service_get_matching_service(&matching);
 
         let Some(service) = service else {
-            return Err(Error::service_not_found(
-                "Battery service not found".to_string(),
-            ));
+            return Err(Error::service_not_found("Battery service not found".to_string()));
         };
 
-        let properties = self
-            .iokit
-            .io_registry_entry_create_cf_properties(&service)?;
+        let properties = self.iokit.io_registry_entry_create_cf_properties(&service)?;
 
-        self.is_present = self
-            .iokit
-            .get_bool_property(&properties, BATTERY_IS_PRESENT)
-            .unwrap_or(false);
+        self.is_present =
+            self.iokit.get_bool_property(&properties, BATTERY_IS_PRESENT).unwrap_or(false);
 
         if !self.is_present {
             self.is_charging = false;
@@ -79,59 +76,34 @@ impl Battery {
             return Ok(());
         }
 
-        self.is_charging = self
-            .iokit
-            .get_bool_property(&properties, BATTERY_IS_CHARGING)
-            .unwrap_or(false);
-        let is_external = self
-            .iokit
-            .get_bool_property(&properties, BATTERY_POWER_SOURCE)
-            .unwrap_or(false);
-        self.power_source = if is_external {
-            PowerSource::AC
-        } else {
-            PowerSource::Battery
-        };
+        self.is_charging =
+            self.iokit.get_bool_property(&properties, BATTERY_IS_CHARGING).unwrap_or(false);
+        let is_external =
+            self.iokit.get_bool_property(&properties, BATTERY_POWER_SOURCE).unwrap_or(false);
+        self.power_source = if is_external { PowerSource::AC } else { PowerSource::Battery };
 
-        let current = self
-            .iokit
-            .get_number_property(&properties, BATTERY_CURRENT_CAPACITY)
-            .unwrap_or(0) as f64;
-        let max = self
-            .iokit
-            .get_number_property(&properties, BATTERY_MAX_CAPACITY)
-            .unwrap_or(100) as f64;
-        self.percentage = if max > 0.0 {
-            (current / max * 100.0).clamp(0.0, 100.0)
-        } else {
-            0.0
-        };
+        let current =
+            self.iokit.get_number_property(&properties, BATTERY_CURRENT_CAPACITY).unwrap_or(0)
+                as f64;
+        let max =
+            self.iokit.get_number_property(&properties, BATTERY_MAX_CAPACITY).unwrap_or(100) as f64;
+        self.percentage = if max > 0.0 { (current / max * 100.0).clamp(0.0, 100.0) } else { 0.0 };
 
         let design = self
             .iokit
             .get_number_property(&properties, BATTERY_DESIGN_CAPACITY)
             .unwrap_or(max as i64) as f64;
-        self.health_percentage = if design > 0.0 {
-            (max / design * 100.0).clamp(0.0, 100.0)
-        } else {
-            0.0
-        };
+        self.health_percentage =
+            if design > 0.0 { (max / design * 100.0).clamp(0.0, 100.0) } else { 0.0 };
 
-        self.cycle_count = self
-            .iokit
-            .get_number_property(&properties, BATTERY_CYCLE_COUNT)
-            .unwrap_or(0) as u32;
+        self.cycle_count =
+            self.iokit.get_number_property(&properties, BATTERY_CYCLE_COUNT).unwrap_or(0) as u32;
 
-        let time = self
-            .iokit
-            .get_number_property(&properties, BATTERY_TIME_REMAINING)
-            .unwrap_or(0);
+        let time = self.iokit.get_number_property(&properties, BATTERY_TIME_REMAINING).unwrap_or(0);
         self.time_remaining = Duration::from_secs((time.max(0) * 60) as u64);
 
-        let temp = self
-            .iokit
-            .get_number_property(&properties, BATTERY_TEMPERATURE)
-            .unwrap_or(0) as f64;
+        let temp =
+            self.iokit.get_number_property(&properties, BATTERY_TEMPERATURE).unwrap_or(0) as f64;
         self.temperature = temp / 100.0;
 
         Ok(())
@@ -142,9 +114,7 @@ impl Battery {
         let service = self.iokit.io_service_get_matching_service(&matching);
 
         let Some(service) = service else {
-            return Err(Error::ServiceNotFound(
-                "Battery service not found".to_string(),
-            ));
+            return Err(Error::ServiceNotFound("Battery service not found".to_string()));
         };
 
         match self.iokit.io_registry_entry_create_cf_properties(&service) {

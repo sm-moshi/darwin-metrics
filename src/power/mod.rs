@@ -18,11 +18,5 @@ pub struct PowerConsumption {
 }
 
 pub async fn get_power_consumption() -> Result<PowerConsumption, PowerError> {
-    Ok(PowerConsumption {
-        package: 10.0,
-        cores: 5.0,
-        gpu: Some(3.0),
-        dram: 2.0,
-        system_agent: 1.0,
-    })
+    Ok(PowerConsumption { package: 10.0, cores: 5.0, gpu: Some(3.0), dram: 2.0, system_agent: 1.0 })
 }

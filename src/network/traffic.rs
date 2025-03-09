@@ -83,10 +83,7 @@ impl TrafficTracker {
             collisions,
         );
 
-        Self {
-            current,
-            previous: None,
-        }
+        Self { current, previous: None }
     }
 
     /// Updates the traffic data and shifts current data to previous.
@@ -152,15 +149,8 @@ impl TrafficTracker {
     /// Returns 0.0 if there's no previous data point for comparison.
     pub fn download_speed(&self) -> f64 {
         if let Some(prev) = self.previous {
-            let bytes_diff = self
-                .current
-                .bytes_received
-                .saturating_sub(prev.bytes_received);
-            let time_diff = self
-                .current
-                .timestamp
-                .duration_since(prev.timestamp)
-                .as_secs_f64();
+            let bytes_diff = self.current.bytes_received.saturating_sub(prev.bytes_received);
+            let time_diff = self.current.timestamp.duration_since(prev.timestamp).as_secs_f64();
 
             if time_diff > 0.0 {
                 bytes_diff as f64 / time_diff
@@ -177,11 +167,7 @@ impl TrafficTracker {
     pub fn upload_speed(&self) -> f64 {
         if let Some(prev) = self.previous {
             let bytes_diff = self.current.bytes_sent.saturating_sub(prev.bytes_sent);
-            let time_diff = self
-                .current
-                .timestamp
-                .duration_since(prev.timestamp)
-                .as_secs_f64();
+            let time_diff = self.current.timestamp.duration_since(prev.timestamp).as_secs_f64();
 
             if time_diff > 0.0 {
                 bytes_diff as f64 / time_diff
@@ -196,15 +182,8 @@ impl TrafficTracker {
     /// Calculates the packet receive rate (packets per second).
     pub fn packet_receive_rate(&self) -> f64 {
         if let Some(prev) = self.previous {
-            let packets_diff = self
-                .current
-                .packets_received
-                .saturating_sub(prev.packets_received);
-            let time_diff = self
-                .current
-                .timestamp
-                .duration_since(prev.timestamp)
-                .as_secs_f64();
+            let packets_diff = self.current.packets_received.saturating_sub(prev.packets_received);
+            let time_diff = self.current.timestamp.duration_since(prev.timestamp).as_secs_f64();
 
             if time_diff > 0.0 {
                 packets_diff as f64 / time_diff
@@ -220,11 +199,7 @@ impl TrafficTracker {
     pub fn packet_send_rate(&self) -> f64 {
         if let Some(prev) = self.previous {
             let packets_diff = self.current.packets_sent.saturating_sub(prev.packets_sent);
-            let time_diff = self
-                .current
-                .timestamp
-                .duration_since(prev.timestamp)
-                .as_secs_f64();
+            let time_diff = self.current.timestamp.duration_since(prev.timestamp).as_secs_f64();
 
             if time_diff > 0.0 {
                 packets_diff as f64 / time_diff

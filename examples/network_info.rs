@@ -1,6 +1,6 @@
+use std::{thread::sleep, time::Duration};
+
 use darwin_metrics::network::{NetworkManager, NetworkMetrics};
-use std::thread::sleep;
-use std::time::Duration;
 
 fn main() -> darwin_metrics::Result<()> {
     // Create a new network manager
@@ -25,14 +25,7 @@ fn main() -> darwin_metrics::Result<()> {
 fn print_network_stats(network: &NetworkManager) {
     for interface in network.interfaces() {
         println!("\n{} ({})", interface.name(), interface.interface_type());
-        println!(
-            "  Status: {}",
-            if interface.is_active() {
-                "Active"
-            } else {
-                "Inactive"
-            }
-        );
+        println!("  Status: {}", if interface.is_active() { "Active" } else { "Inactive" });
 
         // Display interface properties
         if let Some(mac) = interface.mac_address() {
@@ -86,12 +79,6 @@ fn print_network_stats(network: &NetworkManager) {
 
     // Display total network speeds
     println!("\nTotal network usage:");
-    println!(
-        "  Download: {:.2} KB/s",
-        network.total_download_speed() / 1024.0
-    );
-    println!(
-        "  Upload: {:.2} KB/s",
-        network.total_upload_speed() / 1024.0
-    );
+    println!("  Download: {:.2} KB/s", network.total_download_speed() / 1024.0);
+    println!("  Upload: {:.2} KB/s", network.total_upload_speed() / 1024.0);
 }

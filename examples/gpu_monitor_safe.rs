@@ -1,6 +1,6 @@
+use std::{thread::sleep, time::Duration};
+
 use objc2::rc::autoreleasepool;
-use std::thread::sleep;
-use std::time::Duration;
 
 fn main() {
     println!("Darwin Metrics - GPU Utilization Monitor (Safe Version)");
@@ -8,7 +8,8 @@ fn main() {
     println!("Press Ctrl+C to exit\n");
 
     // On Apple Silicon, we can't directly measure GPU utilization with IOKit safely
-    // So we'll use a different approach - measure system activity and infer GPU usage
+    // So we'll use a different approach - measure system activity and infer GPU
+    // usage
 
     let mut sample_count = 0;
 
@@ -18,14 +19,8 @@ fn main() {
         unsafe {
             // Get system information safely using Foundation
             let process_info = objc2_foundation::NSProcessInfo::processInfo();
-            println!(
-                "  OS Version: {}",
-                process_info.operatingSystemVersionString()
-            );
-            println!(
-                "  Memory: {} GB",
-                process_info.physicalMemory() as f64 / 1_073_741_824.0
-            );
+            println!("  OS Version: {}", process_info.operatingSystemVersionString());
+            println!("  Memory: {} GB", process_info.physicalMemory() as f64 / 1_073_741_824.0);
             println!("  CPU Cores: {}", process_info.activeProcessorCount());
         }
     });
@@ -38,8 +33,17 @@ fn main() {
 
     let sample_rate = Duration::from_millis(1000);
 
-    // Create a loop to measure system activity
+    // Create a loop to measure system activity with 10 second timeout
+    let start_time = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(10);
+
     loop {
+        // Check if we've exceeded the 10 second timeout
+        if start_time.elapsed() >= timeout {
+            println!("\nTest completed after 10 seconds");
+            break;
+        }
+
         // Get load averages - a rough indication of system activity
         let load = get_load_averages();
 
@@ -52,10 +56,7 @@ fn main() {
         println!("GPU Monitor - Sample #{}\n", sample_count);
 
         // Print estimated metrics
-        println!(
-            "System Load (1min, 5min, 15min): {:.2}, {:.2}, {:.2}",
-            load.0, load.1, load.2
-        );
+        println!("System Load (1min, 5min, 15min): {:.2}, {:.2}, {:.2}", load.0, load.1, load.2);
         println!("Estimated GPU Usage: {:.1}%", estimated_gpu);
 
         // Memory info from process_info was too intensive to query repeatedly

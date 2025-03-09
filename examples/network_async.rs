@@ -1,5 +1,6 @@
-use darwin_metrics::network::{NetworkManager, NetworkMetrics};
 use std::time::Duration;
+
+use darwin_metrics::network::{NetworkManager, NetworkMetrics};
 
 #[tokio::main]
 async fn main() -> darwin_metrics::Result<()> {

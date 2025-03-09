@@ -1,7 +1,12 @@
-use crate::hardware::iokit::{IOKit, IOKitImpl};
-use crate::Result;
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
+
+use crate::{
+    hardware::iokit::{IOKit, IOKitImpl},
+    Result,
+};
 
 /// Represents the location of a temperature sensor in the system
 #[derive(Debug, Clone, PartialEq)]
@@ -117,10 +122,8 @@ impl Temperature {
         // Get comprehensive thermal information
         if let Ok(thermal_info) = self.io_kit.get_thermal_info() {
             // Update sensors with basic temperature readings
-            self.sensors
-                .insert("CPU".to_string(), thermal_info.cpu_temp);
-            self.sensors
-                .insert("GPU".to_string(), thermal_info.gpu_temp);
+            self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
+            self.sensors.insert("GPU".to_string(), thermal_info.gpu_temp);
 
             // Add optional sensors if available
             if let Some(temp) = thermal_info.heatsink_temp {
@@ -386,17 +389,17 @@ impl Temperature {
 
     /// Refresh all temperature and fan readings asynchronously
     pub async fn refresh_async(&mut self) -> Result<()> {
-        // Perform the actual IO operation in a blocking task to avoid blocking the async runtime
+        // Perform the actual IO operation in a blocking task to avoid blocking the
+        // async runtime
         let io_kit = self.io_kit.clone();
-        let thermal_info = tokio::task::spawn_blocking(move || io_kit.get_thermal_info())
-            .await
-            .map_err(|e| crate::Error::Temperature(format!("Task join error: {}", e)))??;
+        let thermal_info =
+            tokio::task::spawn_blocking(move || io_kit.get_thermal_info())
+                .await
+                .map_err(|e| crate::Error::Temperature(format!("Task join error: {}", e)))??;
 
         // Update sensors with basic temperature readings
-        self.sensors
-            .insert("CPU".to_string(), thermal_info.cpu_temp);
-        self.sensors
-            .insert("GPU".to_string(), thermal_info.gpu_temp);
+        self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
+        self.sensors.insert("GPU".to_string(), thermal_info.gpu_temp);
 
         // Add optional sensors if available
         if let Some(temp) = thermal_info.heatsink_temp {
@@ -459,7 +462,8 @@ impl Temperature {
         })
     }
 
-    /// Determine if the system is experiencing thermal throttling asynchronously
+    /// Determine if the system is experiencing thermal throttling
+    /// asynchronously
     pub async fn is_throttling_async(&mut self) -> Result<bool> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh_async().await?;
@@ -477,7 +481,7 @@ impl Temperature {
                 // Fall back to temperature-based heuristic
                 let cpu_temp = self.cpu_temperature_async().await?;
                 Ok(cpu_temp > self.config.throttling_threshold)
-            }
+            },
         }
     }
 }
@@ -511,9 +515,9 @@ impl Default for Temperature {
 
 #[cfg(test)]
 mod tests {
+    use std::{thread, time::Duration};
+
     use super::*;
-    use std::thread;
-    use std::time::Duration;
 
     #[test]
     fn test_temperature_new() {
@@ -547,7 +551,8 @@ mod tests {
             auto_refresh: true,
         });
 
-        // Should be false immediately after creation (because we set last_refresh to now-60s in constructor)
+        // Should be false immediately after creation (because we set last_refresh to
+        // now-60s in constructor)
         assert!(temp.should_refresh());
 
         // Manually update last_refresh
@@ -714,8 +719,9 @@ mod tests {
 
     #[test]
     fn test_is_throttling_property() {
-        // The is_throttling() method calls IOKit methods that are difficult to mock in tests
-        // So instead, we're testing that the property correctly reflects the state
+        // The is_throttling() method calls IOKit methods that are difficult to mock in
+        // tests So instead, we're testing that the property correctly reflects
+        // the state
 
         // Test default state
         let temp = Temperature::new();

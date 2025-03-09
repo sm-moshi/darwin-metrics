@@ -19,15 +19,22 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Setup Rust nightly for formatting
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
 
       - name: Check format
-        run: cargo fmt -- --check
+        run: cargo +nightly fmt -- --check --config-path=rustfmt.toml
 
       - name: Check clippy
-        run: cargo clippy --workspace --all-targets --all-features
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Run tests
         run: cargo test --all-features

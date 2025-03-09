@@ -29,6 +29,12 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: clippy, rustfmt
 
+      - name: Setup Rust nightly for formatting
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
+
       - name: Workaround for curl network errors
         if: ${{ matrix.rust == '1.70.0' || matrix.rust == '1.71.0' }}
         run: echo 'CARGO_HTTP_MULTIPLEXING=false' >> $GITHUB_ENV
@@ -37,10 +43,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Format check
-        run: cargo fmt -- --check
+        run: cargo +nightly fmt -- --check --config-path=rustfmt.toml
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Build with retry
         run: |

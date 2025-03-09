@@ -1,7 +1,6 @@
+use std::{collections::HashMap, path::Path, time::Instant};
+
 use crate::{Error, Result};
-use std::collections::HashMap;
-use std::path::Path;
-use std::time::Instant;
 
 /// The type of disk storage device
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -170,34 +169,9 @@ impl Disk {
     /// Gets information about the root filesystem
     pub fn get_info() -> Result<Self> {
         // Use a direct approach with statfs for the root filesystem
-        use std::ffi::CStr;
-        use std::mem::MaybeUninit;
-        use std::os::raw::{c_char, c_int};
+        use std::{ffi::CStr, mem::MaybeUninit};
 
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
-        struct Statfs {
-            f_bsize: u32,                  // Fundamental file system block size
-            f_iosize: i32,                 // Optimal transfer block size
-            f_blocks: u64,                 // Total data blocks in file system
-            f_bfree: u64,                  // Free blocks in file system
-            f_bavail: u64,                 // Free blocks available to non-superuser
-            f_files: u64,                  // Total file nodes in file system
-            f_ffree: u64,                  // Free nodes available
-            f_fsid: [i32; 2],              // File system ID
-            f_owner: u32,                  // User ID of mount owner
-            f_type: u32,                   // Type of file system
-            f_flags: u32,                  // Copy of mount flags
-            f_fssubtype: u32,              // File system subtype
-            f_fstypename: [c_char; 16],    // File system type name
-            f_mntonname: [c_char; 1024],   // Mount point
-            f_mntfromname: [c_char; 1024], // Mount source
-            f_reserved: [u32; 8],          // Reserved for future use
-        }
-
-        extern "C" {
-            fn statfs(path: *const c_char, buf: *mut Statfs) -> c_int;
-        }
+        use crate::utils::bindings::{statfs, Statfs};
 
         // Use a direct statfs call on the root path
         let c_path = std::ffi::CString::new("/").expect("Failed to create CString for root path");
@@ -213,25 +187,16 @@ impl Disk {
         let stat = unsafe { fs_stat.assume_init() };
 
         // Extract filesystem type
-        let fs_type = unsafe {
-            CStr::from_ptr(stat.f_fstypename.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let fs_type =
+            unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract mount point (should be "/" for root)
-        let mount_point = unsafe {
-            CStr::from_ptr(stat.f_mntonname.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let mount_point =
+            unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract device name
-        let device = unsafe {
-            CStr::from_ptr(stat.f_mntfromname.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let device =
+            unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
 
         // Calculate disk space values
         let block_size = stat.f_bsize as u64;
@@ -245,51 +210,20 @@ impl Disk {
             name: "Root".to_string(),
             is_boot_volume: true, // Root is always the boot volume
         };
-        
-        Ok(Disk::with_details(
-            device,
-            mount_point,
-            fs_type,
-            total,
-            available,
-            used,
-            config,
-        ))
+
+        Ok(Disk::with_details(device, mount_point, fs_type, total, available, used, config))
     }
 
     /// Gets information about all mounted filesystems
     pub fn get_all() -> Result<Vec<Self>> {
         // Use a direct approach with getfsstat for all filesystems
-        use std::ffi::CStr;
-        use std::mem::{size_of, MaybeUninit};
-        use std::os::raw::{c_char, c_int};
+        use std::{
+            ffi::CStr,
+            mem::{size_of, MaybeUninit},
+            os::raw::c_int,
+        };
 
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
-        struct Statfs {
-            f_bsize: u32,                  // Fundamental file system block size
-            f_iosize: i32,                 // Optimal transfer block size
-            f_blocks: u64,                 // Total data blocks in file system
-            f_bfree: u64,                  // Free blocks in file system
-            f_bavail: u64,                 // Free blocks available to non-superuser
-            f_files: u64,                  // Total file nodes in file system
-            f_ffree: u64,                  // Free nodes available
-            f_fsid: [i32; 2],              // File system ID
-            f_owner: u32,                  // User ID of mount owner
-            f_type: u32,                   // Type of file system
-            f_flags: u32,                  // Copy of mount flags
-            f_fssubtype: u32,              // File system subtype
-            f_fstypename: [c_char; 16],    // File system type name
-            f_mntonname: [c_char; 1024],   // Mount point
-            f_mntfromname: [c_char; 1024], // Mount source
-            f_reserved: [u32; 8],          // Reserved for future use
-        }
-
-        const MNT_NOWAIT: c_int = 2; // Don't block for filesystem sync
-
-        extern "C" {
-            fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
-        }
+        use crate::utils::bindings::{getfsstat, Statfs, MNT_NOWAIT};
 
         // First, call with null buffer to get the number of filesystems
         let fs_count = unsafe { getfsstat(std::ptr::null_mut(), 0, MNT_NOWAIT) };
@@ -303,13 +237,8 @@ impl Disk {
         let mut stats = vec![MaybeUninit::<Statfs>::uninit(); fs_count as usize];
 
         // Get the actual data
-        let fs_count = unsafe {
-            getfsstat(
-                stats.as_mut_ptr() as *mut Statfs,
-                buf_size as c_int,
-                MNT_NOWAIT,
-            )
-        };
+        let fs_count =
+            unsafe { getfsstat(stats.as_mut_ptr() as *mut Statfs, buf_size as c_int, MNT_NOWAIT) };
 
         if fs_count < 0 {
             return Err(Error::system("Failed to get filesystem information"));
@@ -323,9 +252,7 @@ impl Disk {
 
             // Extract filesystem type
             let fs_type = unsafe {
-                CStr::from_ptr(stat.f_fstypename.as_ptr())
-                    .to_string_lossy()
-                    .into_owned()
+                CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned()
             };
 
             // Skip special filesystems
@@ -334,17 +261,12 @@ impl Disk {
             }
 
             // Extract mount point
-            let mount_point = unsafe {
-                CStr::from_ptr(stat.f_mntonname.as_ptr())
-                    .to_string_lossy()
-                    .into_owned()
-            };
+            let mount_point =
+                unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
             // Extract device name
             let device = unsafe {
-                CStr::from_ptr(stat.f_mntfromname.as_ptr())
-                    .to_string_lossy()
-                    .into_owned()
+                CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned()
             };
 
             // Calculate disk space values
@@ -358,11 +280,7 @@ impl Disk {
 
             // Get disk name - for now use the mount point name
             let name = mount_point.split('/').next_back().unwrap_or("").to_string();
-            let name = if name.is_empty() {
-                "Root".to_string()
-            } else {
-                name
-            };
+            let name = if name.is_empty() { "Root".to_string() } else { name };
 
             // Determine likely disk type based on device path
             let disk_type = if device.starts_with("//")
@@ -373,18 +291,15 @@ impl Disk {
                 DiskType::Network
             } else if device.contains("disk") {
                 // For simplicity, we'll assume all local disks are SSDs
-                // A more accurate approach would use IOKit but we've avoided that due to memory issues
+                // A more accurate approach would use IOKit but we've avoided that due to memory
+                // issues
                 DiskType::SSD
             } else {
                 DiskType::Unknown
             };
 
-            let config = DiskConfig {
-                disk_type,
-                name,
-                is_boot_volume,
-            };
-            
+            let config = DiskConfig { disk_type, name, is_boot_volume };
+
             volumes.push(Self::with_details(
                 device,
                 mount_point,
@@ -402,35 +317,13 @@ impl Disk {
     /// Gets information about a specific path
     pub fn get_for_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         // Use direct statfs approach
-        use std::ffi::{CStr, CString};
-        use std::mem::MaybeUninit;
-        use std::os::raw::{c_char, c_int};
-        use std::os::unix::ffi::OsStrExt;
+        use std::{
+            ffi::{CStr, CString},
+            mem::MaybeUninit,
+            os::unix::ffi::OsStrExt,
+        };
 
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
-        struct Statfs {
-            f_bsize: u32,                  // Fundamental file system block size
-            f_iosize: i32,                 // Optimal transfer block size
-            f_blocks: u64,                 // Total data blocks in file system
-            f_bfree: u64,                  // Free blocks in file system
-            f_bavail: u64,                 // Free blocks available to non-superuser
-            f_files: u64,                  // Total file nodes in file system
-            f_ffree: u64,                  // Free nodes available
-            f_fsid: [i32; 2],              // File system ID
-            f_owner: u32,                  // User ID of mount owner
-            f_type: u32,                   // Type of file system
-            f_flags: u32,                  // Copy of mount flags
-            f_fssubtype: u32,              // File system subtype
-            f_fstypename: [c_char; 16],    // File system type name
-            f_mntonname: [c_char; 1024],   // Mount point
-            f_mntfromname: [c_char; 1024], // Mount source
-            f_reserved: [u32; 8],          // Reserved for future use
-        }
-
-        extern "C" {
-            fn statfs(path: *const c_char, buf: *mut Statfs) -> c_int;
-        }
+        use crate::utils::bindings::{statfs, Statfs};
 
         // Convert path to C string
         let c_path = CString::new(path.as_ref().as_os_str().as_bytes())
@@ -442,34 +335,23 @@ impl Disk {
         let result = unsafe { statfs(c_path.as_ptr(), fs_stat.as_mut_ptr()) };
 
         if result != 0 {
-            return Err(Error::system(
-                "Failed to get filesystem information for path",
-            ));
+            return Err(Error::system("Failed to get filesystem information for path"));
         }
 
         // Extract data
         let stat = unsafe { fs_stat.assume_init() };
 
         // Extract filesystem type
-        let fs_type = unsafe {
-            CStr::from_ptr(stat.f_fstypename.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let fs_type =
+            unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract mount point
-        let mount_point = unsafe {
-            CStr::from_ptr(stat.f_mntonname.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let mount_point =
+            unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract device name
-        let device = unsafe {
-            CStr::from_ptr(stat.f_mntfromname.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let device =
+            unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
 
         // Calculate disk space values
         let block_size = stat.f_bsize as u64;
@@ -482,11 +364,7 @@ impl Disk {
 
         // Get disk name - for now use the mount point name
         let name = mount_point.split('/').next_back().unwrap_or("").to_string();
-        let name = if name.is_empty() {
-            "Root".to_string()
-        } else {
-            name
-        };
+        let name = if name.is_empty() { "Root".to_string() } else { name };
 
         // Determine likely disk type based on device path
         let disk_type = if device.starts_with("//")
@@ -502,21 +380,9 @@ impl Disk {
             DiskType::Unknown
         };
 
-        let config = DiskConfig {
-            disk_type,
-            name,
-            is_boot_volume,
-        };
-        
-        Ok(Self::with_details(
-            device,
-            mount_point,
-            fs_type,
-            total,
-            available,
-            used,
-            config,
-        ))
+        let config = DiskConfig { disk_type, name, is_boot_volume };
+
+        Ok(Self::with_details(device, mount_point, fs_type, total, available, used, config))
     }
 
     /// Calculates disk usage percentage
@@ -549,11 +415,7 @@ impl Disk {
 
     /// Returns a human-readable summary of the disk
     pub fn summary(&self) -> String {
-        let display_name = if self.name.is_empty() {
-            &self.mount_point
-        } else {
-            &self.name
-        };
+        let display_name = if self.name.is_empty() { &self.mount_point } else { &self.name };
 
         format!(
             "{} ({}): {}% used ({} of {})",
@@ -589,17 +451,16 @@ impl Disk {
 impl DiskMonitor {
     /// Creates a new DiskMonitor instance
     pub fn new() -> Self {
-        Self {
-            previous_stats: HashMap::new(),
-            last_update: Instant::now(),
-        }
+        Self { previous_stats: HashMap::new(), last_update: Instant::now() }
     }
 
     /// Gets information about all mounted volumes
     pub fn get_volumes(&mut self) -> Result<Vec<Disk>> {
-        use std::ffi::CStr;
-        use std::mem::{size_of, MaybeUninit};
-        use std::os::raw::{c_char, c_int};
+        use std::{
+            ffi::CStr,
+            mem::{size_of, MaybeUninit},
+            os::raw::{c_char, c_int},
+        };
 
         const MNT_NOWAIT: c_int = 2;
 
@@ -640,13 +501,8 @@ impl DiskMonitor {
         let mut stats = vec![MaybeUninit::<Statfs>::uninit(); fs_count as usize];
 
         // Get the actual data
-        let fs_count = unsafe {
-            getfsstat(
-                stats.as_mut_ptr() as *mut Statfs,
-                buf_size as c_int,
-                MNT_NOWAIT,
-            )
-        };
+        let fs_count =
+            unsafe { getfsstat(stats.as_mut_ptr() as *mut Statfs, buf_size as c_int, MNT_NOWAIT) };
 
         if fs_count < 0 {
             return Err(Error::system("Failed to get filesystem information"));
@@ -660,9 +516,7 @@ impl DiskMonitor {
 
             // Extract filesystem type
             let fs_type = unsafe {
-                CStr::from_ptr(stat.f_fstypename.as_ptr())
-                    .to_string_lossy()
-                    .into_owned()
+                CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned()
             };
 
             // Skip special filesystems
@@ -671,17 +525,12 @@ impl DiskMonitor {
             }
 
             // Extract mount point
-            let mount_point = unsafe {
-                CStr::from_ptr(stat.f_mntonname.as_ptr())
-                    .to_string_lossy()
-                    .into_owned()
-            };
+            let mount_point =
+                unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
             // Extract device name
             let device = unsafe {
-                CStr::from_ptr(stat.f_mntfromname.as_ptr())
-                    .to_string_lossy()
-                    .into_owned()
+                CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned()
             };
 
             // Calculate disk space values
@@ -695,21 +544,13 @@ impl DiskMonitor {
 
             // Get disk name - for now use the mount point name
             let name = mount_point.split('/').next_back().unwrap_or("").to_string();
-            let name = if name.is_empty() {
-                "Root".to_string()
-            } else {
-                name
-            };
+            let name = if name.is_empty() { "Root".to_string() } else { name };
 
             // Detect disk type
             let disk_type = self.detect_disk_type(&device).unwrap_or(DiskType::Unknown);
 
-            let config = DiskConfig {
-                disk_type,
-                name,
-                is_boot_volume,
-            };
-            
+            let config = DiskConfig { disk_type, name, is_boot_volume };
+
             volumes.push(Disk::with_details(
                 device,
                 mount_point,
@@ -726,10 +567,11 @@ impl DiskMonitor {
 
     /// Gets information about the volume containing the specified path
     pub fn get_volume_for_path<P: AsRef<Path>>(&mut self, path: P) -> Result<Disk> {
-        use std::ffi::{CStr, CString};
-        use std::mem::MaybeUninit;
-        use std::os::raw::c_char;
-        use std::os::unix::ffi::OsStrExt;
+        use std::{
+            ffi::{CStr, CString},
+            mem::MaybeUninit,
+            os::{raw::c_char, unix::ffi::OsStrExt},
+        };
 
         #[repr(C)]
         #[derive(Debug, Copy, Clone)]
@@ -766,34 +608,23 @@ impl DiskMonitor {
         let result = unsafe { statfs(c_path.as_ptr(), stat.as_mut_ptr()) };
 
         if result != 0 {
-            return Err(Error::system(
-                "Failed to get filesystem information for path",
-            ));
+            return Err(Error::system("Failed to get filesystem information for path"));
         }
 
         // Extract data
         let stat = unsafe { stat.assume_init() };
 
         // Extract filesystem type
-        let fs_type = unsafe {
-            CStr::from_ptr(stat.f_fstypename.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let fs_type =
+            unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract mount point
-        let mount_point = unsafe {
-            CStr::from_ptr(stat.f_mntonname.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let mount_point =
+            unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract device name
-        let device = unsafe {
-            CStr::from_ptr(stat.f_mntfromname.as_ptr())
-                .to_string_lossy()
-                .into_owned()
-        };
+        let device =
+            unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
 
         // Calculate disk space values
         let block_size = stat.f_bsize as u64;
@@ -806,30 +637,14 @@ impl DiskMonitor {
 
         // Get disk name - for now use the mount point name
         let name = mount_point.split('/').next_back().unwrap_or("").to_string();
-        let name = if name.is_empty() {
-            "Root".to_string()
-        } else {
-            name
-        };
+        let name = if name.is_empty() { "Root".to_string() } else { name };
 
         // Detect disk type
         let disk_type = self.detect_disk_type(&device).unwrap_or(DiskType::Unknown);
 
-        let config = DiskConfig {
-            disk_type,
-            name,
-            is_boot_volume,
-        };
-        
-        Ok(Disk::with_details(
-            device,
-            mount_point,
-            fs_type,
-            total,
-            available,
-            used,
-            config,
-        ))
+        let config = DiskConfig { disk_type, name, is_boot_volume };
+
+        Ok(Disk::with_details(device, mount_point, fs_type, total, available, used, config))
     }
 
     /// Gets disk I/O performance metrics
@@ -850,8 +665,7 @@ impl DiskMonitor {
                 timestamp: now,
             };
 
-            self.previous_stats
-                .insert("/dev/disk0".to_string(), initial_stats);
+            self.previous_stats.insert("/dev/disk0".to_string(), initial_stats);
 
             // Sleep briefly to allow for meaningful deltas
             std::thread::sleep(std::time::Duration::from_millis(100));
@@ -874,7 +688,8 @@ impl DiskMonitor {
         }
 
         // For subsequent calls, simulate some activity
-        // Instead of using IOKit which has memory management issues, we'll generate simulated stats
+        // Instead of using IOKit which has memory management issues, we'll generate
+        // simulated stats
         let read_ops = 1000 + (now.elapsed().as_millis() % 500) as u64;
         let write_ops = 500 + (now.elapsed().as_millis() % 300) as u64;
         let bytes_read = 20 * 1024 * 1024 + (now.elapsed().as_millis() % 10_000_000) as u64;
@@ -980,8 +795,8 @@ impl DiskMonitor {
         let now = Instant::now();
 
         // Use an alternative approach that doesn't rely on IOKit
-        // Instead of using IOKit which has memory management issues in our current code,
-        // we'll generate simulated stats for demonstration
+        // Instead of using IOKit which has memory management issues in our current
+        // code, we'll generate simulated stats for demonstration
 
         // Simulate stats for the system disk
         let device = "/dev/disk0".to_string();
@@ -1156,10 +971,7 @@ mod tests {
         assert!(perf.is_ok(), "Should be able to get disk performance");
 
         if let Ok(perf_map) = perf {
-            assert!(
-                !perf_map.is_empty(),
-                "There should be at least one disk performance entry"
-            );
+            assert!(!perf_map.is_empty(), "There should be at least one disk performance entry");
 
             for (device, perf) in perf_map {
                 println!("Device: {}", device);

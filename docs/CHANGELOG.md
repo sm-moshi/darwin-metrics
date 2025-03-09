@@ -33,6 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Efficient temperature polling with configurable intervals
   - Comprehensive thermal metrics collection API
   - Fan control and monitoring capabilities
+- Completed Memory module implementation with:
+  - System memory tracking with detailed page state information
+  - Memory pressure monitoring with configurable thresholds and callbacks
+  - Swap usage tracking with pressure indicators
+  - Asynchronous memory metrics collection capabilities
+  - Resilient fallbacks for test environments
+  - Comprehensive tests for all memory metrics
+  - Example programs for both synchronous and async memory monitoring
 - First public release with core functionality for CPU, GPU, memory, network, and thermal monitoring
 - GitHub Actions CI/CD pipeline for automated testing and releases
 
@@ -107,8 +115,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved GPU module error handling with proper fallbacks for different hardware configurations
 - Enhanced GPU module to work better with Apple Silicon's unified memory architecture
 - Improved memory management in IOKit interfaces with autoreleasepools
-- Disabled problematic GPU tests to prevent SIGSEGV crashes during test execution
+- Fixed problematic GPU tests that caused SIGSEGV crashes during test execution
 - Centralized all FFI bindings in `src/utils/bindings.rs` for better maintainability
+  - Moved Metal framework bindings to central location
+  - Moved all statfs and filesystem bindings
+  - Added system process bindings
+  - Centralized all sysctl functions
+- Enhanced memory module with async support and resilient fallbacks
+- Improved swap usage tracking with better error handling in test environments
 - Refactored IOKit, System, and Memory modules to use centralized bindings
 - Enhanced lib.rs with comprehensive documentation for docs.rs compatibility
 - Improved error handling for FFI functions with explicit error messages
@@ -117,18 +131,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - GPU Implementation Issues:
 
-  - Fix memory safety issues during test teardown (SIGSEGV in IOKit interfaces)
-  - Ensure proper cleanup of IOKit resources in GPU metrics collection
-  - Create real-world examples to validate the GPU implementation
-  - Enhance tests to be more resilient in different environments
-  - Add fallback mechanisms for systems without dedicated GPUs
+  - Improve GPU hardware detection for various Mac models
+  - Create more comprehensive examples to validate the GPU implementation
+  - Add support for multiple GPU configurations
+  - Add utilization tracking for specialized GPU components (like Media Engines)
 
 - API Implementation Issues:
 
   - Complete real implementation of host_statistics64 for CPU core usage monitoring and VM memory statistics
   - Implement proper frequency detection through sysctlbyname("hw.cpufrequency") calls
   - Verify AppleACPICPU service compatibility with Objective-C method calls (`numberOfCores`, `numberOfProcessorCores`, etc.)
-  - Update memory module to use real memory statistics instead of hardcoded values
 
 - System Integration Issues:
   - Add support for individual core temperature sensors through additional SMC keys

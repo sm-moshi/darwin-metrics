@@ -1,7 +1,10 @@
+use std::{
+    io::{self, Write},
+    thread::sleep,
+    time::Duration,
+};
+
 use darwin_metrics::disk::DiskMonitor;
-use std::io::{self, Write};
-use std::thread::sleep;
-use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Darwin Metrics - Disk Monitor Example");
@@ -49,16 +52,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("  Mount point: {}", volume.mount_point);
                     println!("  Filesystem: {}", volume.fs_type);
                     println!("  Available: {}", volume.available_display());
-                    println!(
-                        "  Boot volume: {}",
-                        if volume.is_boot_volume { "Yes" } else { "No" }
-                    );
+                    println!("  Boot volume: {}", if volume.is_boot_volume { "Yes" } else { "No" });
                     println!();
                 }
-            }
+            },
             Err(e) => {
                 println!("Error fetching disk volumes: {}", e);
-            }
+            },
         }
 
         // Display disk performance metrics
@@ -98,10 +98,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("] {:.1}%", perf.utilization);
                     println!();
                 }
-            }
+            },
             Err(e) => {
                 println!("Error fetching disk performance: {}", e);
-            }
+            },
         }
 
         println!("Press Ctrl+C to exit");

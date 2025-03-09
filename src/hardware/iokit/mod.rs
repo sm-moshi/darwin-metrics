@@ -1,22 +1,28 @@
-use crate::error::{Error, Result};
-use crate::utils::bindings::{
-    smc_key_from_chars, IOByteCount, IOConnectCallStructMethod, IORegistryEntryCreateCFProperties,
-    IOServiceClose, IOServiceGetMatchingService, IOServiceMatching, IOServiceOpen, SMCKeyData_t,
-    IO_RETURN_SUCCESS, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES, SMC_CMD_READ_KEYINFO,
-    SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER, SMC_KEY_CPU_TEMP,
-    SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM, SMC_KEY_FAN_SPEED, SMC_KEY_GPU_TEMP,
-    SMC_KEY_HEATSINK_TEMP,
+use std::{
+    ffi::{c_void as ffi_c_void, CString},
+    mem::size_of,
+    os::raw::c_char,
+    ptr,
 };
-use objc2::class;
-use objc2::msg_send;
-use objc2::rc::{autoreleasepool, Retained};
-use objc2::runtime::AnyObject;
+
+use objc2::{
+    class, msg_send,
+    rc::{autoreleasepool, Retained},
+    runtime::AnyObject,
+};
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
-use std::ffi::c_void as ffi_c_void;
-use std::ffi::CString;
-use std::mem::size_of;
-use std::os::raw::c_char;
-use std::ptr;
+
+use crate::{
+    error::{Error, Result},
+    utils::bindings::{
+        smc_key_from_chars, IOByteCount, IOConnectCallStructMethod,
+        IORegistryEntryCreateCFProperties, IOServiceClose, IOServiceGetMatchingService,
+        IOServiceMatching, IOServiceOpen, SMCKeyData_t, IO_RETURN_SUCCESS, KERNEL_INDEX_SMC,
+        SMC_CMD_READ_BYTES, SMC_CMD_READ_KEYINFO, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP,
+        SMC_KEY_CPU_POWER, SMC_KEY_CPU_TEMP, SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM,
+        SMC_KEY_FAN_SPEED, SMC_KEY_GPU_TEMP, SMC_KEY_HEATSINK_TEMP,
+    },
+};
 
 /// GPU statistics retrieved from IOKit's AGPMController
 #[derive(Debug, Clone, Default)]
@@ -131,10 +137,7 @@ impl IOKitImpl {
             let mut connection = 0u32;
             let result = IOServiceOpen(service_id, 0, KERNEL_INDEX_SMC, &mut connection);
             if result != IO_RETURN_SUCCESS {
-                return Err(Error::io_kit(format!(
-                    "Failed to open SMC connection: {}",
-                    result
-                )));
+                return Err(Error::io_kit(format!("Failed to open SMC connection: {}", result)));
             }
 
             // Get key info first to determine the data type
@@ -166,10 +169,7 @@ impl IOKitImpl {
 
             if result != IO_RETURN_SUCCESS {
                 IOServiceClose(connection);
-                return Err(Error::io_kit(format!(
-                    "Failed to read SMC key info: {}",
-                    result
-                )));
+                return Err(Error::io_kit(format!("Failed to read SMC key info: {}", result)));
             }
 
             // Now read the actual data
@@ -188,10 +188,7 @@ impl IOKitImpl {
             IOServiceClose(connection);
 
             if result != IO_RETURN_SUCCESS {
-                return Err(Error::io_kit(format!(
-                    "Failed to read SMC key data: {}",
-                    result
-                )));
+                return Err(Error::io_kit(format!("Failed to read SMC key data: {}", result)));
             }
 
             // Get the data and convert to temperature (depends on the data type)
@@ -309,7 +306,8 @@ impl IOKit for IOKitImpl {
     }
 
     fn io_object_release(&self, _obj: &AnyObject) {
-        // The object is automatically released when the Retained<AnyObject> is dropped
+        // The object is automatically released when the Retained<AnyObject> is
+        // dropped
     }
 
     fn get_string_property(
@@ -520,12 +518,7 @@ impl IOKit for IOKitImpl {
             0.0
         };
 
-        Ok(FanInfo {
-            speed_rpm,
-            min_speed,
-            max_speed,
-            percentage,
-        })
+        Ok(FanInfo { speed_rpm, min_speed, max_speed, percentage })
     }
 
     fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
@@ -550,100 +543,191 @@ impl IOKit for IOKitImpl {
 
         // Wrap in autoreleasepool to ensure proper memory management
         autoreleasepool(|_| {
-            // Try to get GPU information from IOKit's AGPMController
-            let agpm_matching = self.io_service_matching("AGPMController");
-            if let Some(agpm_service) = self.io_service_get_matching_service(&agpm_matching) {
-                if let Ok(properties) = self.io_registry_entry_create_cf_properties(&agpm_service) {
-                    // Get GPU performance capacity (0-100)
-                    if let Some(perf_cap) = self.get_number_property(&properties, "GPUPerfCap") {
-                        stats.perf_cap = perf_cap as f64;
-                    }
-
-                    // Get GPU performance threshold (0-100)
-                    if let Some(perf_threshold) =
-                        self.get_number_property(&properties, "GPUPerfThreshold")
+            // Try to get GPU information from IOKit's AGPMController using safer approach
+            {
+                let agpm_matching = self.io_service_matching("AGPMController");
+                // Create a scope to ensure proper object lifecycle
+                {
+                    if let Some(agpm_service) = self.io_service_get_matching_service(&agpm_matching)
                     {
-                        stats.perf_threshold = perf_threshold as f64;
-                    }
+                        // Create another scope to ensure properties are released before service
+                        {
+                            if let Ok(properties) =
+                                self.io_registry_entry_create_cf_properties(&agpm_service)
+                            {
+                                // Get GPU performance capacity (0-100)
+                                let perf_cap = self
+                                    .get_number_property(&properties, "GPUPerfCap")
+                                    .unwrap_or(0)
+                                    as f64;
 
-                    // Calculate GPU utilization based on perf_cap and perf_threshold
-                    if stats.perf_cap > 0.0 && stats.perf_threshold > 0.0 {
-                        stats.utilization = (stats.perf_cap / stats.perf_threshold) * 100.0;
-                        // Clamp to range 0-100
-                        stats.utilization = stats.utilization.clamp(0.0, 100.0);
+                                // Get GPU performance threshold (0-100)
+                                let perf_threshold =
+                                    self.get_number_property(&properties, "GPUPerfThreshold")
+                                        .unwrap_or(100) as f64;
+
+                                // Store values
+                                stats.perf_cap = perf_cap;
+                                stats.perf_threshold = perf_threshold;
+
+                                // Calculate GPU utilization based on perf_cap and perf_threshold
+                                if perf_cap > 0.0 && perf_threshold > 0.0 {
+                                    stats.utilization = (perf_cap / perf_threshold) * 100.0;
+                                    // Clamp to range 0-100
+                                    stats.utilization = stats.utilization.clamp(0.0, 100.0);
+                                }
+                                // properties is dropped here
+                            }
+                        }
+                        // agpm_service is dropped here
                     }
                 }
+                // agpm_matching is dropped here
             }
 
-            // Try to get GPU memory information from IORegistry
-            let accelerator_matching = self.io_service_matching("IOAccelerator");
-            if let Some(accelerator) = self.io_service_get_matching_service(&accelerator_matching) {
-                if let Ok(properties) = self.io_registry_entry_create_cf_properties(&accelerator) {
-                    // Get GPU memory information
-                    if let Some(total_vram) = self.get_number_property(&properties, "VRAM,totalMB")
+            // Try to get GPU memory information from IORegistry using safer approach
+            {
+                let accelerator_matching = self.io_service_matching("IOAccelerator");
+                {
+                    if let Some(accelerator) =
+                        self.io_service_get_matching_service(&accelerator_matching)
                     {
-                        stats.memory_total = (total_vram as u64) * 1024 * 1024; // Convert MB to bytes
-                    }
+                        {
+                            if let Ok(properties) =
+                                self.io_registry_entry_create_cf_properties(&accelerator)
+                            {
+                                // Get GPU memory information
+                                if let Some(total_vram) =
+                                    self.get_number_property(&properties, "VRAM,totalMB")
+                                {
+                                    stats.memory_total = (total_vram as u64) * 1024 * 1024;
+                                    // Convert MB to bytes
+                                }
 
-                    if let Some(used_vram) = self.get_number_property(&properties, "VRAM,usedMB") {
-                        stats.memory_used = (used_vram as u64) * 1024 * 1024; // Convert MB to bytes
-                    }
+                                if let Some(used_vram) =
+                                    self.get_number_property(&properties, "VRAM,usedMB")
+                                {
+                                    stats.memory_used = (used_vram as u64) * 1024 * 1024;
+                                    // Convert MB to bytes
+                                }
 
-                    // Get GPU name
-                    if let Some(name) = self.get_string_property(&properties, "GPUModel") {
-                        stats.name = name;
-                    } else if let Some(name) = self.get_string_property(&properties, "model") {
-                        stats.name = name;
+                                // Get GPU name - copy strings to avoid dangling references
+                                if let Some(name) =
+                                    self.get_string_property(&properties, "GPUModel")
+                                {
+                                    stats.name = name;
+                                } else if let Some(name) =
+                                    self.get_string_property(&properties, "model")
+                                {
+                                    stats.name = name;
+                                }
+                                // properties is dropped here
+                            }
+                        }
+                        // accelerator is dropped here
                     }
                 }
+                // accelerator_matching is dropped here
             }
 
             // Fallback for Apple Silicon devices where memory isn't explicitly reported
             if stats.memory_total == 0 {
                 // For Apple Silicon, try to get system memory and use a portion of it since
-                // Apple Silicon uses a unified memory architecture
-                let system_matching = self.io_service_matching("IOPlatformExpertDevice");
-                if let Some(system) = self.io_service_get_matching_service(&system_matching) {
-                    if let Ok(properties) = self.io_registry_entry_create_cf_properties(&system) {
-                        if let Some(memory) =
-                            self.get_number_property(&properties, "total-ram-size")
+                // Apple Silicon uses a unified memory architecture - use safer memory
+                // management
+                {
+                    let system_matching = self.io_service_matching("IOPlatformExpertDevice");
+                    {
+                        if let Some(system) = self.io_service_get_matching_service(&system_matching)
                         {
-                            // Assume GPU can use up to 1/4 of system memory on Apple Silicon
-                            stats.memory_total = (memory as u64) / 4;
-                            // Estimate used VRAM based on utilization
-                            stats.memory_used =
-                                ((stats.utilization / 100.0) * stats.memory_total as f64) as u64;
+                            {
+                                if let Ok(properties) =
+                                    self.io_registry_entry_create_cf_properties(&system)
+                                {
+                                    // Get total RAM size
+                                    if let Some(memory) =
+                                        self.get_number_property(&properties, "total-ram-size")
+                                    {
+                                        // Assume GPU can use up to 1/4 of system memory on Apple
+                                        // Silicon
+                                        stats.memory_total = (memory as u64) / 4;
+                                        // Estimate used VRAM based on utilization, with safety
+                                        // checks
+                                        let utilization = stats.utilization.clamp(0.0, 100.0);
+                                        stats.memory_used = ((utilization / 100.0)
+                                            * stats.memory_total as f64)
+                                            as u64;
+                                    }
+                                    // properties is dropped here
+                                }
+                            }
+                            // system is dropped here
                         }
                     }
+                    // system_matching is dropped here
                 }
             }
 
             // If we still don't have a name, try to get it from another service
             if stats.name.is_empty() {
-                let graphics_matching = self.io_service_matching("IOGraphicsAccelerator2");
-                if let Some(graphics) = self.io_service_get_matching_service(&graphics_matching) {
-                    if let Ok(properties) = self.io_registry_entry_create_cf_properties(&graphics) {
-                        if let Some(name) = self.get_string_property(&properties, "IOGLBundleName")
+                // Use safer approach with explicit scopes for memory management
+                {
+                    let graphics_matching = self.io_service_matching("IOGraphicsAccelerator2");
+                    {
+                        if let Some(graphics) =
+                            self.io_service_get_matching_service(&graphics_matching)
                         {
-                            stats.name = name;
+                            {
+                                if let Ok(properties) =
+                                    self.io_registry_entry_create_cf_properties(&graphics)
+                                {
+                                    // Get the bundle name and copy it to avoid dangling pointers
+                                    if let Some(name) =
+                                        self.get_string_property(&properties, "IOGLBundleName")
+                                    {
+                                        stats.name = name;
+                                    }
+                                    // properties is dropped here
+                                }
+                            }
+                            // graphics is dropped here
                         }
                     }
+                    // graphics_matching is dropped here
                 }
             }
 
             // Fallback name for Apple Silicon
             if stats.name.is_empty() {
-                // Check for Apple Silicon devices
+                // Check for Apple Silicon devices - using a safer approach with explicit scope
+                // management
                 let system_matching = self.io_service_matching("IOPlatformExpertDevice");
-                if let Some(system) = self.io_service_get_matching_service(&system_matching) {
-                    if let Ok(properties) = self.io_registry_entry_create_cf_properties(&system) {
-                        if let Some(chip) = self.get_string_property(&properties, "chip-id") {
-                            if chip.contains("M1") || chip.contains("M2") || chip.contains("M3") {
-                                stats.name = format!("Apple {} GPU", chip);
+                // Create a scope to ensure proper cleanup
+                {
+                    if let Some(system) = self.io_service_get_matching_service(&system_matching) {
+                        // Properties scope - ensure it's cleaned up before system is released
+                        if let Ok(properties) = self.io_registry_entry_create_cf_properties(&system)
+                        {
+                            // Get chip info
+                            let chip_name = self
+                                .get_string_property(&properties, "chip-id")
+                                .unwrap_or_else(|| "Unknown".to_string());
+
+                            // Check if it's Apple Silicon
+                            if chip_name.contains("M1")
+                                || chip_name.contains("M2")
+                                || chip_name.contains("M3")
+                            {
+                                stats.name = format!("Apple {} GPU", chip_name);
                             }
+                            // properties is dropped here - correctly releasing
+                            // CF objects
                         }
+                        // system is dropped here - ensuring proper IOService
+                        // release
                     }
                 }
+                // system_matching is dropped here
             }
         });
 
@@ -654,7 +738,8 @@ impl IOKit for IOKitImpl {
 
         // Try to get temperature
         if let Ok(temp) = self.get_gpu_temperature() {
-            // Store this in the name for now - we'll add a dedicated temperature field in the future
+            // Store this in the name for now - we'll add a dedicated temperature field in
+            // the future
             stats.name = format!("{} ({}°C)", stats.name, temp);
         }
 
@@ -669,12 +754,7 @@ mod tests {
     #[test]
     fn test_smc_key_from_chars() {
         // Test with "TC0P" (CPU temperature key)
-        let key = [
-            b'T' as c_char,
-            b'C' as c_char,
-            b'0' as c_char,
-            b'P' as c_char,
-        ];
+        let key = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
         let result = smc_key_from_chars(key);
 
         // Calculate the expected value: ('T' << 24) | ('C' << 16) | ('0' << 8) | 'P'
@@ -690,10 +770,7 @@ mod tests {
         let mut mock_iokit = MockIOKit::new();
 
         // Set up the expected behavior
-        mock_iokit
-            .expect_get_cpu_temperature()
-            .times(1)
-            .returning(|| Ok(45.5));
+        mock_iokit.expect_get_cpu_temperature().times(1).returning(|| Ok(45.5));
 
         // Call the method
         let result = mock_iokit.get_cpu_temperature().unwrap();
@@ -708,10 +785,7 @@ mod tests {
         let mut mock_iokit = MockIOKit::new();
 
         // Set up the expected behavior
-        mock_iokit
-            .expect_get_gpu_temperature()
-            .times(1)
-            .returning(|| Ok(55.0));
+        mock_iokit.expect_get_gpu_temperature().times(1).returning(|| Ok(55.0));
 
         // Call the method
         let result = mock_iokit.get_gpu_temperature().unwrap();
@@ -746,8 +820,8 @@ mod tests {
         assert_eq!(result.name, "Test GPU");
     }
 
-    // This test is disabled by default because it can cause segfaults in some environments
-    // Only run it manually when debugging IOKit issues
+    // This test is disabled by default because it can cause segfaults in some
+    // environments Only run it manually when debugging IOKit issues
     #[cfg(feature = "unstable-tests")]
     #[test]
     fn test_real_gpu_stats() {
@@ -764,11 +838,11 @@ mod tests {
                     assert!(stats.utilization >= 0.0 && stats.utilization <= 100.0);
                     assert!(!stats.name.is_empty());
                     println!("GPU stats: {:?}", stats);
-                }
+                },
                 Err(e) => {
                     // Just log the error, don't fail the test
                     println!("Warning: Couldn't get GPU stats: {:?}", e);
-                }
+                },
             }
         });
     }
@@ -781,8 +855,8 @@ mod tests {
     //
     //     // Mock the dictionary for io_service_matching
     //     let mock_dict = unsafe {
-    //         Retained::from_raw(msg_send![class!(NSDictionary), dictionary]).unwrap()
-    //     };
+    //         Retained::from_raw(msg_send![class!(NSDictionary),
+    // dictionary]).unwrap()     };
     //
     //     // Mock an AnyObject for the service
     //     let mock_service = unsafe {

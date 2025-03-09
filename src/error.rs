@@ -1,5 +1,5 @@
-use std::io;
-use std::result;
+use std::{io, result};
+
 use thiserror::Error;
 
 /// Specific error types for darwin-metrics
@@ -115,10 +115,9 @@ impl Error {
     pub fn details(&self) -> String {
         match self {
             Error::Io(e) => format!("{}: {}", e, e.kind()),
-            Error::PermissionDenied(msg) => format!(
-                "Permission denied: {}. Try running with elevated privileges.",
-                msg
-            ),
+            Error::PermissionDenied(msg) => {
+                format!("Permission denied: {}. Try running with elevated privileges.", msg)
+            },
             Error::IOKit(msg) => format!(
                 "IOKit error: {}. This might be a compatibility issue with your macOS version.",
                 msg

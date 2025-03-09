@@ -1,16 +1,20 @@
 //! FFI bindings to macOS system APIs.
 //!
-//! This module centralizes all the FFI bindings for macOS system APIs used throughout the crate.
-//! It provides a clean interface to low-level C functions from various macOS frameworks:
+//! This module centralizes all the FFI bindings for macOS system APIs used
+//! throughout the crate. It provides a clean interface to low-level C functions
+//! from various macOS frameworks:
 //!
 //! - `sysctl` for system information
 //! - `IOKit` for hardware access
 //! - Mach host functions for memory statistics
 //!
-//! By centralizing these bindings, we improve maintainability and reduce redundancy across modules.
+//! By centralizing these bindings, we improve maintainability and reduce
+//! redundancy across modules.
 
-use std::ffi::c_void as ffi_c_void;
-use std::os::raw::{c_char, c_int, c_uint, c_void};
+use std::{
+    ffi::c_void as ffi_c_void,
+    os::raw::{c_char, c_int, c_uint, c_void},
+};
 
 //------------------------------------------------------------------------------
 // sysctl FFI bindings for macOS
@@ -66,8 +70,8 @@ pub struct proc_info {
 #[repr(C)]
 pub struct extern_proc {
     pub p_starttime: timeval,
-    pub p_comm: [u8; 16], // MAXCOMLEN
-                          // More fields exist but aren't needed for basic functionality
+    pub p_comm: [u8; 16], /* MAXCOMLEN
+                           * More fields exist but aren't needed for basic functionality */
 }
 
 /// Time value structure used in BSD APIs
@@ -178,93 +182,45 @@ pub struct IOByteCount(pub usize);
 pub struct IOOptionBits(pub u32);
 
 // SMC key definitions for temperature sensors
-pub const SMC_KEY_CPU_TEMP: [c_char; 4] = [
-    b'T' as c_char,
-    b'C' as c_char,
-    b'0' as c_char,
-    b'P' as c_char,
-]; // CPU Temp (TC0P)
+pub const SMC_KEY_CPU_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char]; // CPU Temp (TC0P)
 
-pub const SMC_KEY_GPU_TEMP: [c_char; 4] = [
-    b'T' as c_char,
-    b'G' as c_char,
-    b'0' as c_char,
-    b'P' as c_char,
-]; // GPU Temp (TG0P)
+pub const SMC_KEY_GPU_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'G' as c_char, b'0' as c_char, b'P' as c_char]; // GPU Temp (TG0P)
 
 // Fan speed keys
-pub const SMC_KEY_FAN_NUM: [c_char; 4] = [
-    b'F' as c_char,
-    b'N' as c_char,
-    b'u' as c_char,
-    b'm' as c_char,
-]; // Number of fans (FNum)
+pub const SMC_KEY_FAN_NUM: [c_char; 4] =
+    [b'F' as c_char, b'N' as c_char, b'u' as c_char, b'm' as c_char]; // Number of fans (FNum)
 
-pub const SMC_KEY_FAN_SPEED: [c_char; 4] = [
-    b'F' as c_char,
-    b'0' as c_char,
-    b'A' as c_char,
-    b'c' as c_char,
-]; // Fan 0 Speed (F0Ac)
+pub const SMC_KEY_FAN_SPEED: [c_char; 4] =
+    [b'F' as c_char, b'0' as c_char, b'A' as c_char, b'c' as c_char]; // Fan 0 Speed (F0Ac)
 
-pub const SMC_KEY_FAN1_SPEED: [c_char; 4] = [
-    b'F' as c_char,
-    b'1' as c_char,
-    b'A' as c_char,
-    b'c' as c_char,
-]; // Fan 1 Speed (F1Ac)
+pub const SMC_KEY_FAN1_SPEED: [c_char; 4] =
+    [b'F' as c_char, b'1' as c_char, b'A' as c_char, b'c' as c_char]; // Fan 1 Speed (F1Ac)
 
 // Fan speed min/max keys
-pub const SMC_KEY_FAN0_MIN: [c_char; 4] = [
-    b'F' as c_char,
-    b'0' as c_char,
-    b'M' as c_char,
-    b'n' as c_char,
-]; // Fan 0 Min Speed (F0Mn)
+pub const SMC_KEY_FAN0_MIN: [c_char; 4] =
+    [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'n' as c_char]; // Fan 0 Min Speed (F0Mn)
 
-pub const SMC_KEY_FAN0_MAX: [c_char; 4] = [
-    b'F' as c_char,
-    b'0' as c_char,
-    b'M' as c_char,
-    b'x' as c_char,
-]; // Fan 0 Max Speed (F0Mx)
+pub const SMC_KEY_FAN0_MAX: [c_char; 4] =
+    [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'x' as c_char]; // Fan 0 Max Speed (F0Mx)
 
 // Additional thermal sensors
-pub const SMC_KEY_HEATSINK_TEMP: [c_char; 4] = [
-    b'T' as c_char,
-    b'h' as c_char,
-    b'0' as c_char,
-    b'H' as c_char,
-]; // Heatsink temp (Th0H)
+pub const SMC_KEY_HEATSINK_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'h' as c_char, b'0' as c_char, b'H' as c_char]; // Heatsink temp (Th0H)
 
-pub const SMC_KEY_AMBIENT_TEMP: [c_char; 4] = [
-    b'T' as c_char,
-    b'A' as c_char,
-    b'0' as c_char,
-    b'P' as c_char,
-]; // Ambient temp (TA0P)
+pub const SMC_KEY_AMBIENT_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'A' as c_char, b'0' as c_char, b'P' as c_char]; // Ambient temp (TA0P)
 
-pub const SMC_KEY_BATTERY_TEMP: [c_char; 4] = [
-    b'T' as c_char,
-    b'B' as c_char,
-    b'0' as c_char,
-    b'T' as c_char,
-]; // Battery temp (TB0T)
+pub const SMC_KEY_BATTERY_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'B' as c_char, b'0' as c_char, b'T' as c_char]; // Battery temp (TB0T)
 
 // Power and thermal throttling keys
-pub const SMC_KEY_CPU_POWER: [c_char; 4] = [
-    b'P' as c_char,
-    b'C' as c_char,
-    b'P' as c_char,
-    b'C' as c_char,
-]; // CPU package power (PCPC)
+pub const SMC_KEY_CPU_POWER: [c_char; 4] =
+    [b'P' as c_char, b'C' as c_char, b'P' as c_char, b'C' as c_char]; // CPU package power (PCPC)
 
-pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] = [
-    b'P' as c_char,
-    b'C' as c_char,
-    b'T' as c_char,
-    b'C' as c_char,
-]; // CPU thermal throttling (PCTC)
+pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] =
+    [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char]; // CPU thermal throttling (PCTC)
 
 // SMC data structures
 #[repr(C)]
@@ -396,6 +352,80 @@ pub mod proc_state {
     pub const SSLEEP: u8 = 3; // Sleeping on an address
     pub const SSTOP: u8 = 4; // Process debugging or suspension
     pub const SZOMB: u8 = 5; // Awaiting collection by parent
+}
+
+//------------------------------------------------------------------------------
+// Filesystem related structures and bindings
+//------------------------------------------------------------------------------
+
+/// Filesystem statistics structure from sys/mount.h
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Statfs {
+    pub f_bsize: u32,                  // Fundamental file system block size
+    pub f_iosize: i32,                 // Optimal transfer block size
+    pub f_blocks: u64,                 // Total data blocks in file system
+    pub f_bfree: u64,                  // Free blocks in file system
+    pub f_bavail: u64,                 // Free blocks available to non-superuser
+    pub f_files: u64,                  // Total file nodes in file system
+    pub f_ffree: u64,                  // Free nodes available
+    pub f_fsid: [i32; 2],              // File system ID
+    pub f_owner: u32,                  // User ID of mount owner
+    pub f_type: u32,                   // Type of file system
+    pub f_flags: u32,                  // Copy of mount flags
+    pub f_fssubtype: u32,              // File system subtype
+    pub f_fstypename: [c_char; 16],    // File system type name
+    pub f_mntonname: [c_char; 1024],   // Mount point
+    pub f_mntfromname: [c_char; 1024], // Mount source
+    pub f_reserved: [u32; 8],          // Reserved for future use
+}
+
+/// Filesystem mount flags
+pub const MNT_NOWAIT: c_int = 2; // Don't block for filesystem sync
+
+// Filesystem functions
+#[link(name = "System", kind = "framework")]
+extern "C" {
+    /// Get statistics about a mounted filesystem
+    pub fn statfs(path: *const c_char, buf: *mut Statfs) -> c_int;
+
+    /// Get statistics about all mounted filesystems
+    pub fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
+}
+
+//------------------------------------------------------------------------------
+// Metal Framework Bindings for GPU Access
+//------------------------------------------------------------------------------
+
+/// Metal framework type for device access
+pub type MTLDeviceRef = *mut c_void;
+
+#[link(name = "Metal", kind = "framework")]
+extern "C" {
+    /// Creates and returns the default system Metal device
+    /// Used to access GPU information including name and capabilities
+    pub fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
+}
+
+//------------------------------------------------------------------------------
+// Process and System Info Functions
+//------------------------------------------------------------------------------
+
+/// Constants for proc_pidinfo
+pub const PROC_PIDTASKINFO: c_int = 4;
+
+extern "C" {
+    /// Get system load averages for the past 1, 5, and 15 minutes
+    pub fn getloadavg(loads: *mut f64, nelem: c_int) -> c_int;
+
+    /// Get process information by PID
+    pub fn proc_pidinfo(
+        pid: c_int,
+        flavor: c_int,
+        arg: u64,
+        buffer: *mut c_void,
+        buffersize: c_int,
+    ) -> c_int;
 }
 
 //------------------------------------------------------------------------------
@@ -534,10 +564,7 @@ extern "C" {
 /// Extract the process name from a kinfo_proc structure
 pub fn extract_proc_name(proc_info: &kinfo_proc) -> String {
     let raw_name = &proc_info.kp_eproc.p_comm;
-    let end = raw_name
-        .iter()
-        .position(|&c| c == 0)
-        .unwrap_or(raw_name.len());
+    let end = raw_name.iter().position(|&c| c == 0).unwrap_or(raw_name.len());
     let name_slice = &raw_name[0..end];
     String::from_utf8_lossy(name_slice).to_string()
 }
@@ -548,19 +575,13 @@ pub fn is_system_process(pid: u32, name: &str) -> bool {
     // 1. Have a PID < 1000
     // 2. Run as root (uid 0) - this would need additional privileges to check
     // 3. Are owned by system users
-    // 4. Have names that start with "com.apple." or are well-known system process names
+    // 4. Have names that start with "com.apple." or are well-known system process
+    //    names
 
     pid < 1000
         || name.starts_with("com.apple.")
-        || [
-            "launchd",
-            "kernel_task",
-            "WindowServer",
-            "systemstats",
-            "logd",
-            "syslogd",
-        ]
-        .contains(&name)
+        || ["launchd", "kernel_task", "WindowServer", "systemstats", "logd", "syslogd"]
+            .contains(&name)
 }
 
 /// Convert a char array to an SMC key integer

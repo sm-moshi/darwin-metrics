@@ -1,21 +1,23 @@
-use super::{CpuMetrics, FrequencyMetrics, FrequencyMonitor};
-use crate::error::Result;
-use crate::hardware::iokit::{IOKit, IOKitImpl};
-use objc2::msg_send;
-use objc2::rc::Retained;
+use objc2::{msg_send, rc::Retained};
 use objc2_foundation::NSString;
 
+use super::{CpuMetrics, FrequencyMetrics, FrequencyMonitor};
 #[cfg(test)]
 use crate::hardware::iokit::MockIOKit;
+use crate::{
+    error::Result,
+    hardware::iokit::{IOKit, IOKitImpl},
+};
 
 /// Primary structure for accessing macOS CPU information and metrics.
 ///
-/// `CPU` provides a comprehensive interface for monitoring and reporting CPU statistics
-/// on macOS systems. It leverages the IOKit framework to communicate with the hardware
-/// and retrieve accurate, real-time data about the system's processor.
+/// `CPU` provides a comprehensive interface for monitoring and reporting CPU
+/// statistics on macOS systems. It leverages the IOKit framework to communicate
+/// with the hardware and retrieve accurate, real-time data about the system's
+/// processor.
 ///
-/// This implementation works with both Intel and Apple Silicon processors and provides
-/// consistent metrics across different macOS hardware configurations.
+/// This implementation works with both Intel and Apple Silicon processors and
+/// provides consistent metrics across different macOS hardware configurations.
 ///
 /// # Fields
 ///
@@ -42,12 +44,13 @@ pub struct CPU {
 impl CPU {
     /// Creates a new CPU instance with real-time metrics.
     ///
-    /// This constructor initializes a new CPU monitor and immediately populates it
-    /// with the current system CPU metrics by calling `update()`.
+    /// This constructor initializes a new CPU monitor and immediately populates
+    /// it with the current system CPU metrics by calling `update()`.
     ///
     /// # Returns
     ///
-    /// * `Result<Self>` - A new CPU instance or an error if initialization failed
+    /// * `Result<Self>` - A new CPU instance or an error if initialization
+    ///   failed
     ///
     /// # Errors
     ///
@@ -85,8 +88,9 @@ impl CPU {
 
     /// Updates all CPU metrics with current values.
     ///
-    /// This method refreshes all CPU data by querying the system for the latest metrics.
-    /// It should be called periodically to ensure that the CPU information is current.
+    /// This method refreshes all CPU data by querying the system for the latest
+    /// metrics. It should be called periodically to ensure that the CPU
+    /// information is current.
     ///
     /// # Returns
     ///
@@ -110,19 +114,20 @@ impl CPU {
             Ok(metrics) => {
                 self.frequency_mhz = metrics.current;
                 self.frequency_metrics = Some(metrics);
-            }
+            },
             Err(_) => {
                 // Fallback to IOKit method
                 let frequency: f64 = unsafe { msg_send![&*service, currentProcessorClockSpeed] };
                 self.frequency_mhz = frequency / 1_000_000.0;
                 self.frequency_metrics = None;
-            }
+            },
         }
 
         self.core_usage = self.fetch_core_usage()?;
 
         // Get model name as NSString and convert to Rust String
-        // TODO: Verify name method, consider using sysctlbyname("machdep.cpu.brand_string")
+        // TODO: Verify name method, consider using
+        // sysctlbyname("machdep.cpu.brand_string")
         let ns_name: Retained<NSString> = unsafe { msg_send![&*service, name] };
         self.model_name = ns_name.to_string();
 
@@ -135,8 +140,8 @@ impl CPU {
     /// Retrieves the current usage for each CPU core.
     ///
     /// This method queries the system for per-core CPU usage statistics,
-    /// returning a vector of usage values where each value is between 0.0 (idle)
-    /// and 1.0 (100% utilized).
+    /// returning a vector of usage values where each value is between 0.0
+    /// (idle) and 1.0 (100% utilized).
     ///
     /// # Returns
     ///
@@ -144,9 +149,10 @@ impl CPU {
     ///
     /// # Implementation Notes
     ///
-    /// The current implementation uses the IOKit AppleACPICPU service, but alternative
-    /// implementations using host_processor_info() from the Mach kernel API or sysctlbyname()
-    /// may be more reliable and are planned for future updates.
+    /// The current implementation uses the IOKit AppleACPICPU service, but
+    /// alternative implementations using host_processor_info() from the
+    /// Mach kernel API or sysctlbyname() may be more reliable and are
+    /// planned for future updates.
     fn fetch_core_usage(&self) -> Result<Vec<f64>> {
         // TODO: Verify if AppleACPICPU provides getCoreUsage method
         // Alternative implementation options:
@@ -156,14 +162,14 @@ impl CPU {
         //
         // Example implementation with host_processor_info would look like:
         // unsafe {
-        //     let mut cpu_load_info: *mut processor_cpu_load_info_t = std::ptr::null_mut();
-        //     let mut cpu_count: u32 = 0;
-        //     let result = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO,
-        //                                      &mut cpu_count,
-        //                                      &mut cpu_load_info as *mut _ as *mut *mut libc::c_int,
-        //                                      &mut msg_type);
-        //     // Process results and calculate usage percentages
-        // }
+        //     let mut cpu_load_info: *mut processor_cpu_load_info_t =
+        // std::ptr::null_mut();     let mut cpu_count: u32 = 0;
+        //     let result = host_processor_info(mach_host_self(),
+        // PROCESSOR_CPU_LOAD_INFO,                                      &mut
+        // cpu_count,                                      &mut cpu_load_info as
+        // *mut _ as *mut *mut libc::c_int,
+        // &mut msg_type);     // Process results and calculate usage
+        // percentages }
 
         let mut usages = Vec::with_capacity(self.logical_cores as usize);
         for i in 0..self.logical_cores {
@@ -227,8 +233,8 @@ impl CPU {
 
     /// Returns the current usage for each CPU core.
     ///
-    /// This method provides a slice of CPU usage values, with one value per core.
-    /// Each value is between 0.0 (idle) and 1.0 (100% utilized).
+    /// This method provides a slice of CPU usage values, with one value per
+    /// core. Each value is between 0.0 (idle) and 1.0 (100% utilized).
     ///
     /// # Returns
     ///
@@ -265,7 +271,8 @@ impl CPU {
     ///
     /// # Returns
     ///
-    /// * `Option<&FrequencyMetrics>` - Detailed frequency metrics or None if not available
+    /// * `Option<&FrequencyMetrics>` - Detailed frequency metrics or None if
+    ///   not available
     pub fn frequency_metrics(&self) -> Option<&FrequencyMetrics> {
         self.frequency_metrics.as_ref()
     }
@@ -292,11 +299,10 @@ impl CPU {
     ///
     /// # Returns
     ///
-    /// * `Option<&[f64]>` - Available frequency steps in MHz or None if not available
+    /// * `Option<&[f64]>` - Available frequency steps in MHz or None if not
+    ///   available
     pub fn available_frequencies(&self) -> Option<&[f64]> {
-        self.frequency_metrics
-            .as_ref()
-            .map(|m| m.available.as_slice())
+        self.frequency_metrics.as_ref().map(|m| m.available.as_slice())
     }
 }
 
@@ -396,7 +402,8 @@ mod tests {
         // The core usage values are set to known test values
         assert_eq!(cpu.core_usage().len(), 8);
 
-        // Calculate expected usage manually: (0.3+0.5+0.2+0.8+0.1+0.3+0.4+0.6) / 16 = 3.2 / 16 = 0.2
+        // Calculate expected usage manually: (0.3+0.5+0.2+0.8+0.1+0.3+0.4+0.6) / 16 =
+        // 3.2 / 16 = 0.2
         let expected_usage = 0.2; // Note we use logical_cores (16) in the implementation
         assert_eq!(cpu.get_cpu_usage(), expected_usage);
     }

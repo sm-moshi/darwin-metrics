@@ -1,6 +1,8 @@
-use objc2::rc::{autoreleasepool, Retained};
-use objc2::runtime::AnyObject;
-use objc2::{class, msg_send};
+use objc2::{
+    class, msg_send,
+    rc::{autoreleasepool, Retained},
+    runtime::AnyObject,
+};
 use objc2_foundation::{NSDictionary, NSObject, NSString};
 
 /// Creates a test NSDictionary instance for mock testing.

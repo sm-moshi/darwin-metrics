@@ -1,15 +1,18 @@
-use std::collections::HashMap;
-use std::ffi::CStr;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::ptr;
-use std::time::Instant;
+use std::{
+    collections::HashMap,
+    ffi::CStr,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    ptr,
+    time::Instant,
+};
 
-use crate::error::{Error, Result};
-use crate::network::traffic::TrafficTracker;
-use crate::network::NetworkMetrics;
-use crate::utils::bindings::{
-    address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in,
-    sockaddr_in6,
+use crate::{
+    error::{Error, Result},
+    network::{traffic::TrafficTracker, NetworkMetrics},
+    utils::bindings::{
+        address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in,
+        sockaddr_in6,
+    },
 };
 
 // Type aliases to reduce clippy::type_complexity warnings
@@ -45,9 +48,9 @@ impl std::fmt::Display for InterfaceType {
 
 /// Represents a network interface with its associated metrics and properties.
 ///
-/// This struct encapsulates all information about a single network interface on macOS,
-/// including its configuration, status, and traffic statistics. It provides methods
-/// to query interface properties and monitor network activity.
+/// This struct encapsulates all information about a single network interface on
+/// macOS, including its configuration, status, and traffic statistics. It
+/// provides methods to query interface properties and monitor network activity.
 ///
 /// Each interface tracks:
 /// - Basic properties (name, type, flags)
@@ -263,8 +266,8 @@ impl NetworkMetrics for Interface {
 
 /// Manages network interfaces and provides access to network metrics.
 ///
-/// The NetworkManager is the main entry point for the network monitoring functionality.
-/// It handles:
+/// The NetworkManager is the main entry point for the network monitoring
+/// functionality. It handles:
 ///
 /// - Network interface discovery and enumeration
 /// - Tracking all available network interfaces on the system
@@ -273,8 +276,9 @@ impl NetworkMetrics for Interface {
 /// - Updating network statistics in real-time
 ///
 /// This implementation is specifically designed for macOS systems and uses
-/// a combination of getifaddrs() for interface discovery and netstat for traffic
-/// statistics, providing a reliable and efficient way to monitor network activity.
+/// a combination of getifaddrs() for interface discovery and netstat for
+/// traffic statistics, providing a reliable and efficient way to monitor
+/// network activity.
 #[derive(Debug)]
 pub struct NetworkManager {
     /// Map of interface names to Interface objects
@@ -282,7 +286,8 @@ pub struct NetworkManager {
 }
 
 impl NetworkManager {
-    /// Creates a new NetworkManager and initializes it with the current interfaces.
+    /// Creates a new NetworkManager and initializes it with the current
+    /// interfaces.
     ///
     /// This constructor:
     /// 1. Creates an empty NetworkManager instance
@@ -290,13 +295,11 @@ impl NetworkManager {
     /// 3. Initializes traffic statistics for each interface
     /// 4. Returns a ready-to-use manager instance
     ///
-    /// Even if the initialization fails to retrieve network interfaces (for example,
-    /// due to permission issues), the function will still return a valid but empty
-    /// NetworkManager rather than failing with an error.
+    /// Even if the initialization fails to retrieve network interfaces (for
+    /// example, due to permission issues), the function will still return a
+    /// valid but empty NetworkManager rather than failing with an error.
     pub fn new() -> Result<Self> {
-        let mut manager = Self {
-            interfaces: HashMap::new(),
-        };
+        let mut manager = Self { interfaces: HashMap::new() };
 
         // Try to initialize interfaces, but continue even if it fails
         if let Err(e) = manager.update() {
@@ -313,7 +316,8 @@ impl NetworkManager {
     /// 1. Retrieves the current state of all network interfaces
     /// 2. Updates traffic statistics for existing interfaces
     /// 3. Adds any new interfaces that were discovered
-    /// 4. Calculates current upload/download speeds based on changes since last update
+    /// 4. Calculates current upload/download speeds based on changes since last
+    ///    update
     ///
     /// For accurate speed calculations, this method should be called at regular
     /// intervals (typically every 1-5 seconds).
@@ -464,9 +468,7 @@ impl NetworkManager {
         unsafe {
             // Call getifaddrs() to get list of interfaces
             if getifaddrs(&mut ifap) != 0 {
-                return Err(Error::Network(
-                    "Failed to get network interfaces".to_string(),
-                ));
+                return Err(Error::Network("Failed to get network interfaces".to_string()));
             }
 
             // Use scopeguard to ensure ifap is freed
@@ -491,7 +493,7 @@ impl NetworkManager {
                     Err(_) => {
                         current = ifa.ifa_next;
                         continue;
-                    }
+                    },
                 };
 
                 // Skip empty names
@@ -501,9 +503,7 @@ impl NetworkManager {
                 }
 
                 // Get or create entry in result map
-                let entry = result
-                    .entry(name)
-                    .or_insert_with(|| (ifa.ifa_flags, None, Vec::new()));
+                let entry = result.entry(name).or_insert_with(|| (ifa.ifa_flags, None, Vec::new()));
 
                 // Process address if available
                 if !ifa.ifa_addr.is_null() {
@@ -515,13 +515,13 @@ impl NetworkManager {
                             let addr_in = &*(ifa.ifa_addr as *mut sockaddr_in);
                             let ip = Ipv4Addr::from(u32::from_be(addr_in.sin_addr.s_addr));
                             entry.2.push(IpAddr::V4(ip));
-                        }
+                        },
                         family if family == address_family::AF_INET6 => {
                             // IPv6 address
                             let addr_in6 = &*(ifa.ifa_addr as *mut sockaddr_in6);
                             let ip = Ipv6Addr::from(addr_in6.sin6_addr.s6_addr);
                             entry.2.push(IpAddr::V6(ip));
-                        }
+                        },
                         family if family == address_family::AF_LINK => {
                             // MAC address
                             let addr_dl = &*(ifa.ifa_addr as *mut sockaddr_dl);
@@ -548,8 +548,8 @@ impl NetworkManager {
                                     entry.1 = Some(mac);
                                 }
                             }
-                        }
-                        _ => {} // Ignore other address families
+                        },
+                        _ => {}, // Ignore other address families
                     }
                 }
 
@@ -568,10 +568,7 @@ impl NetworkManager {
         // Using type alias defined at the top of the file
         // This is a fallback method that's safer than sysctlbyname
         // On macOS, we can use netstat to get network statistics
-        let output = std::process::Command::new("netstat")
-            .args(["-ib"])
-            .output()
-            .ok()?;
+        let output = std::process::Command::new("netstat").args(["-ib"]).output().ok()?;
 
         if !output.status.success() {
             return None;
@@ -597,24 +594,20 @@ impl NetworkManager {
             let name = parts[0].to_string();
 
             // Try to parse network stats
-            // Columns are: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Coll
+            // Columns are: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes
+            // Coll
             let rx_packets = parts[4].parse::<u64>().unwrap_or(0);
             let rx_errors = parts[5].parse::<u64>().unwrap_or(0);
             let rx_bytes = parts[6].parse::<u64>().unwrap_or(0);
             let tx_packets = parts[7].parse::<u64>().unwrap_or(0);
             let tx_errors = parts[8].parse::<u64>().unwrap_or(0);
             let tx_bytes = parts[9].parse::<u64>().unwrap_or(0);
-            let collisions = if parts.len() > 10 {
-                parts[10].parse::<u64>().unwrap_or(0)
-            } else {
-                0
-            };
+            let collisions =
+                if parts.len() > 10 { parts[10].parse::<u64>().unwrap_or(0) } else { 0 };
 
             result.insert(
                 name,
-                (
-                    rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions,
-                ),
+                (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions),
             );
         }
 
@@ -642,28 +635,25 @@ impl NetworkManager {
         }
     }
 
-    /// Creates a new NetworkManager asynchronously and initializes it with the current interfaces.
+    /// Creates a new NetworkManager asynchronously and initializes it with the
+    /// current interfaces.
     ///
     /// This constructor:
     /// 1. Creates an empty NetworkManager instance
-    /// 2. Attempts to discover all network interfaces on the system asynchronously
+    /// 2. Attempts to discover all network interfaces on the system
+    ///    asynchronously
     /// 3. Initializes traffic statistics for each interface
     /// 4. Returns a ready-to-use manager instance
     ///
-    /// Even if the initialization fails to retrieve network interfaces (for example,
-    /// due to permission issues), the function will still return a valid but empty
-    /// NetworkManager rather than failing with an error.
+    /// Even if the initialization fails to retrieve network interfaces (for
+    /// example, due to permission issues), the function will still return a
+    /// valid but empty NetworkManager rather than failing with an error.
     pub async fn new_async() -> Result<Self> {
-        let mut manager = Self {
-            interfaces: HashMap::new(),
-        };
+        let mut manager = Self { interfaces: HashMap::new() };
 
         // Try to initialize interfaces, but continue even if it fails
         if let Err(e) = manager.update_async().await {
-            log::warn!(
-                "Failed to initialize network interfaces asynchronously: {}",
-                e
-            );
+            log::warn!("Failed to initialize network interfaces asynchronously: {}", e);
             // Continue with empty interface list rather than crashing
         }
 
@@ -672,9 +662,9 @@ impl NetworkManager {
 
     /// Updates all network interfaces and their metrics asynchronously.
     ///
-    /// This method works like `update()` but is designed for use in async contexts,
-    /// running potentially blocking network operations in a separate blocking task
-    /// to avoid blocking the async runtime.
+    /// This method works like `update()` but is designed for use in async
+    /// contexts, running potentially blocking network operations in a
+    /// separate blocking task to avoid blocking the async runtime.
     ///
     /// For accurate speed calculations, this method should be called at regular
     /// intervals (typically every 1-5 seconds).
@@ -684,9 +674,7 @@ impl NetworkManager {
         let interfaces = tokio::task::spawn_blocking(move || {
             // Create a temporary manager just to use get_interfaces
             // This avoids borrowing self in the blocking task
-            let temp_manager = NetworkManager {
-                interfaces: HashMap::new(),
-            };
+            let temp_manager = NetworkManager { interfaces: HashMap::new() };
             temp_manager.get_interfaces()
         })
         .await
@@ -704,7 +692,8 @@ impl NetworkManager {
     /// Gets all active network interfaces asynchronously.
     ///
     /// Returns only interfaces that are currently active (UP and RUNNING).
-    /// This is a convenience method for filtering interfaces by their active state.
+    /// This is a convenience method for filtering interfaces by their active
+    /// state.
     pub async fn active_interfaces_async(&self) -> Vec<&Interface> {
         self.interfaces.values().filter(|i| i.is_active()).collect()
     }
