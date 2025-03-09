@@ -27,13 +27,13 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          
+
       - name: Setup Rust beta for linting
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: beta
-          components: clippy, rustfmt
-          
+          components: clippy, rustfmt, llvm-tools-preview
+
       - name: Verify toolchain installation
         run: |
           rustup show
@@ -50,7 +50,7 @@ jobs:
 
       - name: Format check
         run: cargo +beta fmt -- --check
-        
+
       - name: Check if Clippy is installed
         run: cargo +beta clippy --version || echo "Clippy not installed"
 
@@ -83,17 +83,10 @@ jobs:
         run: |
           for i in {1..3}; do cargo +${{ matrix.rust }} test --all-features && break || sleep 10; done
 
-  coverage:
-    name: Code Coverage
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: llvm-tools-preview
+      - name: Check documentation
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --no-deps --all-features
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -106,35 +99,7 @@ jobs:
         with:
           files: lcov.info
           fail_ci_if_error: false
-
-  docs:
-    name: Check Documentation
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - name: Check documentation
-        env:
-          RUSTDOCFLAGS: "-D warnings"
-        run: cargo doc --no-deps --all-features
-
-  publish-dry-run:
-    name: Publish Dry Run
-    runs-on: macos-latest
-    # Only run on specific branches where publishing might occur
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/0.1.x' || github.ref == 'refs/heads/0.2.x'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Clean up .DS_Store files
         run: |
