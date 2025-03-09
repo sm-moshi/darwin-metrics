@@ -37,6 +37,7 @@ generated/
 
 # local stuff
 .bacon-locations
+bacon.toml
 .vscode/
 .cursor/
 .references/
@@ -44,9 +45,7 @@ generated/
 .repomix/
 repomix*
 coverage/*
-.trunk/
 .cursorignore
-bacon.toml
 CLAUDE.md
 
 # mdBook

@@ -35,11 +35,11 @@ fn main() -> darwin_metrics::Result<()> {
     let memory = hardware::memory::Memory::get_info()?;
     println!("Memory Used: {} bytes", memory.used);
     println!("Memory Available: {} bytes", memory.available);
-    
+
     // Get process information
     let processes = process::Process::get_all().unwrap();
     println!("Running processes: {}", processes.len());
-    
+
     Ok(())
 }
 ```
@@ -77,15 +77,15 @@ async fn main() -> darwin_metrics::Result<()> {
     // Monitor process metrics over time
     let pid = std::process::id();
     let mut stream = process::Process::monitor_metrics(pid, Duration::from_secs(1));
-    
+
     // Process the metrics stream
     while let Some(process) = stream.next().await {
         if let Ok(proc) = process {
-            println!("Process: {} - CPU: {}%, Memory: {}", 
+            println!("Process: {} - CPU: {}%, Memory: {}",
                 proc.name, proc.cpu_usage, proc.memory_usage);
         }
     }
-    
+
     Ok(())
 }
 ```
@@ -105,7 +105,7 @@ fn potentially_failing_function() -> Result<String> {
 
 fn example() -> Result<()> {
     let result = potentially_failing_function();
-    
+
     match result {
         Ok(value) => println!("Success: {}", value),
         Err(Error::NotAvailable(msg)) => println!("Resource not available: {}", msg),
@@ -113,7 +113,7 @@ fn example() -> Result<()> {
         Err(Error::Process(msg)) => println!("Process error: {}", msg),
         Err(err) => println!("Other error: {}", err),
     }
-    
+
     Ok(())
 }
 ```

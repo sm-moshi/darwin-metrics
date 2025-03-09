@@ -1,9 +1,9 @@
 [book]
-title        = "darwin-metrics"
-authors      = ["Stuart Meya"]
-language     = "en"
+title = "darwin-metrics"
+authors = ["Stuart Meya"]
+language = "en"
 multilingual = false
-src          = "src"
+src = "src"
 
 [rust]
 edition = "2021"
@@ -28,7 +28,7 @@ heading-split-level = 3
 [output.html.playground]
 editable = true
 line-numbers = true
-runnable = false  # Disable runnable examples since darwin-metrics isn't available in the playground
+runnable = false    # Disable runnable examples since darwin-metrics isn't available in the playground
 
 # Skip all tests since we are using example code that relies on darwin-metrics
 [test]

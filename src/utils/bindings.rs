@@ -6,11 +6,11 @@
 //! - `sysctl` for system information
 //! - `IOKit` for hardware access
 //! - Mach host functions for memory statistics
-//! 
+//!
 //! By centralizing these bindings, we improve maintainability and reduce redundancy across modules.
 
-use std::os::raw::{c_char, c_int, c_uint, c_void};
 use std::ffi::c_void as ffi_c_void;
+use std::os::raw::{c_char, c_int, c_uint, c_void};
 
 //------------------------------------------------------------------------------
 // sysctl FFI bindings for macOS
@@ -19,12 +19,12 @@ use std::ffi::c_void as ffi_c_void;
 /// Constants for sysctl used in various information queries
 pub mod sysctl_constants {
     use std::os::raw::c_int;
-    
+
     // General categories
     pub const CTL_KERN: c_int = 1;
     pub const CTL_HW: c_int = 6;
     pub const CTL_VM: c_int = 2;
-    
+
     // Kernel-related
     pub const KERN_PROC: c_int = 14;
     pub const KERN_PROC_ALL: c_int = 0;
@@ -33,11 +33,11 @@ pub mod sysctl_constants {
     pub const KERN_PROC_TTY: c_int = 3;
     pub const KERN_PROC_UID: c_int = 4;
     pub const KERN_PROC_RUID: c_int = 5;
-    
+
     // Hardware-related
     pub const HW_MACHINE: c_int = 1;
     pub const HW_MEMSIZE: c_int = 24;
-    
+
     // VM-related
     pub const VM_SWAPUSAGE: c_int = 5;
 }
@@ -67,7 +67,7 @@ pub struct proc_info {
 pub struct extern_proc {
     pub p_starttime: timeval,
     pub p_comm: [u8; 16], // MAXCOMLEN
-    // More fields exist but aren't needed for basic functionality
+                          // More fields exist but aren't needed for basic functionality
 }
 
 /// Time value structure used in BSD APIs
@@ -178,9 +178,24 @@ pub struct IOByteCount(pub usize);
 pub struct IOOptionBits(pub u32);
 
 // SMC key definitions for temperature sensors
-pub const SMC_KEY_CPU_TEMP: [c_char; 4] = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char]; // CPU Temp
-pub const SMC_KEY_GPU_TEMP: [c_char; 4] = [b'T' as c_char, b'G' as c_char, b'0' as c_char, b'P' as c_char]; // GPU Temp
-pub const SMC_KEY_FAN_SPEED: [c_char; 4] = [b'F' as c_char, b'0' as c_char, b'A' as c_char, b'c' as c_char]; // Fan Speed
+pub const SMC_KEY_CPU_TEMP: [c_char; 4] = [
+    b'T' as c_char,
+    b'C' as c_char,
+    b'0' as c_char,
+    b'P' as c_char,
+]; // CPU Temp
+pub const SMC_KEY_GPU_TEMP: [c_char; 4] = [
+    b'T' as c_char,
+    b'G' as c_char,
+    b'0' as c_char,
+    b'P' as c_char,
+]; // GPU Temp
+pub const SMC_KEY_FAN_SPEED: [c_char; 4] = [
+    b'F' as c_char,
+    b'0' as c_char,
+    b'A' as c_char,
+    b'c' as c_char,
+]; // Fan Speed
 
 // SMC data structures
 #[repr(C)]
@@ -284,7 +299,7 @@ extern "C" {
         allocator: *mut ffi_c_void,
         options: u32,
     ) -> i32;
-    
+
     // SMC specific functions
     pub fn IOConnectCallStructMethod(
         connection: u32,
@@ -302,11 +317,11 @@ extern "C" {
 
 /// Process state values from sys/proc.h
 pub mod proc_state {
-    pub const SIDL: u8 = 1;    // Process being created by fork
-    pub const SRUN: u8 = 2;    // Running
-    pub const SSLEEP: u8 = 3;  // Sleeping on an address
-    pub const SSTOP: u8 = 4;   // Process debugging or suspension
-    pub const SZOMB: u8 = 5;   // Awaiting collection by parent
+    pub const SIDL: u8 = 1; // Process being created by fork
+    pub const SRUN: u8 = 2; // Running
+    pub const SSLEEP: u8 = 3; // Sleeping on an address
+    pub const SSTOP: u8 = 4; // Process debugging or suspension
+    pub const SZOMB: u8 = 5; // Awaiting collection by parent
 }
 
 //------------------------------------------------------------------------------
@@ -316,7 +331,10 @@ pub mod proc_state {
 /// Extract the process name from a kinfo_proc structure
 pub fn extract_proc_name(proc_info: &kinfo_proc) -> String {
     let raw_name = &proc_info.kp_eproc.p_comm;
-    let end = raw_name.iter().position(|&c| c == 0).unwrap_or(raw_name.len());
+    let end = raw_name
+        .iter()
+        .position(|&c| c == 0)
+        .unwrap_or(raw_name.len());
     let name_slice = &raw_name[0..end];
     String::from_utf8_lossy(name_slice).to_string()
 }
@@ -328,9 +346,18 @@ pub fn is_system_process(pid: u32, name: &str) -> bool {
     // 2. Run as root (uid 0) - this would need additional privileges to check
     // 3. Are owned by system users
     // 4. Have names that start with "com.apple." or are well-known system process names
-    
-    pid < 1000 || name.starts_with("com.apple.") || 
-        ["launchd", "kernel_task", "WindowServer", "systemstats", "logd", "syslogd"].contains(&name)
+
+    pid < 1000
+        || name.starts_with("com.apple.")
+        || [
+            "launchd",
+            "kernel_task",
+            "WindowServer",
+            "systemstats",
+            "logd",
+            "syslogd",
+        ]
+        .contains(&name)
 }
 
 /// Convert a char array to an SMC key integer

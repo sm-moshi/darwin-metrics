@@ -40,7 +40,7 @@ extern "C" {
 // IOKit framework bindings
 use std::os::raw::c_char;
 
-// A type alias for easier readability 
+// A type alias for easier readability
 type ffi_c_void = std::os::raw::c_void;
 
 #[link(name = "IOKit", kind = "framework")]
@@ -153,7 +153,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 // Import bindings from the central module
 use crate::utils::bindings::{
     sysctl, vm_statistics64, xsw_usage, vm_kernel_page_size,
-    host_statistics64, mach_host_self, 
+    host_statistics64, mach_host_self,
     KERN_SUCCESS, HOST_VM_INFO64, HOST_VM_INFO64_COUNT,
     HostInfoT,
     sysctl_constants::{CTL_HW, HW_MEMSIZE, CTL_VM, VM_SWAPUSAGE}

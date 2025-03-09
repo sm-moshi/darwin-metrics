@@ -13,6 +13,7 @@ The library is currently in Phase 1 of development, focusing on code refactoring
 **Goal:** Improve structure, maintainability, and performance before implementing new features.
 
 **Key Tasks:**
+
 - ✅ Process Monitoring: Implement comprehensive process monitoring capabilities
 - 🔄 CPU Metrics: Refactor and enhance CPU monitoring functionality
 - 🔄 GPU Metrics: Implement and refine GPU metrics collection
@@ -28,6 +29,7 @@ The library is currently in Phase 1 of development, focusing on code refactoring
 **Goal:** Expand monitoring capabilities with additional system metrics.
 
 **Key Tasks:**
+
 - Enhance CPU and GPU monitoring with async processing
 - Implement detailed CPU and GPU frequency tracking
 - Add advanced process monitoring features
@@ -40,6 +42,7 @@ The library is currently in Phase 1 of development, focusing on code refactoring
 **Goal:** Optimize for performance and introduce advanced tracking.
 
 **Key Tasks:**
+
 - Optimize CPU and memory metrics for lower overhead
 - Implement fan control features for supported devices
 - Improve power management insights
@@ -52,6 +55,7 @@ The library is currently in Phase 1 of development, focusing on code refactoring
 **Goal:** Prepare for stable, production-ready release.
 
 **Key Tasks:**
+
 - Complete API documentation and examples
 - Ensure comprehensive test coverage
 - Conduct final performance tests and optimizations

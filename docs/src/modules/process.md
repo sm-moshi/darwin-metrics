@@ -86,10 +86,10 @@ use std::time::Duration;
 async fn main() {
     let pid = std::process::id();
     let interval = Duration::from_secs(1);
-    
+
     // Create a stream of process metrics
     let mut stream = Process::monitor_metrics(pid, interval);
-    
+
     // Process the metrics as they arrive
     while let Some(result) = stream.next().await {
         if let Ok(process) = result {

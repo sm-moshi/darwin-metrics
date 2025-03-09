@@ -1,5 +1,5 @@
-use libc;
 use crate::error::{Error, Result};
+use libc;
 
 /// Container for CPU frequency-related metrics.
 ///
@@ -16,7 +16,7 @@ use crate::error::{Error, Result};
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use darwin_metrics::hardware::cpu::FrequencyMetrics;
 ///
 /// // Example of using FrequencyMetrics
@@ -36,13 +36,13 @@ use crate::error::{Error, Result};
 pub struct FrequencyMetrics {
     /// Current CPU frequency in MHz
     pub current: f64,
-    
+
     /// Minimum supported CPU frequency in MHz
     pub min: f64,
-    
+
     /// Maximum supported CPU frequency in MHz
     pub max: f64,
-    
+
     /// List of all available frequency steps in MHz
     pub available: Vec<f64>,
 }
@@ -106,11 +106,28 @@ fn fetch_cpu_frequencies() -> Result<FrequencyMetrics> {
 
 unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
     let mut cpu_info = CpuInfo::default();
-    let size = std::mem::size_of::<u64>();
-
-    cpu_info.current_frequency = fetch_sysctl_frequency(libc::CTL_HW, 0, size)?;
-    cpu_info.min_frequency = fetch_sysctl_frequency(libc::CTL_HW, 0, size)?;
-    cpu_info.max_frequency = fetch_sysctl_frequency(libc::CTL_HW, 0, size)?;
+    
+    // Get CPU frequency using proper MIBs
+    // On macOS, "hw.cpufrequency" gives current CPU frequency in Hz
+    // "hw.cpufrequency_min" gives min frequency, "hw.cpufrequency_max" gives max
+    
+    // Convert to MHz
+    cpu_info.current_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency")? / 1_000_000.0;
+    cpu_info.min_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency_min")? / 1_000_000.0;
+    cpu_info.max_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency_max")? / 1_000_000.0;
+    
+    // For available frequencies, we use min/max and interpolate
+    // since macOS doesn't provide a direct way to get all steps
+    if cpu_info.min_frequency > 0.0 && cpu_info.max_frequency > cpu_info.min_frequency {
+        let step = (cpu_info.max_frequency - cpu_info.min_frequency) / 4.0;
+        cpu_info.available_frequencies = vec![
+            cpu_info.min_frequency,
+            cpu_info.min_frequency + step,
+            cpu_info.min_frequency + step * 2.0,
+            cpu_info.min_frequency + step * 3.0,
+            cpu_info.max_frequency,
+        ];
+    }
 
     Ok(cpu_info)
 }
@@ -136,7 +153,7 @@ unsafe fn fetch_sysctl_frequency(mib1: i32, mib2: i32, mut size: usize) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_frequency_metrics() {
         let metrics = FrequencyMetrics {
@@ -145,31 +162,31 @@ mod tests {
             max: 3600.0,
             available: vec![1200.0, 1800.0, 2400.0, 3000.0, 3600.0],
         };
-        
+
         assert_eq!(metrics.current, 2400.0);
         assert_eq!(metrics.min, 1200.0);
         assert_eq!(metrics.max, 3600.0);
         assert_eq!(metrics.available.len(), 5);
     }
-    
+
     #[test]
     fn test_frequency_monitor_new() {
         let monitor = FrequencyMonitor::new();
         // Simply test that we can create the monitor
         assert!(matches!(monitor, FrequencyMonitor));
     }
-    
+
     // Create a mock implementation for testing sysctl calls
     #[test]
     #[cfg(target_os = "macos")]
     fn test_fetch_sysctl_frequency() {
         // We can't easily test the actual syscalls, but we can test our error handling
         // by passing invalid MIBs
-        
+
         unsafe {
             let result = fetch_sysctl_frequency(-1, -1, std::mem::size_of::<u64>());
             assert!(result.is_err());
-            
+
             if let Err(err) = result {
                 assert!(matches!(err, Error::System(_)));
             }

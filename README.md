@@ -149,13 +149,13 @@ cd darwin-metrics
 xcode-select --install  # Install Xcode Command Line Tools
 ```
 
-2. Build the project:
+1. Build the project:
 
 ```bash
 cargo build --all-features
 ```
 
-3. Run tests:
+1. Run tests:
 
 ```bash
 cargo test --all-features

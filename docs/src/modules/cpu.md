@@ -26,25 +26,25 @@ use darwin_metrics::error::Result;
 fn main() -> Result<()> {
     // Initialize the CPU monitor
     let cpu = CPU::new()?;
-    
+
     // Display basic CPU information
     println!("CPU Model: {}", cpu.model_name());
     println!("Physical Cores: {}", cpu.physical_cores());
     println!("Logical Cores: {}", cpu.logical_cores());
-    
+
     // Show current CPU metrics
     println!("CPU Usage: {:.1}%", cpu.get_cpu_usage() * 100.0);
     println!("CPU Frequency: {:.0} MHz", cpu.frequency_mhz());
-    
+
     if let Some(temp) = cpu.temperature() {
         println!("CPU Temperature: {:.1}°C", temp);
     }
-    
+
     // Display per-core usage
     for (i, usage) in cpu.core_usage().iter().enumerate() {
         println!("Core {} Usage: {:.1}%", i, usage * 100.0);
     }
-    
+
     Ok(())
 }
 ```
@@ -109,12 +109,12 @@ use darwin_metrics::error::Result;
 fn monitor_frequency() -> Result<()> {
     let monitor = FrequencyMonitor::new();
     let metrics = monitor.get_metrics()?;
-    
+
     println!("Current: {} MHz", metrics.current);
     println!("Min: {} MHz", metrics.min);
     println!("Max: {} MHz", metrics.max);
     println!("Available steps: {:?} MHz", metrics.available);
-    
+
     Ok(())
 }
 ```
@@ -132,6 +132,7 @@ On macOS, the CPU module uses a combination of:
 ### Temperature Monitoring
 
 Temperature readings are available on most modern Mac hardware, but may be unavailable on:
+
 - Older Mac models
 - Virtual machines
 - Some Mac models with specific security restrictions
@@ -178,11 +179,11 @@ impl CpuMetrics for MyCpuMonitor {
     fn get_cpu_usage(&self) -> f64 {
         self.usage // Return stored value
     }
-    
+
     fn get_cpu_temperature(&self) -> Option<f64> {
         self.temperature // Return stored temperature if available
     }
-    
+
     fn get_cpu_frequency(&self) -> f64 {
         self.frequency // Return stored frequency
     }
@@ -201,18 +202,18 @@ use darwin_metrics::error::Result;
 
 fn monitor_cpu() -> Result<()> {
     let mut cpu = CPU::new()?;
-    
+
     for _ in 0..10 {
         // Update metrics
         cpu.update()?;
-        
+
         // Display current usage
         println!("CPU Usage: {:.1}%", cpu.get_cpu_usage() * 100.0);
-        
+
         // Wait before next update
         thread::sleep(Duration::from_secs(1));
     }
-    
+
     Ok(())
 }
 ```
@@ -227,14 +228,14 @@ use darwin_metrics::error::Result;
 async fn monitor_cpu_async() -> Result<()> {
     let mut cpu = CPU::new()?;
     let mut interval = interval(Duration::from_secs(1));
-    
+
     for _ in 0..10 {
         interval.tick().await;
-        
+
         cpu.update()?;
         println!("CPU: {:.1}%", cpu.get_cpu_usage() * 100.0);
     }
-    
+
     Ok(())
 }
 ```

@@ -149,9 +149,17 @@ impl ResourceManager {
 
         {
             let mut state = self.usage_state.write();
-            *state.active_resources.entry(resource_type.to_string()).or_insert(0) += 1;
-            *state.peak_usage.entry(resource_type.to_string()).or_insert(0.0) =
-                f64::max(state.peak_usage.get(resource_type).unwrap_or(&0.0), usage.usage_percent);
+            *state
+                .active_resources
+                .entry(resource_type.to_string())
+                .or_insert(0) += 1;
+            *state
+                .peak_usage
+                .entry(resource_type.to_string())
+                .or_insert(0.0) = f64::max(
+                state.peak_usage.get(resource_type).unwrap_or(&0.0),
+                usage.usage_percent,
+            );
         }
 
         let _ = self.usage_tx.send(usage);
@@ -163,9 +171,7 @@ impl ResourceManager {
         usage: f64,
         timeout: Duration,
     ) -> Result<(), Error> {
-        let result = async {
-            self.track_resource_usage(resource_type, usage).await
-        };
+        let result = async { self.track_resource_usage(resource_type, usage).await };
         tokio::time::timeout(timeout, result)
             .await
             .map_err(|_| Error::system("Resource tracking timeout"))?

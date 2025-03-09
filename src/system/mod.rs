@@ -1,5 +1,8 @@
 use crate::error::{Error, Result};
-use crate::utils::bindings::{sysctl, sysctl_constants::{CTL_HW, HW_MACHINE}};
+use crate::utils::bindings::{
+    sysctl,
+    sysctl_constants::{CTL_HW, HW_MACHINE},
+};
 use std::ffi::c_void;
 use thiserror::Error;
 
@@ -36,7 +39,8 @@ pub fn detect_architecture() -> Result<Architecture> {
             &mut size,
             std::ptr::null(),
             0,
-        ) != 0 {
+        ) != 0
+        {
             return Err(Error::system("Failed to get architecture information"));
         }
 
@@ -48,13 +52,16 @@ pub fn detect_architecture() -> Result<Architecture> {
             &mut size,
             std::ptr::null(),
             0,
-        ) != 0 {
+        ) != 0
+        {
             return Err(Error::system("Failed to retrieve architecture data"));
         }
 
         let cstr = std::ffi::CStr::from_bytes_with_nul(&buffer)
             .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
-        let arch = cstr.to_str().map_err(|_| ArchitectureError::InvalidStringEncoding)?;
+        let arch = cstr
+            .to_str()
+            .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
 
         Ok(match arch {
             "arm64" => Architecture::AppleSilicon,

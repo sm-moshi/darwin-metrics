@@ -86,13 +86,13 @@ use thiserror::Error;
 pub enum Error {
     #[error("System error: {0}")]
     System(String),
-    
+
     #[error("Process error: {0}")]
     Process(String),
-    
+
     #[error("Resource not available: {0}")]
     NotAvailable(String),
-    
+
     // ... other error variants
 }
 

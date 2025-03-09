@@ -1,5 +1,5 @@
+use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::Result;
-use crate::hardware::iokit::{IOKitImpl, IOKit};
 use std::fmt;
 use thiserror::Error;
 
@@ -85,15 +85,15 @@ impl CoreTemperature {
     /// Retrieve CPU core temperatures from the System Management Controller (SMC)
     pub fn get_core_temperatures() -> Result<CoreTemperature> {
         let io_kit = IOKitImpl::default();
-        
+
         // On Apple Silicon, we can access temperature for various sensors
         // TC0E, TC1E, TC2E, TC3E for efficiency cores
         // TC0P, TC1P, TC2P, TC3P, etc for performance cores
-        
-        // For simplicity in this implementation, we'll just get the 
+
+        // For simplicity in this implementation, we'll just get the
         // main CPU temperature and GPU temperature
         let cpu_temp = io_kit.get_cpu_temperature()?;
-        
+
         // Try to get GPU temperature, but it's optional (some Macs don't have dedicated GPUs)
         let gpu_temp = match io_kit.get_gpu_temperature() {
             Ok(temp) => Some(temp as f32),
@@ -115,7 +115,7 @@ impl CoreTemperature {
     /// Get fan speed information
     pub fn get_fan_rpms() -> Result<Vec<FanInfo>> {
         let io_kit = IOKitImpl::default();
-        
+
         // Get the fan speed
         let fan_speed = match io_kit.get_fan_speed() {
             Ok(speed) => speed,
@@ -126,7 +126,7 @@ impl CoreTemperature {
             }
         };
 
-        // Basic fan info - in a real-world scenario we would query 
+        // Basic fan info - in a real-world scenario we would query
         // additional fan properties from IOKit
         let fan = FanInfo {
             rpm: fan_speed,
@@ -142,14 +142,14 @@ impl CoreTemperature {
         // This is a simplified implementation - in a complete version
         // we'd query the power management framework to get actual
         // throttling information
-        
+
         let io_kit = IOKitImpl::default();
         let cpu_temp = io_kit.get_cpu_temperature()?;
-        
+
         // Simplified logic - consider throttling if CPU temperature is high
         // Real implementation would use proper macOS APIs to detect throttling
         let throttling = cpu_temp > 80.0;
-        
+
         Ok(ThermalState {
             throttling,
             power_limit: 15.0, // Default TDP for M1/M2 processors
@@ -161,20 +161,20 @@ impl CoreTemperature {
     pub fn check_thermal_warnings() -> Result<Vec<String>> {
         let mut warnings = Vec::new();
         let io_kit = IOKitImpl::default();
-        
+
         // Check CPU temperature
         let cpu_temp = io_kit.get_cpu_temperature()?;
         if cpu_temp > 90.0 {
             warnings.push(format!("Critical CPU temperature: {:.1}°C", cpu_temp));
         }
-        
+
         // Check GPU temperature if available
         if let Ok(gpu_temp) = io_kit.get_gpu_temperature() {
             if gpu_temp > 85.0 {
                 warnings.push(format!("Critical GPU temperature: {:.1}°C", gpu_temp));
             }
         }
-        
+
         Ok(warnings)
     }
 
@@ -182,7 +182,7 @@ impl CoreTemperature {
     pub fn get_all_sensors() -> Result<Vec<SensorReading>> {
         let mut readings = Vec::new();
         let io_kit = IOKitImpl::default();
-        
+
         // CPU temperature
         if let Ok(temp) = io_kit.get_cpu_temperature() {
             readings.push(SensorReading {
@@ -191,7 +191,7 @@ impl CoreTemperature {
                 location: SensorLocation::Cpu,
             });
         }
-        
+
         // GPU temperature (if available)
         if let Ok(temp) = io_kit.get_gpu_temperature() {
             readings.push(SensorReading {
@@ -200,10 +200,10 @@ impl CoreTemperature {
                 location: SensorLocation::Gpu,
             });
         }
-        
+
         // In a complete implementation, we would scan all
         // available SMC keys for temperature sensors
-        
+
         Ok(readings)
     }
 

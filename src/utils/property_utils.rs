@@ -12,14 +12,14 @@ pub trait PropertyUtils {
     fn get_number_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
         let ns_key = NSString::from_str(key);
         unsafe { dict.valueForKey(&ns_key) }
-            .and_then(|obj| Some(obj.downcast::<NSNumber>().ok()?))
+            .and_then(|obj| obj.downcast::<NSNumber>().ok())
             .map(|n: Retained<NSNumber>| n.as_f64())
     }
 
     fn get_bool_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool> {
         let ns_key = NSString::from_str(key);
         unsafe { dict.valueForKey(&ns_key) }
-            .and_then(|obj| Some(obj.downcast::<NSNumber>().ok()?))
+            .and_then(|obj| obj.downcast::<NSNumber>().ok())
             .map(|n: Retained<NSNumber>| n.as_bool())
     }
 }

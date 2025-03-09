@@ -15,11 +15,14 @@ Thank you for your interest in contributing to `darwin-metrics`! This guide will
 
 1. Fork the repository on GitHub
 2. Clone your fork locally:
+
    ```bash
    git clone https://github.com/your-username/darwin-metrics.git
    cd darwin-metrics
    ```
+
 3. Add the original repository as an upstream remote:
+
    ```bash
    git remote add upstream https://github.com/sm-moshi/darwin-metrics.git
    ```
@@ -92,12 +95,12 @@ pub struct MyNewFeature {
 impl MyNewFeature {
     pub fn new() -> Result<Self> {
         // Initialize your feature
-        Ok(Self { 
+        Ok(Self {
             name: "My Feature".to_string(),
             value: 0.0,
         })
     }
-    
+
     pub fn get_metrics(&self) -> Result<String> {
         // Implement your metrics collection logic
         Ok(format!("{}: {}", self.name, self.value))
@@ -107,7 +110,7 @@ impl MyNewFeature {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_my_feature() {
         // Test implementation
@@ -129,22 +132,24 @@ If your module requires FFI bindings:
 ## Pull Request Process
 
 1. Create a new branch for your feature or fix:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
-   
+
 2. Make your changes and commit them with a clear message:
+
    ```bash
    git commit -m "feat: add new feature X"
    ```
-   
+
 3. Push your branch to your fork:
+
    ```bash
    git push origin feature/your-feature-name
    ```
-   
+
 4. Create a pull request on GitHub
-   
 5. Ensure your PR includes:
    - A clear description of the changes
    - Any relevant issue numbers

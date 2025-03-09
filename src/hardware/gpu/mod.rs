@@ -1,6 +1,6 @@
+use crate::error::{Error, Result};
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::utils::{autorelease_pool, objc_safe_exec};
-use crate::error::{Error, Result};
 use objc2::msg_send;
 use objc2::runtime::AnyObject;
 use std::ffi::c_void;
@@ -46,10 +46,10 @@ pub struct GPU {
 
 impl GPU {
     pub fn new() -> Result<Self> {
-        let iokit = Box::new(IOKitImpl::default());
-        
+        let iokit = Box::new(IOKitImpl);
+
         // Create Metal device but don't use it for basic metrics
-        let metal_device = unsafe { 
+        let metal_device = unsafe {
             let device = MTLCreateSystemDefaultDevice();
             if device.is_null() {
                 None
@@ -57,40 +57,43 @@ impl GPU {
                 Some(device)
             }
         };
-        
-        Ok(Self { iokit, metal_device })
+
+        Ok(Self {
+            iokit,
+            metal_device,
+        })
     }
 
     pub fn name(&self) -> Result<String> {
         // Get GPU stats using IOKit
         let stats = self.iokit.get_gpu_stats()?;
-        
+
         if !stats.name.is_empty() {
             return Ok(stats.name);
         }
-        
+
         // Fallback to Metal API if needed
         if let Some(device) = self.metal_device {
             return autorelease_pool(|| {
-                objc_safe_exec(|| {
-                    unsafe {
-                        let device_obj: *mut AnyObject = device.cast();
-                        let name_obj: *mut AnyObject = msg_send![device_obj, name];
-                        if name_obj.is_null() {
-                            return Err(Error::NotAvailable("Could not get GPU name".into()));
-                        }
-                        let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
-                        if utf8_string.is_null() {
-                            return Err(Error::NotAvailable("Could not convert GPU name to string".into()));
-                        }
-                        let c_str = std::ffi::CStr::from_ptr(utf8_string as *const i8);
-                        let name = c_str.to_string_lossy().into_owned();
-                        Ok(name)
+                objc_safe_exec(|| unsafe {
+                    let device_obj: *mut AnyObject = device.cast();
+                    let name_obj: *mut AnyObject = msg_send![device_obj, name];
+                    if name_obj.is_null() {
+                        return Err(Error::NotAvailable("Could not get GPU name".into()));
                     }
+                    let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
+                    if utf8_string.is_null() {
+                        return Err(Error::NotAvailable(
+                            "Could not convert GPU name to string".into(),
+                        ));
+                    }
+                    let c_str = std::ffi::CStr::from_ptr(utf8_string as *const i8);
+                    let name = c_str.to_string_lossy().into_owned();
+                    Ok(name)
                 })
             });
         }
-        
+
         // Final fallback
         Ok("Unknown GPU".to_string())
     }
@@ -98,19 +101,19 @@ impl GPU {
     pub fn metrics(&self) -> Result<GpuMetrics> {
         // Get stats from IOKit
         let gpu_stats = self.iokit.get_gpu_stats()?;
-        
+
         // Try to get temperature
         let temperature = match self.iokit.get_gpu_temperature() {
             Ok(temp) => Some(temp as f32),
-            Err(_) => None
+            Err(_) => None,
         };
-        
+
         let memory = GpuMemoryInfo {
             total: gpu_stats.memory_total,
             used: gpu_stats.memory_used,
             free: gpu_stats.memory_total.saturating_sub(gpu_stats.memory_used),
         };
-        
+
         // Fallback for memory if needed
         let memory = if memory.total == 0 {
             GpuMemoryInfo {
@@ -121,7 +124,7 @@ impl GPU {
         } else {
             memory
         };
-        
+
         Ok(GpuMetrics {
             name: gpu_stats.name,
             utilization: gpu_stats.utilization as f32,
@@ -133,16 +136,16 @@ impl GPU {
 
     pub fn memory_info(&self) -> Result<GpuMemoryInfo> {
         let gpu_stats = self.iokit.get_gpu_stats()?;
-        
+
         let total = if gpu_stats.memory_total > 0 {
             gpu_stats.memory_total
         } else {
             MAX_GPU_MEMORY
         };
-        
+
         let used = gpu_stats.memory_used;
         let free = total.saturating_sub(used);
-        
+
         Ok(GpuMemoryInfo { total, used, free })
     }
 

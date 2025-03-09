@@ -1,8 +1,8 @@
 use super::MAX_GPU_MEMORY;
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::Result;
-use std::ffi::c_void;
 use objc2::rc::autoreleasepool;
+use std::ffi::c_void;
 
 type MTLDeviceRef = *mut c_void;
 
@@ -37,14 +37,10 @@ impl GpuMetrics {
     pub fn metrics_summary(&self) -> String {
         let memory_used_mb = self.memory_used / 1024 / 1024;
         let memory_total_mb = self.memory_total / 1024 / 1024;
-        
+
         format!(
-            "GPU: {}, {}% util, {}°C, {}/{} MB memory", 
-            self.name,
-            self.utilization, 
-            self.temperature, 
-            memory_used_mb, 
-            memory_total_mb
+            "GPU: {}, {}% util, {}°C, {}/{} MB memory",
+            self.name, self.utilization, self.temperature, memory_used_mb, memory_total_mb
         )
     }
 }
@@ -56,7 +52,7 @@ pub struct GPU {
 
 impl GPU {
     pub fn new() -> Result<Self> {
-        let iokit = Box::new(IOKitImpl::default());
+        let iokit = Box::new(IOKitImpl);
         Ok(Self { iokit })
     }
 
@@ -65,10 +61,10 @@ impl GPU {
         autoreleasepool(|_| {
             // Get GPU statistics using the IOKit approach
             let gpu_stats = self.iokit.get_gpu_stats()?;
-            
+
             // Try to get GPU temperature
             let temperature = self.iokit.get_gpu_temperature().unwrap_or(0.0);
-            
+
             Ok(GpuMetrics {
                 utilization: gpu_stats.utilization,
                 temperature,
@@ -86,19 +82,19 @@ impl GPU {
         autoreleasepool(|_| {
             // Get GPU statistics using IOKit
             let gpu_stats = self.iokit.get_gpu_stats()?;
-            
+
             let total = if gpu_stats.memory_total > 0 {
                 gpu_stats.memory_total
             } else {
                 // Fallback to default value if we couldn't determine actual memory
                 MAX_GPU_MEMORY
             };
-            
+
             let used = gpu_stats.memory_used;
-            
+
             // Calculate free memory
             let free = total.saturating_sub(used);
-            
+
             Ok(GPUMemoryInfo { total, used, free })
         })
     }
@@ -107,7 +103,7 @@ impl GPU {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_gpu_initialization() {
         let gpu = GPU::new();
@@ -117,7 +113,7 @@ mod tests {
     // FIXME: The following tests are temporarily disabled due to memory management issues
     // with Objective-C interoperability. They cause SIGSEGV when accessing deallocated objects.
     // Issue tracked in CHANGELOG.md and TODO.md
-    
+
     // Test disabled due to memory safety issues with IOKit interface
     // #[test]
     // fn test_gpu_metrics() {
@@ -129,7 +125,7 @@ mod tests {
     //             return; // Skip the test if GPU initialization fails
     //         }
     //     };
-    //     
+    //
     //     match gpu.get_metrics() {
     //         Ok(metrics) => {
     //             assert!(metrics.utilization >= 0.0, "Invalid GPU utilization");
@@ -142,7 +138,7 @@ mod tests {
     //         }
     //     }
     // }
-    
+
     // Test disabled due to memory safety issues with IOKit interface
     // #[test]
     // fn test_gpu_memory_info() {
@@ -154,7 +150,7 @@ mod tests {
     //             return; // Skip the test if GPU initialization fails
     //         }
     //     };
-    //     
+    //
     //     match gpu.memory_info() {
     //         Ok(memory_info) => {
     //             assert!(memory_info.total > 0, "Invalid total VRAM");

@@ -8,13 +8,13 @@ The purpose of `darwin-metrics` is to give Rust developers easy access to macOS 
 
 ## Features
 
-* **CPU Monitoring**: Usage, frequency, temperature, and core information
-* **Memory Analysis**: RAM usage, swap space, memory pressure, and page state tracking
-* **GPU Information**: Model detection, utilization metrics, VRAM usage
-* **Process Monitoring**: Resource usage stats, process enumeration, and hierarchies
-* **Storage Metrics**: Disk space utilization and I/O performance
-* **Power Management**: Battery status and power consumption data
-* **Thermal Monitoring**: System-wide temperature sensors
+- **CPU Monitoring**: Usage, frequency, temperature, and core information
+- **Memory Analysis**: RAM usage, swap space, memory pressure, and page state tracking
+- **GPU Information**: Model detection, utilization metrics, VRAM usage
+- **Process Monitoring**: Resource usage stats, process enumeration, and hierarchies
+- **Storage Metrics**: Disk space utilization and I/O performance
+- **Power Management**: Battery status and power consumption data
+- **Thermal Monitoring**: System-wide temperature sensors
 
 ## Design Philosophy
 
@@ -30,8 +30,8 @@ The library follows several important design principles:
 
 This library is specifically designed for macOS systems. It has been tested on:
 
-* macOS Monterey (12.x)
-* macOS Ventura (13.x)
-* macOS Sonoma (14.x)
+- macOS Monterey (12.x)
+- macOS Ventura (13.x)
+- macOS Sonoma (14.x)
 
->**Note**: Because `darwin-metrics` uses platform-specific APIs, it will not work on non-macOS systems.
+> **Note**: Because `darwin-metrics` uses platform-specific APIs, it will not work on non-macOS systems.

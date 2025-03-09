@@ -19,6 +19,7 @@
 ### **Code Refactoring & Cleanup**
 
 - [x] **Process Monitoring**
+
   - [x] Improve modularity by separating concerns into dedicated functions and modules.
   - [x] Refactor function and variable names to follow Rust conventions (`snake_case` for functions, `PascalCase` for structs).
   - [x] Implement async-friendly architecture where necessary, ensuring minimal blocking operations.
@@ -35,11 +36,13 @@
   - [ ] Implement command-line arguments retrieval - future enhancement.
 
 - [~] **CPU Metrics**
+
   - [~] Refactored CPU module (mod.rs, cpu.rs, frequency.rs).
   - [~] Implemented CPU frequency monitoring.
   - [~] Improved CPU temperature retrieval.
 
 - [~] **GPU Metrics**
+
   - [x] Implemented CoreFoundation approach for basic GPU metrics.
   - [x] Added GPU utilization and VRAM usage tracking.
   - [x] Integrated with IOKit to access GPU performance information.
@@ -50,6 +53,7 @@
   - [ ] Integrate with Metal API for advanced GPU monitoring (future enhancement).
 
 - [ ] **Network Monitoring**
+
   - [ ] Implement bandwidth tracking, ensuring accurate upload/download speed calculations.
   - [ ] Introduce real-time network state monitoring to detect active/inactive connections.
   - [ ] Improve packet loss and error tracking by gathering statistics from system interfaces.
@@ -57,12 +61,13 @@
   - [ ] Write unit tests for different network conditions and interface types.
 
 - [ ] **Temperature Monitoring**
+
   - [ ] Add fan speed tracking by retrieving RPM values from available system sensors.
   - [ ] Implement thermal zone monitoring to track system heat distribution.
   - [ ] Detect and report thermal throttling by monitoring CPU/GPU clock adjustments.
   - [ ] Improve efficiency of temperature polling to avoid unnecessary resource consumption.
 
-- [ ] **General Code Cleanup** *(In Progress)*
+- [ ] **General Code Cleanup** _(In Progress)_
   - [x] Refactored system module and merged architecture detection.
   - [x] Applied Rust idiomatic principles from `.windsurfrules`, ensuring consistent formatting.
   - [x] Removed redundant or unused code.
@@ -80,10 +85,12 @@
 
 - [ ] **Enhance CPU and GPU monitoring with async processing**
 - [ ] **GPU Performance Metrics**
+
   - [ ] Track GPU utilization over time to monitor workload distribution.
   - [ ] Measure GPU memory consumption and optimize reporting.
 
 - [~] **Advanced Process Monitoring**
+
   - [x] Implement parent-child process hierarchy tracking for improved system visibility.
   - [x] Add per-process thread monitoring to gather insights on concurrency behavior.
   - [x] Improve resource usage tracking with additional data on CPU/memory consumption.
@@ -91,11 +98,13 @@
   - [ ] Add command-line arguments retrieval for processes.
 
 - [ ] **Disk & Storage Monitoring**
+
   - [ ] Track I/O performance by measuring read/write speeds for individual drives.
   - [ ] Monitor volume usage, including available/free space calculations.
   - [ ] Implement tracking for mounted disk devices and storage partitions.
 
 - [ ] **Network Enhancements**
+
   - [ ] Implement packet loss and error tracking to improve network diagnostics.
   - [ ] Add connection state tracking to detect when network interfaces go up or down.
 
@@ -113,13 +122,14 @@
 - [ ] **Hardware Monitoring**
   - [ ] Implement fan control features for supported macOS devices.
   - [ ] Improve power management insights by tracking energy consumption.
-  
 - [ ] **Performance Optimizations**
+
   - [ ] Reduce memory footprint by optimizing data structures.
   - [ ] Improve CPU efficiency by limiting unnecessary polling intervals.
   - [ ] Enhance async handling to ensure minimal blocking operations.
 
 - [ ] **Event-based Monitoring**
+
   - [ ] Implement event-driven hooks for tracking system state changes.
   - [ ] Reduce reliance on polling where possible.
 
@@ -135,6 +145,7 @@
 
 - [ ] **Ensure CPU and memory modules are feature-complete**
 - [ ] **Full Documentation & Examples**
+
   - [~] Complete API documentation for all modules.
   - [~] Provide real-world usage examples for developers.
   - [~] Improve README with installation and usage instructions.
@@ -143,13 +154,16 @@
   - [x] Document internal architecture and contributing guidelines
 
 - [ ] **Comprehensive Test Coverage**
+
   - [ ] Ensure all modules have unit and integration tests.
   - [ ] Validate async correctness in real-world scenarios.
 
 - [ ] **Performance Benchmarking**
+
   - [ ] Conduct final performance tests and fine-tune any remaining bottlenecks.
 
 - [ ] **Ensure API Consistency Before `1.0.0`**
+
   - [ ] Conduct final API review to ensure consistency in function signatures.
   - [ ] Deprecate or remove unused experimental features.
 

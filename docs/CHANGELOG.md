@@ -5,42 +5,6 @@ All notable changes to the darwin-metrics project will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-
-- Added CoreFoundation-based GPU metrics collection without Metal dependency
-- Added GPU utilization tracking through AGPMController's performance capacity stats
-- Added GPU memory usage tracking through IORegistry properties
-- Added comprehensive Process module implementation with:
-  - Process enumeration using sysctl and libproc
-  - CPU and memory usage tracking for individual processes
-  - Process I/O statistics monitoring
-  - Process hierarchy and tree visualization
-  - Child process tracking
-  - Thread count monitoring
-- Added comprehensive mdBook documentation structure in `/docs`
-- Added documentation for modules, FFI bindings, and architecture
-
-### Changed
-
-- Reimplemented GPU metrics collection to reduce dependency on Metal API 
-- Improved GPU module error handling with proper fallbacks for different hardware configurations
-- Enhanced GPU module to work better with Apple Silicon's unified memory architecture
-- Improved memory management in IOKit interfaces with autoreleasepools
-- Disabled problematic GPU tests to prevent SIGSEGV crashes during test execution
-- Centralized all FFI bindings in `src/utils/bindings.rs` for better maintainability
-- Refactored IOKit, System, and Memory modules to use centralized bindings
-- Enhanced lib.rs with comprehensive documentation for docs.rs compatibility
-- Improved error handling for FFI functions with explicit error messages
-
-### Fixed
-
-- Fixed GPU memory management issues by wrapping IOKit calls in autoreleasepools
-- Improved cleanup of Objective-C objects to prevent memory corruption
-- Fixed type casting issues in IOKit bindings with proper ffi_c_void types
-- Resolved duplicate sysctl definitions across multiple modules
-
 ## [0.1.x] - Previous Changes
 
 ### Fixed
@@ -52,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified GPU metrics collection to safely handle potential Metal framework errors
 - Fixed variable mutability warning in CPU frequency module
 - Fixed unused imports and variables in CPU module
+- Fixed GPU memory management issues by wrapping IOKit calls in autoreleasepools
+- Improved cleanup of Objective-C objects to prevent memory corruption
+- Fixed type casting issues in IOKit bindings with proper ffi_c_void types
+- Resolved duplicate sysctl definitions across multiple modules
 
 ### Added
 
@@ -67,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added CoreFoundation-based GPU metrics collection without Metal dependency
 - Added GPU utilization tracking through AGPMController's performance capacity stats
 - Added GPU memory usage tracking through IORegistry properties
+- Added comprehensive Process module implementation with:
+  - Process enumeration using sysctl and libproc
+  - CPU and memory usage tracking for individual processes
+  - Process I/O statistics monitoring
+  - Process hierarchy and tree visualization
+  - Child process tracking
+  - Thread count monitoring
+- Added comprehensive mdBook documentation structure in `/docs`
+- Added documentation for modules, FFI bindings, and architecture
 
 ### Changed
 
@@ -81,10 +58,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reimplemented GPU metrics collection to reduce dependency on Metal API
 - Improved GPU module error handling with proper fallbacks for different hardware configurations
 - Enhanced GPU module to work better with Apple Silicon's unified memory architecture
+- Improved memory management in IOKit interfaces with autoreleasepools
+- Disabled problematic GPU tests to prevent SIGSEGV crashes during test execution
+- Centralized all FFI bindings in `src/utils/bindings.rs` for better maintainability
+- Refactored IOKit, System, and Memory modules to use centralized bindings
+- Enhanced lib.rs with comprehensive documentation for docs.rs compatibility
+- Improved error handling for FFI functions with explicit error messages
 
 ### TODO
 
 - GPU Implementation Issues:
+
   - Fix memory safety issues during test teardown (SIGSEGV in IOKit interfaces)
   - Ensure proper cleanup of IOKit resources in GPU metrics collection
   - Create real-world examples to validate the GPU implementation
@@ -92,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add fallback mechanisms for systems without dedicated GPUs
 
 - API Implementation Issues:
+
   - Complete real implementation of host_statistics64 for CPU core usage monitoring and VM memory statistics
   - Implement proper frequency detection through sysctlbyname("hw.cpufrequency") calls
   - Verify AppleACPICPU service compatibility with Objective-C method calls (`numberOfCores`, `numberOfProcessorCores`, etc.)
@@ -102,8 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fix system module API calls to properly detect M1/M2/M3 chip variants
   - Add support for additional SMC temperature sensors (battery, SSD, etc.)
   - Extend fan speed monitoring with RPM conversion for different fan types
-  
 - GPU Advanced Metrics (Future):
+
   - Implement detailed GPU utilization metrics using Metal Performance Shaders
   - Add support for multiple GPU configurations
   - Improve GPU memory tracking accuracy with Metal API for dedicated GPUs
@@ -115,4 +100,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Use `fd` instead of `find`
     - Use `bat` instead of `cat`
     - Use `eza --tree` instead of `tree`
-    - Note: Some tools are installed in `/Users/smeya/.cargo/bin/` and others in `/opt/homebrew/bin/`
+    - Note: Some tools are installed in `~/.cargo/bin/` and others in `/opt/homebrew/bin/`

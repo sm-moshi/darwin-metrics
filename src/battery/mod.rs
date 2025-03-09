@@ -1,5 +1,5 @@
-use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::error::{Error, Result};
+use crate::hardware::iokit::{IOKit, IOKitImpl};
 use std::time::Duration;
 
 const BATTERY_IS_PRESENT: &str = "BatteryInstalled";
@@ -54,7 +54,9 @@ impl Battery {
         let service = self.iokit.io_service_get_matching_service(&matching);
 
         let Some(service) = service else {
-            return Err(Error::service_not_found("Battery service not found".to_string()));
+            return Err(Error::service_not_found(
+                "Battery service not found".to_string(),
+            ));
         };
 
         let properties = self
@@ -140,7 +142,9 @@ impl Battery {
         let service = self.iokit.io_service_get_matching_service(&matching);
 
         let Some(service) = service else {
-            return Err(Error::ServiceNotFound("Battery service not found".to_string()));
+            return Err(Error::ServiceNotFound(
+                "Battery service not found".to_string(),
+            ));
         };
 
         match self.iokit.io_registry_entry_create_cf_properties(&service) {
@@ -168,7 +172,7 @@ impl Battery {
             cycle_count,
             health_percentage: health_percentage.clamp(0.0, 100.0),
             temperature,
-            iokit: Box::new(IOKitImpl::default()),
+            iokit: Box::new(IOKitImpl),
         }
     }
 
@@ -223,7 +227,7 @@ impl Clone for Battery {
             cycle_count: self.cycle_count,
             health_percentage: self.health_percentage,
             temperature: self.temperature,
-            iokit: Box::new(IOKitImpl::default()),
+            iokit: Box::new(IOKitImpl),
         }
     }
 }

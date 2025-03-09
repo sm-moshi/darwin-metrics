@@ -1,16 +1,15 @@
-use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::error::{Error, Result};
+use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::utils::bindings::{
-    sysctl, vm_statistics64, xsw_usage, vm_kernel_page_size,
-    host_statistics64, mach_host_self, 
-    KERN_SUCCESS, HOST_VM_INFO64, HOST_VM_INFO64_COUNT,
-    HostInfoT,
-    sysctl_constants::{CTL_HW, HW_MEMSIZE, CTL_VM, VM_SWAPUSAGE}
+    host_statistics64, mach_host_self, sysctl,
+    sysctl_constants::{CTL_HW, CTL_VM, HW_MEMSIZE, VM_SWAPUSAGE},
+    vm_kernel_page_size, vm_statistics64, xsw_usage, HostInfoT, HOST_VM_INFO64,
+    HOST_VM_INFO64_COUNT, KERN_SUCCESS,
 };
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PressureLevel {
@@ -160,8 +159,10 @@ impl PartialEq for Memory {
             && self.swap_usage == other.swap_usage
             && self.history == other.history
             && self.history_max_items == other.history_max_items
-            && (self.pressure_warning_threshold - other.pressure_warning_threshold).abs() < f64::EPSILON
-            && (self.pressure_critical_threshold - other.pressure_critical_threshold).abs() < f64::EPSILON
+            && (self.pressure_warning_threshold - other.pressure_warning_threshold).abs()
+                < f64::EPSILON
+            && (self.pressure_critical_threshold - other.pressure_critical_threshold).abs()
+                < f64::EPSILON
             && self.last_update == other.last_update
             && self.prev_swap_in == other.prev_swap_in
             && self.prev_swap_out == other.prev_swap_out
@@ -403,7 +404,7 @@ impl Memory {
                             }
                         }
                         prev_level = Some(current_level);
-                }
+                    }
                 }
 
                 tokio::time::sleep(Duration::from_millis(interval_ms)).await;
@@ -509,8 +510,8 @@ impl Memory {
         let level = self.pressure_level();
 
         if let Ok(callbacks) = self.pressure_callbacks.lock() {
-        for callback in callbacks.iter() {
-            callback(level);
+            for callback in callbacks.iter() {
+                callback(level);
             }
         }
     }

@@ -1,9 +1,9 @@
 use super::CpuMetrics;
-use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::error::Result;
+use crate::hardware::iokit::{IOKit, IOKitImpl};
 use objc2::msg_send;
-use objc2_foundation::NSString;
 use objc2::rc::Retained;
+use objc2_foundation::NSString;
 
 #[cfg(test)]
 use crate::hardware::iokit::MockIOKit;
@@ -73,7 +73,7 @@ impl CPU {
             core_usage: Vec::new(),
             model_name: String::new(),
             temperature: None,
-            iokit: Box::new(IOKitImpl::default()),
+            iokit: Box::new(IOKitImpl),
         };
         cpu.update()?;
         Ok(cpu)
@@ -99,14 +99,14 @@ impl CPU {
         // Example: sysctlbyname("hw.physicalcpu") and sysctlbyname("hw.logicalcpu")
         self.physical_cores = unsafe { msg_send![&*service, numberOfCores] };
         self.logical_cores = unsafe { msg_send![&*service, numberOfProcessorCores] };
-        
+
         // TODO: Verify frequency method, possibly use sysctl with
         // sysctlbyname("hw.cpufrequency") instead
         let frequency: f64 = unsafe { msg_send![&*service, currentProcessorClockSpeed] };
         self.frequency_mhz = frequency / 1_000_000.0;
 
         self.core_usage = self.fetch_core_usage()?;
-        
+
         // Get model name as NSString and convert to Rust String
         // TODO: Verify name method, consider using sysctlbyname("machdep.cpu.brand_string")
         let ns_name: Retained<NSString> = unsafe { msg_send![&*service, name] };
@@ -145,12 +145,12 @@ impl CPU {
         //     let mut cpu_load_info: *mut processor_cpu_load_info_t = std::ptr::null_mut();
         //     let mut cpu_count: u32 = 0;
         //     let result = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO,
-        //                                      &mut cpu_count, 
+        //                                      &mut cpu_count,
         //                                      &mut cpu_load_info as *mut _ as *mut *mut libc::c_int,
         //                                      &mut msg_type);
         //     // Process results and calculate usage percentages
         // }
-        
+
         let mut usages = Vec::with_capacity(self.logical_cores as usize);
         for i in 0..self.logical_cores {
             let service = self.iokit.get_service("AppleACPICPU")?;
@@ -287,22 +287,20 @@ impl CpuMetrics for CPU {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // Create a CPU instance for testing with mock data
     impl CPU {
         pub fn new_with_mock() -> Result<Self> {
             let mut mock = MockIOKit::new();
-            
+
             // Setup mock behavior
-            mock.expect_get_service()
-                .returning(|_| {
-                    use crate::utils::test_utils;
-                    Ok(test_utils::create_test_object())
-                });
-                
-            mock.expect_get_cpu_temperature()
-                .returning(|| Ok(45.5));
-                
+            mock.expect_get_service().returning(|_| {
+                use crate::utils::test_utils;
+                Ok(test_utils::create_test_object())
+            });
+
+            mock.expect_get_cpu_temperature().returning(|| Ok(45.5));
+
             let cpu = Self {
                 physical_cores: 8,
                 logical_cores: 16,
@@ -312,7 +310,7 @@ mod tests {
                 temperature: Some(45.5),
                 iokit: Box::new(mock),
             };
-            
+
             Ok(cpu)
         }
     }
@@ -320,7 +318,7 @@ mod tests {
     #[test]
     fn test_cpu_initialization() {
         let cpu = CPU::new_with_mock().expect("Failed to create CPU instance");
-        
+
         assert_eq!(cpu.physical_cores(), 8);
         assert_eq!(cpu.logical_cores(), 16);
         assert_eq!(cpu.frequency_mhz(), 3200.0);
@@ -328,27 +326,27 @@ mod tests {
         assert_eq!(cpu.temperature(), Some(45.5));
         assert_eq!(cpu.core_usage().len(), 8);
     }
-    
+
     #[test]
     fn test_cpu_usage() {
         let cpu = CPU::new_with_mock().expect("Failed to create CPU instance");
-        
+
         // The core usage values are set to known test values
         assert_eq!(cpu.core_usage().len(), 8);
-        
+
         // Calculate expected usage manually: (0.3+0.5+0.2+0.8+0.1+0.3+0.4+0.6) / 16 = 3.2 / 16 = 0.2
         let expected_usage = 0.2; // Note we use logical_cores (16) in the implementation
         assert_eq!(cpu.get_cpu_usage(), expected_usage);
     }
-    
+
     #[test]
     fn test_cpu_metrics_trait() {
         let cpu = CPU::new_with_mock().expect("Failed to create CPU instance");
-        
+
         // Test the CpuMetrics trait implementation
         assert_eq!(cpu.get_cpu_frequency(), 3200.0);
         assert_eq!(cpu.get_cpu_temperature(), Some(45.5));
-        
+
         // Make sure core usage is valid (between 0 and 1)
         assert!(cpu.get_cpu_usage() >= 0.0 && cpu.get_cpu_usage() <= 1.0);
     }
