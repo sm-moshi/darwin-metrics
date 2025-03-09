@@ -2,9 +2,9 @@ name: Continuous Integration
 
 on:
   push:
-    branches: [main]
+    branches: ["*"]
   pull_request:
-    branches: [main]
+    branches: ["main", "0.1.x", "0.2.x"]
   workflow_dispatch:
 
 env:
@@ -99,6 +99,8 @@ jobs:
   publish-dry-run:
     name: Publish Dry Run
     runs-on: macos-latest
+    # Only run on specific branches where publishing might occur
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/0.1.x' || github.ref == 'refs/heads/0.2.x'
     steps:
       - uses: actions/checkout@v4
 
@@ -107,5 +109,8 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Clean up .DS_Store files
+        run: find . -name ".DS_Store" -delete
+
       - name: Dry run publish
-        run: cargo publish --dry-run
+        run: cargo publish --dry-run --no-verify

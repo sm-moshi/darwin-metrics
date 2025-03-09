@@ -4,9 +4,9 @@
 
 [![Crates.io](https://img.shields.io/crates/v/darwin-metrics.svg)](https://crates.io/crates/darwin-metrics)
 [![Documentation](https://docs.rs/darwin-metrics/badge.svg)](https://docs.rs/darwin-metrics)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![Build Status](https://img.shields.io/github/actions/workflow/status/sm-moshi/darwin-metrics/ci.yml?branch=main)
-![Crates.io Downloads](https://img.shields.io/crates/d/darwin-metrics)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/sm-moshi/darwin-metrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sm-moshi/darwin-metrics/actions/workflows/ci.yml)
+[![Crates.io Downloads](https://img.shields.io/crates/d/darwin-metrics)](https://crates.io/crates/darwin-metrics)
 
 </div>
 
@@ -29,13 +29,13 @@ A Rust library providing native access to macOS system metrics through low-level
 - **Memory Analysis**
 
   - [x] RAM usage and availability
-  - [ ] Swap space monitoring
+  - [x] Swap space monitoring
   - [x] Memory pressure levels
 
 - **GPU Information**
-  - [ ] Active GPU model detection
-  - [ ] GPU utilization metrics
-  - [ ] VRAM consumption tracking
+  - [x] Active GPU model detection
+  - [x] GPU utilization metrics
+  - [x] VRAM consumption tracking
 
 </td>
 <td>
@@ -45,7 +45,7 @@ A Rust library providing native access to macOS system metrics through low-level
 - **Storage Metrics**
 
   - [x] Disk space utilization
-  - [ ] I/O performance monitoring
+  - [x] I/O performance monitoring
   - [x] Read/write speed tracking
 
 - **Power Management**
@@ -70,12 +70,14 @@ A Rust library providing native access to macOS system metrics through low-level
 
   - [x] Running process enumeration
   - [x] Per-process resource usage
-  - [x] System uptime and version info
+  - [x] Parent-child process relationship tracking
+  - [x] Process tree visualization
 
 - **Network Monitoring**
   - [x] Interface discovery and state tracking
   - [x] Traffic statistics (bytes/packets sent/received)
   - [x] Bandwidth calculations
+  - [x] Async network monitoring
 
 </td>
 </tr>
@@ -99,39 +101,44 @@ darwin-metrics = "0.1.0"
 ## 🚀 Quick Start
 
 ```rust
-use darwin_metrics::{cpu, memory, gpu};
+use darwin_metrics::{CPU, Memory, Gpu};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Get CPU usage
-    let cpu_info = cpu::get_usage().await?;
-    println!("CPU Usage: {}%", cpu_info.total_usage);
-
+    // Get CPU information
+    let cpu = CPU::new();
+    println!("CPU cores: {}", cpu.cores());
+    println!("CPU usage: {}%", cpu.usage()?);
+    
     // Monitor memory
-    let mem_info = memory::get_stats()?;
-    println!("Memory Used: {} GB", mem_info.used_gb);
-
+    let mut memory = Memory::new()?;
+    memory.update()?;
+    println!("Memory used: {:.2} GB", memory.used as f64 / 1_073_741_824.0);
+    println!("Memory pressure: {:.1}%", memory.pressure_percentage());
+    
     // Check GPU status
-    let gpu_info = gpu::get_info()?;
-    println!("Active GPU: {}", gpu_info.model);
-
+    let gpu = Gpu::new()?;
+    println!("GPU name: {}", gpu.name()?);
+    
     Ok(())
 }
 ```
 
 ## 🎯 Feature Flags
 
-| Flag             | Description                           |
-| ---------------- | ------------------------------------- |
-| `battery`        | Enable battery monitoring             |
-| `cpu`            | Enable CPU metrics                    |
-| `memory`         | Enable memory statistics              |
-| `gpu`            | Enable GPU monitoring                 |
-| `disk`           | Enable storage metrics                |
-| `temperature`    | Enable thermal monitoring             |
-| `async`          | Enable async support (requires tokio) |
-| `metrics-export` | Enable metrics export functionality   |
-| `cached-metrics` | Enable caching for expensive calls    |
+All features are enabled by default, but you can selectively enable only what you need:
+
+| Flag                | Description                               |
+| ------------------- | ----------------------------------------- |
+| `battery`           | Enable battery monitoring                 |
+| `cpu`               | Enable CPU metrics                        |
+| `memory`            | Enable memory statistics                  |
+| `gpu`               | Enable GPU monitoring                     |
+| `disk`              | Enable storage metrics                    |
+| `temperature`       | Enable thermal monitoring                 |
+| `async`             | Enable async support (requires tokio)     |
+| `process_monitoring`| Enable detailed process monitoring        |
+| `unstable-tests`    | Enable tests that may be unstable in CI   |
 
 ## 📈 Development Status
 
@@ -140,19 +147,25 @@ Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed
 <details>
 <summary><b>Development Progress</b></summary>
 
-### ✅ Completed
+### ✅ Completed (v0.1.0)
 
 - [x] Initial project setup
-- [x] Basic crate structure
-- [x] CPU monitoring module implementation
-- [x] Network monitoring module implementation
+- [x] Core architecture and error handling
+- [x] CPU monitoring module with frequency data
+- [x] Memory monitoring with pressure levels
+- [x] GPU information and metrics
+- [x] Network interface discovery and traffic stats
+- [x] Disk space monitoring
+- [x] Process monitoring and hierarchy tracking
+- [x] Temperature sensors and fan speed tracking
 
-### 🚧 In Progress
+### 🚧 In Progress (v0.2.0)
 
-- [ ] Memory analysis module implementation
-- [ ] GPU monitoring refinement
-- [ ] Documentation improvements
+- [ ] Enhanced async support throughout
+- [ ] Cross-platform abstractions (Linux/Windows)
+- [ ] Metrics export to Prometheus/InfluxDB
 - [ ] Performance optimizations
+- [ ] Event-based monitoring
 
 </details>
 
