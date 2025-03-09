@@ -1,5 +1,4 @@
-use std::error::Error;
-use std::env;
+use std::{env, error::Error};
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=src/");
@@ -7,17 +6,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Tell Rust that docsrs is a valid configuration flag
     println!("cargo:rustc-check-cfg=cfg(docsrs)");
-    
+
     // Get the target OS
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_else(|_| String::from("unknown"));
-    
+
     // Check if we're building for docs.rs or a non-macOS platform
     let is_docs_rs = env::var("DOCS_RS").is_ok();
     let is_non_macos = target_os != "macos";
-    
+
     if is_docs_rs || is_non_macos {
-        println!("cargo:warning=Building for documentation or non-macOS platform. Skipping macOS-specific linking.");
-        
+        println!(
+            "cargo:warning=Building for documentation or non-macOS platform. Skipping \
+             macOS-specific linking."
+        );
+
         // Set a custom cfg flag for our stubs module
         println!("cargo:rustc-cfg=use_stubs");
         return Ok(());

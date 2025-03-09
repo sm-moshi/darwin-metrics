@@ -1,7 +1,8 @@
 //! Memory analysis and monitoring module
 //!
-//! This module provides comprehensive memory metrics and monitoring capabilities for macOS systems.
-//! It tracks system memory usage, page states, memory pressure, and swap activity.
+//! This module provides comprehensive memory metrics and monitoring
+//! capabilities for macOS systems. It tracks system memory usage, page states,
+//! memory pressure, and swap activity.
 //!
 //! # Features
 //!
@@ -21,13 +22,13 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let memory = Memory::new()?;
-//!     
+//!
 //!     println!("Total Memory: {} bytes", memory.total);
 //!     println!("Available Memory: {} bytes", memory.available);
 //!     println!("Used Memory: {} bytes", memory.used);
 //!     println!("Memory Usage: {:.1}%", memory.usage_percentage());
 //!     println!("Memory Pressure: {:.1}%", memory.pressure_percentage());
-//!     
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -39,7 +40,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let memory = Memory::new()?;
-//!     
+//!
 //!     // Register a callback for memory pressure changes
 //!     memory.on_pressure_change(|level| {
 //!         match level {
@@ -50,12 +51,13 @@
 //!             _ => println!("Memory pressure is in an UNKNOWN state"),
 //!         }
 //!     });
-//!     
+//!
 //!     Ok(())
 //! }
 //! ```
 //!
-//! For more examples, see the `examples/memory_monitor.rs` and `examples/memory_monitor_async.rs` files.
+//! For more examples, see the `examples/memory_monitor.rs` and
+//! `examples/memory_monitor_async.rs` files.
 
 use std::{
     collections::VecDeque,
@@ -110,7 +112,8 @@ pub struct PageStates {
     pub active: u64,
     /// Memory pages that haven't been accessed recently but still in RAM
     pub inactive: u64,
-    /// Memory pages that cannot be paged out (kernel and other critical components)
+    /// Memory pages that cannot be paged out (kernel and other critical
+    /// components)
     pub wired: u64,
     /// Memory pages immediately available for allocation
     pub free: u64,
@@ -259,11 +262,13 @@ impl PartialEq for Memory {
 impl Memory {
     /// Create a new Memory monitoring instance
     ///
-    /// Initializes a Memory struct with default settings and performs an initial update.
+    /// Initializes a Memory struct with default settings and performs an
+    /// initial update.
     ///
     /// # Returns
     ///
-    /// A Result containing the initialized Memory struct, or an Error if initialization fails.
+    /// A Result containing the initialized Memory struct, or an Error if
+    /// initialization fails.
     ///
     /// # Example
     ///
@@ -349,8 +354,9 @@ impl Memory {
 
     /// Update memory metrics
     ///
-    /// Refreshes all memory metrics by querying the system for current memory usage information.
-    /// This method should be called periodically to get up-to-date memory statistics.
+    /// Refreshes all memory metrics by querying the system for current memory
+    /// usage information. This method should be called periodically to get
+    /// up-to-date memory statistics.
     ///
     /// # Returns
     ///
@@ -359,23 +365,23 @@ impl Memory {
     /// # Example
     ///
     /// ```no_run
+    /// use std::{thread::sleep, time::Duration};
+    ///
     /// use darwin_metrics::hardware::memory::Memory;
-    /// use std::thread::sleep;
-    /// use std::time::Duration;
     ///
     /// fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let mut memory = Memory::new()?;
-    ///     
+    ///
     ///     // Initial reading
     ///     println!("Initial memory usage: {:.1}%", memory.usage_percentage());
-    ///     
+    ///
     ///     // Wait a moment then update
     ///     sleep(Duration::from_secs(5));
     ///     memory.update()?;
-    ///     
+    ///
     ///     // Get updated reading
     ///     println!("Updated memory usage: {:.1}%", memory.usage_percentage());
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
@@ -670,8 +676,8 @@ impl Memory {
     /// Update memory metrics asynchronously
     ///
     /// This method offloads the blocking system calls to a separate thread
-    /// using tokio's spawn_blocking, making it suitable for use in async contexts
-    /// without blocking the async runtime.
+    /// using tokio's spawn_blocking, making it suitable for use in async
+    /// contexts without blocking the async runtime.
     ///
     /// # Returns
     ///
@@ -685,11 +691,11 @@ impl Memory {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let mut memory = Memory::new()?;
-    ///     
+    ///
     ///     // Update memory metrics asynchronously
     ///     memory.update_async().await?;
     ///     println!("Memory usage: {:.1}%", memory.usage_percentage());
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
@@ -729,11 +735,13 @@ impl Memory {
 
     /// Get memory info asynchronously
     ///
-    /// Creates a new Memory instance asynchronously without blocking the async runtime.
+    /// Creates a new Memory instance asynchronously without blocking the async
+    /// runtime.
     ///
     /// # Returns
     ///
-    /// A Result containing the initialized Memory struct, or an Error if initialization fails.
+    /// A Result containing the initialized Memory struct, or an Error if
+    /// initialization fails.
     ///
     /// # Example
     ///
@@ -745,7 +753,7 @@ impl Memory {
     ///     // Get memory info asynchronously
     ///     let memory = Memory::get_info_async().await?;
     ///     println!("Memory usage: {:.1}%", memory.usage_percentage());
-    ///     
+    ///
     ///     Ok(())
     /// }
     /// ```
