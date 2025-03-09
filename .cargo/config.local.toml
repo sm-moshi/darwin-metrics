@@ -1,0 +1,9 @@
+[build]
+rustc = "rustc +beta"
+
+[cargo]
+rustc = "rustc +beta"
+
+[rust]
+# Use beta for all local development
+channel = "beta"

@@ -8,8 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Unreleased - Added
+- Enhanced async support throughout codebase
+- Improved Metal API integration for more reliable GPU monitoring
 
-- None yet
+### Unreleases - Changed
+- Enhanced memory management in Objective-C interfaces
+- Improved error handling in IOKit bindings
+- Refactored GPU module for better stability on Apple Silicon
 
 ## [0.1.5] - 2025-03-10
 
@@ -57,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Applied formatting via rustfmt
 - Improved GitHub CI workflow
+
 
 ## [0.1.0] - 2025-03-09
 

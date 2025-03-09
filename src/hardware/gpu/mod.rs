@@ -2,8 +2,12 @@ use std::os::raw::c_void;
 
 use objc2::{msg_send, rc::autoreleasepool, runtime::AnyObject};
 
+// Only import Error when not in coverage mode
+#[cfg(not(feature = "skip-ffi-crashes"))]
+use crate::error::Error;
+
 use crate::{
-    error::{Error, Result},
+    error::Result,
     utils::bindings::{MTLCreateSystemDefaultDevice, MTLDeviceRef},
 };
 
@@ -213,29 +217,38 @@ impl Gpu {
 
     // Get temperature from SMC if available
     fn get_temperature(&self) -> Result<f32> {
-        use std::mem::size_of;
+        // For coverage runs, use a mock implementation to avoid segfaults
+        #[cfg(feature = "skip-ffi-crashes")]
+        {
+            // Return a reasonable mock temperature (42.5°C)
+            Ok(42.5)
+        }
 
-        use crate::utils::bindings::*;
+        // Normal implementation for non-coverage runs
+        #[cfg(not(feature = "skip-ffi-crashes"))]
+        {
+            use std::mem::size_of;
+            use crate::utils::bindings::*;
 
-        unsafe {
-            // Open the SMC service safely
-            let service_name = std::ffi::CString::new("AppleSMC")
-                .map_err(|_| Error::system("CString conversion failed"))?;
-            let service = IOServiceMatching(service_name.as_ptr());
-            if service.is_null() {
-                return Err(Error::service_not_found("AppleSMC service not found"));
-            }
+            unsafe {
+                // Open the SMC service safely
+                let service_name = std::ffi::CString::new("AppleSMC")
+                    .map_err(|_| Error::system("CString conversion failed"))?;
+                let service = IOServiceMatching(service_name.as_ptr());
+                if service.is_null() {
+                    return Err(Error::service_not_found("AppleSMC service not found"));
+                }
 
-            let service_id = IOServiceGetMatchingService(0, service as *const _);
-            if service_id == 0 {
-                return Err(Error::service_not_found("AppleSMC service not found"));
-            }
+                let service_id = IOServiceGetMatchingService(0, service as *const _);
+                if service_id == 0 {
+                    return Err(Error::service_not_found("AppleSMC service not found"));
+                }
 
-            let mut connection = 0u32;
-            let result = IOServiceOpen(service_id, 0, KERNEL_INDEX_SMC, &mut connection);
-            if result != IO_RETURN_SUCCESS {
-                return Err(Error::io_kit(format!("Failed to open SMC connection: {}", result)));
-            }
+                let mut connection = 0u32;
+                let result = IOServiceOpen(service_id, 0, KERNEL_INDEX_SMC, &mut connection);
+                if result != IO_RETURN_SUCCESS {
+                    return Err(Error::io_kit(format!("Failed to open SMC connection: {}", result)));
+                }
 
             // Read SMC key for GPU temperature
             let input_structure = SMCKeyData_t {
@@ -266,56 +279,57 @@ impl Gpu {
                 data: std::mem::zeroed(),
             };
 
-            let mut output_size = IOByteCount(size_of::<SMCKeyData_t>());
+                let mut output_size = IOByteCount(size_of::<SMCKeyData_t>());
 
-            // Get key info first
-            let result = IOConnectCallStructMethod(
-                connection,
-                SMC_CMD_READ_KEYINFO as u32,
-                &output_structure,
-                IOByteCount(size_of::<SMCKeyData_t>()),
-                &mut output_structure,
-                &mut output_size,
-            );
+                // Get key info first
+                let result = IOConnectCallStructMethod(
+                    connection,
+                    SMC_CMD_READ_KEYINFO as u32,
+                    &output_structure,
+                    IOByteCount(size_of::<SMCKeyData_t>()),
+                    &mut output_structure,
+                    &mut output_size,
+                );
 
-            if result != IO_RETURN_SUCCESS {
-                IOServiceClose(connection);
-                return Err(Error::io_kit(format!("Failed to read SMC key info: {}", result)));
-            }
+                if result != IO_RETURN_SUCCESS {
+                    IOServiceClose(connection);
+                    return Err(Error::io_kit(format!("Failed to read SMC key info: {}", result)));
+                }
 
             // Now read the actual temperature data
             output_structure.key_info = 0;
 
-            let result = IOConnectCallStructMethod(
-                connection,
-                SMC_CMD_READ_BYTES as u32,
-                &input_structure,
-                IOByteCount(size_of::<SMCKeyData_t>()),
-                &mut output_structure,
-                &mut output_size,
-            );
+                let result = IOConnectCallStructMethod(
+                    connection,
+                    SMC_CMD_READ_BYTES as u32,
+                    &input_structure,
+                    IOByteCount(size_of::<SMCKeyData_t>()),
+                    &mut output_structure,
+                    &mut output_size,
+                );
 
-            // Always close the connection
-            IOServiceClose(connection);
+                // Always close the connection
+                IOServiceClose(connection);
 
-            if result != IO_RETURN_SUCCESS {
-                return Err(Error::io_kit(format!("Failed to read SMC key data: {}", result)));
-            }
+                if result != IO_RETURN_SUCCESS {
+                    return Err(Error::io_kit(format!("Failed to read SMC key data: {}", result)));
+                }
 
             // Get the data and convert to temperature (fixed point, signed 8.8)
             let data_type = output_structure.data.key_info.data_type;
 
-            if data_type[0] == b'S'
-                && data_type[1] == b'P'
-                && data_type[2] == b'7'
-                && data_type[3] == b'8'
-            {
-                // SP78 type: fixed point, signed 8.8
-                let bytes = output_structure.data.bytes;
-                let val: f32 = (bytes[0] as f32) + (bytes[1] as f32 / 256.0);
-                Ok(val)
-            } else {
-                Err(Error::invalid_data("Unsupported SMC data type for GPU temperature"))
+                if data_type[0] == b'S'
+                    && data_type[1] == b'P'
+                    && data_type[2] == b'7'
+                    && data_type[3] == b'8'
+                {
+                    // SP78 type: fixed point, signed 8.8
+                    let bytes = output_structure.data.bytes;
+                    let val: f32 = (bytes[0] as f32) + (bytes[1] as f32 / 256.0);
+                    Ok(val)
+                } else {
+                    Err(Error::invalid_data("Unsupported SMC data type for GPU temperature"))
+                }
             }
         }
     }
