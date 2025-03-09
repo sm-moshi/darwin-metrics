@@ -1,0 +1,26 @@
+name: Rust (macOS)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: macos-latest  # Use macOS instead of Linux
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust (latest stable)
+      uses: dtolnay/rust-toolchain@stable
+    - name: Install Xcode Command Line Tools
+      run: sudo xcode-select --install || true
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
