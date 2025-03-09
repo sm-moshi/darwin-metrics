@@ -1,18 +1,26 @@
 [package]
-name          = "darwin-metrics"
-version       = "0.1.0"
-edition       = "2021"
-description   = "A Rust library exposing native macOS system metrics"
-authors       = ["Stuart Meya <sm0sh1@pm.me>"]
-license       = "MIT"
-repository    = "https://github.com/sm-moshi/darwin-metrics"
-homepage      = "https://github.com/sm-moshi/darwin-metrics"
+name = "darwin-metrics"
+version = "0.1.1"
+edition = "2021"
+description = "A Rust library exposing native macOS system metrics"
+authors = ["Stuart Meya <sm0sh1@pm.me>"]
+license = "MIT"
+repository = "https://github.com/sm-moshi/darwin-metrics"
+homepage = "https://github.com/sm-moshi/darwin-metrics"
 documentation = "https://docs.rs/darwin-metrics"
-keywords      = ["macos", "system", "metrics", "ffi", "swift"]
-categories    = ["os", "api-bindings"]
-readme        = "README.md"
-links         = "darwin_metrics"
-exclude       = [".github/", "coverage/", "target/", "CLAUDE.md", "**/.DS_Store", ".DS_Store"]
+keywords = ["macos", "system", "metrics", "ffi", "swift"]
+categories = ["os", "api-bindings"]
+readme = "README.md"
+links = "darwin_metrics"
+exclude = [
+  ".github/",
+  "coverage/",
+  "target/",
+  "CLAUDE.md",
+  "**/.DS_Store",
+  ".DS_Store",
+  "**/**/.DS_Store",
+]
 
 [lib]
 name       = "darwin_metrics"
@@ -92,11 +100,14 @@ debug     = true
 
 # Documentation configuration for docs.rs
 [package.metadata.docs.rs]
-all-features   = true
-rustdoc-args   = ["--cfg", "docsrs"]
-targets        = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
-default-target = "aarch64-apple-darwin"
-rustc-args     = ["--cfg", "docs_rs"]
+all-features = true
+# Configure with proper flags for docs.rs build environment
+rustdoc-args = ["--cfg", "docsrs"]
+rustc-args   = ["--cfg", "docs_rs"]
+# Use x86_64-unknown-linux-gnu as the documentation target
+# This prevents trying to build macOS code in the Linux container
+default-target = "x86_64-unknown-linux-gnu"
+targets        = ["x86_64-unknown-linux-gnu"]
 
 [package.metadata]
 minimum-macos-version = "10.11"

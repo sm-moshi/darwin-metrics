@@ -7,6 +7,12 @@
 //!   dictionaries
 //! - `test_utils`: Utilities for testing
 
+// Conditional compilation flag for docs.rs environment
+#[cfg(docsrs)]
+pub const IS_DOCS_RS: bool = true;
+#[cfg(not(docsrs))]
+pub const IS_DOCS_RS: bool = false;
+
 pub mod bindings;
 pub mod property_utils;
 pub mod test_utils;
