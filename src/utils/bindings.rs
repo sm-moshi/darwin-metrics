@@ -223,7 +223,7 @@ pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] =
     [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char]; // CPU thermal throttling (PCTC)
 
 // SMC data structures
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct SMCVersion {
     pub major: u8,
@@ -233,52 +233,48 @@ pub struct SMCVersion {
     pub release: u16,
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 #[allow(non_snake_case)]
 pub struct SMCPLimitData {
     pub version: u16,
     pub length: u16,
-    pub cpuPLimit: u32,
-    pub gpuPLimit: u32,
-    pub memPLimit: u32,
+    pub cpu_plimit: u32,
+    pub gpu_plimit: u32,
+    pub mem_plimit: u32,
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct SMCKeyData_vers_t {
     pub version: SMCVersion,
     pub reserved: [u8; 16],
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct SMCKeyData_pLimitData_t {
-    #[allow(non_snake_case)]
-    pub pLimitData: SMCPLimitData,
+    pub p_limit_data: SMCPLimitData,
     pub reserved: [u8; 10],
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct SMCKeyData_keyInfo_t {
-    #[allow(non_snake_case)]
     pub data_size: u32,
     pub data_type: [u8; 4],
     pub data_attributes: u8,
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 pub union SMCKeyData_t_data {
     pub bytes: [u8; 32],
     pub uint32: u32,
     pub float: f32,
     pub sint16: i16,
     pub vers: SMCKeyData_vers_t,
-    #[allow(non_snake_case)]
-    pub pLimit: SMCKeyData_pLimitData_t,
-    #[allow(non_snake_case)]
-    pub keyInfo: SMCKeyData_keyInfo_t,
+    pub p_limit: SMCKeyData_pLimitData_t,
+    pub key_info: SMCKeyData_keyInfo_t,
 }
 
 // Manual implementations for union
@@ -290,14 +286,12 @@ impl Clone for SMCKeyData_t_data {
 
 impl Copy for SMCKeyData_t_data {}
 
-#[repr(C)]
+#[repr(C, packed)]
 pub struct SMCKeyData_t {
     pub key: u32,
     pub vers: u8,
-    #[allow(non_snake_case)]
-    pub pLimitData: u8,
-    #[allow(non_snake_case)]
-    pub keyInfo: u8,
+    pub p_limit_data: u8,
+    pub key_info: u8,
     pub padding: u8,
     pub result: u8,
     pub status: u8,
