@@ -195,8 +195,16 @@
     -   [ ] Reduce reliance on polling where possible.
 
 -   [ ] **Testing Improvements**
+    -   [ ] Improve test coverage for low-coverage modules:
+        -   [ ] Add tests for battery module (currently 0% coverage)
+        -   [ ] Add tests for power module (currently 0% coverage)
+        -   [ ] Add tests for system module (currently 0% coverage)
+        -   [ ] Add tests for utils modules (currently 0-42% coverage)
+        -   [ ] Improve coverage for hardware/iokit (currently 17% coverage)
+        -   [ ] Improve coverage for network/interface (currently 21% coverage)
     -   [ ] Introduce performance benchmarks to measure impact on system resources.
     -   [ ] Conduct stress testing under heavy system load conditions.
+    -   [ ] Set up coverage threshold in CI to maintain or improve coverage over time.
 
 ---
 

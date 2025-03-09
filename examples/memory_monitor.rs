@@ -16,6 +16,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             PressureLevel::Normal => println!("\n🟢 MEMORY PRESSURE NORMAL"),
             PressureLevel::Warning => println!("\n🟠 MEMORY PRESSURE WARNING"),
             PressureLevel::Critical => println!("\n🔴 MEMORY PRESSURE CRITICAL"),
+            // Handle future variants
+            _ => println!("\n⚠️ MEMORY PRESSURE UNKNOWN STATE"),
         }
     });
     

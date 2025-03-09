@@ -46,6 +46,8 @@
 //!             PressureLevel::Normal => println!("Memory pressure is NORMAL"),
 //!             PressureLevel::Warning => println!("Memory pressure is HIGH"),
 //!             PressureLevel::Critical => println!("Memory pressure is CRITICAL"),
+//!             // Handle any future variants
+//!             _ => println!("Memory pressure is in an UNKNOWN state"),
 //!         }
 //!     });
 //!     

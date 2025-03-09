@@ -152,9 +152,7 @@ pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
 pub use hardware::temperature::{Temperature, ThermalMetrics, Fan};
 
 #[doc(inline)]
-pub use network::interface::Interface as NetworkInterface;
-#[doc(inline)]
-pub use network::traffic::TrafficData as NetworkTraffic;
+pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
 
 #[doc(inline)]
 pub use process::{Process, ProcessInfo};
