@@ -4,8 +4,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=src/");
     println!("cargo:rerun-if-changed=build.rs");
 
-    // Tell Rust that docsrs is a valid configuration flag
+    // Tell Rust that docsrs and use_stubs are valid configuration flags
     println!("cargo:rustc-check-cfg=cfg(docsrs)");
+    println!("cargo:rustc-check-cfg=cfg(use_stubs)");
 
     // Get the target OS
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_else(|_| String::from("unknown"));
@@ -20,7 +21,10 @@ fn main() -> Result<(), Box<dyn Error>> {
              macOS-specific linking."
         );
 
-        // Set a custom cfg flag for our stubs module
+        // Set custom cfg flags for docs.rs and stubs
+        if is_docs_rs {
+            println!("cargo:rustc-cfg=docsrs");
+        }
         println!("cargo:rustc-cfg=use_stubs");
         return Ok(());
     }

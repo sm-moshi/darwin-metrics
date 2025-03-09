@@ -48,6 +48,7 @@ bacon.toml
 repomix*
 coverage/*
 CLAUDE.md
+.cargo/config.local.toml
 
 # mdBook
 docs/book/

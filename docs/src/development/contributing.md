@@ -6,8 +6,8 @@ Thank you for your interest in contributing to `darwin-metrics`! This guide will
 
 ### Prerequisites
 
-- Rust 1.75 or later
-- macOS 10.15 or later
+- Rust 1.85 or later
+- macOS 14.x or later
 - Xcode Command Line Tools
 - Git
 
@@ -65,10 +65,10 @@ Before submitting a pull request, run these checks:
 
 ```bash
 # Format code
-cargo fmt
+cargo +beta fmt
 
 # Run linter
-cargo clippy --workspace --tests --all-targets --all-features
+cargo +beta clippy --workspace --tests --all-targets --all-features
 ```
 
 ## Adding New Features

@@ -3,7 +3,7 @@
 [Introduction](./introduction.md)
 [Getting Started](./getting-started.md)
 
-# Core Modules
+## Core Modules
 
 - [CPU Monitoring](./modules/cpu.md)
 - [Memory Analysis](./modules/memory.md)
@@ -15,13 +15,13 @@
 - [Power Management](./modules/power.md)
 - [System Information](./modules/system.md)
 
-# Advanced Topics
+## Advanced Topics
 
 - [Async Support](./advanced/async.md)
 - [Performance Considerations](./advanced/performance.md)
 - [FFI Bindings](./advanced/ffi.md)
 
-# Development
+## Development
 
 - [Contributing](./development/contributing.md)
 - [Internal Architecture](./development/architecture.md)

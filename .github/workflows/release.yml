@@ -15,33 +15,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain
+      - name: Setup Rust stable toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: clippy, rustfmt
 
-      - name: Setup Rust nightly for formatting
+      - name: Setup Rust beta toolchain for linting
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
-          components: rustfmt
+          toolchain: beta
+          components: clippy, rustfmt
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
 
       - name: Check format
-        run: cargo +nightly fmt -- --check --config-path=rustfmt.toml
+        run: cargo +beta fmt -- --check --config-path=rustfmt.toml
 
       - name: Check clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
+        run: cargo +beta clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
 
       - name: Run tests
         run: cargo test --all-features
 
       - name: Build documentation
         run: cargo doc --no-deps --all-features
-        
+
       - name: Verify tag matches version
         run: |
           TAG=${GITHUB_REF#refs/tags/v}
@@ -57,7 +56,7 @@ jobs:
         run: |
           find . -name ".DS_Store" -type f -delete
           find ./target -name ".DS_Store" -type f -delete
-          
+
       - name: Verify package
         run: cargo package --no-verify
 
@@ -93,18 +92,18 @@ jobs:
           name: darwin-metrics ${{ steps.get_version.outputs.VERSION }}
           body: |
             # darwin-metrics ${{ steps.get_version.outputs.VERSION }}
-            
+
             ${{ steps.github_release.outputs.changelog }}
-            
+
             ## Installation
-            
+
             ```toml
             [dependencies]
             darwin-metrics = "${{ steps.get_version.outputs.VERSION }}"
             ```
-            
+
             ## Documentation
-            
+
             Full documentation is available at [docs.rs](https://docs.rs/darwin-metrics/${{ steps.get_version.outputs.VERSION }})
           files: |
             LICENSE

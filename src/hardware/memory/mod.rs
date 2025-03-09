@@ -305,6 +305,7 @@ impl Memory {
         Ok(memory)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_values(
         total: u64,
         available: u64,
@@ -758,7 +759,7 @@ impl Memory {
     /// }
     /// ```
     pub async fn get_info_async() -> Result<Self> {
-        tokio::task::spawn_blocking(|| Self::get_info())
+        tokio::task::spawn_blocking(Self::get_info)
             .await
             .map_err(|e| Error::system(format!("Failed to get memory info: {}", e)))?
     }

@@ -27,14 +27,12 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          components: clippy, rustfmt
-
-      - name: Setup Rust nightly for formatting
+          
+      - name: Setup Rust beta for linting
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
-          components: rustfmt
-
+          toolchain: beta
+          components: clippy, rustfmt
       - name: Workaround for curl network errors
         if: ${{ matrix.rust == '1.70.0' || matrix.rust == '1.71.0' }}
         run: echo 'CARGO_HTTP_MULTIPLEXING=false' >> $GITHUB_ENV
@@ -43,18 +41,18 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Format check
-        run: cargo +nightly fmt -- --check
+        run: cargo +beta fmt -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
+        run: cargo +beta clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
 
       - name: Build with retry
         run: |
-          for i in {1..3}; do cargo build --all-features && break || sleep 10; done
+          for i in {1..3}; do cargo +${{ matrix.rust }} build --all-features && break || sleep 10; done
 
       - name: Run tests with retry
         run: |
-          for i in {1..3}; do cargo test --all-features && break || sleep 10; done
+          for i in {1..3}; do cargo +${{ matrix.rust }} test --all-features && break || sleep 10; done
 
   coverage:
     name: Code Coverage
