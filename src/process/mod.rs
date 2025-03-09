@@ -453,12 +453,12 @@ impl Process {
                     match ppid {
                         None => {
                             root_pids.push(pid);
-                        }
+                        },
                         Some(parent_pid) => {
                             if parent_pid == 0 || !pid_to_process.contains_key(&parent_pid) {
                                 root_pids.push(pid);
                             }
-                        }
+                        },
                     }
                 }
             }
