@@ -33,6 +33,14 @@ jobs:
         with:
           toolchain: beta
           components: clippy, rustfmt
+          
+      - name: Verify toolchain installation
+        run: |
+          rustup show
+          echo "Installing clippy and rustfmt for beta toolchain if needed"
+          rustup component add clippy rustfmt --toolchain beta
+          echo "Installed components:"
+          rustup +beta component list --installed
       - name: Workaround for curl network errors
         if: ${{ matrix.rust == '1.70.0' || matrix.rust == '1.71.0' }}
         run: echo 'CARGO_HTTP_MULTIPLEXING=false' >> $GITHUB_ENV
@@ -42,9 +50,13 @@ jobs:
 
       - name: Format check
         run: cargo +beta fmt -- --check
+        
+      - name: Check if Clippy is installed
+        run: cargo +beta clippy --version || echo "Clippy not installed"
 
       - name: Clippy
         run: cargo +beta clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
+        continue-on-error: false
 
       - name: Build with retry
         run: |
