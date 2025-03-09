@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::CStr;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::ptr;
 use std::time::Instant;
@@ -8,7 +8,7 @@ use crate::error::{Error, Result};
 use crate::network::traffic::TrafficTracker;
 use crate::network::NetworkMetrics;
 use crate::utils::bindings::{
-    address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr, sockaddr_dl, sockaddr_in,
+    address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in,
     sockaddr_in6,
 };
 
@@ -561,7 +561,7 @@ impl NetworkManager {
         // This is a fallback method that's safer than sysctlbyname
         // On macOS, we can use netstat to get network statistics
         let output = std::process::Command::new("netstat")
-            .args(&["-ib"])
+            .args(["-ib"])
             .output()
             .ok()?;
 
@@ -632,5 +632,88 @@ impl NetworkManager {
         } else {
             InterfaceType::Other
         }
+    }
+
+    /// Creates a new NetworkManager asynchronously and initializes it with the current interfaces.
+    ///
+    /// This constructor:
+    /// 1. Creates an empty NetworkManager instance
+    /// 2. Attempts to discover all network interfaces on the system asynchronously
+    /// 3. Initializes traffic statistics for each interface
+    /// 4. Returns a ready-to-use manager instance
+    ///
+    /// Even if the initialization fails to retrieve network interfaces (for example,
+    /// due to permission issues), the function will still return a valid but empty
+    /// NetworkManager rather than failing with an error.
+    pub async fn new_async() -> Result<Self> {
+        let mut manager = Self {
+            interfaces: HashMap::new(),
+        };
+
+        // Try to initialize interfaces, but continue even if it fails
+        if let Err(e) = manager.update_async().await {
+            log::warn!("Failed to initialize network interfaces asynchronously: {}", e);
+            // Continue with empty interface list rather than crashing
+        }
+
+        Ok(manager)
+    }
+
+    /// Updates all network interfaces and their metrics asynchronously.
+    ///
+    /// This method works like `update()` but is designed for use in async contexts,
+    /// running potentially blocking network operations in a separate blocking task
+    /// to avoid blocking the async runtime.
+    ///
+    /// For accurate speed calculations, this method should be called at regular
+    /// intervals (typically every 1-5 seconds).
+    pub async fn update_async(&mut self) -> Result<()> {
+        // Use tokio to spawn a blocking task for the network operations
+        // This avoids blocking the async runtime with potentially slow system calls
+        let interfaces = tokio::task::spawn_blocking(move || {
+            // Create a temporary manager just to use get_interfaces
+            // This avoids borrowing self in the blocking task
+            let temp_manager = NetworkManager {
+                interfaces: HashMap::new(),
+            };
+            temp_manager.get_interfaces()
+        })
+        .await
+        .map_err(|e| Error::Network(format!("Task join error: {}", e)))??;
+
+        // Update our interfaces with the results from the blocking task
+        for interface in interfaces {
+            let name = interface.name().to_string();
+            self.interfaces.insert(name, interface);
+        }
+
+        Ok(())
+    }
+
+    /// Gets all active network interfaces asynchronously.
+    ///
+    /// Returns only interfaces that are currently active (UP and RUNNING).
+    /// This is a convenience method for filtering interfaces by their active state.
+    pub async fn active_interfaces_async(&self) -> Vec<&Interface> {
+        self.interfaces.values().filter(|i| i.is_active()).collect()
+    }
+
+    /// Gets the total network throughput metrics asynchronously.
+    ///
+    /// Returns upload and download speeds without blocking the async runtime.
+    pub async fn get_throughput_async(&self) -> Result<(f64, f64)> {
+        // This operation is lightweight enough not to need a blocking task
+        let total_download = self.total_download_speed();
+        let total_upload = self.total_upload_speed();
+
+        Ok((total_download, total_upload))
+    }
+
+    /// Gets network interface by name asynchronously.
+    ///
+    /// A convenience method that doesn't block, but provides a consistent
+    /// async API alongside other async methods.
+    pub async fn get_interface_async(&self, name: &str) -> Option<&Interface> {
+        self.get_interface(name)
     }
 }

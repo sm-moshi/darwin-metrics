@@ -21,11 +21,13 @@ A Rust library providing native access to macOS system metrics through low-level
 ### 🖥️ System Monitoring
 
 - **CPU Monitoring**
+
   - Per-core usage statistics
   - CPU model and frequency information
   - System load metrics (user, system, idle)
 
 - **Memory Analysis**
+
   - RAM usage and availability
   - Swap space monitoring
   - Memory pressure levels
@@ -41,11 +43,13 @@ A Rust library providing native access to macOS system metrics through low-level
 ### 📊 Resource Tracking
 
 - **Storage Metrics**
+
   - Disk space utilization
   - I/O performance monitoring
   - Read/write speed tracking
 
 - **Power Management**
+
   - Battery status and health
   - Charging state detection
   - Remaining battery time estimation
@@ -63,6 +67,7 @@ A Rust library providing native access to macOS system metrics through low-level
 ### 🔌 Additional Features
 
 - **Process Information**
+
   - Running process enumeration
   - Per-process resource usage
   - System uptime and version info
@@ -116,17 +121,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 🎯 Feature Flags
 
-| Flag | Description |
-|------|-------------|
-| `battery` | Enable battery monitoring |
-| `cpu` | Enable CPU metrics |
-| `memory` | Enable memory statistics |
-| `gpu` | Enable GPU monitoring |
-| `disk` | Enable storage metrics |
-| `temperature` | Enable thermal monitoring |
-| `async` | Enable async support (requires tokio) |
-| `metrics-export` | Enable metrics export functionality |
-| `cached-metrics` | Enable caching for expensive calls |
+| Flag             | Description                           |
+| ---------------- | ------------------------------------- |
+| `battery`        | Enable battery monitoring             |
+| `cpu`            | Enable CPU metrics                    |
+| `memory`         | Enable memory statistics              |
+| `gpu`            | Enable GPU monitoring                 |
+| `disk`           | Enable storage metrics                |
+| `temperature`    | Enable thermal monitoring             |
+| `async`          | Enable async support (requires tokio) |
+| `metrics-export` | Enable metrics export functionality   |
+| `cached-metrics` | Enable caching for expensive calls    |
 
 ## 📈 Development Status
 
@@ -213,6 +218,7 @@ GitHub repository: https://github.com/sm-moshi/darwin-metrics
 ```
 
 For more detailed attribution requirements, please see the [NOTICE](NOTICE) file.
+
 </details>
 
 ## 📄 License

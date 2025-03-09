@@ -1,8 +1,8 @@
 //! # Network Monitoring Module
 //!
-//! The Network module provides comprehensive monitoring for network interfaces and traffic 
-//! statistics on macOS systems. It uses a combination of macOS native APIs and command-line 
-//! utilities to collect real-time information about network interfaces, their status, and 
+//! The Network module provides comprehensive monitoring for network interfaces and traffic
+//! statistics on macOS systems. It uses a combination of macOS native APIs and command-line
+//! utilities to collect real-time information about network interfaces, their status, and
 //! data transfer metrics.
 //!
 //! ## macOS Implementation Details
@@ -94,59 +94,59 @@ pub use interface::{Interface, InterfaceType, NetworkManager};
 /// for querying data transfer statistics, error rates, and interface status.
 pub trait NetworkMetrics {
     /// Returns the total number of bytes received.
-    /// 
+    ///
     /// This represents the cumulative amount of data received by the interface
     /// since it was initialized or since the system was booted.
     fn bytes_received(&self) -> u64;
-    
+
     /// Returns the total number of bytes sent.
-    /// 
+    ///
     /// This represents the cumulative amount of data sent through the interface
     /// since it was initialized or since the system was booted.
     fn bytes_sent(&self) -> u64;
-    
+
     /// Returns the total number of packets received.
-    /// 
+    ///
     /// A packet represents a unit of data at the network layer, regardless of size.
     fn packets_received(&self) -> u64;
-    
+
     /// Returns the total number of packets sent.
-    /// 
+    ///
     /// A packet represents a unit of data at the network layer, regardless of size.
     fn packets_sent(&self) -> u64;
-    
+
     /// Returns the number of receive errors.
-    /// 
+    ///
     /// These are packets that were detected as erroneous and discarded during reception.
     fn receive_errors(&self) -> u64;
-    
+
     /// Returns the number of send errors.
-    /// 
+    ///
     /// These are errors that occurred during packet transmission.
     fn send_errors(&self) -> u64;
-    
+
     /// Returns the number of packet collisions.
-    /// 
+    ///
     /// Collisions occur when multiple devices on the same network segment
     /// attempt to transmit simultaneously. Most relevant for older Ethernet networks.
     fn collisions(&self) -> u64;
-    
+
     /// Returns the current download speed in bytes per second.
-    /// 
+    ///
     /// This is calculated based on the difference in bytes received between
     /// two measurements divided by the elapsed time. Requires multiple calls
     /// to update() over time to calculate an accurate rate.
     fn download_speed(&self) -> f64;
-    
+
     /// Returns the current upload speed in bytes per second.
-    /// 
+    ///
     /// This is calculated based on the difference in bytes sent between
     /// two measurements divided by the elapsed time. Requires multiple calls
     /// to update() over time to calculate an accurate rate.
     fn upload_speed(&self) -> f64;
-    
+
     /// Returns true if the network interface is currently active.
-    /// 
+    ///
     /// An active interface is one that is both UP and RUNNING according to
     /// the interface flags. This generally means the interface is properly
     /// configured and physically connected.
@@ -163,18 +163,21 @@ mod tests {
     use super::*;
     use crate::network::interface::{Interface, InterfaceType};
     use std::collections::HashMap;
-    
+
     // Create a mock network interface for testing
-    fn create_mock_interface(name: &str, interface_type: InterfaceType, is_loopback: bool) -> Interface {
+    fn create_mock_interface(
+        name: &str,
+        interface_type: InterfaceType,
+        is_loopback: bool,
+    ) -> Interface {
         let flags = if is_loopback {
-            crate::utils::bindings::if_flags::IFF_UP | 
-            crate::utils::bindings::if_flags::IFF_RUNNING |
-            crate::utils::bindings::if_flags::IFF_LOOPBACK
+            crate::utils::bindings::if_flags::IFF_UP
+                | crate::utils::bindings::if_flags::IFF_RUNNING
+                | crate::utils::bindings::if_flags::IFF_LOOPBACK
         } else {
-            crate::utils::bindings::if_flags::IFF_UP | 
-            crate::utils::bindings::if_flags::IFF_RUNNING
+            crate::utils::bindings::if_flags::IFF_UP | crate::utils::bindings::if_flags::IFF_RUNNING
         };
-        
+
         Interface::new(
             name.to_string(),
             interface_type,
@@ -190,27 +193,27 @@ mod tests {
             0,    // collisions
         )
     }
-    
+
     // Create a test NetworkManager
     fn create_test_network_manager() -> NetworkManager {
         let mut interfaces = HashMap::new();
-        
+
         // Add loopback interface
         let lo0 = create_mock_interface("lo0", InterfaceType::Loopback, true);
         interfaces.insert("lo0".to_string(), lo0);
-        
+
         // Add ethernet interface
         let en0 = create_mock_interface("en0", InterfaceType::Ethernet, false);
         interfaces.insert("en0".to_string(), en0);
-        
+
         NetworkManager { interfaces }
     }
-    
+
     #[test]
     fn test_network_metrics_trait() {
         // Create a test interface
         let interface = create_mock_interface("test0", InterfaceType::Ethernet, false);
-        
+
         // Test NetworkMetrics trait implementation
         assert_eq!(interface.bytes_received(), 1000);
         assert_eq!(interface.bytes_sent(), 2000);
@@ -220,68 +223,88 @@ mod tests {
         assert_eq!(interface.send_errors(), 0);
         assert_eq!(interface.collisions(), 0);
         assert!(interface.is_active());
-        
+
         // Initial speeds should be 0 (need two measurements)
         assert_eq!(interface.download_speed(), 0.0);
         assert_eq!(interface.upload_speed(), 0.0);
     }
-    
+
     #[test]
     fn test_interface_properties() {
         // Create test interfaces
         let loopback = create_mock_interface("lo0", InterfaceType::Loopback, true);
         let ethernet = create_mock_interface("en0", InterfaceType::Ethernet, false);
-        
+
         // Test interface properties
         assert!(loopback.is_loopback());
         assert!(!ethernet.is_loopback());
-        
+
         assert_eq!(loopback.name(), "lo0");
         assert_eq!(ethernet.name(), "en0");
-        
+
         assert_eq!(loopback.interface_type(), &InterfaceType::Loopback);
         assert_eq!(ethernet.interface_type(), &InterfaceType::Ethernet);
-        
+
         assert_eq!(loopback.mac_address(), Some("00:00:00:00:00:00"));
         assert_eq!(ethernet.mac_address(), Some("00:00:00:00:00:00"));
     }
-    
+
     #[test]
     fn test_network_manager() {
         let network_manager = create_test_network_manager();
-        
+
         // Test interfaces retrieval
         let interfaces = network_manager.interfaces();
         assert_eq!(interfaces.len(), 2, "Should have 2 interfaces");
-        
+
         // Test interface lookup by name
         let lo0 = network_manager.get_interface("lo0");
         assert!(lo0.is_some(), "Loopback interface should exist");
-        assert!(lo0.unwrap().is_loopback(), "lo0 should be a loopback interface");
-        
+        assert!(
+            lo0.unwrap().is_loopback(),
+            "lo0 should be a loopback interface"
+        );
+
         let en0 = network_manager.get_interface("en0");
         assert!(en0.is_some(), "Ethernet interface should exist");
-        assert!(!en0.unwrap().is_loopback(), "en0 should not be a loopback interface");
-        
+        assert!(
+            !en0.unwrap().is_loopback(),
+            "en0 should not be a loopback interface"
+        );
+
         // Test non-existent interface
         let nonexistent = network_manager.get_interface("nonexistent");
-        assert!(nonexistent.is_none(), "Nonexistent interface should return None");
-        
+        assert!(
+            nonexistent.is_none(),
+            "Nonexistent interface should return None"
+        );
+
         // Test total speeds (should be sum of all interfaces)
-        assert_eq!(network_manager.total_download_speed(), 0.0, "Initial download speed should be 0");
-        assert_eq!(network_manager.total_upload_speed(), 0.0, "Initial upload speed should be 0");
+        assert_eq!(
+            network_manager.total_download_speed(),
+            0.0,
+            "Initial download speed should be 0"
+        );
+        assert_eq!(
+            network_manager.total_upload_speed(),
+            0.0,
+            "Initial upload speed should be 0"
+        );
     }
-    
+
     // If this test runs on a real machine, it might still fail because we can't guarantee
     // the system has network interfaces. We'll skip this test in CI environments.
     #[test]
     #[ignore = "This test needs a real network environment"]
     fn test_real_network_manager() {
         let network_manager = NetworkManager::new();
-        
+
         // If we're on a real system with network interfaces, this should succeed
         if let Ok(manager) = network_manager {
-            assert!(!manager.interfaces().is_empty(), "Should have at least one interface");
+            assert!(
+                !manager.interfaces().is_empty(),
+                "Should have at least one interface"
+            );
         }
     }
 }
