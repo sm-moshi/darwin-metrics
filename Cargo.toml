@@ -86,6 +86,7 @@ async = []
 
 # Testing features
 unstable-tests = []
+skip-ffi-crashes = []  # Skip FFI code that causes crashes in coverage
 
 [profile.release]
 lto           = true

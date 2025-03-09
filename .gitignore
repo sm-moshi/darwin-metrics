@@ -39,14 +39,14 @@ generated/
 # local stuff
 .bacon-locations
 bacon.toml
-.vscode/
+.vscode/mise-tools
 .cursor/
 .cursorignore
 .references/
 .windsurfrules
 .repomix/
 repomix*
-coverage/*
+**/*.profraw
 CLAUDE.md
 .cargo/config.local.toml
 

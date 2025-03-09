@@ -1,0 +1,74 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Library",
+      "cargo": {
+        "args": ["build", "--lib"]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Unit Tests",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib"]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Selected Test",
+      "cargo": {
+        "args": ["test", "--no-run"]
+      },
+      "args": ["${command:rust-analyzer.pickTest}"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Example",
+      "cargo": {
+        "args": ["build", "--example=${input:exampleName}"]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "exampleName",
+      "type": "pickString",
+      "description": "Which example would you like to run?",
+      "options": [
+        "disk_monitor",
+        "gpu_monitor_safe",
+        "gpu_monitor_simplified",
+        "gpu_static",
+        "memory_monitor",
+        "memory_monitor_async",
+        "network_async",
+        "network_info"
+      ]
+    }
+  ]
+}

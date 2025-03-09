@@ -14,6 +14,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Check if we're building for docs.rs or a non-macOS platform
     let is_docs_rs = env::var("DOCS_RS").is_ok();
     let is_non_macos = target_os != "macos";
+    
+    // Check if we're running llvm-cov
+    let is_coverage = std::env::args().any(|arg| arg.contains("llvm-cov"));
 
     if is_docs_rs || is_non_macos {
         println!(
@@ -27,6 +30,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         println!("cargo:rustc-cfg=use_stubs");
         return Ok(());
+    }
+    
+    // Enable skip-ffi-crashes feature if we're running coverage
+    if is_coverage {
+        println!("cargo:warning=Building with coverage instrumentation - enabling skip-ffi-crashes feature");
+        println!("cargo:rustc-cfg=feature=\"skip-ffi-crashes\"");
     }
 
     #[cfg(target_os = "macos")]
