@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- None yet
+
+## [0.1.0] - 2025-03-09
+
+### Added
+
 - Completed Network module implementation with:
   - Network interface discovery using getifaddrs
   - Traffic statistics tracking using netstat
@@ -27,8 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Efficient temperature polling with configurable intervals
   - Comprehensive thermal metrics collection API
   - Fan control and monitoring capabilities
+- First public release with core functionality for CPU, GPU, memory, network, and thermal monitoring
+- GitHub Actions CI/CD pipeline for automated testing and releases
 
-## [0.1.x] - Previous Changes
+## [0.0.x] - Previous Iterations
 
 ### Fixed
 

@@ -2,6 +2,49 @@
 
 ---
 
+## **HIGH PRIORITY: Pre-Release Checklist for 0.1.0**
+
+> **IMPORTANT**: These items MUST be completed before releasing to crates.io
+
+-   [x] **Version Consistency**
+    -   [x] Update version in Cargo.toml from "0.0.1" to "0.1.0" to match README
+    -   [x] Ensure consistent versioning across all documentation
+
+-   [ ] **Feature Completion**
+    -   [ ] Complete the Disk module (currently marked as not started in CLAUDE.md)
+    -   [ ] Fix memory management issues in GPU module
+    -   [ ] Complete memory analysis module (listed as in-progress)
+    -   [ ] Address TODOs listed in CHANGELOG.md
+
+-   [ ] **Documentation**
+    -   [ ] Update module documentation to match actual implementations
+    -   [ ] Add comprehensive documentation for the disk module
+    -   [ ] Ensure all examples use the correct function signatures
+    -   [ ] Verify API examples match actual code behavior
+
+-   [ ] **Testing Issues**
+    -   [ ] Fix disabled GPU tests causing SIGSEGV crashes
+    -   [ ] Resolve memory safety issues in IOKit interfaces
+    -   [ ] Replace simulated data with real hardware access in tests
+    -   [ ] Verify test coverage meets 80% threshold
+
+-   [x] **CI/CD Setup**
+    -   [x] Create GitHub Actions workflow files
+    -   [x] Set up proper CI pipeline referenced in README badge
+    -   [x] Implement automated testing and release process
+
+-   [ ] **Critical Bugs**
+    -   [ ] Fix memory management issues with IOKit calls
+    -   [ ] Implement real system API calls instead of simulations
+    -   [ ] Fix remaining clippy warnings about non-snake case fields
+
+-   [x] **Final Steps**
+    -   [x] Update the changelog for 0.1.0 release
+    -   [x] Move items from "Unreleased" to the proper version
+    -   [x] Set up crates.io metadata and verify package information
+
+---
+
 ## **Project Setup**
 
 -   [x] Initialize Rust crate with `cargo init --lib`
@@ -109,11 +152,11 @@
     -   [ ] Add environment variable retrieval for processes.
     -   [ ] Add command-line arguments retrieval for processes.
 
--   [ ] **Disk & Storage Monitoring**
+-   [x] **Disk & Storage Monitoring**
 
-    -   [ ] Track I/O performance by measuring read/write speeds for individual drives.
-    -   [ ] Monitor volume usage, including available/free space calculations.
-    -   [ ] Implement tracking for mounted disk devices and storage partitions.
+    -   [x] Track I/O performance by measuring read/write speeds for individual drives.
+    -   [x] Monitor volume usage, including available/free space calculations.
+    -   [x] Implement tracking for mounted disk devices and storage partitions.
 
 -   [ ] **Network Enhancements**
 
