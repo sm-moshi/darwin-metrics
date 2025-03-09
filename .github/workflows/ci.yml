@@ -56,7 +56,7 @@ jobs:
 
       - name: Clippy
         run: |
-          echo '
+          cat > clippy.toml << 'EOF'
           # Specify which lints are allowed/denied
           disallowed-methods = [
               # Example: Disallow certain methods that might be problematic
@@ -71,7 +71,7 @@ jobs:
 
           # Note: We can't use path-specific ignores this way
           # Instead, use #[allow(missing_docs)] in the relevant test files
-          ' > clippy.toml
+          EOF
           cargo +beta clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
         continue-on-error: false
 
