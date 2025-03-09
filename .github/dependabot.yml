@@ -3,6 +3,7 @@
 
 version: 2
 updates:
+  # Enable version updates for Cargo
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
@@ -10,20 +11,35 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Berlin"
+    # Limit the number of open PRs to avoid overwhelming yourself
     open-pull-requests-limit: 10
+    # Configure specific dependencies if needed
     allow:
+      # Update dependencies that are crucial for security
       - dependency-type: "direct"
       - dependency-type: "indirect"
+    # Labels for pull requests
     labels:
       - "dependencies"
       - "rust"
+    # Target branch for PRs - set to the maintenance branch
     target-branch: "0.1.x"
 
+  # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    # Labels for pull requests
     labels:
       - "dependencies"
       - "ci"
+    # Target branch for PRs
     target-branch: "main"
+
+  # Optional: Add more ecosystems if your project uses them
+  # For example, if you have npm packages for docs or examples
+  # - package-ecosystem: "npm"
+  #   directory: "/docs"
+  #   schedule:
+  #     interval: "monthly"
