@@ -49,9 +49,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Physical and logical core detection
   - CPU model detection
   - Standardized CPU metrics interface
+- Added comprehensive Network monitoring module with:
+  - Network interface enumeration using getifaddrs
+  - Per-interface traffic statistics (bytes/packets sent/received)
+  - Network error and collision tracking
+  - Real-time bandwidth calculations
+  - Interface state monitoring (up/down)
+  - MAC and IP address information
+  - Support for various interface types (Ethernet, WiFi, Loopback, Virtual)
 - Added comprehensive mdBook documentation structure in `/docs`
 - Added documentation for modules, FFI bindings, and architecture
 - Added comprehensive CPU module documentation with usage examples
+- Added comprehensive Network module documentation with usage examples
 
 ### Changed
 

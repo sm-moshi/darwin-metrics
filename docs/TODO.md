@@ -53,13 +53,13 @@
   - [ ] Enhance tests to be more resilient in different environments.
   - [ ] Integrate with Metal API for advanced GPU monitoring (future enhancement).
 
-- [ ] **Network Monitoring**
+- [x] **Network Monitoring**
 
-  - [ ] Implement bandwidth tracking, ensuring accurate upload/download speed calculations.
-  - [ ] Introduce real-time network state monitoring to detect active/inactive connections.
-  - [ ] Improve packet loss and error tracking by gathering statistics from system interfaces.
-  - [ ] Implement asynchronous network data collection to avoid blocking operations.
-  - [ ] Write unit tests for different network conditions and interface types.
+  - [x] Implement bandwidth tracking, ensuring accurate upload/download speed calculations.
+  - [x] Introduce real-time network state monitoring to detect active/inactive connections.
+  - [x] Improve packet loss and error tracking by gathering statistics from system interfaces.
+  - [x] Implement synchronous network data collection with efficient error handling.
+  - [x] Write unit tests for network interface detection and updates.
 
 - [ ] **Temperature Monitoring**
 

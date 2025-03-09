@@ -325,6 +325,135 @@ pub mod proc_state {
 }
 
 //------------------------------------------------------------------------------
+// Network related data structures and bindings
+//------------------------------------------------------------------------------
+
+/// Network Address Family constants
+pub mod address_family {
+    pub const AF_UNSPEC: u8 = 0;      // Unspecified
+    pub const AF_INET: u8 = 2;        // IPv4 
+    pub const AF_INET6: u8 = 30;      // IPv6
+    pub const AF_LINK: u8 = 18;       // Link level interface
+}
+
+/// Interface Flags constants
+pub mod if_flags {
+    pub const IFF_UP: u32 = 0x1;              // Interface is up
+    pub const IFF_BROADCAST: u32 = 0x2;       // Broadcast address valid
+    pub const IFF_DEBUG: u32 = 0x4;           // Turn on debugging
+    pub const IFF_LOOPBACK: u32 = 0x8;        // Is a loopback net
+    pub const IFF_POINTOPOINT: u32 = 0x10;    // Interface is point-to-point link
+    pub const IFF_RUNNING: u32 = 0x40;        // Resources allocated
+    pub const IFF_NOARP: u32 = 0x80;          // No address resolution protocol
+    pub const IFF_PROMISC: u32 = 0x100;       // Receive all packets
+    pub const IFF_ALLMULTI: u32 = 0x200;      // Receive all multicast packets
+    pub const IFF_MULTICAST: u32 = 0x8000;    // Supports multicast
+    pub const IFF_WIRELESS: u32 = 0x20;       // Wireless
+}
+
+#[repr(C)]
+pub struct ifaddrs {
+    pub ifa_next: *mut ifaddrs,
+    pub ifa_name: *mut c_char,
+    pub ifa_flags: u32,
+    pub ifa_addr: *mut sockaddr,
+    pub ifa_netmask: *mut sockaddr,
+    pub ifa_dstaddr: *mut sockaddr,
+    pub ifa_data: *mut c_void,
+}
+
+#[repr(C)]
+pub struct sockaddr {
+    pub sa_len: u8,
+    pub sa_family: u8,
+    pub sa_data: [c_char; 14],
+}
+
+#[repr(C)]
+pub struct sockaddr_in {
+    pub sin_len: u8,
+    pub sin_family: u8,
+    pub sin_port: u16,
+    pub sin_addr: in_addr,
+    pub sin_zero: [c_char; 8],
+}
+
+#[repr(C)]
+pub struct in_addr {
+    pub s_addr: u32,
+}
+
+#[repr(C)]
+pub struct sockaddr_in6 {
+    pub sin6_len: u8,
+    pub sin6_family: u8,
+    pub sin6_port: u16,
+    pub sin6_flowinfo: u32,
+    pub sin6_addr: in6_addr,
+    pub sin6_scope_id: u32,
+}
+
+#[repr(C)]
+pub struct in6_addr {
+    pub s6_addr: [u8; 16],
+}
+
+#[repr(C)]
+pub struct sockaddr_dl {
+    pub sdl_len: u8,
+    pub sdl_family: u8,
+    pub sdl_index: u16,
+    pub sdl_type: u8,
+    pub sdl_nlen: u8,
+    pub sdl_alen: u8,
+    pub sdl_slen: u8,
+    pub sdl_data: [c_char; 12],
+}
+
+#[repr(C)]
+pub struct if_data {
+    pub ifi_type: u8,
+    pub ifi_physical: u8,
+    pub ifi_addrlen: u8,
+    pub ifi_hdrlen: u8,
+    pub ifi_recvquota: u8,
+    pub ifi_xmitquota: u8,
+    pub ifi_unused1: u8,
+    pub ifi_mtu: u32,
+    pub ifi_metric: u32,
+    pub ifi_baudrate: u32,
+    pub ifi_ipackets: u32,
+    pub ifi_ierrors: u32,
+    pub ifi_opackets: u32,
+    pub ifi_oerrors: u32,
+    pub ifi_collisions: u32,
+    pub ifi_ibytes: u32,
+    pub ifi_obytes: u32,
+    pub ifi_imcasts: u32,
+    pub ifi_omcasts: u32,
+    pub ifi_iqdrops: u32,
+    pub ifi_noproto: u32,
+    pub ifi_recvtiming: u32,
+    pub ifi_xmittiming: u32,
+    pub ifi_lastchange: timeval,
+}
+
+#[link(name = "System", kind = "framework")]
+extern "C" {
+    pub fn getifaddrs(ifap: *mut *mut ifaddrs) -> c_int;
+    pub fn freeifaddrs(ifp: *mut ifaddrs) -> c_void;
+    
+    // sysctl functions for network statistics
+    pub fn sysctlbyname(
+        name: *const c_char,
+        oldp: *mut c_void,
+        oldlenp: *mut usize,
+        newp: *const c_void,
+        newlen: usize,
+    ) -> c_int;
+}
+
+//------------------------------------------------------------------------------
 // Helper methods for working with the bindings
 //------------------------------------------------------------------------------
 

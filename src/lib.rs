@@ -8,6 +8,7 @@
 pub mod battery;
 pub mod error;
 pub mod hardware;
+pub mod network;
 pub mod power;
 pub mod process;
 pub mod system;
@@ -15,6 +16,7 @@ pub mod utils;
 
 pub use battery::*;
 pub use hardware::*;
+pub use network::*;
 pub use power::*;
 // Error is already re-exported below, so we don't need this line
 pub use process::*;
