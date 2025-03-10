@@ -971,6 +971,48 @@ mod tests {
     }
 
     #[test]
+    fn test_traffic_stats_implementation() {
+        // This test checks that at least one of our traffic stats implementations works
+        let _manager = NetworkManager::new().expect("Failed to create NetworkManager");
+        
+        // Create a mock NetworkManager just for testing the stats methods
+        let test_manager = NetworkManager { interfaces: HashMap::new() };
+        
+        // Try the native implementation first
+        let native_stats = test_manager.update_traffic_stats_native();
+        
+        if native_stats.is_some() {
+            // If native implementation works, validate it
+            let stats = native_stats.unwrap();
+            assert!(!stats.is_empty(), "Native implementation returned empty stats");
+            
+            // Check that we have some common interfaces like lo0
+            let lo0_stats = stats.get("lo0");
+            if lo0_stats.is_some() {
+                let (rx_bytes, tx_bytes, rx_packets, tx_packets, _rx_errors, _tx_errors, _collisions) = 
+                    *lo0_stats.unwrap();
+                
+                // Basic sanity checks - loopback should have some traffic and low errors
+                assert!(rx_bytes > 0, "Loopback rx_bytes should be non-zero");
+                assert!(tx_bytes > 0, "Loopback tx_bytes should be non-zero");
+                assert!(rx_packets > 0, "Loopback rx_packets should be non-zero");
+                assert!(tx_packets > 0, "Loopback tx_packets should be non-zero");
+            }
+        } else {
+            // If native implementation fails, check the netstat fallback
+            let netstat_stats = test_manager.update_traffic_stats_netstat();
+            assert!(netstat_stats.is_some(), "Both native and netstat implementations failed");
+            
+            let stats = netstat_stats.unwrap();
+            assert!(!stats.is_empty(), "Netstat implementation returned empty stats");
+        }
+        
+        // Verify that the combined implementation works too
+        let combined_stats = test_manager.update_traffic_stats();
+        assert!(combined_stats.is_some(), "Combined traffic stats implementation failed");
+    }
+
+    #[test]
     fn test_network_manager_interface_access() {
         let mut manager = NetworkManager { interfaces: HashMap::new() };
 

@@ -17,9 +17,10 @@ The Network module in `darwin-metrics` provides comprehensive monitoring for net
 
 The Network module is specifically designed for macOS systems and uses:
 
--   **SystemConfiguration framework**: For network interface enumeration and configuration
--   **Network framework**: For modern network monitoring capabilities
--   **getifaddrs()**: For IP/MAC address collection
+-   **getifaddrs()**: For network interface enumeration and IP/MAC address collection
+-   **sysctlbyname**: Primary method for network traffic statistics using direct kernel APIs
+-   **netstat**: Fallback method for traffic statistics if sysctlbyname fails
+-   **SystemConfiguration framework**: For network interface configuration
 -   **IOKit API**: To determine interface capabilities and state
 
 ## Usage Example
@@ -27,33 +28,33 @@ The Network module is specifically designed for macOS systems and uses:
 Here's a basic example of using the Network module to monitor interface traffic:
 
 ```rust,ignore
-use darwin_metrics::network::{NetworkMonitor, NetworkMetrics};
-use std::thread::sleep;
-use std::time::Duration;
+use darwin_metrics::network::{NetworkManager, NetworkMetrics};
+use std::{thread, time::Duration};
 
-async fn main() -> darwin_metrics::Result<()> {
-    // Create a new network monitor
-    let mut monitor = NetworkMonitor::new().await?;
+fn main() -> darwin_metrics::error::Result<()> {
+    // Create a new network manager
+    let mut manager = NetworkManager::new()?;
 
     // Initial stats
     println!("Initial network statistics:");
-    print_network_stats(&monitor);
+    manager.update()?;
+    print_network_stats(&manager);
 
     // Sleep for a while to allow traffic to occur
-    sleep(Duration::from_secs(5));
+    thread::sleep(Duration::from_secs(5));
 
     // Update stats
-    monitor.refresh().await?;
+    manager.update()?;
 
     // Print updated stats with speeds
     println!("\nUpdated network statistics:");
-    print_network_stats(&monitor);
+    print_network_stats(&manager);
 
     Ok(())
 }
 
-fn print_network_stats(monitor: &NetworkMonitor) {
-    for interface in monitor.interfaces() {
+fn print_network_stats(manager: &NetworkManager) {
+    for interface in manager.interfaces() {
         println!("Interface: {} ({})", interface.name(), interface.interface_type());
         println!("  Status: {}", if interface.is_active() { "Active" } else { "Inactive" });
 
@@ -101,45 +102,61 @@ fn print_network_stats(monitor: &NetworkMonitor) {
 
     // Print total network usage
     println!("Total network usage:");
-    println!("  Download speed: {:.2} KB/s", monitor.total_download_speed() / 1024.0);
-    println!("  Upload speed: {:.2} KB/s", monitor.total_upload_speed() / 1024.0);
+    println!("  Download speed: {:.2} KB/s", manager.total_download_speed() / 1024.0);
+    println!("  Upload speed: {:.2} KB/s", manager.total_upload_speed() / 1024.0);
 }
 ```
 
 ## API Overview
 
-### NetworkMonitor
+### NetworkManager
 
-The `NetworkMonitor` is the main entry point for network monitoring:
+The `NetworkManager` is the main entry point for network monitoring:
 
 ```rust,ignore
-use darwin_metrics::network::{NetworkMonitor, NetworkMetrics};
+use darwin_metrics::network::{NetworkManager, NetworkMetrics};
 
-async fn example() -> darwin_metrics::Result<()> {
-    // Create a new NetworkMonitor
-    let mut monitor = NetworkMonitor::new().await?;
+fn example() -> darwin_metrics::error::Result<()> {
+    // Create a new NetworkManager
+    let mut manager = NetworkManager::new()?;
 
     // Update network statistics
-    monitor.refresh().await?;
+    manager.update()?;
 
     // Get all interfaces
-    let interfaces = monitor.interfaces();
+    let interfaces = manager.interfaces();
 
     // Get interface count
     println!("Found {} network interfaces", interfaces.len());
 
     // Get a specific interface by name
-    if let Some(wifi) = monitor.get_interface("en0") {
+    if let Some(wifi) = manager.get_interface("en0") {
         println!("WiFi download: {:.2} KB/s", wifi.download_speed() / 1024.0);
     }
 
     // Get total network speeds across all interfaces
-    println!("Total download: {:.2} MB/s", monitor.total_download_speed() / (1024.0 * 1024.0));
-    println!("Total upload: {:.2} MB/s", monitor.total_upload_speed() / (1024.0 * 1024.0));
+    println!("Total download: {:.2} MB/s", manager.total_download_speed() / (1024.0 * 1024.0));
+    println!("Total upload: {:.2} MB/s", manager.total_upload_speed() / (1024.0 * 1024.0));
 
-    // Get active connections
-    let connections = monitor.connections().await?;
-    println!("Active connections: {}", connections.len());
+    Ok(())
+}
+
+// Async version
+async fn async_example() -> darwin_metrics::error::Result<()> {
+    // Create a new NetworkManager
+    let mut manager = NetworkManager::new()?;
+
+    // Update network statistics asynchronously
+    manager.update_async().await?;
+
+    // Get active interfaces asynchronously
+    let active_interfaces = manager.active_interfaces_async().await;
+    println!("Active interfaces: {}", active_interfaces.len());
+
+    // Get throughput asynchronously
+    let (download, upload) = manager.get_throughput_async().await?;
+    println!("Total download: {:.2} MB/s", download / (1024.0 * 1024.0));
+    println!("Total upload: {:.2} MB/s", upload / (1024.0 * 1024.0));
 
     Ok(())
 }
@@ -256,36 +273,42 @@ pub trait NetworkMetrics {
 }
 ```
 
-### Connection Monitoring
+### Future Connection Monitoring
 
-The NetworkMonitor also provides functionality to track active network connections:
+In upcoming releases, the NetworkManager will provide functionality to track active network connections:
 
 ```rust,ignore
-use darwin_metrics::network::{NetworkMonitor, Connection, ConnectionType};
+// This is a planned feature - not yet implemented
+use darwin_metrics::network::{NetworkManager, Connection, Protocol};
 
-async fn connection_monitoring() -> darwin_metrics::Result<()> {
-    let monitor = NetworkMonitor::new().await?;
-
-    // Get all active connections
-    let connections = monitor.connections().await?;
+async fn connection_monitoring() -> darwin_metrics::error::Result<()> {
+    let mut manager = NetworkManager::new()?;
+    
+    // Example of future API for connection monitoring
+    manager.update_async().await?;
+    
+    // Get all active connections (future feature)
+    let connections = manager.connections().await?;
 
     for conn in connections {
         println!("Connection: {}:{} -> {}:{}",
-            conn.local_address(),
+            conn.local_addr,
             conn.local_port(),
-            conn.remote_address().unwrap_or_else(|| "N/A".to_string()),
+            conn.remote_addr,
             conn.remote_port());
 
-        println!("  Type: {}", match conn.connection_type() {
-            ConnectionType::Tcp => "TCP",
-            ConnectionType::Udp => "UDP",
-            ConnectionType::Other => "Other"
+        println!("  Protocol: {}", match conn.protocol {
+            Protocol::Tcp => "TCP",
+            Protocol::Udp => "UDP",
+            Protocol::Other(_) => "Other"
         });
 
-        println!("  State: {}", conn.state());
+        if let Some(state) = conn.state {
+            println!("  State: {:?}", state);
+        }
 
-        if let Some(process) = conn.process_name() {
-            println!("  Process: {} (PID: {})", process, conn.pid().unwrap_or(0));
+        if let Some(pid) = conn.pid {
+            println!("  Process ID: {}", pid);
         }
     }
 
@@ -306,11 +329,13 @@ The implementation includes graceful fallbacks when some metrics aren't availabl
 
 ## Performance Considerations
 
--   **Update Frequency**: For real-time monitoring, call `refresh()` at regular intervals (1-5 seconds)
--   **Speed Calculations**: Require at least two measurements over time
+-   **Native Implementation**: Uses direct sysctlbyname kernel calls for optimal performance
+-   **Fallback Mechanism**: Automatically falls back to netstat if native APIs are unavailable
+-   **Update Frequency**: For real-time monitoring, call `update()` at regular intervals (1-5 seconds)
+-   **Speed Calculations**: Require at least two measurements over time for accurate speeds
 -   **Resource Usage**: The implementation is designed to be lightweight with minimal system impact
--   **Thread Safety**: The API is designed to be used safely with tokio's async runtime
--   **Caching Strategy**: Some data is cached to reduce system calls and improve performance
+-   **Thread Safety**: Synchronous API with async alternatives via tokio for non-blocking operation
+-   **64-bit Counters**: Uses 64-bit counters to handle high-bandwidth interfaces
 
 ## Common Usage Patterns
 
@@ -386,31 +411,32 @@ The implementation includes graceful fallbacks when some metrics aren't availabl
     }
     ```
 
-5. **Connection Monitoring**:
+5. **Native Implementation with Fallback**:
 
     ```rust,ignore
-    use darwin_metrics::network::{NetworkMonitor, ConnectionType};
-
-    async fn example_connection_monitoring() -> darwin_metrics::Result<()> {
-        let monitor = NetworkMonitor::new().await?;
-
-        // Count connections by type
-        let connections = monitor.connections().await?;
-        let tcp_count = connections.iter()
-            .filter(|c| c.connection_type() == ConnectionType::Tcp)
-            .count();
-        let udp_count = connections.iter()
-            .filter(|c| c.connection_type() == ConnectionType::Udp)
-            .count();
-
-        println!("Active connections: {} TCP, {} UDP", tcp_count, udp_count);
-
-        // Find connections for a specific process
-        let browser_connections = connections.iter()
-            .filter(|c| c.process_name().map_or(false, |name| name.contains("firefox") || name.contains("chrome")))
-            .count();
-        println!("Browser connections: {}", browser_connections);
-
+    use darwin_metrics::network::{NetworkManager, NetworkMetrics};
+    use darwin_metrics::error::Result;
+    
+    fn example_reliable_monitoring() -> Result<()> {
+        // The NetworkManager will automatically use the most efficient 
+        // implementation available on the system (native sysctlbyname first,
+        // falling back to netstat if needed)
+        let mut manager = NetworkManager::new()?;
+        
+        // Initialize
+        manager.update()?;
+        println!("Monitoring using native implementation");
+        
+        // Get interface speeds
+        for interface in manager.interfaces() {
+            if interface.is_active() {
+                println!("{}: {:.2} KB/s down, {:.2} KB/s up", 
+                    interface.name(),
+                    interface.download_speed() / 1024.0,
+                    interface.upload_speed() / 1024.0);
+            }
+        }
+        
         Ok(())
     }
     ```
