@@ -199,10 +199,12 @@
 **Goal:** Optimize for performance and introduce advanced tracking.
 
 - [ ] **Optimize CPU and memory metrics for lower overhead**
-- [ ] **Hardware Monitoring**
+- [x] **Hardware Monitoring**
   - [ ] Implement fan control features for supported macOS devices.
   - [x] Improve power management insights by tracking energy consumption.
   - [x] Implement component-level power tracking (CPU, GPU, memory, etc).
+  - [x] Add asynchronous power monitoring support with tokio tasks
+  - [x] Create example programs for power monitoring (synchronous and asynchronous)
 - [ ] **Performance Optimizations**
 
   - [ ] Reduce memory footprint by optimizing data structures.
@@ -246,7 +248,7 @@
 **Goal:** Prepare for stable, production-ready release.
 
 - [ ] **Ensure CPU and memory modules are feature-complete**
-- [ ] **Full Documentation & Examples**
+- [x] **Full Documentation & Examples**
 
   - [x] Complete API documentation for all modules.
   - [x] Provide real-world usage examples for developers.
