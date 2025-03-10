@@ -162,3 +162,116 @@ pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
         })
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+    
+    #[test]
+    fn test_c_str_to_string() {
+        let test_str = "test string";
+        let c_string = CString::new(test_str).unwrap();
+        let ptr = c_string.as_ptr();
+        
+        unsafe {
+            let result = c_str_to_string(ptr);
+            assert!(result.is_some());
+            assert_eq!(result.unwrap(), test_str);
+            
+            // Test null pointer
+            let result = c_str_to_string(std::ptr::null());
+            assert!(result.is_none());
+        }
+    }
+    
+    #[test]
+    fn test_raw_str_to_string() {
+        let test_str = "test string";
+        let c_string = CString::new(test_str).unwrap();
+        let ptr = c_string.as_ptr();
+        let len = test_str.len();
+        
+        unsafe {
+            let result = raw_str_to_string(ptr, len);
+            assert!(result.is_some());
+            assert_eq!(result.unwrap(), test_str);
+            
+            // Test null pointer
+            let result = raw_str_to_string(std::ptr::null(), len);
+            assert!(result.is_none());
+            
+            // Test zero length
+            let result = raw_str_to_string(ptr, 0);
+            assert!(result.is_none());
+        }
+    }
+    
+    #[test]
+    fn test_raw_f64_slice_to_vec() {
+        let test_data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let ptr = test_data.as_ptr();
+        let len = test_data.len();
+        
+        unsafe {
+            let result = raw_f64_slice_to_vec(ptr, len);
+            assert!(result.is_some());
+            assert_eq!(result.unwrap(), test_data);
+            
+            // Test null pointer
+            let result = raw_f64_slice_to_vec(std::ptr::null(), len);
+            assert!(result.is_none());
+            
+            // Test zero length
+            let result = raw_f64_slice_to_vec(ptr, 0);
+            assert!(result.is_none());
+        }
+    }
+    
+    #[test]
+    fn test_autorelease_pool() {
+        // Simple test to ensure the function works
+        let value = autorelease_pool(|| 42);
+        assert_eq!(value, 42);
+        
+        // Test with a string
+        let str_value = autorelease_pool(|| "test string".to_string());
+        assert_eq!(str_value, "test string");
+    }
+    
+    #[test]
+    fn test_objc_safe_exec() {
+        // Test successful execution
+        let result = objc_safe_exec(|| Ok::<_, Error>(42));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 42);
+        
+        // Test with an error
+        let result = objc_safe_exec(|| Err::<i32, Error>(Error::system("test error")));
+        assert!(result.is_err());
+        match result {
+            Err(Error::System(msg)) => assert!(msg.contains("test error")),
+            _ => panic!("Unexpected error type"),
+        }
+        
+        // We can't easily test the panic case without actually panicking
+    }
+    
+    #[test]
+    fn test_get_name_null_device() {
+        let result = get_name(std::ptr::null_mut());
+        assert!(result.is_err());
+        match result {
+            Err(Error::NotAvailable(msg)) => assert!(msg.contains("No device available")),
+            _ => panic!("Unexpected error type"),
+        }
+    }
+    
+    #[test]
+    fn test_property_accessor() {
+        // Test the struct can be created
+        let _accessor = PropertyAccessor;
+        // Simple sanity check - no need to test actual property access
+        // since we'd need a real Objective-C dictionary
+    }
+}
