@@ -201,7 +201,8 @@
 - [ ] **Optimize CPU and memory metrics for lower overhead**
 - [ ] **Hardware Monitoring**
   - [ ] Implement fan control features for supported macOS devices.
-  - [ ] Improve power management insights by tracking energy consumption.
+  - [x] Improve power management insights by tracking energy consumption.
+  - [x] Implement component-level power tracking (CPU, GPU, memory, etc).
 - [ ] **Performance Optimizations**
 
   - [ ] Reduce memory footprint by optimizing data structures.

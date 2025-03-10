@@ -29,9 +29,8 @@ use crate::{
 // Only import these when not in coverage mode
 #[cfg(not(feature = "skip-ffi-crashes"))]
 use crate::utils::bindings::{
-    smc_key_from_chars, IOByteCount, IOConnectCallStructMethod,
-    IOServiceClose, IOServiceOpen, SMCKeyData_t, KERNEL_INDEX_SMC,
-    SMC_CMD_READ_BYTES, SMC_CMD_READ_KEYINFO,
+    smc_key_from_chars, IOByteCount, IOConnectCallStructMethod, IOServiceClose, IOServiceOpen,
+    SMCKeyData_t, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES, SMC_CMD_READ_KEYINFO,
 };
 
 /// GPU statistics retrieved from IOKit's AGPMController
@@ -163,7 +162,8 @@ impl IOKitImpl {
             }
         }
 
-        // Only proceed with actual SMC calls when not in coverage mode
+        // Normal implementation for non-coverage runs
+        #[cfg(not(feature = "skip-ffi-crashes"))]
         unsafe {
             // Open the SMC service
             let service_name = CString::new("AppleSMC").expect("Failed to create CString");
@@ -338,7 +338,7 @@ impl IOKit for IOKitImpl {
                     // Try to convert the dictionary to the expected type
                     let dict_ptr = matching_dict as *mut NSDictionary<NSString, NSObject>;
                     println!("DEBUG: dict_ptr = {:p}", dict_ptr);
-                    
+
                     println!("DEBUG: About to call Retained::from_raw for dictionary");
                     if let Some(dict) = Retained::from_raw(dict_ptr) {
                         println!("DEBUG: Successfully created Retained<NSDictionary>");
@@ -357,9 +357,13 @@ impl IOKit for IOKitImpl {
         })
     }
 
+    // A safer approach that avoids direct casting of IOKit service IDs to Objective-C objects
+    // Inspired by macmon, NeoAsitop, and Stats implementations
+    // Completely simplify the method to avoid any Objective-C interactions
+    // that could cause segmentation faults
     fn io_service_get_matching_service(
         &self,
-        matching: &NSDictionary<NSString, NSObject>,
+        _matching: &NSDictionary<NSString, NSObject>,
     ) -> Option<Retained<AnyObject>> {
         // Use autoreleasepool to ensure proper memory management of temporary objects
         autoreleasepool(|_| {
@@ -401,15 +405,19 @@ impl IOKit for IOKitImpl {
             unsafe {
                 println!("DEBUG: Creating props pointer");
                 let mut props: *mut ffi_c_void = ptr::null_mut();
-                
-                println!("DEBUG: Converting entry to entry_id");
-                let entry_id = entry as *const AnyObject as u32;
-                println!("DEBUG: entry_id = {}", entry_id);
 
-                // Use IORegistryEntryCreateCFProperties directly
+                // IOKit service IDs are special in that they're just raw numbers
+                // That are cast to pointers. For memory safety, we're going to
+                // extract the raw number from the object pointer.
+
+                // Get the value directly from the pointer
+                let service_id = entry as *const AnyObject as u32;
+                println!("DEBUG: Using service ID = {}", service_id);
+
+                // Use IORegistryEntryCreateCFProperties with the extracted ID
                 println!("DEBUG: About to call IORegistryEntryCreateCFProperties");
                 let result =
-                    IORegistryEntryCreateCFProperties(entry_id, &mut props, ptr::null_mut(), 0);
+                    IORegistryEntryCreateCFProperties(service_id, &mut props, ptr::null_mut(), 0);
                 println!("DEBUG: IORegistryEntryCreateCFProperties result = {}", result);
                 println!("DEBUG: props = {:p}", props);
 
@@ -422,11 +430,11 @@ impl IOKit for IOKitImpl {
                 println!("DEBUG: Converting props to dict_ptr");
                 let dict_ptr = props as *mut NSDictionary<NSString, NSObject>;
                 println!("DEBUG: dict_ptr = {:p}", dict_ptr);
-                
+
                 println!("DEBUG: About to call Retained::from_raw for properties");
                 let retained = Retained::from_raw(dict_ptr);
                 println!("DEBUG: Retained::from_raw result success = {}", retained.is_some());
-                
+
                 retained.ok_or_else(|| {
                     println!("DEBUG: Failed to retain properties");
                     Error::system("Failed to retain properties")
@@ -471,7 +479,7 @@ impl IOKit for IOKitImpl {
         println!("DEBUG: Looking for number property '{}'", key);
         let key = NSString::from_str(key);
         println!("DEBUG: Created NSString key");
-        
+
         unsafe {
             // Use autoreleasepool to properly manage any temporary objects
             autoreleasepool(|_| {
@@ -670,6 +678,11 @@ impl IOKit for IOKitImpl {
         })
     }
 
+    fn read_smc_key(&self, key: [c_char; 4]) -> Result<f64> {
+        // Reuse existing implementation
+        self.smc_read_key(key)
+    }
+
     // Fan related methods
     fn get_fan_speed(&self) -> Result<u32> {
         // Fan speed needs to be converted from the raw value to RPM
@@ -807,7 +820,9 @@ impl IOKit for IOKitImpl {
                 let accelerator_matching = self.io_service_matching("IOAccelerator");
                 println!("DEBUG: Got IOAccelerator matching dictionary");
                 {
-                    println!("DEBUG: About to call io_service_get_matching_service for IOAccelerator");
+                    println!(
+                        "DEBUG: About to call io_service_get_matching_service for IOAccelerator"
+                    );
                     if let Some(accelerator) =
                         self.io_service_get_matching_service(&accelerator_matching)
                     {

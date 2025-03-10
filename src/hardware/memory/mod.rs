@@ -850,7 +850,7 @@ mod tests {
         let result = memory.update();
         assert!(result.is_ok(), "Update should succeed");
     }
-    
+
     #[test]
     fn test_swap_usage() {
         // Test default (empty) swap usage
