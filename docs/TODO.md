@@ -148,7 +148,7 @@
   - [x] Implement enhanced GPU hardware detection with Apple Silicon chip identification
   - [x] Add detailed GPU characteristics (core count, clock speed, architecture)
   - [x] Create comprehensive example program for GPU hardware information
-  - [x] Add tests for GPU hardware detection features
+  - [x] Add tests for GPU hardware detection (currently 64.66% coverage)
   - [ ] Investigate IOGraphicsLib.h for better GPU metrics access (<https://developer.apple.com/documentation/iokit/iographicslib_h> for reference)
   - [ ] Add support for multiple GPUs (planned post-1.0.0)
 
@@ -160,13 +160,14 @@
   - [ ] Add environment variable retrieval for processes.
   - [ ] Add command-line arguments retrieval for processes.
 
-- [x] **Disk & Storage Monitoring**
+- [~] **Disk & Storage Monitoring**
 
   - [x] Track I/O performance by measuring read/write speeds for individual drives.
   - [x] Monitor volume usage, including available/free space calculations.
   - [x] Implement tracking for mounted disk devices and storage partitions.
+  - [ ] Improve test coverage (currently 59.29%)
 
-- [ ] **Network Enhancements**
+- [~] **Network Enhancements**
 
   - [x] Implement packet loss and error tracking to improve network diagnostics.
   - [x] Add connection state tracking to detect when network interfaces go up or down.
@@ -174,10 +175,14 @@
   - [x] Implement NetworkManager::update_async() using tokio::spawn_blocking for I/O
   - [ ] Add DNS resolution capabilities for hostnames and IP addresses.
   - [ ] Implement per-application network usage tracking (future enhancement).
+  - [ ] Improve test coverage for network/interface (currently 21.46%)
+  - [ ] Improve test coverage for network/traffic (currently 52.63%)
 
-- [ ] **Testing & Stability**
-  - [ ] Expand test coverage for new system metrics, ensuring accuracy in collected data.
-  - [ ] Improve async testing to validate non-blocking behavior.
+- [~] **Testing & Stability**
+  - [x] Add tests for power module with mock implementation (96.98% coverage)
+  - [~] Improve coverage for hardware/iokit module (currently 16.67%)
+  - [ ] Expand test coverage for other system metrics, ensuring accuracy in collected data.
+  - [~] Improve async testing to validate non-blocking behavior.
 
 ---
 
@@ -186,10 +191,12 @@
 **Goal:** Optimize for performance and introduce advanced tracking.
 
 - [ ] **Optimize CPU and memory metrics for lower overhead**
-- [ ] **Hardware Monitoring**
+- [x] **Hardware Monitoring**
   - [ ] Implement fan control features for supported macOS devices.
   - [x] Improve power management insights by tracking energy consumption.
   - [x] Implement component-level power tracking (CPU, GPU, memory, etc).
+  - [x] Add asynchronous power monitoring support with tokio tasks
+  - [x] Create example programs for power monitoring (synchronous and asynchronous)
 - [ ] **Performance Optimizations**
 
   - [ ] Reduce memory footprint by optimizing data structures.
@@ -204,14 +211,27 @@
 - [ ] **Testing Improvements**
   - [ ] Improve test coverage for low-coverage modules:
     - [ ] Add tests for battery module (currently 0% coverage)
-    - [x] Add tests for power module (with mock implementation)
-    - [ ] Add tests for system module (currently 0% coverage)
-    - [ ] Add tests for utils modules (currently 0-42% coverage)
-    - [x] Improve coverage for hardware/iokit (currently 17% coverage)
-    - [ ] Improve coverage for network/interface (currently 21% coverage)
+    - [x] Add tests for power module (currently 96.98% coverage)
+    - [x] Add tests for system module (currently 90.70% coverage)
+    - [ ] Add tests for utils modules:
+      - [ ] utils/property_utils.rs (0% coverage)
+      - [ ] utils/test_utils.rs (0% coverage)
+      - [ ] utils/bindings.rs (28% coverage)
+      - [~] utils/mod.rs (68.71% coverage)
+    - [~] Improve coverage for hardware/iokit (currently 16.67% coverage)
+    - [ ] Improve coverage for network/interface (currently 21.46% coverage)
+    - [ ] Improve coverage for hardware/cpu/frequency.rs (currently 42.06% coverage)
+    - [ ] Improve coverage for hardware/temperature/mod.rs (currently 62.11% coverage)
+    - [ ] Improve coverage for error.rs (currently 32.61% coverage)
+  - [ ] Implement more robust async tests following tokio best practices:
+    - [x] Test async power monitoring functions
+    - [x] Test memory async functions
+    - [ ] Test network async operations
+    - [ ] Test disk async operations
   - [ ] Introduce performance benchmarks to measure impact on system resources.
   - [ ] Conduct stress testing under heavy system load conditions.
   - [ ] Set up coverage threshold in CI to maintain or improve coverage over time.
+  - [ ] Add integration tests for common use cases and workflows.
 
 ---
 
@@ -220,11 +240,11 @@
 **Goal:** Prepare for stable, production-ready release.
 
 - [ ] **Ensure CPU and memory modules are feature-complete**
-- [ ] **Full Documentation & Examples**
+- [x] **Full Documentation & Examples**
 
-  - [~] Complete API documentation for all modules.
-  - [~] Provide real-world usage examples for developers.
-  - [~] Improve README with installation and usage instructions.
+  - [x] Complete API documentation for all modules.
+  - [x] Provide real-world usage examples for developers.
+  - [x] Improve README with installation and usage instructions.
   - [x] Set up mdBook structure for comprehensive documentation
   - [x] Create module documentation with examples
   - [x] Document internal architecture and contributing guidelines

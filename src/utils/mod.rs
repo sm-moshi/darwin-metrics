@@ -11,6 +11,9 @@ pub mod bindings;
 pub mod property_utils;
 pub mod test_utils;
 
+#[cfg(test)]
+mod property_utils_tests;
+
 use std::{
     ffi::{c_char, CStr},
     os::raw::c_double,
