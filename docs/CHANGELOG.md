@@ -9,16 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- None yet
+- Enhanced GPU hardware detection with specific Apple Silicon chip identification
+- Added comprehensive GPU characteristics struct with core count, clock speed, and raytracing capability
+- Added example program to demonstrate improved GPU hardware detection
+- Improved memory reporting for different GPU architectures
+- Added tests for GPU hardware detection
 
 ## [0.2.0-dev] - 2025-03-10
 
 ### Added
+
 - Created base for 0.2.x development branch
 - Enhanced async support throughout codebase
 - Improved Metal API integration for more reliable GPU monitoring
 
 ### Changed
+
 - Refactored GPU module for better stability on Apple Silicon
 - Improved error handling in IOKit bindings
 - Enhanced memory management in Objective-C interfaces

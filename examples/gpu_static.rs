@@ -8,6 +8,7 @@ use objc2_foundation::NSProcessInfo;
 extern "C" {
     fn IOServiceMatching(service_name: *const c_char) -> *mut std::ffi::c_void;
     fn IOServiceGetMatchingService(master_port: u32, matching: *mut std::ffi::c_void) -> u32;
+    #[allow(dead_code)]
     fn IORegistryEntryCreateCFProperties(
         entry: u32,
         properties: *mut *mut std::ffi::c_void,
@@ -41,7 +42,13 @@ fn main() {
 
         unsafe {
             // Convert C string to create a dictionary for IOKit matching
-            let service_name = std::ffi::CString::new("IOPCIDevice").unwrap();
+            let service_name = match std::ffi::CString::new("IOPCIDevice") {
+                Ok(name) => name,
+                Err(_) => {
+                    println!("Error creating CString");
+                    return;
+                }
+            };
             let matching = IOServiceMatching(service_name.as_ptr());
 
             // Get a reference to the IOService

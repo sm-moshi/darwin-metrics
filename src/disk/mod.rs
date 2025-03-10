@@ -153,6 +153,7 @@ impl Disk {
     }
 
     /// Creates a new Disk instance with extended parameters
+    #[allow(clippy::too_many_arguments)]
     pub fn with_details(
         device: String,
         mount_point: String,
@@ -256,8 +257,8 @@ impl Disk {
         // Process the data
         let mut volumes = Vec::with_capacity(fs_count as usize);
 
-        for i in 0..fs_count as usize {
-            let stat = unsafe { stats[i].assume_init() };
+        for stat_uninit in stats.iter().take(fs_count as usize) {
+            let stat = unsafe { stat_uninit.assume_init() };
 
             // Extract filesystem type
             let fs_type = unsafe {
@@ -520,8 +521,8 @@ impl DiskMonitor {
         // Process the data
         let mut volumes = Vec::with_capacity(fs_count as usize);
 
-        for i in 0..fs_count as usize {
-            let stat = unsafe { stats[i].assume_init() };
+        for stat_uninit in stats.iter().take(fs_count as usize) {
+            let stat = unsafe { stat_uninit.assume_init() };
 
             // Extract filesystem type
             let fs_type = unsafe {

@@ -89,10 +89,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-darwin-metrics = "0.1.3"  # Stable version
+darwin-metrics = "0.2.0-alpha.1"  # Development version
 
 # Or for latest development features:
-# darwin-metrics = { git = "https://github.com/sm-moshi/darwin-metrics", branch = "v0.2.x" }
+# darwin-metrics = { git = "https://github.com/sm-moshi/darwin-metrics", branch = "0.2.x" }
 ```
 
 ### 🔧 Requirements

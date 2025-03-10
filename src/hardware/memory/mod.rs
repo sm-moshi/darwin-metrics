@@ -300,6 +300,7 @@ impl Memory {
         Ok(memory)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_values(
         total: u64,
         available: u64,

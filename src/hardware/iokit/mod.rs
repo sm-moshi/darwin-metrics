@@ -134,17 +134,17 @@ impl IOKitImpl {
         {
             // Match on the key to return appropriate mock values for different types
             if key == SMC_KEY_CPU_TEMP || key == SMC_KEY_GPU_TEMP {
-                return Ok(42.5); // Mock temperature in Celsius
+                Ok(42.5) // Mock temperature in Celsius
             } else if key == SMC_KEY_AMBIENT_TEMP {
-                return Ok(26.0); // Mock ambient temperature
+                Ok(26.0) // Mock ambient temperature
             } else if key == SMC_KEY_BATTERY_TEMP {
-                return Ok(35.0); // Mock battery temperature
+                Ok(35.0) // Mock battery temperature
             } else if key == SMC_KEY_FAN_NUM {
-                return Ok(2.0); // Mock fan count
+                Ok(2.0) // Mock fan count
             } else if key[0] == b'F' as c_char && key[3] == b'c' as c_char {
-                return Ok(2000.0); // Mock fan RPM
+                Ok(2000.0) // Mock fan RPM
             } else {
-                return Ok(0.0); // Default mock value
+                Ok(0.0) // Default mock value
             }
         }
         
@@ -420,22 +420,28 @@ impl IOKit for IOKitImpl {
                 println!("DEBUG: Inside autoreleasepool for get_string_property");
                 
                 let value_opt = dict.valueForKey(&key);
-                if value_opt.is_none() {
-                    println!("DEBUG: No value found for key '{}'", key);
-                    return None;
-                }
-                
-                println!("DEBUG: Found value for key '{}'", key);
-                let obj = value_opt.unwrap();
+                let obj = match value_opt {
+                    None => {
+                        println!("DEBUG: No value found for key '{}'", key);
+                        return None;
+                    }
+                    Some(obj) => {
+                        println!("DEBUG: Found value for key '{}'", key);
+                        obj
+                    }
+                };
                 
                 let string_opt = obj.downcast::<NSString>();
-                if string_opt.is_err() {
-                    println!("DEBUG: Value is not an NSString");
-                    return None;
-                }
-                
-                println!("DEBUG: Downcasted to NSString successfully");
-                let s = string_opt.unwrap();
+                let s = match string_opt {
+                    Err(_) => {
+                        println!("DEBUG: Value is not an NSString");
+                        return None;
+                    }
+                    Ok(s) => {
+                        println!("DEBUG: Downcasted to NSString successfully");
+                        s
+                    }
+                };
                 let result = s.to_string();
                 
                 println!("DEBUG: Converted to Rust string: '{}'", result);
@@ -459,22 +465,28 @@ impl IOKit for IOKitImpl {
                 println!("DEBUG: Inside autoreleasepool for get_number_property");
                 
                 let value_opt = dict.valueForKey(&key);
-                if value_opt.is_none() {
-                    println!("DEBUG: No value found for key '{}'", key);
-                    return None;
-                }
-                
-                println!("DEBUG: Found value for key '{}'", key);
-                let obj = value_opt.unwrap();
+                let obj = match value_opt {
+                    None => {
+                        println!("DEBUG: No value found for key '{}'", key);
+                        return None;
+                    }
+                    Some(obj) => {
+                        println!("DEBUG: Found value for key '{}'", key);
+                        obj
+                    }
+                };
                 
                 let number_opt = obj.downcast::<NSNumber>();
-                if number_opt.is_err() {
-                    println!("DEBUG: Value is not an NSNumber");
-                    return None;
-                }
-                
-                println!("DEBUG: Downcasted to NSNumber successfully");
-                let n = number_opt.unwrap();
+                let n = match number_opt {
+                    Err(_) => {
+                        println!("DEBUG: Value is not an NSNumber");
+                        return None;
+                    }
+                    Ok(n) => {
+                        println!("DEBUG: Downcasted to NSNumber successfully");
+                        n
+                    }
+                };
                 let result = n.as_i64();
                 
                 println!("DEBUG: Got i64 value: {}", result);

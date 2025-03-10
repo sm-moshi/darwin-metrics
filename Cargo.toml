@@ -78,6 +78,7 @@ async = []
 
 # Testing features
 unstable-tests = []
+skip-ffi-crashes = []
 
 [profile.release]
 lto           = true

@@ -145,6 +145,12 @@
 
   - [x] Track GPU utilization over time to monitor workload distribution.
   - [x] Measure GPU memory consumption and optimize reporting.
+  - [x] Implement enhanced GPU hardware detection with Apple Silicon chip identification
+  - [x] Add detailed GPU characteristics (core count, clock speed, architecture)
+  - [x] Create comprehensive example program for GPU hardware information
+  - [x] Add tests for GPU hardware detection features
+  - [ ] Investigate IOGraphicsLib.h for better GPU metrics access (<https://developer.apple.com/documentation/iokit/iographicslib_h> for reference)
+  - [ ] Add support for multiple GPUs (planned post-1.0.0)
 
 - [~] **Advanced Process Monitoring**
 
