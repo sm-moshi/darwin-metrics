@@ -4,6 +4,7 @@ use objc2::{
     runtime::AnyObject,
 };
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
+
 /// Creates a test NSDictionary instance for mock testing.
 pub fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
     autoreleasepool(|_| unsafe {
@@ -14,21 +15,17 @@ pub fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
 }
 
 /// Creates a test NSDictionary with the specified entries.
-pub fn create_test_dictionary_with_entries(
-    entries: &[(Retained<NSString>, Retained<NSObject>)],
-) -> Retained<NSDictionary<NSString, NSObject>> {
+pub fn create_test_dictionary_with_entries(entries: &[(Retained<NSString>, Retained<NSObject>)]) -> Retained<NSDictionary<NSString, NSObject>> {
     // For simplicity and stability in tests, just return an empty dictionary
     if entries.is_empty() {
         return create_test_dictionary();
     }
-
+    
     autoreleasepool(|_| unsafe {
         // Create arrays of keys and values
-        let keys: Vec<*const NSString> =
-            entries.iter().map(|(k, _)| k.as_ref() as *const NSString).collect();
-        let values: Vec<*const NSObject> =
-            entries.iter().map(|(_, v)| v.as_ref() as *const NSObject).collect();
-
+        let keys: Vec<*const NSString> = entries.iter().map(|(k, _)| k.as_ref() as *const NSString).collect();
+        let values: Vec<*const NSObject> = entries.iter().map(|(_, v)| v.as_ref() as *const NSObject).collect();
+        
         let dict_class = class!(NSDictionary);
         let count = entries.len();
         let dict_ptr: *mut AnyObject = msg_send![dict_class, dictionaryWithObjects: values.as_ptr(), forKeys: keys.as_ptr(), count: count];
@@ -63,56 +60,52 @@ pub fn create_test_object() -> Retained<AnyObject> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    
     #[test]
     fn test_create_test_dictionary() {
         let _dict = create_test_dictionary();
-
+        
         // Skip verification as it may cause SIGSEGV during coverage runs
         // No assertion needed - test passes if it doesn't panic
     }
-
+    
     #[test]
     fn test_create_test_dictionary_with_entries() {
         // Instead of testing with real entries, we'll just check the function signature
         // is valid by calling it with empty slice to avoid any memory issues
-
-        // Import the needed types within the test
-        use objc2::rc::Retained;
-        use objc2_foundation::{NSObject, NSString};
-
+        
         // Create an empty slice of the correct type
         let entries: &[(Retained<NSString>, Retained<NSObject>)] = &[];
-
+        
         // Create the dictionary with no entries
         let _dict = create_test_dictionary_with_entries(entries);
-
+        
         // Skip actual dictionary testing since it can cause SIGSEGV in coverage runs
         // No assertion needed - test passes if it doesn't panic
     }
-
+    
     #[test]
     fn test_create_test_string() {
         let test_str = "Test String";
         let _ns_string = create_test_string(test_str);
-
+        
         // Skip string comparison as it may cause SIGSEGV during coverage runs
         // No assertion needed - test passes if it doesn't panic
     }
-
+    
     #[test]
     fn test_create_test_number() {
         let test_value = 123.45;
         let _ns_number = create_test_number(test_value);
-
+        
         // Skip the actual verification as it may cause SIGSEGV during coverage runs
         // No assertion needed - test passes if it doesn't panic
     }
-
+    
     #[test]
     fn test_create_test_object() {
         let _obj = create_test_object();
-
+        
         // Skip class testing as it may cause SIGSEGV during coverage runs
         // No assertion needed - test passes if it doesn't panic
     }

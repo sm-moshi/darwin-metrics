@@ -7,9 +7,6 @@
 //!   dictionaries
 //! - `test_utils`: Utilities for testing
 
-// Always set IS_DOCS_RS to false since we've removed docs.rs support
-pub const IS_DOCS_RS: bool = false;
-
 pub mod bindings;
 pub mod property_utils;
 pub mod test_utils;
@@ -20,17 +17,45 @@ mod property_utils_tests;
 use std::{
     ffi::{c_char, CStr},
     os::raw::c_double,
+    panic::AssertUnwindSafe,
     slice,
 };
 
-use std::panic::AssertUnwindSafe;
-
-use objc2::{msg_send, rc::autoreleasepool, runtime::AnyObject};
+use objc2::{
+    msg_send,
+    rc::{autoreleasepool, Retained},
+    runtime::AnyObject,
+};
+use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
 
 use crate::error::{Error, Result};
 
-// Import PropertyUtils from the property_utils module
-pub use self::property_utils::*;
+pub trait PropertyUtils {
+    fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| obj.downcast::<NSString>().ok())
+            .map(|s| s.to_string())
+    }
+
+    fn get_number_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| obj.downcast::<NSNumber>().ok())
+            .map(|n: Retained<NSNumber>| n.as_f64())
+    }
+
+    fn get_bool_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| obj.downcast::<NSNumber>().ok())
+            .map(|n: Retained<NSNumber>| n.as_bool())
+    }
+}
+
+pub struct PropertyAccessor;
+
+impl PropertyUtils for PropertyAccessor {}
 
 /// Executes a closure safely within an Objective-C autorelease pool.
 pub fn autorelease_pool<T, F>(f: F) -> T
@@ -139,85 +164,85 @@ pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
 mod tests {
     use super::*;
     use std::ffi::CString;
-
+    
     #[test]
     fn test_c_str_to_string() {
         let test_str = "test string";
         let c_string = CString::new(test_str).unwrap();
         let ptr = c_string.as_ptr();
-
+        
         unsafe {
             let result = c_str_to_string(ptr);
             assert!(result.is_some());
             assert_eq!(result.unwrap(), test_str);
-
+            
             // Test null pointer
             let result = c_str_to_string(std::ptr::null());
             assert!(result.is_none());
         }
     }
-
+    
     #[test]
     fn test_raw_str_to_string() {
         let test_str = "test string";
         let c_string = CString::new(test_str).unwrap();
         let ptr = c_string.as_ptr();
         let len = test_str.len();
-
+        
         unsafe {
             let result = raw_str_to_string(ptr, len);
             assert!(result.is_some());
             assert_eq!(result.unwrap(), test_str);
-
+            
             // Test null pointer
             let result = raw_str_to_string(std::ptr::null(), len);
             assert!(result.is_none());
-
+            
             // Test zero length
             let result = raw_str_to_string(ptr, 0);
             assert!(result.is_none());
         }
     }
-
+    
     #[test]
     fn test_raw_f64_slice_to_vec() {
         let test_data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let ptr = test_data.as_ptr();
         let len = test_data.len();
-
+        
         unsafe {
             let result = raw_f64_slice_to_vec(ptr, len);
             assert!(result.is_some());
             assert_eq!(result.unwrap(), test_data);
-
+            
             // Test null pointer
             let result = raw_f64_slice_to_vec(std::ptr::null(), len);
             assert!(result.is_none());
-
+            
             // Test zero length
             let result = raw_f64_slice_to_vec(ptr, 0);
             assert!(result.is_none());
         }
     }
-
+    
     #[test]
     fn test_autorelease_pool() {
         // Simple test to ensure the function works
         let value = autorelease_pool(|| 42);
         assert_eq!(value, 42);
-
+        
         // Test with a string
         let str_value = autorelease_pool(|| "test string".to_string());
         assert_eq!(str_value, "test string");
     }
-
+    
     #[test]
     fn test_objc_safe_exec() {
         // Test successful execution
         let result = objc_safe_exec(|| Ok::<_, Error>(42));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
-
+        
         // Test with an error
         let result = objc_safe_exec(|| Err::<i32, Error>(Error::system("test error")));
         assert!(result.is_err());
@@ -225,10 +250,10 @@ mod tests {
             Err(Error::System(msg)) => assert!(msg.contains("test error")),
             _ => panic!("Unexpected error type"),
         }
-
+        
         // We can't easily test the panic case without actually panicking
     }
-
+    
     #[test]
     fn test_get_name_null_device() {
         let result = get_name(std::ptr::null_mut());
@@ -238,7 +263,7 @@ mod tests {
             _ => panic!("Unexpected error type"),
         }
     }
-
+    
     #[test]
     fn test_property_accessor() {
         // Test the struct can be created

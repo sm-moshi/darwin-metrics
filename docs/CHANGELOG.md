@@ -9,7 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Unreleased - Added
 
-- None yet
+- Enhanced GPU hardware detection with specific Apple Silicon chip identification
+- Added comprehensive GPU characteristics struct with core count, clock speed, and raytracing capability
+- Added example program to demonstrate improved GPU hardware detection
+- Improved memory reporting for different GPU architectures
+- Added tests for GPU hardware detection
+- Implemented new Power module with component-level power consumption tracking
+- Created stable mock implementation for power monitoring to prevent segmentation faults
+- Added asynchronous power monitoring support with tokio tasks
+- Added new example programs: power_monitor.rs and power_monitor_async.rs
+
+### Fixed
+
+- Resolved critical segmentation fault in IOKit service acquisition
+- Improved memory safety in IOKit interface implementation
+- Added Default implementation for SMCKeyData_t to improve safety
+- Simplified power module implementation with mock data to ensure stability
+
+### Changed
+
+- Enhanced IOKit service handling to be more robust against segmentation faults
+- Simplified get_service implementation to avoid memory corruption
+- Added new SMC key constants for power monitoring
+- Modified IOKit trait to include read_smc_key method for safer SMC access
+
+## [0.2.0-dev] - 2025-03-10
+
+### Added
+
+- Created base for 0.2.x development branch
+- Enhanced async support throughout codebase
+- Improved Metal API integration for more reliable GPU monitoring
+
+### Changed
+
+- Refactored GPU module for better stability on Apple Silicon
+- Improved error handling in IOKit bindings
+- Enhanced memory management in Objective-C interfaces
 
 ## [0.1.5] - 2025-03-10
 

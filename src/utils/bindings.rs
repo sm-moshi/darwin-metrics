@@ -113,8 +113,7 @@ pub type MachPortT = u32;
 
 #[repr(C)]
 #[derive(Debug, Default)]
-#[allow(non_camel_case_types)]
-pub struct VmStatistics64 {
+pub struct vm_statistics64 {
     pub free_count: u32,
     pub active_count: u32,
     pub inactive_count: u32,
@@ -143,8 +142,7 @@ pub struct VmStatistics64 {
 
 #[repr(C)]
 #[derive(Debug, Default)]
-#[allow(non_camel_case_types)]
-pub struct XswUsage {
+pub struct xsw_usage {
     pub xsu_total: u64,
     pub xsu_used: u64,
     pub xsu_avail: u64,
@@ -224,20 +222,21 @@ pub const SMC_KEY_CPU_POWER: [c_char; 4] =
 pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] =
     [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char]; // CPU thermal throttling (PCTC)
 
+// Apple Silicon specific power keys (based on macmon and NeoAsitop)
 pub const SMC_KEY_PACKAGE_POWER: [c_char; 4] =
-    [b'P' as c_char, b'M' as c_char, b'P' as c_char, b'0' as c_char]; // Package power (PMP0)
+    [b'P' as c_char, b'M' as c_char, b'P' as c_char, b'0' as c_char]; // PMP0 - Package power (SoC)
 
 pub const SMC_KEY_GPU_POWER: [c_char; 4] =
-    [b'P' as c_char, b'G' as c_char, b'P' as c_char, b'G' as c_char]; // GPU power (PGPG)
+    [b'P' as c_char, b'G' as c_char, b'P' as c_char, b'G' as c_char]; // PGPG - GPU power
 
 pub const SMC_KEY_DRAM_POWER: [c_char; 4] =
-    [b'P' as c_char, b'D' as c_char, b'R' as c_char, b'P' as c_char]; // Memory power (PDRP)
+    [b'P' as c_char, b'D' as c_char, b'R' as c_char, b'P' as c_char]; // PDRP - DRAM/Memory power
 
 pub const SMC_KEY_NEURAL_POWER: [c_char; 4] =
-    [b'P' as c_char, b'N' as c_char, b'P' as c_char, b'0' as c_char]; // Neural Engine power (PNP0)
+    [b'P' as c_char, b'N' as c_char, b'P' as c_char, b'0' as c_char]; // PNP0 - Neural Engine power
 
 // SMC data structures
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct SMCVersion {
     pub major: u8,
@@ -247,67 +246,61 @@ pub struct SMCVersion {
     pub release: u16,
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 #[allow(non_snake_case)]
 pub struct SMCPLimitData {
     pub version: u16,
     pub length: u16,
-    pub cpuPLimit: u32,
-    pub gpuPLimit: u32,
-    pub memPLimit: u32,
+    pub cpu_plimit: u32,
+    pub gpu_plimit: u32,
+    pub mem_plimit: u32,
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
-#[allow(non_camel_case_types)]
-pub struct SmcKeyDataVersT {
+pub struct SMCKeyData_vers_t {
     pub version: SMCVersion,
     pub reserved: [u8; 16],
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
-#[allow(non_camel_case_types)]
-pub struct SmcKeyDataPLimitDataT {
+pub struct SMCKeyData_pLimitData_t {
     pub p_limit_data: SMCPLimitData,
     pub reserved: [u8; 10],
 }
 
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
-#[allow(non_camel_case_types)]
-pub struct SmcKeyDataKeyInfoT {
-    #[allow(non_snake_case)]
+pub struct SMCKeyData_keyInfo_t {
     pub data_size: u32,
     pub data_type: [u8; 4],
     pub data_attributes: u8,
 }
 
-#[repr(C)]
-#[allow(non_camel_case_types)]
-pub union SmcKeyDataTData {
+#[repr(C, packed)]
+pub union SMCKeyData_t_data {
     pub bytes: [u8; 32],
     pub uint32: u32,
     pub float: f32,
     pub sint16: i16,
-    pub vers: SmcKeyDataVersT,
-    pub p_limit: SmcKeyDataPLimitDataT,
-    pub key_info: SmcKeyDataKeyInfoT,
+    pub vers: SMCKeyData_vers_t,
+    pub p_limit: SMCKeyData_pLimitData_t,
+    pub key_info: SMCKeyData_keyInfo_t,
 }
 
 // Manual implementations for union
-impl Clone for SmcKeyDataTData {
+impl Clone for SMCKeyData_t_data {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl Copy for SmcKeyDataTData {}
+impl Copy for SMCKeyData_t_data {}
 
-#[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct SmcKeyDataT {
+#[repr(C, packed)]
+pub struct SMCKeyData_t {
     pub key: u32,
     pub vers: u8,
     pub p_limit_data: u8,
@@ -318,19 +311,39 @@ pub struct SmcKeyDataT {
     pub data8: u8,
     pub data32: u8,
     pub bytes: [u8; 2],
-    pub data: SmcKeyDataTData,
+    pub data: SMCKeyData_t_data,
 }
 
 // Manual implementations for struct containing union
-impl Clone for SmcKeyDataT {
+impl Clone for SMCKeyData_t {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl Copy for SmcKeyDataT {}
+impl Copy for SMCKeyData_t {}
 
-// IOKit function declarations - only for macOS
+impl Default for SMCKeyData_t {
+    fn default() -> Self {
+        unsafe {
+            Self {
+                key: 0,
+                vers: 0,
+                p_limit_data: 0,
+                key_info: 0,
+                padding: 0,
+                result: 0,
+                status: 0,
+                data8: 0,
+                data32: 0,
+                bytes: [0; 2],
+                data: std::mem::zeroed(),
+            }
+        }
+    }
+}
+
+// IOKit function declarations
 #[link(name = "IOKit", kind = "framework")]
 extern "C" {
     // IOService functions
@@ -349,9 +362,9 @@ extern "C" {
     pub fn IOConnectCallStructMethod(
         connection: u32,
         selector: u32,
-        inputStruct: *const SmcKeyDataT,
+        inputStruct: *const SMCKeyData_t,
         inputStructCnt: IOByteCount,
-        outputStruct: *mut SmcKeyDataT,
+        outputStruct: *mut SMCKeyData_t,
         outputStructCnt: *mut IOByteCount,
     ) -> i32;
 }
@@ -406,21 +419,6 @@ extern "C" {
 
     /// Get statistics about all mounted filesystems
     pub fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
-}
-
-//------------------------------------------------------------------------------
-// CoreFoundation Framework Bindings
-//------------------------------------------------------------------------------
-
-#[link(name = "CoreFoundation", kind = "framework")]
-extern "C" {
-    /// Retains a CoreFoundation object
-    /// Increments the retain count of a CF object
-    pub fn CFRetain(cf: *const ffi_c_void) -> *const ffi_c_void;
-    
-    /// Releases a CoreFoundation object
-    /// Decrements the retain count of a CF object
-    pub fn CFRelease(cf: *const ffi_c_void);
 }
 
 //------------------------------------------------------------------------------
@@ -486,61 +484,54 @@ pub mod if_flags {
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct Ifaddrs {
-    pub ifa_next: *mut Ifaddrs,
+pub struct ifaddrs {
+    pub ifa_next: *mut ifaddrs,
     pub ifa_name: *mut c_char,
     pub ifa_flags: u32,
-    pub ifa_addr: *mut Sockaddr,
-    pub ifa_netmask: *mut Sockaddr,
-    pub ifa_dstaddr: *mut Sockaddr,
+    pub ifa_addr: *mut sockaddr,
+    pub ifa_netmask: *mut sockaddr,
+    pub ifa_dstaddr: *mut sockaddr,
     pub ifa_data: *mut c_void,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct Sockaddr {
+pub struct sockaddr {
     pub sa_len: u8,
     pub sa_family: u8,
     pub sa_data: [c_char; 14],
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct SockaddrIn {
+pub struct sockaddr_in {
     pub sin_len: u8,
     pub sin_family: u8,
     pub sin_port: u16,
-    pub sin_addr: InAddr,
+    pub sin_addr: in_addr,
     pub sin_zero: [c_char; 8],
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct InAddr {
+pub struct in_addr {
     pub s_addr: u32,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct SockaddrIn6 {
+pub struct sockaddr_in6 {
     pub sin6_len: u8,
     pub sin6_family: u8,
     pub sin6_port: u16,
     pub sin6_flowinfo: u32,
-    pub sin6_addr: In6Addr,
+    pub sin6_addr: in6_addr,
     pub sin6_scope_id: u32,
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct In6Addr {
+pub struct in6_addr {
     pub s6_addr: [u8; 16],
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct SockaddrDl {
+pub struct sockaddr_dl {
     pub sdl_len: u8,
     pub sdl_family: u8,
     pub sdl_index: u16,
@@ -552,8 +543,7 @@ pub struct SockaddrDl {
 }
 
 #[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct IfData {
+pub struct if_data {
     pub ifi_type: u8,
     pub ifi_physical: u8,
     pub ifi_addrlen: u8,
@@ -582,8 +572,8 @@ pub struct IfData {
 
 #[link(name = "System", kind = "framework")]
 extern "C" {
-    pub fn getifaddrs(ifap: *mut *mut Ifaddrs) -> c_int;
-    pub fn freeifaddrs(ifp: *mut Ifaddrs) -> c_void;
+    pub fn getifaddrs(ifap: *mut *mut ifaddrs) -> c_int;
+    pub fn freeifaddrs(ifp: *mut ifaddrs) -> c_void;
 
     // sysctl functions for network statistics
     pub fn sysctlbyname(
@@ -631,42 +621,6 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
     result
 }
 
-//------------------------------------------------------------------------------
-// Type aliases for backward compatibility
-//------------------------------------------------------------------------------
-
-// These aliases maintain backward compatibility with code that uses the old struct names
-#[allow(non_camel_case_types)]
-pub type vm_statistics64 = VmStatistics64;
-#[allow(non_camel_case_types)]
-pub type xsw_usage = XswUsage;
-#[allow(non_camel_case_types)]
-pub type SMCKeyData_vers_t = SmcKeyDataVersT;
-#[allow(non_camel_case_types)]
-pub type SMCKeyData_pLimitData_t = SmcKeyDataPLimitDataT;
-#[allow(non_camel_case_types)]
-pub type SMCKeyData_keyInfo_t = SmcKeyDataKeyInfoT;
-#[allow(non_camel_case_types)]
-pub type SMCKeyData_t_data = SmcKeyDataTData;
-#[allow(non_camel_case_types)]
-pub type SMCKeyData_t = SmcKeyDataT;
-#[allow(non_camel_case_types)]
-pub type ifaddrs = Ifaddrs;
-#[allow(non_camel_case_types)]
-pub type sockaddr = Sockaddr;
-#[allow(non_camel_case_types)]
-pub type sockaddr_in = SockaddrIn;
-#[allow(non_camel_case_types)]
-pub type in_addr = InAddr;
-#[allow(non_camel_case_types)]
-pub type sockaddr_in6 = SockaddrIn6;
-#[allow(non_camel_case_types)]
-pub type in6_addr = In6Addr;
-#[allow(non_camel_case_types)]
-pub type sockaddr_dl = SockaddrDl;
-#[allow(non_camel_case_types)]
-pub type if_data = IfData;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -675,9 +629,17 @@ mod tests {
     fn test_extract_proc_name() {
         // Create a kinfo_proc structure with a process name
         let mut proc_info = kinfo_proc {
-            kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
+            kp_proc: proc_info {
+                p_flag: 0,
+                p_pid: 123,
+                p_ppid: 1,
+                p_stat: 0,
+            },
             kp_eproc: extern_proc {
-                p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
+                p_starttime: timeval {
+                    tv_sec: 0,
+                    tv_usec: 0,
+                },
                 p_comm: [0; 16],
             },
         };
@@ -716,7 +678,7 @@ mod tests {
         let result = smc_key_from_chars(key);
 
         // Calculate the expected value: ('T' << 24) | ('C' << 16) | ('0' << 8) | 'P'
-        let expected =
+        let expected = 
             (b'T' as u32) << 24 | (b'C' as u32) << 16 | (b'0' as u32) << 8 | (b'P' as u32);
 
         assert_eq!(result, expected);

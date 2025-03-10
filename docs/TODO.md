@@ -2,14 +2,13 @@
 
 ---
 
-## **HIGH PRIORITY: Documentation and Release Management**
+## **HIGH PRIORITY: Pre-Release Checklist for 0.1.0**
 
-> **IMPORTANT**: These items are for ongoing releases and documentation updates
+> **IMPORTANT**: These items MUST be completed before releasing to crates.io
 
 - [x] **Version Consistency**
   - [x] Update version in Cargo.toml from "0.0.1" to "0.1.0" to match README
   - [x] Ensure consistent versioning across all documentation
-  - [x] Keep html_root_url in lib.rs in sync with Cargo.toml version
 
 - [x] **Feature Completion**
   - [x] Complete the Disk module (marked as "Complete" in CLAUDE.md)
@@ -23,31 +22,25 @@
   - [x] Add comprehensive documentation for the memory module
   - [x] Ensure examples use the correct function signatures and have timeout limits
   - [x] Verify API examples match actual code behavior
-  - [x] Fix docs.rs compatibility issues for macOS-specific crate
 
 - [x] **Testing Issues**
   - [x] Fix disabled GPU tests causing SIGSEGV crashes
   - [x] Resolve memory safety issues in IOKit interfaces
   - [x] Replace simulated data with real hardware access in tests
   - [x] Ensure all modules have basic test coverage
-  - [x] Fix memory leaks in IOKit implementation using autoreleasepools and proper CFRetain/CFRelease
 
 - [x] **CI/CD Setup**
   - [x] Create GitHub Actions workflow files
   - [x] Set up proper CI pipeline referenced in README badge
   - [x] Implement automated testing and release process
-  - [x] Standardize toolchain usage (beta for linting, stable for building)
-  - [x] Fix GitHub workflow compatibility issues
 
-- [x] **Critical Bugs**
+- [ ] **Critical Bugs**
   - [x] Fix memory management issues with IOKit calls
   - [x] Implement real system API calls instead of simulations
-  - [x] Fix remaining clippy warnings about non-snake case fields in bindings.rs
-  - [x] Fix test module imports and organization issues
-  - [x] Fix CoreFoundation memory management in IOKit interface using proper CFRetain/CFRelease
+  - [ ] Fix remaining clippy warnings about non-snake case fields (Optional - can be addressed post-release)
 
-- [x] **Release Management**
-  - [x] Update the changelog for each release
+- [x] **Final Steps**
+  - [x] Update the changelog for 0.1.0 release
   - [x] Move items from "Unreleased" to the proper version
   - [x] Set up crates.io metadata and verify package information
 
@@ -82,7 +75,7 @@
   - [x] Add proper CPU usage calculation with history tracking.
   - [x] Add thread count and process state tracking.
   - [x] Implement graceful fallbacks for permission issues.
-  - [x] Add additional memory usage metrics (virtual memory, swapped memory) - Added SwapUsage with detection and monitoring.
+  - [ ] Add additional memory usage metrics (virtual memory, swapped memory) - future enhancement.
   - [ ] Add process environment variable retrieval - future enhancement.
   - [ ] Implement command-line arguments retrieval - future enhancement.
 
@@ -150,14 +143,14 @@
 
 - [x] **GPU Performance Metrics**
 
-- [x] Track GPU utilization over time to monitor workload distribution.
-- [x] Measure GPU memory consumption and optimize reporting.
-- [x] Implement enhanced GPU hardware detection with Apple Silicon chip identification
-- [x] Add detailed GPU characteristics (core count, clock speed, architecture)
-- [x] Create comprehensive example program for GPU hardware information
-- [x] Add tests for GPU hardware detection (currently 64.66% coverage)
-- [ ] Investigate IOGraphicsLib.h for better GPU metrics access (<https://developer.apple.com/documentation/iokit/iographicslib_h> for reference)
-- [ ] Add support for multiple GPUs (planned post-1.0.0)
+  - [x] Track GPU utilization over time to monitor workload distribution.
+  - [x] Measure GPU memory consumption and optimize reporting.
+  - [x] Implement enhanced GPU hardware detection with Apple Silicon chip identification
+  - [x] Add detailed GPU characteristics (core count, clock speed, architecture)
+  - [x] Create comprehensive example program for GPU hardware information
+  - [x] Add tests for GPU hardware detection (currently 64.66% coverage)
+  - [ ] Investigate IOGraphicsLib.h for better GPU metrics access (<https://developer.apple.com/documentation/iokit/iographicslib_h> for reference)
+  - [ ] Add support for multiple GPUs (planned post-1.0.0)
 
 - [~] **Advanced Process Monitoring**
 
@@ -187,8 +180,7 @@
 
 - [~] **Testing & Stability**
   - [x] Add tests for power module with mock implementation (96.98% coverage)
-  - [x] Improve coverage for hardware/iokit module (improved from 16.67% to 22.18%)
-  - [x] Reorganized tests into dedicated files to keep implementation files clean
+  - [~] Improve coverage for hardware/iokit module (currently 16.67%)
   - [ ] Expand test coverage for other system metrics, ensuring accuracy in collected data.
   - [~] Improve async testing to validate non-blocking behavior.
 
@@ -199,9 +191,12 @@
 **Goal:** Optimize for performance and introduce advanced tracking.
 
 - [ ] **Optimize CPU and memory metrics for lower overhead**
-- [ ] **Hardware Monitoring**
+- [x] **Hardware Monitoring**
   - [ ] Implement fan control features for supported macOS devices.
-  - [ ] Improve power management insights by tracking energy consumption.
+  - [x] Improve power management insights by tracking energy consumption.
+  - [x] Implement component-level power tracking (CPU, GPU, memory, etc).
+  - [x] Add asynchronous power monitoring support with tokio tasks
+  - [x] Create example programs for power monitoring (synchronous and asynchronous)
 - [ ] **Performance Optimizations**
 
   - [ ] Reduce memory footprint by optimizing data structures.
@@ -245,7 +240,7 @@
 **Goal:** Prepare for stable, production-ready release.
 
 - [ ] **Ensure CPU and memory modules are feature-complete**
-- [ ] **Full Documentation & Examples**
+- [x] **Full Documentation & Examples**
 
   - [x] Complete API documentation for all modules.
   - [x] Provide real-world usage examples for developers.
