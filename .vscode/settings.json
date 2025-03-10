@@ -6,7 +6,10 @@
     "use_field_init_shorthand = true"
   ],
   "rust-analyzer.checkOnSave.command": "clippy",
-  "rust-analyzer.checkOnSave.extraArgs": ["--workspace", "--all-targets"],
+  "rust-analyzer.checkOnSave.extraArgs": [
+    "--workspace",
+    "--all-targets"
+  ],
   "rust-analyzer.cargo.features": "all",
   "rust-analyzer.procMacro.enable": true,
   "rust-analyzer.inlayHints.typeHints.enable": true,
@@ -26,12 +29,16 @@
     "editor.formatOnSave": true,
     "editor.formatOnPaste": true,
     "editor.tabSize": 4,
-    "editor.rulers": [100]
+    "editor.rulers": [
+      100
+    ]
   },
 
   // Testing
   "rust-analyzer.cargo.buildScripts.enable": true,
-  "coverage-gutters.coverageFileNames": ["coverage/lcov.info"],
+  "coverage-gutters.coverageFileNames": [
+    "coverage/lcov.info"
+  ],
   "coverage-gutters.showGutterCoverage": true,
   "coverage-gutters.showLineCoverage": true,
 

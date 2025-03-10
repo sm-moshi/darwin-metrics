@@ -29,9 +29,9 @@ use crate::{
 // Only import these when not in coverage mode
 #[cfg(not(feature = "skip-ffi-crashes"))]
 use crate::utils::bindings::{
-    smc_key_from_chars, IOByteCount, IOConnectCallStructMethod, IOServiceClose, IOServiceOpen,
-    IOServiceGetMatchingService,
-    SMCKeyData_t, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES, SMC_CMD_READ_KEYINFO,
+    smc_key_from_chars, IOByteCount, IOConnectCallStructMethod, IOServiceClose,
+    IOServiceGetMatchingService, IOServiceOpen, SMCKeyData_t, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES,
+    SMC_CMD_READ_KEYINFO,
 };
 
 /// GPU statistics retrieved from IOKit's AGPMController
@@ -517,9 +517,11 @@ impl IOKit for IOKitImpl {
         }
     }
 
-    fn get_bool_property(&self, dict: &NSDictionary<NSString, NSObject>, key: &str)
-        -> Option<bool>
-    {
+    fn get_bool_property(
+        &self,
+        dict: &NSDictionary<NSString, NSObject>,
+        key: &str,
+    ) -> Option<bool> {
         let key = NSString::from_str(key);
         unsafe {
             dict.valueForKey(&key)
