@@ -30,13 +30,13 @@
 ///
 /// ```toml
 /// [dependencies]
-/// darwin-metrics = "0.1.2"
+/// darwin-metrics = "0.1.3"
 /// ```
 ///
 /// ## Requirements
 ///
-/// - macOS 10.11 (El Capitan) or later
-/// - Rust 1.75 or later
+/// - macOS 14.5 (Sonoma) or later
+/// - Rust 1.85 or later
 /// - Xcode Command Line Tools
 ///
 /// ## Quick Start
