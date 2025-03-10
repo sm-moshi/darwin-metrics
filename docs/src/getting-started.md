@@ -8,7 +8,7 @@ Add `darwin-metrics` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-darwin-metrics = "0.1.4"
+darwin-metrics = "0.1.4-1"
 ```
 
 ### Requirements
@@ -50,7 +50,7 @@ fn main() -> darwin_metrics::Result<()> {
 
 ```toml
 [dependencies]
-darwin-metrics = { version = "0.1.4", features = ["cpu", "memory"] }
+darwin-metrics = { version = "0.1.4-1", features = ["cpu", "memory"] }
 ```
 
 Available features include:

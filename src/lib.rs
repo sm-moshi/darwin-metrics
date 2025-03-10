@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.4")]
+#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.4-1")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // Explicitly configure for platform-specific code
 #![cfg_attr(not(target_os = "macos"), allow(unused_imports))]
@@ -30,12 +30,12 @@
 ///
 /// ```toml
 /// [dependencies]
-/// darwin-metrics = "0.1.3"
+/// darwin-metrics = "0.1.4-1"
 /// ```
 ///
 /// ## Requirements
 ///
-/// - macOS 14.5 (Sonoma) or later
+/// - macOS El Capitan (10.11) or later
 /// - Rust 1.85 or later
 /// - Xcode Command Line Tools
 ///
