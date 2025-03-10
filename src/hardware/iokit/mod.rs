@@ -61,6 +61,7 @@ pub struct ThermalInfo {
     pub cpu_power: Option<f64>, // in watts
 }
 
+#[cfg_attr(test, mockall::automock)]
 pub trait IOKit: Send + Sync + std::fmt::Debug {
     fn io_service_matching(&self, service_name: &str)
         -> Retained<NSDictionary<NSString, NSObject>>;
@@ -772,10 +773,11 @@ mod tests {
     #[test]
     fn test_get_cpu_temperature() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
 
         // Set up the expected behavior
-        mock_iokit.expect_get_cpu_temperature(Ok(45.5));
+        mock_iokit.expect_get_cpu_temperature()
+            .returning(|| Ok(45.5));
 
         // Call the method
         let result = mock_iokit.get_cpu_temperature().unwrap();
@@ -787,10 +789,11 @@ mod tests {
     #[test]
     fn test_get_gpu_temperature() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
 
         // Set up the expected behavior
-        mock_iokit.expect_get_gpu_temperature(Ok(55.0));
+        mock_iokit.expect_get_gpu_temperature()
+            .returning(|| Ok(55.0));
 
         // Call the method
         let result = mock_iokit.get_gpu_temperature().unwrap();
@@ -802,17 +805,18 @@ mod tests {
     #[test]
     fn test_get_gpu_stats() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
 
         // Set up the expected behavior
-        mock_iokit.expect_get_gpu_stats(Ok(GpuStats {
-            utilization: 50.0,
-            perf_cap: 50.0,
-            perf_threshold: 100.0,
-            memory_used: 1024 * 1024 * 1024,      // 1 GB
-            memory_total: 4 * 1024 * 1024 * 1024, // 4 GB
-            name: "Test GPU".to_string(),
-        }));
+        mock_iokit.expect_get_gpu_stats()
+            .returning(|| Ok(GpuStats {
+                utilization: 50.0,
+                perf_cap: 50.0,
+                perf_threshold: 100.0,
+                memory_used: 1024 * 1024 * 1024,      // 1 GB
+                memory_total: 4 * 1024 * 1024 * 1024, // 4 GB
+                name: "Test GPU".to_string(),
+            }));
 
         // Call the method
         let result = mock_iokit.get_gpu_stats().unwrap();
@@ -826,33 +830,44 @@ mod tests {
     #[test]
     fn test_io_service_matching() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Call the method directly - our simplified mock implementation doesn't use mockall
+        // Set up expectations
+        mock_iokit.expect_io_service_matching()
+            .returning(|_| create_test_dictionary());
+        
+        // Call the method
         let _result = mock_iokit.io_service_matching("TestService");
         
-        // We can't easily check the contents of the dictionary, but we can verify it returns something
-        assert!(true);
+        // Mock will verify the expectation was met
     }
     
     #[test]
     fn test_io_service_get_matching_service() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         let dict = create_test_dictionary();
+        
+        // Set up expectations
+        mock_iokit.expect_io_service_get_matching_service()
+            .returning(|_| None);
         
         // Call the method
         let result = mock_iokit.io_service_get_matching_service(&dict);
         
-        // In our updated implementation, we always return None for safety
+        // Verify the result
         assert!(result.is_none());
     }
     
     #[test]
     fn test_io_registry_entry_create_cf_properties() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         let obj = create_test_object();
+        
+        // Set up expectations
+        mock_iokit.expect_io_registry_entry_create_cf_properties()
+            .returning(|_| Ok(create_test_dictionary()));
         
         // Call the method
         let result = mock_iokit.io_registry_entry_create_cf_properties(&obj);
@@ -864,11 +879,12 @@ mod tests {
     #[test]
     fn test_get_string_property() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         let dict = create_test_dictionary();
         
-        // Set the expectation manually
-        mock_iokit.expect_get_string_property("TestKey", Some("TestValue".to_string()));
+        // Set up expectations
+        mock_iokit.expect_get_string_property()
+            .returning(|_, key| if key == "TestKey" { Some("TestValue".to_string()) } else { None });
         
         // Call the method
         let result = mock_iokit.get_string_property(&dict, "TestKey");
@@ -880,11 +896,12 @@ mod tests {
     #[test]
     fn test_get_number_property() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         let dict = create_test_dictionary();
         
-        // Set the expectation manually
-        mock_iokit.expect_get_number_property("TestKey", Some(42));
+        // Set up expectations
+        mock_iokit.expect_get_number_property()
+            .returning(|_, key| if key == "TestKey" { Some(42) } else { None });
         
         // Call the method
         let result = mock_iokit.get_number_property(&dict, "TestKey");
@@ -896,11 +913,12 @@ mod tests {
     #[test]
     fn test_get_bool_property() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         let dict = create_test_dictionary();
         
-        // Set the expectation manually
-        mock_iokit.expect_get_bool_property("TestKey", Some(true));
+        // Set up expectations
+        mock_iokit.expect_get_bool_property()
+            .returning(|_, key| if key == "TestKey" { Some(true) } else { None });
         
         // Call the method
         let result = mock_iokit.get_bool_property(&dict, "TestKey");
@@ -912,31 +930,36 @@ mod tests {
     #[test]
     fn test_get_dict_property() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         let dict = create_test_dictionary();
         
-        // Call the method - will return None in our updated implementation
+        // Set up expectation
+        mock_iokit.expect_get_dict_property()
+            .returning(|_, _| None);
+        
+        // Call the method
         let result = mock_iokit.get_dict_property(&dict, "TestKey");
         
-        // Our implementation now returns None for safety
+        // Verify the result
         assert!(result.is_none());
     }
     
     #[test]
     fn test_get_thermal_info() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_thermal_info(Ok(ThermalInfo {
-            cpu_temp: 45.0,
-            gpu_temp: 55.0,
-            heatsink_temp: Some(40.0),
-            ambient_temp: Some(25.0),
-            battery_temp: Some(35.0),
-            is_throttling: false,
-            cpu_power: Some(15.0),
-        }));
+        // Set up the expectation
+        mock_iokit.expect_get_thermal_info()
+            .returning(|| Ok(ThermalInfo {
+                cpu_temp: 45.0,
+                gpu_temp: 55.0,
+                heatsink_temp: Some(40.0),
+                ambient_temp: Some(25.0),
+                battery_temp: Some(35.0),
+                is_throttling: false,
+                cpu_power: Some(15.0),
+            }));
         
         // Call the method
         let result = mock_iokit.get_thermal_info().unwrap();
@@ -954,15 +977,17 @@ mod tests {
     #[test]
     fn test_get_fan_info() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_fan_info(0, Ok(FanInfo {
-            speed_rpm: 2000,
-            min_speed: 500,
-            max_speed: 5000,
-            percentage: 40.0,
-        }));
+        // Set up the expectation
+        mock_iokit.expect_get_fan_info()
+            .with(mockall::predicate::eq(0))
+            .returning(|_| Ok(FanInfo {
+                speed_rpm: 2000,
+                min_speed: 500,
+                max_speed: 5000,
+                percentage: 40.0,
+            }));
         
         // Call the method
         let result = mock_iokit.get_fan_info(0).unwrap();
@@ -977,22 +1002,30 @@ mod tests {
     #[test]
     fn test_io_registry_entry_get_parent() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         let obj = create_test_object();
         
-        // Call the method - our updated implementation always returns None
+        // Set up the expectation
+        mock_iokit.expect_io_registry_entry_get_parent()
+            .returning(|_| None);
+        
+        // Call the method
         let result = mock_iokit.io_registry_entry_get_parent(&obj);
         
-        // Our implementation now returns None for safety
+        // Verify the result
         assert!(result.is_none());
     }
     
     #[test]
     fn test_get_service() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Call the method - our implementation now returns a fixed result
+        // Set up the expectation
+        mock_iokit.expect_get_service()
+            .returning(|_| Ok(create_test_object()));
+        
+        // Call the method
         let result = mock_iokit.get_service("TestService");
         
         // Verify we got a successful result
@@ -1002,10 +1035,11 @@ mod tests {
     #[test]
     fn test_get_heatsink_temperature() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_heatsink_temperature(Ok(40.0));
+        // Set up the expectation
+        mock_iokit.expect_get_heatsink_temperature()
+            .returning(|| Ok(40.0));
         
         // Call the method
         let result = mock_iokit.get_heatsink_temperature().unwrap();
@@ -1017,10 +1051,11 @@ mod tests {
     #[test]
     fn test_get_ambient_temperature() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_ambient_temperature(Ok(25.0));
+        // Set up the expectation
+        mock_iokit.expect_get_ambient_temperature()
+            .returning(|| Ok(25.0));
         
         // Call the method
         let result = mock_iokit.get_ambient_temperature().unwrap();
@@ -1032,10 +1067,11 @@ mod tests {
     #[test]
     fn test_get_battery_temperature() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_battery_temperature(Ok(35.0));
+        // Set up the expectation
+        mock_iokit.expect_get_battery_temperature()
+            .returning(|| Ok(35.0));
         
         // Call the method
         let result = mock_iokit.get_battery_temperature().unwrap();
@@ -1047,10 +1083,11 @@ mod tests {
     #[test]
     fn test_get_cpu_power() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_cpu_power(Ok(15.0));
+        // Set up the expectation
+        mock_iokit.expect_get_cpu_power()
+            .returning(|| Ok(15.0));
         
         // Call the method
         let result = mock_iokit.get_cpu_power().unwrap();
@@ -1062,10 +1099,11 @@ mod tests {
     #[test]
     fn test_check_thermal_throttling() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_check_thermal_throttling(Ok(true));
+        // Set up the expectation
+        mock_iokit.expect_check_thermal_throttling()
+            .returning(|| Ok(true));
         
         // Call the method
         let result = mock_iokit.check_thermal_throttling().unwrap();
@@ -1077,11 +1115,13 @@ mod tests {
     #[test]
     fn test_read_smc_key() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         let key = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
         
-        // Set up the expectation manually
-        mock_iokit.expect_read_smc_key(key, Ok(42.0));
+        // Set up the expectation
+        mock_iokit.expect_read_smc_key()
+            .with(mockall::predicate::eq(key))
+            .returning(|_| Ok(42.0));
         
         // Call the method
         let result = mock_iokit.read_smc_key(key).unwrap();
@@ -1093,10 +1133,11 @@ mod tests {
     #[test]
     fn test_get_fan_count() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_fan_count(Ok(2));
+        // Set up the expectation
+        mock_iokit.expect_get_fan_count()
+            .returning(|| Ok(2));
         
         // Call the method
         let result = mock_iokit.get_fan_count().unwrap();
@@ -1108,10 +1149,11 @@ mod tests {
     #[test]
     fn test_get_fan_speed() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_fan_speed(Ok(2000));
+        // Set up the expectation
+        mock_iokit.expect_get_fan_speed()
+            .returning(|| Ok(2000));
         
         // Call the method
         let result = mock_iokit.get_fan_speed().unwrap();
@@ -1123,23 +1165,24 @@ mod tests {
     #[test]
     fn test_get_all_fans() {
         // Create a mock IOKit implementation
-        let mock_iokit = MockIOKit::new();
+        let mut mock_iokit = MockIOKit::new();
         
-        // Set up the expectation manually
-        mock_iokit.expect_get_all_fans(Ok(vec![
-            FanInfo {
-                speed_rpm: 2000,
-                min_speed: 500,
-                max_speed: 5000,
-                percentage: 40.0,
-            },
-            FanInfo {
-                speed_rpm: 1800,
-                min_speed: 400,
-                max_speed: 4500,
-                percentage: 35.0,
-            },
-        ]));
+        // Set up the expectation
+        mock_iokit.expect_get_all_fans()
+            .returning(|| Ok(vec![
+                FanInfo {
+                    speed_rpm: 2000,
+                    min_speed: 500,
+                    max_speed: 5000,
+                    percentage: 40.0,
+                },
+                FanInfo {
+                    speed_rpm: 1800,
+                    min_speed: 400,
+                    max_speed: 4500,
+                    percentage: 35.0,
+                },
+            ]));
         
         // Call the method
         let result = mock_iokit.get_all_fans().unwrap();

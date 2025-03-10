@@ -352,10 +352,17 @@ mod tests {
     // Create a CPU instance for testing with mock data
     impl CPU {
         pub fn new_with_mock() -> Result<Self> {
-            let mock = MockIOKit::new();
+            let mut mock = MockIOKit::new();
 
             // Setup mock behavior
-            mock.expect_get_cpu_temperature(Ok(45.5));
+            mock.expect_get_cpu_temperature()
+                .returning(|| Ok(45.5));
+                
+            mock.expect_get_service()
+                .returning(|_| {
+                    use crate::utils::test_utils;
+                    Ok(test_utils::create_test_object())
+                });
 
             let cpu = Self {
                 physical_cores: 8,
