@@ -77,6 +77,7 @@ pub struct extern_proc {
 /// Time value structure used in BSD APIs
 #[allow(non_camel_case_types)]
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct timeval {
     pub tv_sec: i64,
     pub tv_usec: i32,
@@ -542,36 +543,87 @@ pub struct sockaddr_dl {
     pub sdl_data: [c_char; 12],
 }
 
+/// Network interface data structure (from net/if_var.h)
+/// This structure contains all the traffic statistics and interface properties
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct if_data {
-    pub ifi_type: u8,
-    pub ifi_physical: u8,
-    pub ifi_addrlen: u8,
-    pub ifi_hdrlen: u8,
-    pub ifi_recvquota: u8,
-    pub ifi_xmitquota: u8,
-    pub ifi_unused1: u8,
-    pub ifi_mtu: u32,
-    pub ifi_metric: u32,
-    pub ifi_baudrate: u32,
-    pub ifi_ipackets: u32,
-    pub ifi_ierrors: u32,
-    pub ifi_opackets: u32,
-    pub ifi_oerrors: u32,
-    pub ifi_collisions: u32,
-    pub ifi_ibytes: u32,
-    pub ifi_obytes: u32,
-    pub ifi_imcasts: u32,
-    pub ifi_omcasts: u32,
-    pub ifi_iqdrops: u32,
-    pub ifi_noproto: u32,
-    pub ifi_recvtiming: u32,
-    pub ifi_xmittiming: u32,
-    pub ifi_lastchange: timeval,
+    pub ifi_type: u8,          // Type of interface (ethernet, loopback, etc.)
+    pub ifi_physical: u8,      // Physical port/connector type
+    pub ifi_addrlen: u8,       // Media address length
+    pub ifi_hdrlen: u8,        // Media header length
+    pub ifi_recvquota: u8,     // Receive quota (obsolete)
+    pub ifi_xmitquota: u8,     // Transmit quota (obsolete)
+    pub ifi_unused1: u8,       // Unused padding
+    pub ifi_mtu: u32,          // Maximum transmission unit
+    pub ifi_metric: u32,       // Routing metric
+    pub ifi_baudrate: u32,     // Linespeed
+    pub ifi_ipackets: u32,     // Packets received on interface
+    pub ifi_ierrors: u32,      // Input errors on interface
+    pub ifi_opackets: u32,     // Packets sent on interface
+    pub ifi_oerrors: u32,      // Output errors on interface
+    pub ifi_collisions: u32,   // Collisions on csma interfaces
+    pub ifi_ibytes: u32,       // Total number of bytes received
+    pub ifi_obytes: u32,       // Total number of bytes sent
+    pub ifi_imcasts: u32,      // Multicast packets received
+    pub ifi_omcasts: u32,      // Multicast packets sent
+    pub ifi_iqdrops: u32,      // Dropped on input, this interface
+    pub ifi_noproto: u32,      // Destined for unsupported protocol
+    pub ifi_recvtiming: u32,   // Receive timing offset (usec)
+    pub ifi_xmittiming: u32,   // Transmit timing offset (usec)
+    pub ifi_lastchange: timeval, // Time of last change
 }
 
+/// 64-bit version of if_data, available since macOS 10.8
+/// This allows for tracking traffic stats beyond 4GB on modern interfaces
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct if_data64 {
+    pub ifi_type: u8,          // Type of interface (ethernet, loopback, etc.)
+    pub ifi_physical: u8,      // Physical port/connector type
+    pub ifi_addrlen: u8,       // Media address length
+    pub ifi_hdrlen: u8,        // Media header length
+    pub ifi_recvquota: u8,     // Receive quota (obsolete) 
+    pub ifi_xmitquota: u8,     // Transmit quota (obsolete)
+    pub ifi_unused1: u8,       // Unused padding
+    pub ifi_mtu: u32,          // Maximum transmission unit
+    pub ifi_metric: u32,       // Routing metric
+    pub ifi_baudrate: u64,     // Linespeed (64-bit)
+    pub ifi_ipackets: u64,     // Packets received on interface (64-bit)
+    pub ifi_ierrors: u64,      // Input errors on interface (64-bit)
+    pub ifi_opackets: u64,     // Packets sent on interface (64-bit)
+    pub ifi_oerrors: u64,      // Output errors on interface (64-bit)
+    pub ifi_collisions: u64,   // Collisions on csma interfaces (64-bit)
+    pub ifi_ibytes: u64,       // Total number of bytes received (64-bit)
+    pub ifi_obytes: u64,       // Total number of bytes sent (64-bit)
+    pub ifi_imcasts: u64,      // Multicast packets received (64-bit)
+    pub ifi_omcasts: u64,      // Multicast packets sent (64-bit)
+    pub ifi_iqdrops: u64,      // Dropped on input, this interface (64-bit)
+    pub ifi_noproto: u64,      // Destined for unsupported protocol (64-bit)
+    pub ifi_recvtiming: u32,   // Receive timing offset (usec)
+    pub ifi_xmittiming: u32,   // Transmit timing offset (usec)
+    pub ifi_lastchange: timeval, // Time of last change
+}
+
+// Network Reachability flags for SCNetworkReachabilityGetFlags
+// These match Apple's constants, so we keep the naming convention
+#[allow(non_upper_case_globals)]
+pub mod reachability_flags {
+    pub const kSCNetworkReachabilityFlagsTransientConnection: u32 = 1 << 0;
+    pub const kSCNetworkReachabilityFlagsReachable: u32 = 1 << 1;
+    pub const kSCNetworkReachabilityFlagsConnectionRequired: u32 = 1 << 2;
+    pub const kSCNetworkReachabilityFlagsConnectionOnTraffic: u32 = 1 << 3;
+    pub const kSCNetworkReachabilityFlagsInterventionRequired: u32 = 1 << 4;
+    pub const kSCNetworkReachabilityFlagsConnectionOnDemand: u32 = 1 << 5;
+    pub const kSCNetworkReachabilityFlagsIsLocalAddress: u32 = 1 << 16;
+    pub const kSCNetworkReachabilityFlagsIsDirect: u32 = 1 << 17;
+    pub const kSCNetworkReachabilityFlagsIsWWAN: u32 = 1 << 18;
+}
+
+// System native network API bindings
 #[link(name = "System", kind = "framework")]
 extern "C" {
+    // Interface enumeration APIs
     pub fn getifaddrs(ifap: *mut *mut ifaddrs) -> c_int;
     pub fn freeifaddrs(ifp: *mut ifaddrs) -> c_void;
 
@@ -590,6 +642,37 @@ extern "C" {
         plane: *const c_char,
         parent: *mut c_uint,
     ) -> i32;
+}
+
+// SystemConfiguration framework bindings for network interface monitoring
+#[link(name = "SystemConfiguration", kind = "framework")]
+extern "C" {
+    // Dynamic store functions for network configuration
+    pub fn SCDynamicStoreCreate(
+        allocator: *mut ffi_c_void,
+        name: *const ffi_c_void,
+        callout: *mut ffi_c_void,
+        context: *mut ffi_c_void,
+    ) -> *mut ffi_c_void;
+
+    pub fn SCDynamicStoreCopyValue(
+        store: *mut ffi_c_void,
+        key: *const ffi_c_void,
+        value: *mut *mut ffi_c_void,
+    ) -> *mut ffi_c_void;
+    
+    // Network reachability functions
+    pub fn SCNetworkReachabilityCreateWithAddress(
+        allocator: *mut ffi_c_void,
+        address: *const sockaddr,
+    ) -> *mut ffi_c_void;
+
+    pub fn SCNetworkReachabilityGetFlags(
+        target: *mut ffi_c_void,
+        flags: *mut u32,
+    ) -> bool;
+    
+    pub fn CFRelease(cf: *mut ffi_c_void);
 }
 
 //------------------------------------------------------------------------------
@@ -626,6 +709,65 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
         result = (result << 8) | (k as u8 as u32);
     }
     result
+}
+
+/// Get network interface statistics using sysctlbyname
+/// 
+/// This function retrieves the 64-bit network statistics for a given interface
+/// using the sysctlbyname API, which provides direct access to kernel variables.
+/// 
+/// # Arguments
+/// 
+/// * `interface_name` - The name of the network interface (e.g., "en0", "lo0")
+/// 
+/// # Returns
+/// 
+/// On success, returns the interface data containing traffic statistics.
+/// On failure, returns an error describing what went wrong.
+/// 
+/// # Example
+/// 
+/// ```no_run
+/// use darwin_metrics::utils::bindings;
+/// 
+/// let stats = bindings::get_network_stats_native("en0").unwrap();
+/// println!("Bytes received: {}", stats.ifi_ibytes);
+/// println!("Bytes sent: {}", stats.ifi_obytes);
+/// ```
+pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if_data64> {
+    use std::{ffi::CString, mem, ptr};
+    use crate::error::Error;
+    
+    // Format the sysctlbyname key
+    let sysctl_key = format!("net.link.generic.system.ifdata.{}", interface_name);
+    let c_sysctl_key = CString::new(sysctl_key).map_err(|_| {
+        Error::Network(format!("Failed to create sysctlbyname key for interface '{}'", interface_name))
+    })?;
+    
+    // Initialize output variables
+    let mut if_data_64: if_data64 = unsafe { mem::zeroed() };
+    let mut size = mem::size_of::<if_data64>();
+    
+    // Call sysctlbyname
+    let result = unsafe {
+        sysctlbyname(
+            c_sysctl_key.as_ptr(),
+            &mut if_data_64 as *mut _ as *mut c_void,
+            &mut size,
+            ptr::null(),
+            0,
+        )
+    };
+    
+    if result != 0 {
+        return Err(Error::Network(format!(
+            "Failed to get network stats for interface '{}': errno={}", 
+            interface_name, 
+            std::io::Error::last_os_error()
+        )));
+    }
+    
+    Ok(if_data_64)
 }
 
 #[cfg(test)]

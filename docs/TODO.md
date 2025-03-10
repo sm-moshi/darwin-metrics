@@ -173,8 +173,14 @@
   - [x] Add connection state tracking to detect when network interfaces go up or down.
   - [x] Add async versions of network monitoring functions
   - [x] Implement NetworkManager::update_async() using tokio::spawn_blocking for I/O
-  - [ ] Add DNS resolution capabilities for hostnames and IP addresses.
-  - [ ] Implement per-application network usage tracking (future enhancement).
+  - [x] Replace netstat with native sysctlbyname implementation
+  - [x] Add 64-bit counter support for high-bandwidth interfaces
+  - [x] Implement automatic fallback mechanism for reliability
+  - [x] Create comprehensive documentation for native implementation
+  - [ ] Implement connection-level monitoring with TCP/UDP connection tracking
+  - [ ] Add DNS resolution capabilities for hostnames and IP addresses
+  - [ ] Implement per-application network usage tracking using Network.framework
+  - [ ] Add event-driven hooks for network state changes
   - [ ] Improve test coverage for network/interface (currently 21.46%)
   - [ ] Improve test coverage for network/traffic (currently 52.63%)
 

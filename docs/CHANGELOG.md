@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created stable mock implementation for power monitoring to prevent segmentation faults
 - Added asynchronous power monitoring support with tokio tasks
 - Added new example programs: power_monitor.rs and power_monitor_async.rs
+- Enhanced network module with native API implementation for traffic statistics
+- Added network_monitor.rs example to demonstrate native traffic monitoring capabilities
+- Implemented 64-bit network counters to handle high-bandwidth interfaces
+- Added a fallback mechanism to maintain compatibility with all macOS versions
 
 ### Fixed
 
@@ -25,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved memory safety in IOKit interface implementation
 - Added Default implementation for SMCKeyData_t to improve safety
 - Simplified power module implementation with mock data to ensure stability
+- Fixed network module to use native sysctlbyname API instead of command-line utilities
+- Improved reliability of network traffic statistics with proper error handling
+- Added comprehensive tests for network module native implementation
 
 ### Changed
 
@@ -32,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified get_service implementation to avoid memory corruption
 - Added new SMC key constants for power monitoring
 - Modified IOKit trait to include read_smc_key method for safer SMC access
+- Refactored network module to use native macOS APIs wherever possible
+- Added SystemConfiguration framework bindings for network interface capabilities
+- Updated network documentation to reflect native implementation approach
+- Implemented a dual-approach system for network statistics with automatic fallback
 
 ## [0.2.0-dev] - 2025-03-10
 
