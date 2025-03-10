@@ -103,7 +103,7 @@ extern "C" {
 #[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 mod sysctl_stubs {
     use std::os::raw::{c_int, c_uint, c_void};
-    
+
     pub unsafe fn sysctl(
         _name: *const c_int,
         _namelen: c_uint,
@@ -196,9 +196,9 @@ extern "C" {
 #[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 mod mach_stubs {
     use super::{HostInfoT, MachPortT};
-    
+
     pub static vm_kernel_page_size: u32 = 4096; // Default page size for documentation
-    
+
     // These functions are never actually called on docs.rs
     // but are needed for compilation
     pub unsafe fn host_statistics64(
@@ -209,7 +209,7 @@ mod mach_stubs {
     ) -> i32 {
         -1 // Error code for documentation purposes
     }
-    
+
     pub unsafe fn mach_host_self() -> MachPortT {
         0 // Stub MachPortT value
     }
@@ -414,25 +414,33 @@ extern "C" {
 // Stub declarations for docs.rs and non-macOS
 #[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 mod iokit_stubs {
-    use super::{IOByteCount, SmcKeyDataT, ffi_c_void, c_char, c_void};
-    
+    use super::{c_char, c_void, ffi_c_void, IOByteCount, SmcKeyDataT};
+
     // IOService functions (stubs)
-    pub unsafe fn IOServiceGetMatchingService(_masterPort: u32, _matchingDict: *const ffi_c_void) -> u32 {
+    pub unsafe fn IOServiceGetMatchingService(
+        _masterPort: u32,
+        _matchingDict: *const ffi_c_void,
+    ) -> u32 {
         0
     }
-    
+
     pub unsafe fn IOServiceMatching(_serviceName: *const c_char) -> *mut ffi_c_void {
         std::ptr::null_mut()
     }
-    
-    pub unsafe fn IOServiceOpen(_service: u32, _owningTask: u32, _type: u32, _handle: *mut u32) -> i32 {
+
+    pub unsafe fn IOServiceOpen(
+        _service: u32,
+        _owningTask: u32,
+        _type: u32,
+        _handle: *mut u32,
+    ) -> i32 {
         -1
     }
-    
+
     pub unsafe fn IOServiceClose(_handle: u32) -> i32 {
         -1
     }
-    
+
     pub unsafe fn IORegistryEntryCreateCFProperties(
         _entry: u32,
         _properties: *mut *mut ffi_c_void,
@@ -441,7 +449,7 @@ mod iokit_stubs {
     ) -> i32 {
         -1
     }
-    
+
     // SMC specific functions (stubs)
     pub unsafe fn IOConnectCallStructMethod(
         _connection: u32,
@@ -513,13 +521,13 @@ extern "C" {
 
 #[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 mod fs_stubs {
-    use std::os::raw::{c_int, c_char};
     use super::Statfs;
-    
+    use std::os::raw::{c_char, c_int};
+
     pub unsafe fn statfs(_path: *const c_char, _buf: *mut Statfs) -> c_int {
         -1
     }
-    
+
     pub unsafe fn getfsstat(_buf: *mut Statfs, _bufsize: c_int, _flags: c_int) -> c_int {
         -1
     }
@@ -546,7 +554,7 @@ extern "C" {
 #[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 pub mod metal_stubs {
     use super::MTLDeviceRef;
-    
+
     /// Stub implementation for docs.rs
     pub unsafe fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef {
         std::ptr::null_mut()
@@ -581,11 +589,11 @@ extern "C" {
 #[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 mod process_stubs {
     use std::os::raw::{c_int, c_void};
-    
+
     pub unsafe fn getloadavg(_loads: *mut f64, _nelem: c_int) -> c_int {
         -1
     }
-    
+
     pub unsafe fn proc_pidinfo(
         _pid: c_int,
         _flavor: c_int,
@@ -740,15 +748,15 @@ extern "C" {
 
 #[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
 mod network_stubs {
-    use std::os::raw::{c_int, c_void, c_char};
     use super::Ifaddrs;
-    
+    use std::os::raw::{c_char, c_int, c_void};
+
     pub unsafe fn getifaddrs(_ifap: *mut *mut Ifaddrs) -> c_int {
         -1
     }
-    
+
     pub unsafe fn freeifaddrs(_ifp: *mut Ifaddrs) -> c_void {}
-    
+
     pub unsafe fn sysctlbyname(
         _name: *const c_char,
         _oldp: *mut c_void,
