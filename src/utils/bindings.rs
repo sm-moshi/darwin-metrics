@@ -707,8 +707,8 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
 
 /// Get network interface statistics using sysctlbyname
 ///
-/// This function retrieves the 64-bit network statistics for a given interface using the sysctlbyname API, which
-/// provides direct access to kernel variables.
+/// This function retrieves the 64-bit network statistics for a given interface
+/// using the sysctlbyname API, which provides direct access to kernel variables.
 ///
 /// # Arguments
 ///
@@ -716,8 +716,8 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
 ///
 /// # Returns
 ///
-/// On success, returns the interface data containing traffic statistics. On failure, returns an error describing what
-/// went wrong.
+/// On success, returns the interface data containing traffic statistics.
+/// On failure, returns an error describing what went wrong.
 ///
 /// # Example
 ///
