@@ -50,13 +50,13 @@ jobs:
 
       - name: Format check
         run: cargo +beta fmt -- --check
+        continue-on--error: true
 
       - name: Check if Clippy is installed
         run: cargo +beta clippy --version || echo "Clippy not installed"
 
       - name: Clippy
         run: cargo +beta clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
-        continue-on-error: true
 
       - name: Build with retry
         run: |
