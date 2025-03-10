@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None yet
 
+## [0.1.5] - 2025-03-10
+
+### 0.1.5 - Fixed
+
+- Fixed memory management in IOKit interfaces with proper CoreFoundation object handling
+- Replaced Objective-C retain message sending with CFRetain for CoreFoundation objects
+- Added autoreleasepool wrappers around memory-sensitive operations in IOKit module
+- Fixed get_string_property and io_service_get_matching_service methods with safer memory handling
+- Improved io_registry_entry_get_parent with autoreleasepool for consistent memory management
+- Added proper test safety features to skip crash-prone tests when using coverage tools
+
 ## [0.1.4] - 2025-03-10
 
 ### 0.1.4 - Fixed
@@ -189,6 +200,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error handling for FFI functions with explicit error messages
 
 ### TODO
+
+- Memory Management Improvements:
+
+  - Update remaining property utility functions (get_number_property, get_bool_property, get_dict_property)
+  - Ensure consistent use of CoreFoundation vs Objective-C memory management
+  - Add clear documentation about memory ownership in FFI code
+  - Improve drop() implementations to ensure proper cleanup of resources
+  - Implement safe Clone for all IOKit service objects
 
 - GPU Implementation Issues:
 

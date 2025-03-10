@@ -409,6 +409,21 @@ extern "C" {
 }
 
 //------------------------------------------------------------------------------
+// CoreFoundation Framework Bindings
+//------------------------------------------------------------------------------
+
+#[link(name = "CoreFoundation", kind = "framework")]
+extern "C" {
+    /// Retains a CoreFoundation object
+    /// Increments the retain count of a CF object
+    pub fn CFRetain(cf: *const ffi_c_void) -> *const ffi_c_void;
+    
+    /// Releases a CoreFoundation object
+    /// Decrements the retain count of a CF object
+    pub fn CFRelease(cf: *const ffi_c_void);
+}
+
+//------------------------------------------------------------------------------
 // Metal Framework Bindings for GPU Access
 //------------------------------------------------------------------------------
 

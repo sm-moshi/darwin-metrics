@@ -863,9 +863,15 @@ fn test_iokit_impl_debug() {
 
 // This test is disabled by default because it can cause segfaults in some
 // environments Only run it manually when debugging IOKit issues
-#[cfg(feature = "unstable-tests")]
+// Skip if we're running with the skip-ffi-crashes feature enabled
 #[test]
 fn test_real_gpu_stats() {
+    // Skip the test if the skip-ffi-crashes feature is enabled
+    if cfg!(feature = "skip-ffi-crashes") {
+        println!("Skipping test_real_gpu_stats in coverage mode");
+        return;
+    }
+
     // Wrap the entire test in an autoreleasepool to ensure proper memory cleanup
     autoreleasepool(|_| {
         let iokit = IOKitImpl;
