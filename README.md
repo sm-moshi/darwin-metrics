@@ -97,7 +97,7 @@ darwin-metrics = "0.2.0-alpha.1"  # Development version
 
 ### 🔧 Requirements
 
-- macOS 14.5 (Ventura) or later
+- macOS 10.11 (El Capitan) or later
 - Rust 1.85 or later
 - Xcode Command Line Tools
 

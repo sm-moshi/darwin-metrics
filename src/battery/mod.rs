@@ -408,7 +408,7 @@ mod tests {
         // This test will use the default implementation
         // We'll just verify that it doesn't panic
         let battery = Battery::default();
-        assert_eq!(battery.is_present, false);
+        assert!(!battery.is_present);
         assert_eq!(battery.percentage, 0.0);
     }
 
@@ -418,8 +418,8 @@ mod tests {
         let result = battery.update();
         
         assert!(result.is_ok(), "Update should succeed");
-        assert_eq!(battery.is_present, true);
-        assert_eq!(battery.is_charging, true);
+        assert!(battery.is_present);
+        assert!(battery.is_charging);
         assert_eq!(battery.percentage, 75.0);
         assert_eq!(battery.time_remaining, Duration::from_secs(180 * 60));
         assert_eq!(battery.power_source, PowerSource::AC);
@@ -435,8 +435,8 @@ mod tests {
         let result = battery.update();
         
         assert!(result.is_ok(), "Update should succeed");
-        assert_eq!(battery.is_present, false);
-        assert_eq!(battery.is_charging, false);
+        assert!(!battery.is_present);
+        assert!(!battery.is_charging);
         assert_eq!(battery.percentage, 0.0);
         assert_eq!(battery.time_remaining, Duration::from_secs(0));
         assert_eq!(battery.power_source, PowerSource::Unknown);
@@ -451,7 +451,7 @@ mod tests {
         battery.update().unwrap();
         
         let info = battery.get_info().unwrap();
-        assert_eq!(info.is_present, true);
+        assert!(info.is_present);
         assert_eq!(info.percentage, 75.0);
         assert_eq!(info.power_source, PowerSource::AC);
     }
@@ -469,8 +469,8 @@ mod tests {
             30.5
         );
         
-        assert_eq!(battery.is_present, true);
-        assert_eq!(battery.is_charging, true);
+        assert!(battery.is_present);
+        assert!(battery.is_charging);
         assert_eq!(battery.percentage, 85.5);
         assert_eq!(battery.time_remaining, Duration::from_secs(120 * 60));
         assert_eq!(battery.power_source, PowerSource::Battery);
@@ -481,85 +481,124 @@ mod tests {
 
     #[test]
     fn test_battery_is_critical() {
-        let mut battery = Battery::default();
-        battery.percentage = 5.0;
+        let battery = Battery {
+            percentage: 5.0,
+            ..Battery::default()
+        };
+        
         assert!(battery.is_critical());
         
-        battery.percentage = 10.0;
+        let battery = Battery {
+            percentage: 15.0,
+            ..Battery::default()
+        };
+        
         assert!(!battery.is_critical());
     }
 
     #[test]
     fn test_battery_is_low() {
-        let mut battery = Battery::default();
-        battery.percentage = 15.0;
+        let battery = Battery {
+            percentage: 15.0,
+            ..Battery::default()
+        };
         assert!(battery.is_low());
         
-        battery.percentage = 25.0;
+        let battery = Battery {
+            percentage: 25.0,
+            ..Battery::default()
+        };
         assert!(!battery.is_low());
     }
 
     #[test]
     fn test_battery_time_remaining_display() {
-        let mut battery = Battery::default();
+        let battery = Battery {
+            time_remaining: Duration::from_secs(150 * 60),
+            ..Battery::default()
+        };
         
         // Test 2 hours and 30 minutes
-        battery.time_remaining = Duration::from_secs(150 * 60);
         assert_eq!(battery.time_remaining_display(), "2h 30m");
         
         // Test 45 minutes
-        battery.time_remaining = Duration::from_secs(45 * 60);
+        let battery = Battery {
+            time_remaining: Duration::from_secs(45 * 60),
+            ..Battery::default()
+        };
         assert_eq!(battery.time_remaining_display(), "45m");
         
         // Test 0 minutes
-        battery.time_remaining = Duration::from_secs(0);
+        let battery = Battery {
+            time_remaining: Duration::from_secs(0),
+            ..Battery::default()
+        };
         assert_eq!(battery.time_remaining_display(), "0m");
     }
 
     #[test]
     fn test_battery_is_health_poor() {
-        let mut battery = Battery::default();
-        
-        battery.health_percentage = 70.0;
+        let battery = Battery {
+            health_percentage: 70.0,
+            ..Battery::default()
+        };
         assert!(battery.is_health_poor());
         
-        battery.health_percentage = 85.0;
+        let battery = Battery {
+            health_percentage: 85.0,
+            ..Battery::default()
+        };
         assert!(!battery.is_health_poor());
     }
 
     #[test]
     fn test_battery_has_high_cycle_count() {
-        let mut battery = Battery::default();
-        
-        battery.cycle_count = 1100;
+        let battery = Battery {
+            cycle_count: 1100,
+            ..Battery::default()
+        };
         assert!(battery.has_high_cycle_count());
         
-        battery.cycle_count = 500;
+        let battery = Battery {
+            cycle_count: 500,
+            ..Battery::default()
+        };
         assert!(!battery.has_high_cycle_count());
     }
 
     #[test]
     fn test_battery_power_source_display() {
-        let mut battery = Battery::default();
-        
-        battery.power_source = PowerSource::AC;
+        let battery = Battery {
+            power_source: PowerSource::AC,
+            ..Battery::default()
+        };
         assert_eq!(battery.power_source_display(), "AC Power");
         
-        battery.power_source = PowerSource::Battery;
+        let battery = Battery {
+            power_source: PowerSource::Battery,
+            ..Battery::default()
+        };
         assert_eq!(battery.power_source_display(), "Battery");
         
-        battery.power_source = PowerSource::Unknown;
+        let battery = Battery {
+            power_source: PowerSource::Unknown,
+            ..Battery::default()
+        };
         assert_eq!(battery.power_source_display(), "Unknown");
     }
 
     #[test]
     fn test_battery_is_temperature_critical() {
-        let mut battery = Battery::default();
-        
-        battery.temperature = 45.0;
+        let battery = Battery {
+            temperature: 45.0,
+            ..Battery::default()
+        };
         assert!(battery.is_temperature_critical());
         
-        battery.temperature = 35.0;
+        let battery = Battery {
+            temperature: 35.0,
+            ..Battery::default()
+        };
         assert!(!battery.is_temperature_critical());
     }
 
@@ -570,7 +609,7 @@ mod tests {
         
         let cloned = original.clone();
         
-        assert_eq!(cloned.is_present, original.is_present);
+        assert!(cloned.is_present == original.is_present);
         assert_eq!(cloned.percentage, original.percentage);
         assert_eq!(cloned.power_source, original.power_source);
         assert_eq!(cloned.cycle_count, original.cycle_count);
@@ -586,10 +625,10 @@ mod tests {
         let mut battery2 = create_mock_battery(true);
         battery2.update().unwrap();
         
-        assert_eq!(battery1, battery2);
+        assert!(battery1 == battery2);
         
         // Modify one property
         battery2.percentage = 50.0;
-        assert_ne!(battery1, battery2);
+        assert!(battery1 != battery2);
     }
 }

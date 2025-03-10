@@ -43,6 +43,5 @@ fn test_property_accessor_implements_trait() {
     let _: fn(&NSDictionary<NSString, NSObject>, &str) -> Option<bool> = 
         PropertyAccessor::get_bool_property;
     
-    // Just to satisfy the test runner, make a simple assertion
-    assert!(true);
+    // No assertion needed - test passes if it compiles successfully
 }

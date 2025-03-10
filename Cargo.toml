@@ -1,18 +1,25 @@
 [package]
-name          = "darwin-metrics"
-version       = "0.2.0-alpha.1"
-edition       = "2021"
-description   = "A Rust library exposing native macOS system metrics"
-authors       = ["Stuart Meya <sm0sh1@pm.me>"]
-license       = "MIT"
-repository    = "https://github.com/sm-moshi/darwin-metrics"
-homepage      = "https://github.com/sm-moshi/darwin-metrics"
+name = "darwin-metrics"
+version = "0.2.0-alpha.1"
+edition = "2021"
+description = "A Rust library exposing native macOS system metrics"
+authors = ["Stuart Meya <sm0sh1@pm.me>"]
+license = "MIT"
+repository = "https://github.com/sm-moshi/darwin-metrics"
+homepage = "https://github.com/sm-moshi/darwin-metrics"
 documentation = "https://docs.rs/darwin-metrics"
-keywords      = ["macos", "system", "metrics", "ffi", "swift"]
-categories    = ["os", "api-bindings"]
-readme        = "README.md"
-links         = "darwin_metrics"
-exclude       = [".github/", "coverage/", "target/", "CLAUDE.md", "**/.DS_Store", ".DS_Store"]
+keywords = ["macos", "system", "metrics", "ffi", "swift"]
+categories = ["os", "api-bindings"]
+readme = "README.md"
+links = "darwin_metrics"
+exclude = [
+  ".github/",
+  "coverage/",
+  "target/",
+  "CLAUDE.md",
+  "**/.DS_Store",
+  ".DS_Store",
+]
 
 [lib]
 name       = "darwin_metrics"
@@ -47,7 +54,7 @@ tracing            = { version = "0.1.41", features = ["attributes"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 # Serialization and data handling
-serde      = { version = "1.0.218", features = ["derive"] }
+serde      = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 
 # Testing
@@ -77,7 +84,7 @@ process_monitoring = []
 async = []
 
 # Testing features
-unstable-tests = []
+unstable-tests   = []
 skip-ffi-crashes = []
 
 [profile.release]
