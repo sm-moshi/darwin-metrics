@@ -39,7 +39,6 @@ impl From<Error> for PowerError {
     fn from(err: Error) -> Self {
         match err {
             Error::InvalidData(_) => PowerError::InvalidData,
-            Error::System(_) => PowerError::SystemCallFailed,
             Error::ServiceNotFound(msg) => PowerError::ServiceError(msg),
             _ => PowerError::SystemCallFailed,
         }

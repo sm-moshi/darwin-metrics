@@ -148,9 +148,8 @@ impl Gpu {
                     return Some("Apple M3 Max GPU".to_string());
                 } else if model.contains(",7") || model.contains(",8") || model.contains(",9") {
                     return Some("Apple M3 Pro GPU".to_string());
-                } else {
-                    return Some("Apple M3 GPU".to_string());
                 }
+                return Some("Apple M3 GPU".to_string());
             }
             // M2 series chips
             else if model.contains("Mac14,") || model.contains("Mac13,") {
@@ -160,9 +159,8 @@ impl Gpu {
                     return Some("Apple M2 Pro GPU".to_string());
                 } else if model.contains(",7") || model.contains(",8") {
                     return Some("Apple M2 Ultra GPU".to_string());
-                } else {
-                    return Some("Apple M2 GPU".to_string());
                 }
+                return Some("Apple M2 GPU".to_string());
             }
             // M1 series chips
             else if model.contains("Mac12,")
@@ -175,9 +173,8 @@ impl Gpu {
                     return Some("Apple M1 Pro GPU".to_string());
                 } else if model.contains("Mac13,2") {
                     return Some("Apple M1 Ultra GPU".to_string());
-                } else {
-                    return Some("Apple M1 GPU".to_string());
                 }
+                return Some("Apple M1 GPU".to_string());
             }
 
             // Generic Apple Silicon if we can't determine specific model
@@ -227,9 +224,8 @@ impl Gpu {
                     return Some("Intel UHD Graphics 630".to_string());
                 } else if cpu_info.contains("i7") {
                     return Some("Intel Iris Plus Graphics".to_string());
-                } else {
-                    return Some("Intel Integrated Graphics".to_string());
                 }
+                return Some("Intel Integrated Graphics".to_string());
             }
 
             Some("Intel GPU".to_string())

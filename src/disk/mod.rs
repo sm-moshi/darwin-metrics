@@ -877,9 +877,9 @@ mod tests {
         assert_eq!(Disk::format_bytes(500), "500 bytes");
         assert_eq!(Disk::format_bytes(1024), "1.0 KB");
         assert_eq!(Disk::format_bytes(1536), "1.5 KB");
-        assert_eq!(Disk::format_bytes(1048576), "1.0 MB");
-        assert_eq!(Disk::format_bytes(1073741824), "1.0 GB");
-        assert_eq!(Disk::format_bytes(1099511627776), "1.0 TB");
+        assert_eq!(Disk::format_bytes(1_048_576), "1.0 MB");
+        assert_eq!(Disk::format_bytes(1_073_741_824), "1.0 GB");
+        assert_eq!(Disk::format_bytes(1_099_511_627_776), "1.0 TB");
     }
 
     #[test]

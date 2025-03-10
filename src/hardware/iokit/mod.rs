@@ -344,9 +344,8 @@ impl IOKit for IOKitImpl {
                     if let Some(dict) = Retained::from_raw(dict_ptr) {
                         println!("DEBUG: Successfully created Retained<NSDictionary>");
                         return dict;
-                    } else {
-                        println!("DEBUG: Failed to create Retained<NSDictionary>");
                     }
+                    println!("DEBUG: Failed to create Retained<NSDictionary>");
                 } else {
                     println!("DEBUG: matching_dict is null");
                 }
