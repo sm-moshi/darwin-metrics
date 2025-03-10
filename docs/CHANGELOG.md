@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Unreleased - Added
+- Enhanced GPU hardware detection with specific Apple Silicon chip identification
+- Added comprehensive GPU characteristics struct with core count, clock speed, and raytracing capability
+- Added example program to demonstrate improved GPU hardware detection
+- Improved memory reporting for different GPU architectures
+- Added tests for GPU hardware detection
 - Enhanced async support throughout codebase
 - Improved Metal API integration for more reliable GPU monitoring
 

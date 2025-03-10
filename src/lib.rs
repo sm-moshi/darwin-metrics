@@ -1,10 +1,4 @@
 #![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.5")]
-// Explicitly configure for platform-specific code
-#![cfg_attr(not(target_os = "macos"), allow(unused_imports))]
-#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
-#![cfg_attr(not(target_os = "macos"), allow(unused_variables))]
-// Allow unwrap() in test code since tests can safely panic
-#![cfg_attr(test, allow(clippy::disallowed_methods))]
 
 /// # darwin-metrics
 ///
