@@ -50,7 +50,7 @@ jobs:
 
       - name: Format check
         run: cargo +beta fmt -- --check
-        continue-on--error: true
+        continue-on-error: true
 
       - name: Check if Clippy is installed
         run: cargo +beta clippy --version || echo "Clippy not installed"
