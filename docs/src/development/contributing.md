@@ -7,7 +7,7 @@ Thank you for your interest in contributing to `darwin-metrics`! This guide will
 ### Prerequisites
 
 - Rust 1.85 or later
-- macOS 14.x or later
+- macOS El Capitan (10.11) or later
 - Xcode Command Line Tools
 - Git
 

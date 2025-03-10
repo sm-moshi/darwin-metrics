@@ -241,8 +241,8 @@ impl Gpu {
             let input_structure = SMCKeyData_t {
                 key: smc_key_from_chars(SMC_KEY_GPU_TEMP),
                 vers: 0,
-                pLimitData: 0,
-                keyInfo: 0,
+                p_limit_data: 0,
+                key_info: 0,
                 padding: 0,
                 result: 0,
                 status: 0,
@@ -255,8 +255,8 @@ impl Gpu {
             let mut output_structure = SMCKeyData_t {
                 key: smc_key_from_chars(SMC_KEY_GPU_TEMP),
                 vers: 0,
-                pLimitData: 0,
-                keyInfo: 1, // Get key info first
+                p_limit_data: 0,
+                key_info: 1, // Get key info first
                 padding: 0,
                 result: 0,
                 status: 0,
@@ -284,7 +284,7 @@ impl Gpu {
             }
 
             // Now read the actual temperature data
-            output_structure.keyInfo = 0;
+            output_structure.key_info = 0;
 
             let result = IOConnectCallStructMethod(
                 connection,
@@ -303,7 +303,7 @@ impl Gpu {
             }
 
             // Get the data and convert to temperature (fixed point, signed 8.8)
-            let data_type = output_structure.data.keyInfo.data_type;
+            let data_type = output_structure.data.key_info.data_type;
 
             if data_type[0] == b'S'
                 && data_type[1] == b'P'

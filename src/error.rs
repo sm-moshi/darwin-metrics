@@ -3,12 +3,12 @@ use std::{io, result};
 use thiserror::Error;
 
 /// Specific error types for darwin-metrics
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 #[non_exhaustive]
 pub enum Error {
     /// Error originating from the system's IO subsystem
-    #[error("IO error: {0}")]
-    Io(#[from] io::Error),
+    #[error("IO error: {kind} - {message}")]
+    Io { kind: io::ErrorKind, message: String },
 
     /// Error related to IOKit operations
     #[error("IOKit error: {0}")]
@@ -115,7 +115,7 @@ impl Error {
     /// Get details about the error
     pub fn details(&self) -> String {
         match self {
-            Error::Io(e) => format!("{}: {}", e, e.kind()),
+            Error::Io { kind, message } => format!("{}: {}", message, kind),
             Error::PermissionDenied(msg) => {
                 format!("Permission denied: {}. Try running with elevated privileges.", msg)
             },
@@ -134,7 +134,7 @@ impl Error {
     /// Determine if this error is caused by insufficient permissions
     pub fn is_permission_error(&self) -> bool {
         matches!(self, Error::PermissionDenied(_))
-            || matches!(self, Error::Io(e) if e.kind() == io::ErrorKind::PermissionDenied)
+            || matches!(self, Error::Io { kind, .. } if *kind == io::ErrorKind::PermissionDenied)
     }
 
     /// Check if this error indicates a feature is not available
@@ -145,3 +145,122 @@ impl Error {
 
 /// Result type for darwin-metrics
 pub type Result<T> = result::Result<T, Error>;
+
+/// Implement conversion from io::Error to Error
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Error::Io { kind: err.kind(), message: err.to_string() }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Error as IoError, ErrorKind};
+
+    #[test]
+    fn test_error_creation_methods() {
+        // Test all error factory methods
+        let e1 = Error::io_kit("test io_kit error");
+        assert!(matches!(e1, Error::IOKit(s) if s == "test io_kit error"));
+
+        let e2 = Error::system("test system error");
+        assert!(matches!(e2, Error::System(s) if s == "test system error"));
+
+        let e3 = Error::invalid_data("test invalid data");
+        assert!(matches!(e3, Error::InvalidData(s) if s == "test invalid data"));
+
+        let e4 = Error::not_implemented("test feature");
+        assert!(matches!(e4, Error::NotImplemented(s) if s == "test feature"));
+
+        let e5 = Error::not_available("test feature");
+        assert!(matches!(e5, Error::NotAvailable(s) if s == "test feature"));
+
+        let e6 = Error::permission_denied("test permission");
+        assert!(matches!(e6, Error::PermissionDenied(s) if s == "test permission"));
+
+        let e7 = Error::service_not_found("test service");
+        assert!(matches!(e7, Error::ServiceNotFound(s) if s == "test service"));
+
+        let e8 = Error::process_error("test process error");
+        assert!(matches!(e8, Error::Process(s) if s == "test process error"));
+    }
+
+    #[test]
+    fn test_error_details_io() {
+        // Test IO error details formatting - using a simpler check that avoids exact string match
+        let e1 = Error::Io { kind: ErrorKind::NotFound, message: "file not found".to_string() };
+        let details = e1.details();
+        assert!(details.contains("file not found"));
+        assert!(details.contains("not found"));
+    }
+
+    #[test]
+    fn test_error_details_permission() {
+        // Test permission error details
+        let e = Error::PermissionDenied("access denied".to_string());
+        assert!(e.details().contains("Permission denied: access denied"));
+        assert!(e.details().contains("elevated privileges"));
+    }
+
+    #[test]
+    fn test_error_details_iokit() {
+        // Test IOKit error details
+        let e = Error::IOKit("service failed".to_string());
+        assert!(e.details().contains("IOKit error: service failed"));
+    }
+
+    #[test]
+    fn test_error_details_not_available() {
+        // Test not available error details
+        let e = Error::NotAvailable("GPU features".to_string());
+        assert!(e.details().contains("Feature not available: GPU features"));
+    }
+
+    #[test]
+    fn test_error_details_other() {
+        // Test other error details
+        let e = Error::Other("generic error".to_string());
+        assert_eq!(e.details(), "Error: generic error");
+    }
+
+    #[test]
+    fn test_error_is_permission_error() {
+        // Test is_permission_error method
+        let e1 = Error::PermissionDenied("test".to_string());
+        assert!(e1.is_permission_error());
+
+        let e2 = Error::Io { kind: ErrorKind::PermissionDenied, message: "test".to_string() };
+        assert!(e2.is_permission_error());
+
+        let e3 = Error::Io { kind: ErrorKind::NotFound, message: "test".to_string() };
+        assert!(!e3.is_permission_error());
+
+        let e4 = Error::Other("test".to_string());
+        assert!(!e4.is_permission_error());
+    }
+
+    #[test]
+    fn test_error_is_not_available() {
+        // Test is_not_available method
+        let e1 = Error::NotAvailable("test".to_string());
+        assert!(e1.is_not_available());
+
+        let e2 = Error::NotImplemented("test".to_string());
+        assert!(!e2.is_not_available());
+    }
+
+    #[test]
+    fn test_from_io_error() {
+        // Test From<io::Error> implementation
+        let io_err = IoError::new(ErrorKind::ConnectionRefused, "connection error");
+        let err: Error = io_err.into();
+
+        if let Error::Io { kind, message } = err {
+            assert_eq!(kind, ErrorKind::ConnectionRefused);
+            assert!(message.contains("connection error"));
+        } else {
+            panic!("Error was not converted to Error::Io variant");
+        }
+    }
+}

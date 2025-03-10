@@ -8,12 +8,12 @@ Add `darwin-metrics` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-darwin-metrics = "0.1.3"
+darwin-metrics = "0.1.4-1"
 ```
 
 ### Requirements
 
-- macOS Sonoma (14.x) or later
+- macOS El Capitan (10.11) or later
 - Rust 1.85 or later
 - Xcode Command Line Tools (for macOS system headers)
 
@@ -50,7 +50,7 @@ fn main() -> darwin_metrics::Result<()> {
 
 ```toml
 [dependencies]
-darwin-metrics = { version = "0.1.3", features = ["cpu", "memory"] }
+darwin-metrics = { version = "0.1.4-1", features = ["cpu", "memory"] }
 ```
 
 Available features include:

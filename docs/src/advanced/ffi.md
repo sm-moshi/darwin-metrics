@@ -10,6 +10,7 @@ All low-level FFI bindings are centralized in the `src/utils/bindings.rs` file. 
 2. **Consistency**: Prevents duplicate and potentially conflicting definitions
 3. **Safety**: Centralizes unsafe code, making auditing easier
 4. **Reusability**: Allows sharing of bindings across different modules
+5. **Convention Adaptation**: Adapts C-style naming to Rust conventions when needed
 
 ## Included Bindings
 
@@ -201,5 +202,8 @@ When adding new FFI bindings:
 2. Group related bindings together with clear section markers
 3. Provide helper functions when appropriate
 4. Don't expose unsafe interfaces directly in your API
+5. Use Rust's snake_case naming convention for struct fields, even when binding C APIs (added in v0.1.4)
+   - For example, `pLimitData` in C should be named `p_limit_data` in Rust
+   - This helps avoid clippy warnings and maintain consistent style
 
 By following this centralized approach, `darwin-metrics` maintains a cleaner, safer, and more maintainable codebase.

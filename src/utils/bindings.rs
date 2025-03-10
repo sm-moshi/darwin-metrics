@@ -87,6 +87,7 @@ pub struct timeval {
 //------------------------------------------------------------------------------
 
 // sysctl function for system information
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "System", kind = "framework")]
 extern "C" {
     pub fn sysctl(
@@ -99,6 +100,25 @@ extern "C" {
     ) -> c_int;
 }
 
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod sysctl_stubs {
+    use std::os::raw::{c_int, c_uint, c_void};
+    
+    pub unsafe fn sysctl(
+        _name: *const c_int,
+        _namelen: c_uint,
+        _oldp: *mut c_void,
+        _oldlenp: *mut usize,
+        _newp: *const c_void,
+        _newlen: usize,
+    ) -> c_int {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use sysctl_stubs::*;
+
 //------------------------------------------------------------------------------
 // VM Statistics and Memory-related structures
 //------------------------------------------------------------------------------
@@ -108,12 +128,20 @@ pub const KERN_SUCCESS: i32 = 0;
 pub const HOST_VM_INFO64: i32 = 4;
 pub const HOST_VM_INFO64_COUNT: u32 = 38;
 
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 pub type HostInfoT = *mut i32;
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub type HostInfoT = *mut c_void;
+
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 pub type MachPortT = u32;
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub type MachPortT = u32; // Keep as u32 for docs.rs
 
 #[repr(C)]
 #[derive(Debug, Default)]
-pub struct vm_statistics64 {
+#[allow(non_camel_case_types)]
+pub struct VmStatistics64 {
     pub free_count: u32,
     pub active_count: u32,
     pub inactive_count: u32,
@@ -142,13 +170,15 @@ pub struct vm_statistics64 {
 
 #[repr(C)]
 #[derive(Debug, Default)]
-pub struct xsw_usage {
+#[allow(non_camel_case_types)]
+pub struct XswUsage {
     pub xsu_total: u64,
     pub xsu_used: u64,
     pub xsu_avail: u64,
 }
 
 // Mach host functions
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 extern "C" {
     pub static vm_kernel_page_size: u32;
 
@@ -161,6 +191,32 @@ extern "C" {
 
     pub fn mach_host_self() -> MachPortT;
 }
+
+// Stubs for docs.rs and non-macOS platforms
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod mach_stubs {
+    use super::{HostInfoT, MachPortT};
+    
+    pub static vm_kernel_page_size: u32 = 4096; // Default page size for documentation
+    
+    // These functions are never actually called on docs.rs
+    // but are needed for compilation
+    pub unsafe fn host_statistics64(
+        _host_priv: MachPortT,
+        _flavor: i32,
+        _host_info_out: HostInfoT,
+        _host_info_outCnt: *mut u32,
+    ) -> i32 {
+        -1 // Error code for documentation purposes
+    }
+    
+    pub unsafe fn mach_host_self() -> MachPortT {
+        0 // Stub MachPortT value
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use mach_stubs::*;
 
 //------------------------------------------------------------------------------
 // IOKit Constants and Data Structures
@@ -222,6 +278,18 @@ pub const SMC_KEY_CPU_POWER: [c_char; 4] =
 pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] =
     [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char]; // CPU thermal throttling (PCTC)
 
+pub const SMC_KEY_PACKAGE_POWER: [c_char; 4] =
+    [b'P' as c_char, b'M' as c_char, b'P' as c_char, b'0' as c_char]; // Package power (PMP0)
+
+pub const SMC_KEY_GPU_POWER: [c_char; 4] =
+    [b'P' as c_char, b'G' as c_char, b'P' as c_char, b'G' as c_char]; // GPU power (PGPG)
+
+pub const SMC_KEY_DRAM_POWER: [c_char; 4] =
+    [b'P' as c_char, b'D' as c_char, b'R' as c_char, b'P' as c_char]; // Memory power (PDRP)
+
+pub const SMC_KEY_NEURAL_POWER: [c_char; 4] =
+    [b'P' as c_char, b'N' as c_char, b'P' as c_char, b'0' as c_char]; // Neural Engine power (PNP0)
+
 // SMC data structures
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -246,22 +314,24 @@ pub struct SMCPLimitData {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct SMCKeyData_vers_t {
+#[allow(non_camel_case_types)]
+pub struct SmcKeyDataVersT {
     pub version: SMCVersion,
     pub reserved: [u8; 16],
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct SMCKeyData_pLimitData_t {
-    #[allow(non_snake_case)]
-    pub pLimitData: SMCPLimitData,
+#[allow(non_camel_case_types)]
+pub struct SmcKeyDataPLimitDataT {
+    pub p_limit_data: SMCPLimitData,
     pub reserved: [u8; 10],
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct SMCKeyData_keyInfo_t {
+#[allow(non_camel_case_types)]
+pub struct SmcKeyDataKeyInfoT {
     #[allow(non_snake_case)]
     pub data_size: u32,
     pub data_type: [u8; 4],
@@ -269,54 +339,53 @@ pub struct SMCKeyData_keyInfo_t {
 }
 
 #[repr(C)]
-pub union SMCKeyData_t_data {
+#[allow(non_camel_case_types)]
+pub union SmcKeyDataTData {
     pub bytes: [u8; 32],
     pub uint32: u32,
     pub float: f32,
     pub sint16: i16,
-    pub vers: SMCKeyData_vers_t,
-    #[allow(non_snake_case)]
-    pub pLimit: SMCKeyData_pLimitData_t,
-    #[allow(non_snake_case)]
-    pub keyInfo: SMCKeyData_keyInfo_t,
+    pub vers: SmcKeyDataVersT,
+    pub p_limit: SmcKeyDataPLimitDataT,
+    pub key_info: SmcKeyDataKeyInfoT,
 }
 
 // Manual implementations for union
-impl Clone for SMCKeyData_t_data {
+impl Clone for SmcKeyDataTData {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl Copy for SMCKeyData_t_data {}
+impl Copy for SmcKeyDataTData {}
 
 #[repr(C)]
-pub struct SMCKeyData_t {
+#[allow(non_camel_case_types)]
+pub struct SmcKeyDataT {
     pub key: u32,
     pub vers: u8,
-    #[allow(non_snake_case)]
-    pub pLimitData: u8,
-    #[allow(non_snake_case)]
-    pub keyInfo: u8,
+    pub p_limit_data: u8,
+    pub key_info: u8,
     pub padding: u8,
     pub result: u8,
     pub status: u8,
     pub data8: u8,
     pub data32: u8,
     pub bytes: [u8; 2],
-    pub data: SMCKeyData_t_data,
+    pub data: SmcKeyDataTData,
 }
 
 // Manual implementations for struct containing union
-impl Clone for SMCKeyData_t {
+impl Clone for SmcKeyDataT {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl Copy for SMCKeyData_t {}
+impl Copy for SmcKeyDataT {}
 
-// IOKit function declarations
+// IOKit function declarations - only for macOS
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "IOKit", kind = "framework")]
 extern "C" {
     // IOService functions
@@ -335,12 +404,59 @@ extern "C" {
     pub fn IOConnectCallStructMethod(
         connection: u32,
         selector: u32,
-        inputStruct: *const SMCKeyData_t,
+        inputStruct: *const SmcKeyDataT,
         inputStructCnt: IOByteCount,
-        outputStruct: *mut SMCKeyData_t,
+        outputStruct: *mut SmcKeyDataT,
         outputStructCnt: *mut IOByteCount,
     ) -> i32;
 }
+
+// Stub declarations for docs.rs and non-macOS
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod iokit_stubs {
+    use super::{IOByteCount, SmcKeyDataT, ffi_c_void, c_char, c_void};
+    
+    // IOService functions (stubs)
+    pub unsafe fn IOServiceGetMatchingService(_masterPort: u32, _matchingDict: *const ffi_c_void) -> u32 {
+        0
+    }
+    
+    pub unsafe fn IOServiceMatching(_serviceName: *const c_char) -> *mut ffi_c_void {
+        std::ptr::null_mut()
+    }
+    
+    pub unsafe fn IOServiceOpen(_service: u32, _owningTask: u32, _type: u32, _handle: *mut u32) -> i32 {
+        -1
+    }
+    
+    pub unsafe fn IOServiceClose(_handle: u32) -> i32 {
+        -1
+    }
+    
+    pub unsafe fn IORegistryEntryCreateCFProperties(
+        _entry: u32,
+        _properties: *mut *mut ffi_c_void,
+        _allocator: *mut ffi_c_void,
+        _options: u32,
+    ) -> i32 {
+        -1
+    }
+    
+    // SMC specific functions (stubs)
+    pub unsafe fn IOConnectCallStructMethod(
+        _connection: u32,
+        _selector: u32,
+        _inputStruct: *const SmcKeyDataT,
+        _inputStructCnt: IOByteCount,
+        _outputStruct: *mut SmcKeyDataT,
+        _outputStructCnt: *mut IOByteCount,
+    ) -> i32 {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use iokit_stubs::*;
 
 //------------------------------------------------------------------------------
 // Process state constants
@@ -385,6 +501,7 @@ pub struct Statfs {
 pub const MNT_NOWAIT: c_int = 2; // Don't block for filesystem sync
 
 // Filesystem functions
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "System", kind = "framework")]
 extern "C" {
     /// Get statistics about a mounted filesystem
@@ -394,6 +511,23 @@ extern "C" {
     pub fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
 }
 
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod fs_stubs {
+    use std::os::raw::{c_int, c_char};
+    use super::Statfs;
+    
+    pub unsafe fn statfs(_path: *const c_char, _buf: *mut Statfs) -> c_int {
+        -1
+    }
+    
+    pub unsafe fn getfsstat(_buf: *mut Statfs, _bufsize: c_int, _flags: c_int) -> c_int {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use fs_stubs::*;
+
 //------------------------------------------------------------------------------
 // Metal Framework Bindings for GPU Access
 //------------------------------------------------------------------------------
@@ -401,12 +535,26 @@ extern "C" {
 /// Metal framework type for device access
 pub type MTLDeviceRef = *mut c_void;
 
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "Metal", kind = "framework")]
 extern "C" {
     /// Creates and returns the default system Metal device
     /// Used to access GPU information including name and capabilities
     pub fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
 }
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub mod metal_stubs {
+    use super::MTLDeviceRef;
+    
+    /// Stub implementation for docs.rs
+    pub unsafe fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef {
+        std::ptr::null_mut()
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use metal_stubs::*;
 
 //------------------------------------------------------------------------------
 // Process and System Info Functions
@@ -415,6 +563,7 @@ extern "C" {
 /// Constants for proc_pidinfo
 pub const PROC_PIDTASKINFO: c_int = 4;
 
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 extern "C" {
     /// Get system load averages for the past 1, 5, and 15 minutes
     pub fn getloadavg(loads: *mut f64, nelem: c_int) -> c_int;
@@ -428,6 +577,28 @@ extern "C" {
         buffersize: c_int,
     ) -> c_int;
 }
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod process_stubs {
+    use std::os::raw::{c_int, c_void};
+    
+    pub unsafe fn getloadavg(_loads: *mut f64, _nelem: c_int) -> c_int {
+        -1
+    }
+    
+    pub unsafe fn proc_pidinfo(
+        _pid: c_int,
+        _flavor: c_int,
+        _arg: u64,
+        _buffer: *mut c_void,
+        _buffersize: c_int,
+    ) -> c_int {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use process_stubs::*;
 
 //------------------------------------------------------------------------------
 // Network related data structures and bindings
@@ -457,54 +628,61 @@ pub mod if_flags {
 }
 
 #[repr(C)]
-pub struct ifaddrs {
-    pub ifa_next: *mut ifaddrs,
+#[allow(non_camel_case_types)]
+pub struct Ifaddrs {
+    pub ifa_next: *mut Ifaddrs,
     pub ifa_name: *mut c_char,
     pub ifa_flags: u32,
-    pub ifa_addr: *mut sockaddr,
-    pub ifa_netmask: *mut sockaddr,
-    pub ifa_dstaddr: *mut sockaddr,
+    pub ifa_addr: *mut Sockaddr,
+    pub ifa_netmask: *mut Sockaddr,
+    pub ifa_dstaddr: *mut Sockaddr,
     pub ifa_data: *mut c_void,
 }
 
 #[repr(C)]
-pub struct sockaddr {
+#[allow(non_camel_case_types)]
+pub struct Sockaddr {
     pub sa_len: u8,
     pub sa_family: u8,
     pub sa_data: [c_char; 14],
 }
 
 #[repr(C)]
-pub struct sockaddr_in {
+#[allow(non_camel_case_types)]
+pub struct SockaddrIn {
     pub sin_len: u8,
     pub sin_family: u8,
     pub sin_port: u16,
-    pub sin_addr: in_addr,
+    pub sin_addr: InAddr,
     pub sin_zero: [c_char; 8],
 }
 
 #[repr(C)]
-pub struct in_addr {
+#[allow(non_camel_case_types)]
+pub struct InAddr {
     pub s_addr: u32,
 }
 
 #[repr(C)]
-pub struct sockaddr_in6 {
+#[allow(non_camel_case_types)]
+pub struct SockaddrIn6 {
     pub sin6_len: u8,
     pub sin6_family: u8,
     pub sin6_port: u16,
     pub sin6_flowinfo: u32,
-    pub sin6_addr: in6_addr,
+    pub sin6_addr: In6Addr,
     pub sin6_scope_id: u32,
 }
 
 #[repr(C)]
-pub struct in6_addr {
+#[allow(non_camel_case_types)]
+pub struct In6Addr {
     pub s6_addr: [u8; 16],
 }
 
 #[repr(C)]
-pub struct sockaddr_dl {
+#[allow(non_camel_case_types)]
+pub struct SockaddrDl {
     pub sdl_len: u8,
     pub sdl_family: u8,
     pub sdl_index: u16,
@@ -516,7 +694,8 @@ pub struct sockaddr_dl {
 }
 
 #[repr(C)]
-pub struct if_data {
+#[allow(non_camel_case_types)]
+pub struct IfData {
     pub ifi_type: u8,
     pub ifi_physical: u8,
     pub ifi_addrlen: u8,
@@ -543,10 +722,11 @@ pub struct if_data {
     pub ifi_lastchange: timeval,
 }
 
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "System", kind = "framework")]
 extern "C" {
-    pub fn getifaddrs(ifap: *mut *mut ifaddrs) -> c_int;
-    pub fn freeifaddrs(ifp: *mut ifaddrs) -> c_void;
+    pub fn getifaddrs(ifap: *mut *mut Ifaddrs) -> c_int;
+    pub fn freeifaddrs(ifp: *mut Ifaddrs) -> c_void;
 
     // sysctl functions for network statistics
     pub fn sysctlbyname(
@@ -557,6 +737,31 @@ extern "C" {
         newlen: usize,
     ) -> c_int;
 }
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod network_stubs {
+    use std::os::raw::{c_int, c_void, c_char};
+    use super::Ifaddrs;
+    
+    pub unsafe fn getifaddrs(_ifap: *mut *mut Ifaddrs) -> c_int {
+        -1
+    }
+    
+    pub unsafe fn freeifaddrs(_ifp: *mut Ifaddrs) -> c_void {}
+    
+    pub unsafe fn sysctlbyname(
+        _name: *const c_char,
+        _oldp: *mut c_void,
+        _oldlenp: *mut usize,
+        _newp: *const c_void,
+        _newlen: usize,
+    ) -> c_int {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use network_stubs::*;
 
 //------------------------------------------------------------------------------
 // Helper methods for working with the bindings
@@ -592,4 +797,96 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
         result = (result << 8) | (k as u8 as u32);
     }
     result
+}
+
+//------------------------------------------------------------------------------
+// Type aliases for backward compatibility
+//------------------------------------------------------------------------------
+
+// These aliases maintain backward compatibility with code that uses the old struct names
+#[allow(non_camel_case_types)]
+pub type vm_statistics64 = VmStatistics64;
+#[allow(non_camel_case_types)]
+pub type xsw_usage = XswUsage;
+#[allow(non_camel_case_types)]
+pub type SMCKeyData_vers_t = SmcKeyDataVersT;
+#[allow(non_camel_case_types)]
+pub type SMCKeyData_pLimitData_t = SmcKeyDataPLimitDataT;
+#[allow(non_camel_case_types)]
+pub type SMCKeyData_keyInfo_t = SmcKeyDataKeyInfoT;
+#[allow(non_camel_case_types)]
+pub type SMCKeyData_t_data = SmcKeyDataTData;
+#[allow(non_camel_case_types)]
+pub type SMCKeyData_t = SmcKeyDataT;
+#[allow(non_camel_case_types)]
+pub type ifaddrs = Ifaddrs;
+#[allow(non_camel_case_types)]
+pub type sockaddr = Sockaddr;
+#[allow(non_camel_case_types)]
+pub type sockaddr_in = SockaddrIn;
+#[allow(non_camel_case_types)]
+pub type in_addr = InAddr;
+#[allow(non_camel_case_types)]
+pub type sockaddr_in6 = SockaddrIn6;
+#[allow(non_camel_case_types)]
+pub type in6_addr = In6Addr;
+#[allow(non_camel_case_types)]
+pub type sockaddr_dl = SockaddrDl;
+#[allow(non_camel_case_types)]
+pub type if_data = IfData;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_proc_name() {
+        // Create a kinfo_proc structure with a process name
+        let mut proc_info = kinfo_proc {
+            kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
+            kp_eproc: extern_proc {
+                p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
+                p_comm: [0; 16],
+            },
+        };
+
+        // Set a process name
+        let test_name = b"test_process\0";
+        for (i, &byte) in test_name.iter().enumerate() {
+            if i < proc_info.kp_eproc.p_comm.len() {
+                proc_info.kp_eproc.p_comm[i] = byte;
+            }
+        }
+
+        // Extract the name
+        let extracted_name = extract_proc_name(&proc_info);
+        assert_eq!(extracted_name, "test_process");
+    }
+
+    #[test]
+    fn test_is_system_process() {
+        // Test system processes
+        assert!(is_system_process(1, "launchd"));
+        assert!(is_system_process(999, "random_system_process"));
+        assert!(is_system_process(1234, "com.apple.service"));
+        assert!(is_system_process(5000, "kernel_task"));
+        assert!(is_system_process(5000, "WindowServer"));
+
+        // Test non-system processes
+        assert!(!is_system_process(1000, "user_app"));
+        assert!(!is_system_process(1234, "firefox"));
+        assert!(!is_system_process(5000, "chrome"));
+    }
+
+    #[test]
+    fn test_smc_key_from_chars() {
+        let key = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
+        let result = smc_key_from_chars(key);
+
+        // Calculate the expected value: ('T' << 24) | ('C' << 16) | ('0' << 8) | 'P'
+        let expected =
+            (b'T' as u32) << 24 | (b'C' as u32) << 16 | (b'0' as u32) << 8 | (b'P' as u32);
+
+        assert_eq!(result, expected);
+    }
 }

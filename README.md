@@ -72,7 +72,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-darwin-metrics = "0.1.3"
+darwin-metrics = "0.1.4-1"
 ```
 
 ### 🔧 Requirements

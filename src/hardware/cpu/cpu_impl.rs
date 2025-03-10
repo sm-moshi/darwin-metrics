@@ -3,7 +3,7 @@ use objc2_foundation::NSString;
 
 use super::{CpuMetrics, FrequencyMetrics, FrequencyMonitor};
 #[cfg(test)]
-use crate::hardware::iokit::MockIOKit;
+use crate::hardware::iokit::mock::MockIOKit;
 use crate::{
     error::Result,
     hardware::iokit::{IOKit, IOKitImpl},
@@ -355,12 +355,12 @@ mod tests {
             let mut mock = MockIOKit::new();
 
             // Setup mock behavior
+            mock.expect_get_cpu_temperature().returning(|| Ok(45.5));
+
             mock.expect_get_service().returning(|_| {
                 use crate::utils::test_utils;
                 Ok(test_utils::create_test_object())
             });
-
-            mock.expect_get_cpu_temperature().returning(|| Ok(45.5));
 
             let cpu = Self {
                 physical_cores: 8,

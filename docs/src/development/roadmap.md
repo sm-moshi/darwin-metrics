@@ -6,9 +6,85 @@ This document outlines the planned development roadmap for the `darwin-metrics` 
 
 The library is currently transitioning from Phase 1 to Phase 2 of development, with core functionality implemented and optimizations ongoing.
 
+## Project Structure
+
+```
+darwin-metrics/
+├── Cargo.lock
+├── Cargo.toml
+├── LICENSE
+├── NOTICE
+├── README.md
+├── build.rs                       # Build script for native code
+├── changelog-configuration.json
+├── clippy.toml
+├── coverage/                      # Code coverage reports
+├── docs/                          # Documentation
+│   ├── CHANGELOG.md
+│   ├── CHECKLIST.md
+│   ├── ROADMAP.md
+│   ├── RUST_API_CHECKLIST.md
+│   ├── TODO.md
+│   ├── book.toml
+│   ├── book/                      # Generated mdBook output
+│   ├── custom.css
+│   └── src/                       # mdBook source
+│       ├── SUMMARY.md
+│       ├── advanced/
+│       ├── development/
+│       ├── getting-started.md
+│       ├── introduction.md
+│       └── modules/
+├── examples/                      # Example applications
+│   ├── disk_monitor.rs
+│   ├── gpu_monitor_safe.rs
+│   ├── gpu_monitor_simplified.rs
+│   ├── gpu_static.rs
+│   ├── memory_monitor.rs
+│   ├── memory_monitor_async.rs
+│   ├── network_async.rs
+│   └── network_info.rs
+├── src/                           # Main source code
+│   ├── battery/                   # Battery monitoring
+│   ├── disk/                      # Disk monitoring
+│   ├── docs_rs_stubs.rs           # Support for docs.rs
+│   ├── error.rs                   # Error handling
+│   ├── hardware/                  # Hardware-related modules
+│   │   ├── cpu/                   # CPU metrics
+│   │   │   ├── cpu_impl.rs
+│   │   │   ├── frequency.rs
+│   │   │   └── mod.rs
+│   │   ├── gpu/                   # GPU metrics
+│   │   ├── iokit/                 # IOKit interface
+│   │   │   ├── mock.rs           # Mock implementation for testing
+│   │   │   ├── mod.rs            # Main implementation
+│   │   │   └── tests.rs          # Tests for IOKit
+│   │   ├── memory/                # Memory metrics
+│   │   ├── mod.rs
+│   │   └── temperature/           # Temperature sensors
+│   ├── lib.rs                     # Library entry point
+│   ├── network/                   # Network monitoring
+│   │   ├── interface.rs           # Network interfaces
+│   │   ├── mod.rs
+│   │   └── traffic.rs             # Network traffic
+│   ├── power/                     # Power management
+│   ├── process/                   # Process monitoring
+│   ├── resource/                  # Resource monitoring
+│   ├── system/                    # System information
+│   └── utils/                     # Utility functions
+│       ├── bindings.rs            # FFI bindings
+│       ├── mod.rs
+│       ├── property_utils.rs      # Property access utilities
+│       ├── property_utils_tests.rs
+│       └── test_utils.rs          # Testing utilities
+└── tests/                         # Integration tests
+    └── version-sync.rs            # Version consistency tests
+```
+
 ## Development Phases
 
 ### Phase 1: Codebase Refactoring & Cleanup (0.1.x) - Completed
+- Latest release: 0.1.4 (March 10, 2025)
 
 **Goal:** Improve structure, maintainability, and performance before implementing new features.
 

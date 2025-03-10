@@ -73,3 +73,81 @@ pub fn get_system_metrics() -> Result<SystemMetrics> {
     let architecture = detect_architecture()?;
     Ok(SystemMetrics { architecture })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_architecture_error_from() {
+        // Test conversion from ArchitectureError to Error
+        let arch_error = ArchitectureError::SystemCallFailed;
+        let error: Error = arch_error.into();
+        assert!(matches!(error, Error::System(_)));
+
+        let arch_error = ArchitectureError::InvalidStringEncoding;
+        let error: Error = arch_error.into();
+        assert!(matches!(error, Error::System(_)));
+    }
+
+    #[test]
+    fn test_architecture_enum() {
+        // Test enum equality
+        assert_eq!(Architecture::Intel, Architecture::Intel);
+        assert_eq!(Architecture::AppleSilicon, Architecture::AppleSilicon);
+        assert_eq!(Architecture::Unknown, Architecture::Unknown);
+
+        // Test enum inequality
+        assert_ne!(Architecture::Intel, Architecture::AppleSilicon);
+        assert_ne!(Architecture::Intel, Architecture::Unknown);
+        assert_ne!(Architecture::AppleSilicon, Architecture::Unknown);
+    }
+
+    #[test]
+    fn test_detect_architecture() {
+        // This should work on any Mac
+        let result = detect_architecture();
+        assert!(result.is_ok(), "Architecture detection should succeed");
+
+        let arch = result.unwrap();
+        // Architecture should be either Intel or AppleSilicon on real Mac hardware
+        assert!(
+            matches!(arch, Architecture::Intel | Architecture::AppleSilicon),
+            "Architecture should be Intel or AppleSilicon, got: {:?}",
+            arch
+        );
+
+        // On modern Macs, we expect aarch64/Apple Silicon or x86_64/Intel
+        #[cfg(target_arch = "aarch64")]
+        assert_eq!(arch, Architecture::AppleSilicon, "On aarch64, should detect Apple Silicon");
+
+        #[cfg(target_arch = "x86_64")]
+        assert_eq!(arch, Architecture::Intel, "On x86_64, should detect Intel");
+    }
+
+    #[test]
+    fn test_get_system_metrics() {
+        let result = get_system_metrics();
+        assert!(result.is_ok(), "System metrics retrieval should succeed");
+
+        let metrics = result.unwrap();
+        // Verify that the architecture field is populated
+        assert!(
+            matches!(
+                metrics.architecture,
+                Architecture::Intel | Architecture::AppleSilicon | Architecture::Unknown
+            ),
+            "Architecture should be a valid value"
+        );
+    }
+
+    #[test]
+    fn test_system_metrics_struct() {
+        // Test creating the struct directly
+        let metrics = SystemMetrics { architecture: Architecture::Intel };
+        assert_eq!(metrics.architecture, Architecture::Intel);
+
+        let metrics = SystemMetrics { architecture: Architecture::AppleSilicon };
+        assert_eq!(metrics.architecture, Architecture::AppleSilicon);
+    }
+}
