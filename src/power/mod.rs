@@ -243,8 +243,7 @@ mod tests {
     #[test]
     fn test_power_new() {
         let _power = Power::new();
-        // Just ensure we can create a new Power instance
-        assert!(true, "Power instance created successfully");
+        // No assertion needed - test passes if it doesn't panic
     }
     
     #[test]

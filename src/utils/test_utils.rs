@@ -65,8 +65,7 @@ mod tests {
         let _dict = create_test_dictionary();
         
         // Skip verification as it may cause SIGSEGV during coverage runs
-        // Just mark the test as passing with a trivial assertion
-        assert!(true);
+        // No assertion needed - test passes if it doesn't panic
     }
     
     #[test]
@@ -81,8 +80,7 @@ mod tests {
         let _dict = create_test_dictionary_with_entries(entries);
         
         // Skip actual dictionary testing since it can cause SIGSEGV in coverage runs
-        // Just mark the test as passing by using a trivial assertion
-        assert!(true);
+        // No assertion needed - test passes if it doesn't panic
     }
     
     #[test]
@@ -91,8 +89,7 @@ mod tests {
         let _ns_string = create_test_string(test_str);
         
         // Skip string comparison as it may cause SIGSEGV during coverage runs
-        // Just mark the test as passing with a trivial assertion
-        assert!(true);
+        // No assertion needed - test passes if it doesn't panic
     }
     
     #[test]
@@ -101,8 +98,7 @@ mod tests {
         let _ns_number = create_test_number(test_value);
         
         // Skip the actual verification as it may cause SIGSEGV during coverage runs
-        // Just mark the test as passing with a trivial assertion
-        assert!(true);
+        // No assertion needed - test passes if it doesn't panic
     }
     
     #[test]
@@ -110,7 +106,6 @@ mod tests {
         let _obj = create_test_object();
         
         // Skip class testing as it may cause SIGSEGV during coverage runs
-        // Just mark the test as passing with a trivial assertion
-        assert!(true);
+        // No assertion needed - test passes if it doesn't panic
     }
 }
