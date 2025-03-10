@@ -1,5 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.4-2")]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.5")]
 // Explicitly configure for platform-specific code
 #![cfg_attr(not(target_os = "macos"), allow(unused_imports))]
 #![cfg_attr(not(target_os = "macos"), allow(dead_code))]
@@ -9,9 +8,8 @@
 
 /// # darwin-metrics
 ///
-/// `darwin-metrics` is a Rust library that provides native access to macOS
-/// system metrics through low-level system APIs. This crate offers efficient,
-/// safe, and async-capable interfaces for monitoring system resources on macOS.
+/// `darwin-metrics` is a Rust library that provides native access to macOS system metrics through low-level system
+/// APIs. This crate offers efficient, safe, and async-capable interfaces for monitoring system resources on macOS.
 ///
 /// ## Features
 ///
@@ -30,7 +28,7 @@
 ///
 /// ```toml
 /// [dependencies]
-/// darwin-metrics = "0.1.4-2"
+/// darwin-metrics = "0.1.5"
 /// ```
 ///
 /// ## Requirements
@@ -95,8 +93,8 @@
 ///
 /// ## Error Handling
 ///
-/// The crate provides a centralized [`Error`] type that encompasses all
-/// possible error conditions and a convenient [`Result`] type alias.
+/// The crate provides a centralized [`Error`] type that encompasses all possible error conditions and a convenient
+/// [`Result`] type alias.
 ///
 /// ```
 /// # fn foo() {
@@ -111,8 +109,8 @@
 ///
 /// ## Async Support
 ///
-/// When the `async` feature is enabled, the crate provides async versions of
-/// monitoring functions that can be used with the tokio runtime.
+/// When the `async` feature is enabled, the crate provides async versions of monitoring functions that can be used with
+/// the tokio runtime.
 ///
 /// ```ignore
 /// use darwin_metrics::hardware::temperature::Temperature;
@@ -124,25 +122,7 @@
 ///     Ok(())
 /// }
 /// ```
-
-// When building on docs.rs, we provide stub implementations
-// that allow the documentation to be generated without actually
-// accessing macOS APIs, which are not available in the docs.rs environment.
-#[cfg(any(docsrs, docs_feature, use_stubs, not(target_os = "macos")))]
-mod docs_rs_stubs;
-
-// This macro is used throughout the codebase to conditionally compile code
-// for docs.rs, which runs on Linux and cannot access macOS APIs
-#[cfg(any(docsrs, docs_feature, use_stubs, not(target_os = "macos")))]
-macro_rules! docs_rs_only {
-    ($($item:item)*) => {
-        $(
-            #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
-            $item
-        )*
-    };
-}
-
+///
 pub mod battery;
 pub mod disk;
 pub mod error;
@@ -153,39 +133,22 @@ pub mod process;
 pub mod system;
 pub mod utils;
 
-// Re-export the core error types for easier use
-// Re-export primary modules for direct access
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
+// Re-export the core error types for easier use Re-export primary modules for direct access
 #[doc(inline)]
 pub use battery::Battery;
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use disk::{Disk, DiskConfig, DiskType};
-// When building on docs.rs, use the stub implementations instead
-#[cfg(any(docsrs, docs_feature, use_stubs, not(target_os = "macos")))]
-#[doc(inline)]
-pub use docs_rs_stubs::{
-    Battery, Disk, DiskConfig, DiskType, Fan, FrequencyMetrics, Gpu, GpuMetrics, Memory,
-    NetworkInterface, NetworkTraffic, PageStates, PressureLevel, Process, ProcessInfo, SwapUsage,
-    Temperature, ThermalMetrics, CPU,
-};
 #[doc(inline)]
 pub use error::{Error, Result};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use hardware::cpu::{FrequencyMetrics, CPU};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use hardware::gpu::{Gpu, GpuMetrics};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use hardware::temperature::{Fan, Temperature, ThermalMetrics};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use process::{Process, ProcessInfo};

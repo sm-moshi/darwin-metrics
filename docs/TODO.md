@@ -80,7 +80,7 @@
   - [x] Add proper CPU usage calculation with history tracking.
   - [x] Add thread count and process state tracking.
   - [x] Implement graceful fallbacks for permission issues.
-  - [ ] Add additional memory usage metrics (virtual memory, swapped memory) - future enhancement.
+  - [x] Add additional memory usage metrics (virtual memory, swapped memory) - Added SwapUsage with detection and monitoring.
   - [ ] Add process environment variable retrieval - future enhancement.
   - [ ] Implement command-line arguments retrieval - future enhancement.
 

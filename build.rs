@@ -4,35 +4,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=src/");
     println!("cargo:rerun-if-changed=build.rs");
 
-    // Tell Rust that docsrs and use_stubs are valid configuration flags
-    println!("cargo:rustc-check-cfg=cfg(docsrs)");
-    println!("cargo:rustc-check-cfg=cfg(use_stubs)");
+    // No special cfg flags needed anymore
 
     // Get the target OS
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_else(|_| String::from("unknown"));
 
-    // Check if we're building for docs.rs or a non-macOS platform
-    let is_docs_rs = env::var("DOCS_RS").is_ok();
+    // Check if non-macOS platform
     let is_non_macos = target_os != "macos";
-    let is_docs_feature = std::env::var("CARGO_FEATURE_DOCS").is_ok();
 
     // Check if we're running llvm-cov
     let is_coverage = std::env::args().any(|arg| arg.contains("llvm-cov"));
 
-    if is_docs_rs || is_non_macos || is_docs_feature {
+    if is_non_macos {
         println!(
-            "cargo:warning=Building for documentation or non-macOS platform. Skipping \
-             macOS-specific linking."
+            "cargo:warning=Building for non-macOS platform. This library only works on macOS."
         );
-
-        // Set custom cfg flags for docs.rs and stubs
-        if is_docs_rs {
-            println!("cargo:rustc-cfg=docsrs");
-        }
-        if is_docs_feature {
-            println!("cargo:rustc-cfg=docs_feature");
-        }
-        println!("cargo:rustc-cfg=use_stubs");
         return Ok(());
     }
 

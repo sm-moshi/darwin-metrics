@@ -68,24 +68,37 @@ fn main() -> Result<(), Box<dyn Error>> {
         active_gb, inactive_gb, wired_gb, free_gb, compressed_gb
     );
 
-    // Show swap usage
-    println!("\nSwap Usage:");
-    println!(
-        "{:<10} | {:<10} | {:<10} | {:<10} | {:<10}",
-        "Total (GB)", "Used (GB)", "Free (GB)", "In Rate", "Out Rate"
-    );
-    println!("{:-<10} | {:-<10} | {:-<10} | {:-<10} | {:-<10}", "", "", "", "", "");
+    // Check if swap is enabled on this system
+    if memory.swap_usage.is_available() {
+        // Show swap usage
+        println!("\nSwap Usage:");
+        println!(
+            "{:<10} | {:<10} | {:<10} | {:<10} | {:<10}",
+            "Total (GB)", "Used (GB)", "Free (GB)", "In Rate", "Out Rate"
+        );
+        println!("{:-<10} | {:-<10} | {:-<10} | {:-<10} | {:-<10}", "", "", "", "", "");
 
-    let swap_total_gb = memory.swap_usage.total as f64 / 1_073_741_824.0;
-    let swap_used_gb = memory.swap_usage.used as f64 / 1_073_741_824.0;
-    let swap_free_gb = memory.swap_usage.free as f64 / 1_073_741_824.0;
+        let swap_total_gb = memory.swap_usage.total as f64 / 1_073_741_824.0;
+        let swap_used_gb = memory.swap_usage.used as f64 / 1_073_741_824.0;
+        let swap_free_gb = memory.swap_usage.free as f64 / 1_073_741_824.0;
 
-    println!(
-        "{:<10.2} | {:<10.2} | {:<10.2} | {:<10.2}/s | {:<10.2}/s",
-        swap_total_gb, swap_used_gb, swap_free_gb, memory.swap_usage.ins, memory.swap_usage.outs
-    );
+        println!(
+            "{:<10.2} | {:<10.2} | {:<10.2} | {:<10.2}/s | {:<10.2}/s",
+            swap_total_gb, swap_used_gb, swap_free_gb, memory.swap_usage.ins, memory.swap_usage.outs
+        );
 
-    println!("\nSwap Pressure: {:.1}%", memory.swap_usage.pressure * 100.0);
+        println!("\nSwap Pressure: {:.1}%", memory.swap_usage.usage_percentage());
+    } else {
+        println!("\nSwap: Not enabled on this system");
+        
+        // Check if there's any swap activity even though no swap is configured
+        if memory.swap_usage.ins > 0.0 || memory.swap_usage.outs > 0.0 {
+            println!(
+                "Note: Swap activity detected (in: {:.2}/s, out: {:.2}/s) but no swap configuration found.",
+                memory.swap_usage.ins, memory.swap_usage.outs
+            );
+        }
+    }
 
     Ok(())
 }

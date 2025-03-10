@@ -337,19 +337,32 @@ impl IOKit for IOKitImpl {
         &self,
         matching: &NSDictionary<NSString, NSObject>,
     ) -> Option<Retained<AnyObject>> {
-        unsafe {
-            let master_port: u32 = 0;
-            // Create a raw pointer to use with the C function
-            let matching_raw = matching as *const _ as *const ffi_c_void;
-            let service = IOServiceGetMatchingService(master_port, matching_raw);
-            if service == 0 {
-                None
-            } else {
-                // Create an AnyObject from the service ID
-                let service_ptr = service as *mut AnyObject;
-                Retained::from_raw(service_ptr)
+        // Use autoreleasepool to ensure proper memory management of temporary objects
+        autoreleasepool(|_| {
+            unsafe {
+                let master_port: u32 = 0;
+                
+                // Create a copy of the dictionary that we can safely pass to IOKit
+                // Explicitly retain the matching dictionary since IOServiceGetMatchingService consumes it
+                let _: () = msg_send![matching, retain];
+                
+                // Create a raw pointer to use with the C function
+                let matching_raw = matching as *const _ as *const ffi_c_void;
+                
+                // Get the service - IOServiceGetMatchingService consumes the matching dictionary reference
+                let service = IOServiceGetMatchingService(master_port, matching_raw);
+                
+                if service == 0 {
+                    None
+                } else {
+                    // Create an AnyObject from the service ID
+                    let service_ptr = service as *mut AnyObject;
+                    
+                    // Wrap the service in a Retained to manage its lifetime
+                    Retained::from_raw(service_ptr)
+                }
             }
-        }
+        })
     }
 
     fn io_registry_entry_create_cf_properties(
@@ -519,12 +532,24 @@ impl IOKit for IOKitImpl {
         if cfg!(feature = "skip-ffi-crashes") {
             return Err(Error::system("Service access disabled for stability"));
         }
-
-        let matching = self.io_service_matching(name);
-        let service = self
-            .io_service_get_matching_service(&matching)
-            .ok_or_else(|| Error::service_not_found(format!("Service {} not found", name)))?;
-        Ok(service)
+        
+        // Use autoreleasepool to ensure proper memory management
+        autoreleasepool(|_| {
+            // Create matching dictionary
+            let matching = self.io_service_matching(name);
+            
+            // Get the service - the matching dictionary remains valid in this scope
+            let service_result = self
+                .io_service_get_matching_service(&matching)
+                .ok_or_else(|| Error::service_not_found(format!("Service {} not found", name)));
+            
+            // Explicitly drop the matching dictionary to ensure proper order
+            // but only after we've used it
+            drop(matching);
+            
+            // Now return the service result
+            service_result
+        })
     }
 
     // Temperature related methods

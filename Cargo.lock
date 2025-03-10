@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-metrics"
-version = "0.1.4-2"
+version = "0.1.5"
 dependencies = [
  "async-trait",
  "block2",

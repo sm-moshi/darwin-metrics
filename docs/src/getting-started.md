@@ -8,14 +8,14 @@ Add `darwin-metrics` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-darwin-metrics = "0.1.4-1"
+darwin-metrics = "0.1.5"
 ```
 
 ### Requirements
 
-- macOS El Capitan (10.11) or later
-- Rust 1.85 or later
-- Xcode Command Line Tools (for macOS system headers)
+-   macOS El Capitan (10.11) or later
+-   Rust 1.85 or later
+-   Xcode Command Line Tools (for macOS system headers)
 
 ## Basic Usage
 
@@ -50,17 +50,17 @@ fn main() -> darwin_metrics::Result<()> {
 
 ```toml
 [dependencies]
-darwin-metrics = { version = "0.1.4-1", features = ["cpu", "memory"] }
+darwin-metrics = { version = "0.1.5", features = ["cpu", "memory"] }
 ```
 
 Available features include:
 
-- `cpu` - CPU monitoring
-- `memory` - Memory statistics
-- `gpu` - GPU monitoring
-- `process` - Process information
-- `thermal` - Temperature sensors
-- `power` - Power and battery information
+-   `cpu` - CPU monitoring
+-   `memory` - Memory statistics
+-   `gpu` - GPU monitoring
+-   `process` - Process information
+-   `thermal` - Temperature sensors
+-   `power` - Power and battery information
 
 ## Async Support
 
@@ -122,7 +122,7 @@ fn example() -> Result<()> {
 
 Explore the documentation for each module to learn more about available metrics and functionality:
 
-- [CPU Monitoring](./modules/cpu.md)
-- [Memory Analysis](./modules/memory.md)
-- [Process Monitoring](./modules/process.md)
-- [GPU Information](./modules/gpu.md)
+-   [CPU Monitoring](./modules/cpu.md)
+-   [Memory Analysis](./modules/memory.md)
+-   [Process Monitoring](./modules/process.md)
+-   [GPU Information](./modules/gpu.md)

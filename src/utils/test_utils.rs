@@ -4,7 +4,6 @@ use objc2::{
     runtime::AnyObject,
 };
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
-
 /// Creates a test NSDictionary instance for mock testing.
 pub fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
     autoreleasepool(|_| unsafe {
@@ -77,6 +76,10 @@ mod tests {
     fn test_create_test_dictionary_with_entries() {
         // Instead of testing with real entries, we'll just check the function signature
         // is valid by calling it with empty slice to avoid any memory issues
+
+        // Import the needed types within the test
+        use objc2::rc::Retained;
+        use objc2_foundation::{NSObject, NSString};
 
         // Create an empty slice of the correct type
         let entries: &[(Retained<NSString>, Retained<NSObject>)] = &[];
