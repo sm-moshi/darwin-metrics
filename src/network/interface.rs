@@ -570,46 +570,46 @@ impl NetworkManager {
         if let Some(result) = self.update_traffic_stats_native() {
             return Some(result);
         }
-        
+
         // If native implementation fails, fall back to netstat
         self.update_traffic_stats_netstat()
     }
-    
+
     /// Updates traffic stats using the sysctlbyname API.
     ///
     /// This is the preferred method that directly accesses kernel network statistics
     /// rather than relying on command-line tools.
     fn update_traffic_stats_native(&self) -> Option<TrafficStatsMap> {
         use crate::utils::bindings::get_network_stats_native;
-        
+
         // Get list of interface names
         let mut ifap: *mut ifaddrs = ptr::null_mut();
         let mut result = HashMap::new();
-        
+
         unsafe {
             // Call getifaddrs() to get list of interfaces
             if getifaddrs(&mut ifap) != 0 {
                 return None;
             }
-            
+
             // Use scopeguard to ensure ifap is freed
             let _guard = scopeguard::guard(ifap, |ifap| {
                 freeifaddrs(ifap);
             });
-            
+
             // Collect unique interface names
             let mut interface_names = HashSet::new();
-            
+
             let mut current = ifap;
             while !current.is_null() {
                 let ifa = &*current;
-                
+
                 // Skip entries with null names
                 if ifa.ifa_name.is_null() {
                     current = ifa.ifa_next;
                     continue;
                 }
-                
+
                 // Get name as string
                 let name = match CStr::from_ptr(ifa.ifa_name).to_str() {
                     Ok(s) => s.to_string(),
@@ -618,11 +618,11 @@ impl NetworkManager {
                         continue;
                     },
                 };
-                
+
                 interface_names.insert(name);
                 current = ifa.ifa_next;
             }
-            
+
             // Get stats for each interface using sysctlbyname
             for name in interface_names {
                 // Use the native sysctlbyname approach to get stats
@@ -635,23 +635,26 @@ impl NetworkManager {
                     let rx_errors = if_data.ifi_ierrors;
                     let tx_errors = if_data.ifi_oerrors;
                     let collisions = if_data.ifi_collisions;
-                    
+
                     // Store in result map
                     result.insert(
                         name,
-                        (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions),
+                        (
+                            rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors,
+                            collisions,
+                        ),
                     );
                 }
             }
         }
-        
+
         if result.is_empty() {
             None
         } else {
             Some(result)
         }
     }
-    
+
     /// Updates traffic stats using netstat command-line tool.
     ///
     /// This is a fallback method that's safer but less efficient than using sysctlbyname.
@@ -971,24 +974,31 @@ mod tests {
     fn test_traffic_stats_implementation() {
         // This test checks that at least one of our traffic stats implementations works
         let _manager = NetworkManager::new().expect("Failed to create NetworkManager");
-        
+
         // Create a mock NetworkManager just for testing the stats methods
         let test_manager = NetworkManager { interfaces: HashMap::new() };
-        
+
         // Try the native implementation first
         let native_stats = test_manager.update_traffic_stats_native();
-        
+
         if native_stats.is_some() {
             // If native implementation works, validate it
             let stats = native_stats.unwrap();
             assert!(!stats.is_empty(), "Native implementation returned empty stats");
-            
+
             // Check that we have some common interfaces like lo0
             let lo0_stats = stats.get("lo0");
             if lo0_stats.is_some() {
-                let (rx_bytes, tx_bytes, rx_packets, tx_packets, _rx_errors, _tx_errors, _collisions) = 
-                    *lo0_stats.unwrap();
-                
+                let (
+                    rx_bytes,
+                    tx_bytes,
+                    rx_packets,
+                    tx_packets,
+                    _rx_errors,
+                    _tx_errors,
+                    _collisions,
+                ) = *lo0_stats.unwrap();
+
                 // Basic sanity checks - loopback should have some traffic and low errors
                 assert!(rx_bytes > 0, "Loopback rx_bytes should be non-zero");
                 assert!(tx_bytes > 0, "Loopback tx_bytes should be non-zero");
@@ -999,11 +1009,11 @@ mod tests {
             // If native implementation fails, check the netstat fallback
             let netstat_stats = test_manager.update_traffic_stats_netstat();
             assert!(netstat_stats.is_some(), "Both native and netstat implementations failed");
-            
+
             let stats = netstat_stats.unwrap();
             assert!(!stats.is_empty(), "Netstat implementation returned empty stats");
         }
-        
+
         // Verify that the combined implementation works too
         let combined_stats = test_manager.update_traffic_stats();
         assert!(combined_stats.is_some(), "Combined traffic stats implementation failed");

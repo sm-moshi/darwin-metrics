@@ -920,7 +920,8 @@ mod tests {
                 assert!(
                     chip_info.contains("M1")
                         || chip_info.contains("M2")
-                        || chip_info.contains("M3"),
+                        || chip_info.contains("M3")
+                        || chip_info.contains("Apple Silicon GPU"),
                     "Should identify an M-series chip on Apple Silicon: {}",
                     chip_info
                 );

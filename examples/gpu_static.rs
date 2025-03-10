@@ -3,9 +3,7 @@ use objc2_foundation::NSProcessInfo;
 use std::ffi::CString;
 
 // Import the necessary bindings from the crate
-use darwin_metrics::utils::bindings::{
-    IOServiceMatching, IOServiceGetMatchingService, 
-};
+use darwin_metrics::utils::bindings::{IOServiceGetMatchingService, IOServiceMatching};
 
 #[allow(clippy::disallowed_methods, dead_code)]
 fn main() {

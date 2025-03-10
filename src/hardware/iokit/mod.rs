@@ -559,8 +559,8 @@ impl IOKit for IOKitImpl {
     }
 
     fn io_registry_entry_get_parent(&self, entry: &AnyObject) -> Option<Retained<AnyObject>> {
-        use std::os::raw::c_uint;
         use crate::utils::bindings::IORegistryEntryGetParentEntry;
+        use std::os::raw::c_uint;
 
         unsafe {
             let entry_id = entry as *const AnyObject as c_uint;

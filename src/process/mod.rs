@@ -681,7 +681,9 @@ mod tests {
         let tree = match Process::get_process_tree().await {
             Ok(t) => t,
             Err(e) => {
-                println!("Note: get_process_tree() failed but we're allowing this test to pass: {e}");
+                println!(
+                    "Note: get_process_tree() failed but we're allowing this test to pass: {e}"
+                );
                 return; // Skip the test
             },
         };
