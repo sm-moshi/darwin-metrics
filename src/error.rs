@@ -3,12 +3,15 @@ use std::{io, result};
 use thiserror::Error;
 
 /// Specific error types for darwin-metrics
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 #[non_exhaustive]
 pub enum Error {
     /// Error originating from the system's IO subsystem
-    #[error("IO error: {0}")]
-    Io(#[from] io::Error),
+    #[error("IO error: {kind} - {message}")]
+    Io {
+        kind: io::ErrorKind,
+        message: String,
+    },
 
     /// Error related to IOKit operations
     #[error("IOKit error: {0}")]
@@ -115,7 +118,7 @@ impl Error {
     /// Get details about the error
     pub fn details(&self) -> String {
         match self {
-            Error::Io(e) => format!("{}: {}", e, e.kind()),
+            Error::Io { kind, message } => format!("{}: {}", message, kind),
             Error::PermissionDenied(msg) => {
                 format!("Permission denied: {}. Try running with elevated privileges.", msg)
             },
@@ -134,7 +137,7 @@ impl Error {
     /// Determine if this error is caused by insufficient permissions
     pub fn is_permission_error(&self) -> bool {
         matches!(self, Error::PermissionDenied(_))
-            || matches!(self, Error::Io(e) if e.kind() == io::ErrorKind::PermissionDenied)
+            || matches!(self, Error::Io { kind, .. } if *kind == io::ErrorKind::PermissionDenied)
     }
 
     /// Check if this error indicates a feature is not available
@@ -145,3 +148,13 @@ impl Error {
 
 /// Result type for darwin-metrics
 pub type Result<T> = result::Result<T, Error>;
+
+/// Implement conversion from io::Error to Error
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Error::Io {
+            kind: err.kind(),
+            message: err.to_string(),
+        }
+    }
+}
