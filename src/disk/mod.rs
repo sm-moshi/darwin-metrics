@@ -469,35 +469,10 @@ impl DiskMonitor {
         use std::{
             ffi::CStr,
             mem::{size_of, MaybeUninit},
-            os::raw::{c_char, c_int},
+            os::raw::c_int,
         };
 
-        const MNT_NOWAIT: c_int = 2;
-
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
-        struct Statfs {
-            f_bsize: u32,                  // Fundamental file system block size
-            f_iosize: i32,                 // Optimal transfer block size
-            f_blocks: u64,                 // Total data blocks in file system
-            f_bfree: u64,                  // Free blocks in file system
-            f_bavail: u64,                 // Free blocks available to non-superuser
-            f_files: u64,                  // Total file nodes in file system
-            f_ffree: u64,                  // Free nodes available
-            f_fsid: [i32; 2],              // File system ID
-            f_owner: u32,                  // User ID of mount owner
-            f_type: u32,                   // Type of file system
-            f_flags: u32,                  // Copy of mount flags
-            f_fssubtype: u32,              // File system subtype
-            f_fstypename: [c_char; 16],    // File system type name
-            f_mntonname: [c_char; 1024],   // Mount point
-            f_mntfromname: [c_char; 1024], // Mount source
-            f_reserved: [u32; 8],          // Reserved for future use
-        }
-
-        extern "C" {
-            fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
-        }
+        use crate::utils::bindings::{getfsstat, Statfs, MNT_NOWAIT};
 
         // First, call with null buffer to get the number of filesystems
         let fs_count = unsafe { getfsstat(std::ptr::null_mut(), 0, MNT_NOWAIT) };
@@ -580,33 +555,10 @@ impl DiskMonitor {
         use std::{
             ffi::{CStr, CString},
             mem::MaybeUninit,
-            os::{raw::c_char, unix::ffi::OsStrExt},
+            os::unix::ffi::OsStrExt,
         };
 
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
-        struct Statfs {
-            f_bsize: u32,                  // Fundamental file system block size
-            f_iosize: i32,                 // Optimal transfer block size
-            f_blocks: u64,                 // Total data blocks in file system
-            f_bfree: u64,                  // Free blocks in file system
-            f_bavail: u64,                 // Free blocks available to non-superuser
-            f_files: u64,                  // Total file nodes in file system
-            f_ffree: u64,                  // Free nodes available
-            f_fsid: [i32; 2],              // File system ID
-            f_owner: u32,                  // User ID of mount owner
-            f_type: u32,                   // Type of file system
-            f_flags: u32,                  // Copy of mount flags
-            f_fssubtype: u32,              // File system subtype
-            f_fstypename: [c_char; 16],    // File system type name
-            f_mntonname: [c_char; 1024],   // Mount point
-            f_mntfromname: [c_char; 1024], // Mount source
-            f_reserved: [u32; 8],          // Reserved for future use
-        }
-
-        extern "C" {
-            fn statfs(path: *const c_char, buf: *mut Statfs) -> i32;
-        }
+        use crate::utils::bindings::{statfs, Statfs};
 
         // Convert path to C string
         let c_path = CString::new(path.as_ref().as_os_str().as_bytes())

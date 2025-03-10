@@ -563,14 +563,7 @@ impl IOKit for IOKitImpl {
 
     fn io_registry_entry_get_parent(&self, entry: &AnyObject) -> Option<Retained<AnyObject>> {
         use std::os::raw::c_uint;
-
-        extern "C" {
-            fn IORegistryEntryGetParentEntry(
-                entry: c_uint,
-                plane: *const c_char,
-                parent: *mut c_uint,
-            ) -> i32;
-        }
+        use crate::utils::bindings::IORegistryEntryGetParentEntry;
 
         // Use autoreleasepool to ensure proper memory management
         autoreleasepool(|_| {
