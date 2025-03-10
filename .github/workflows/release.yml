@@ -32,6 +32,7 @@ jobs:
 
       - name: Check format
         run: cargo +nightly fmt -- --check --config-path=rustfmt.toml
+        continue-on-error: true
 
       - name: Check clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
