@@ -87,6 +87,7 @@ pub struct timeval {
 //------------------------------------------------------------------------------
 
 // sysctl function for system information
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "System", kind = "framework")]
 extern "C" {
     pub fn sysctl(
@@ -99,6 +100,25 @@ extern "C" {
     ) -> c_int;
 }
 
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod sysctl_stubs {
+    use std::os::raw::{c_int, c_uint, c_void};
+    
+    pub unsafe fn sysctl(
+        _name: *const c_int,
+        _namelen: c_uint,
+        _oldp: *mut c_void,
+        _oldlenp: *mut usize,
+        _newp: *const c_void,
+        _newlen: usize,
+    ) -> c_int {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use sysctl_stubs::*;
+
 //------------------------------------------------------------------------------
 // VM Statistics and Memory-related structures
 //------------------------------------------------------------------------------
@@ -108,8 +128,15 @@ pub const KERN_SUCCESS: i32 = 0;
 pub const HOST_VM_INFO64: i32 = 4;
 pub const HOST_VM_INFO64_COUNT: u32 = 38;
 
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 pub type HostInfoT = *mut i32;
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub type HostInfoT = *mut c_void;
+
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 pub type MachPortT = u32;
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub type MachPortT = u32; // Keep as u32 for docs.rs
 
 #[repr(C)]
 #[derive(Debug, Default)]
@@ -151,6 +178,7 @@ pub struct XswUsage {
 }
 
 // Mach host functions
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 extern "C" {
     pub static vm_kernel_page_size: u32;
 
@@ -163,6 +191,32 @@ extern "C" {
 
     pub fn mach_host_self() -> MachPortT;
 }
+
+// Stubs for docs.rs and non-macOS platforms
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod mach_stubs {
+    use super::{HostInfoT, MachPortT};
+    
+    pub static vm_kernel_page_size: u32 = 4096; // Default page size for documentation
+    
+    // These functions are never actually called on docs.rs
+    // but are needed for compilation
+    pub unsafe fn host_statistics64(
+        _host_priv: MachPortT,
+        _flavor: i32,
+        _host_info_out: HostInfoT,
+        _host_info_outCnt: *mut u32,
+    ) -> i32 {
+        -1 // Error code for documentation purposes
+    }
+    
+    pub unsafe fn mach_host_self() -> MachPortT {
+        0 // Stub MachPortT value
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use mach_stubs::*;
 
 //------------------------------------------------------------------------------
 // IOKit Constants and Data Structures
@@ -330,7 +384,8 @@ impl Clone for SmcKeyDataT {
 
 impl Copy for SmcKeyDataT {}
 
-// IOKit function declarations
+// IOKit function declarations - only for macOS
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "IOKit", kind = "framework")]
 extern "C" {
     // IOService functions
@@ -355,6 +410,53 @@ extern "C" {
         outputStructCnt: *mut IOByteCount,
     ) -> i32;
 }
+
+// Stub declarations for docs.rs and non-macOS
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod iokit_stubs {
+    use super::{IOByteCount, SmcKeyDataT, ffi_c_void, c_char, c_void};
+    
+    // IOService functions (stubs)
+    pub unsafe fn IOServiceGetMatchingService(_masterPort: u32, _matchingDict: *const ffi_c_void) -> u32 {
+        0
+    }
+    
+    pub unsafe fn IOServiceMatching(_serviceName: *const c_char) -> *mut ffi_c_void {
+        std::ptr::null_mut()
+    }
+    
+    pub unsafe fn IOServiceOpen(_service: u32, _owningTask: u32, _type: u32, _handle: *mut u32) -> i32 {
+        -1
+    }
+    
+    pub unsafe fn IOServiceClose(_handle: u32) -> i32 {
+        -1
+    }
+    
+    pub unsafe fn IORegistryEntryCreateCFProperties(
+        _entry: u32,
+        _properties: *mut *mut ffi_c_void,
+        _allocator: *mut ffi_c_void,
+        _options: u32,
+    ) -> i32 {
+        -1
+    }
+    
+    // SMC specific functions (stubs)
+    pub unsafe fn IOConnectCallStructMethod(
+        _connection: u32,
+        _selector: u32,
+        _inputStruct: *const SmcKeyDataT,
+        _inputStructCnt: IOByteCount,
+        _outputStruct: *mut SmcKeyDataT,
+        _outputStructCnt: *mut IOByteCount,
+    ) -> i32 {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use iokit_stubs::*;
 
 //------------------------------------------------------------------------------
 // Process state constants
@@ -399,6 +501,7 @@ pub struct Statfs {
 pub const MNT_NOWAIT: c_int = 2; // Don't block for filesystem sync
 
 // Filesystem functions
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "System", kind = "framework")]
 extern "C" {
     /// Get statistics about a mounted filesystem
@@ -408,6 +511,23 @@ extern "C" {
     pub fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
 }
 
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod fs_stubs {
+    use std::os::raw::{c_int, c_char};
+    use super::Statfs;
+    
+    pub unsafe fn statfs(_path: *const c_char, _buf: *mut Statfs) -> c_int {
+        -1
+    }
+    
+    pub unsafe fn getfsstat(_buf: *mut Statfs, _bufsize: c_int, _flags: c_int) -> c_int {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use fs_stubs::*;
+
 //------------------------------------------------------------------------------
 // Metal Framework Bindings for GPU Access
 //------------------------------------------------------------------------------
@@ -415,12 +535,26 @@ extern "C" {
 /// Metal framework type for device access
 pub type MTLDeviceRef = *mut c_void;
 
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "Metal", kind = "framework")]
 extern "C" {
     /// Creates and returns the default system Metal device
     /// Used to access GPU information including name and capabilities
     pub fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
 }
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub mod metal_stubs {
+    use super::MTLDeviceRef;
+    
+    /// Stub implementation for docs.rs
+    pub unsafe fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef {
+        std::ptr::null_mut()
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use metal_stubs::*;
 
 //------------------------------------------------------------------------------
 // Process and System Info Functions
@@ -429,6 +563,7 @@ extern "C" {
 /// Constants for proc_pidinfo
 pub const PROC_PIDTASKINFO: c_int = 4;
 
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 extern "C" {
     /// Get system load averages for the past 1, 5, and 15 minutes
     pub fn getloadavg(loads: *mut f64, nelem: c_int) -> c_int;
@@ -442,6 +577,28 @@ extern "C" {
         buffersize: c_int,
     ) -> c_int;
 }
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod process_stubs {
+    use std::os::raw::{c_int, c_void};
+    
+    pub unsafe fn getloadavg(_loads: *mut f64, _nelem: c_int) -> c_int {
+        -1
+    }
+    
+    pub unsafe fn proc_pidinfo(
+        _pid: c_int,
+        _flavor: c_int,
+        _arg: u64,
+        _buffer: *mut c_void,
+        _buffersize: c_int,
+    ) -> c_int {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use process_stubs::*;
 
 //------------------------------------------------------------------------------
 // Network related data structures and bindings
@@ -565,6 +722,7 @@ pub struct IfData {
     pub ifi_lastchange: timeval,
 }
 
+#[cfg(all(target_os = "macos", not(any(docsrs, use_stubs))))]
 #[link(name = "System", kind = "framework")]
 extern "C" {
     pub fn getifaddrs(ifap: *mut *mut Ifaddrs) -> c_int;
@@ -579,6 +737,31 @@ extern "C" {
         newlen: usize,
     ) -> c_int;
 }
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+mod network_stubs {
+    use std::os::raw::{c_int, c_void, c_char};
+    use super::Ifaddrs;
+    
+    pub unsafe fn getifaddrs(_ifap: *mut *mut Ifaddrs) -> c_int {
+        -1
+    }
+    
+    pub unsafe fn freeifaddrs(_ifp: *mut Ifaddrs) -> c_void {}
+    
+    pub unsafe fn sysctlbyname(
+        _name: *const c_char,
+        _oldp: *mut c_void,
+        _oldlenp: *mut usize,
+        _newp: *const c_void,
+        _newlen: usize,
+    ) -> c_int {
+        -1
+    }
+}
+
+#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+pub use network_stubs::*;
 
 //------------------------------------------------------------------------------
 // Helper methods for working with the bindings
