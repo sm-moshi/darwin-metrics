@@ -583,6 +583,13 @@ extern "C" {
         newp: *const c_void,
         newlen: usize,
     ) -> c_int;
+    
+    // IOKit registry entry parent function
+    pub fn IORegistryEntryGetParentEntry(
+        entry: c_uint,
+        plane: *const c_char,
+        parent: *mut c_uint,
+    ) -> i32;
 }
 
 //------------------------------------------------------------------------------
