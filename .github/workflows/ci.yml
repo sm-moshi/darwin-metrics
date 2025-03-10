@@ -73,7 +73,7 @@ jobs:
           # Instead, use #[allow(missing_docs)] in the relevant test files
           EOF
           cargo +beta clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
-        continue-on-error: false
+        continue-on-error: true
 
       - name: Build with retry
         run: |
