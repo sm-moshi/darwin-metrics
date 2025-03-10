@@ -1,6 +1,6 @@
 [package]
 name = "darwin-metrics"
-version = "0.1.4-1"
+version = "0.1.5"
 edition = "2021"
 description = "A Rust library exposing native macOS system metrics"
 authors = ["Stuart Meya <sm0sh1@pm.me>"]
@@ -30,8 +30,18 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 cc = "1.2.16"
 
 [dependencies]
-# Core FFI and system interfaces
-libc = "0.2.170"
+# Platform-independent dependencies
+libc               = "0.2.170"
+tokio              = { version = "1.44.0", features = ["full"] }
+futures            = "0.3.31"
+async-trait        = "0.1.87"
+thiserror          = "2.0.12"
+tracing            = { version = "0.1.41", features = ["attributes"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+serde              = { version = "1.0.219", features = ["derive"] }
+serde_json         = "1.0.140"
+
+# macOS-specific dependencies
 libproc = "0.14.10"
 objc2 = { version = "0.6.0", features = [
   "alloc",
@@ -44,27 +54,13 @@ objc2-foundation = "0.3.0"
 objc2-core-foundation = "0.3.0"
 objc2-core-graphics = "0.3.0"
 block2 = { version = "0.6.0", features = ["alloc", "std"] }
-scopeguard = "1.2.0"
 
-# Error handling and logging
-tokio              = { version = "1.44.0", features = ["full"] }
-futures            = "0.3.31"
-async-trait        = "0.1.87"
-thiserror          = "2.0.12"
-tracing            = { version = "0.1.41", features = ["attributes"] }
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-
-# Serialization and data handling
-serde      = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
-
-# Testing
-mockall = "0.13.1"
-
-# Additional dependencies
+# Dev dependencies
+mockall     = "0.13.1"
 parking_lot = "0.12.3"
 log         = "0.4.26"
 once_cell   = "1.20.3"
+scopeguard  = "1.2.0"
 
 [dev-dependencies]
 version-sync = "0.9.5"
@@ -99,16 +95,6 @@ strip         = true
 opt-level = 0
 debug     = true
 
-# Documentation configuration for docs.rs
-[package.metadata.docs.rs]
-all-features = true
-# Configure with proper flags for docs.rs build environment
-rustdoc-args = ["--cfg", "docsrs"]
-rustc-args   = ["--cfg", "docsrs"]
-# Use x86_64-unknown-linux-gnu as the documentation target
-# This prevents trying to build macOS code in the Linux container
-default-target = "x86_64-unknown-linux-gnu"
-targets        = ["x86_64-unknown-linux-gnu"]
 
 [package.metadata]
 minimum-macos-version = "10.11"

@@ -30,6 +30,7 @@
   - [x] Resolve memory safety issues in IOKit interfaces
   - [x] Replace simulated data with real hardware access in tests
   - [x] Ensure all modules have basic test coverage
+  - [x] Fix memory leaks in IOKit implementation using autoreleasepools and proper CFRetain/CFRelease
 
 - [x] **CI/CD Setup**
   - [x] Create GitHub Actions workflow files
@@ -43,6 +44,7 @@
   - [x] Implement real system API calls instead of simulations
   - [x] Fix remaining clippy warnings about non-snake case fields in bindings.rs
   - [x] Fix test module imports and organization issues
+  - [x] Fix CoreFoundation memory management in IOKit interface using proper CFRetain/CFRelease
 
 - [x] **Release Management**
   - [x] Update the changelog for each release
@@ -80,7 +82,7 @@
   - [x] Add proper CPU usage calculation with history tracking.
   - [x] Add thread count and process state tracking.
   - [x] Implement graceful fallbacks for permission issues.
-  - [ ] Add additional memory usage metrics (virtual memory, swapped memory) - future enhancement.
+  - [x] Add additional memory usage metrics (virtual memory, swapped memory) - Added SwapUsage with detection and monitoring.
   - [ ] Add process environment variable retrieval - future enhancement.
   - [ ] Implement command-line arguments retrieval - future enhancement.
 

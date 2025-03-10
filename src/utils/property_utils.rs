@@ -1,6 +1,5 @@
 use objc2::rc::Retained;
 use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
-
 pub trait PropertyUtils {
     fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
         let ns_key = NSString::from_str(key);

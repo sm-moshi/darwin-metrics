@@ -15,7 +15,7 @@ use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
 use crate::{
     error::{Error, Result},
     utils::bindings::{
-        smc_key_from_chars, IOByteCount, IOConnectCallStructMethod,
+        smc_key_from_chars, CFRetain, IOByteCount, IOConnectCallStructMethod,
         IORegistryEntryCreateCFProperties, IOServiceClose, IOServiceGetMatchingService,
         IOServiceMatching, IOServiceOpen, SMCKeyData_t, IO_RETURN_SUCCESS, KERNEL_INDEX_SMC,
         SMC_CMD_READ_BYTES, SMC_CMD_READ_KEYINFO, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP,
@@ -337,19 +337,33 @@ impl IOKit for IOKitImpl {
         &self,
         matching: &NSDictionary<NSString, NSObject>,
     ) -> Option<Retained<AnyObject>> {
-        unsafe {
-            let master_port: u32 = 0;
-            // Create a raw pointer to use with the C function
-            let matching_raw = matching as *const _ as *const ffi_c_void;
-            let service = IOServiceGetMatchingService(master_port, matching_raw);
-            if service == 0 {
-                None
-            } else {
-                // Create an AnyObject from the service ID
-                let service_ptr = service as *mut AnyObject;
-                Retained::from_raw(service_ptr)
+        // Use autoreleasepool to ensure proper memory management of temporary objects
+        autoreleasepool(|_| {
+            unsafe {
+                let master_port: u32 = 0;
+                
+                // Instead of using retain, create a CFRetain call which properly handles
+                // Core Foundation objects. This is safer because IOKit expects CF types.
+                let matching_ptr = matching as *const _ as *const ffi_c_void;
+                CFRetain(matching_ptr);
+                
+                // Create a raw pointer to use with the C function
+                let matching_raw = matching_ptr;
+                
+                // Get the service - IOServiceGetMatchingService consumes the matching dictionary reference
+                let service = IOServiceGetMatchingService(master_port, matching_raw);
+                
+                if service == 0 {
+                    None
+                } else {
+                    // Create an AnyObject from the service ID
+                    let service_ptr = service as *mut AnyObject;
+                    
+                    // Wrap the service in a Retained to manage its lifetime
+                    Retained::from_raw(service_ptr)
+                }
             }
-        }
+        })
     }
 
     fn io_registry_entry_create_cf_properties(
@@ -388,12 +402,22 @@ impl IOKit for IOKitImpl {
         dict: &NSDictionary<NSString, NSObject>,
         key: &str,
     ) -> Option<String> {
-        let key = NSString::from_str(key);
-        unsafe {
-            dict.valueForKey(&key)
-                .and_then(|obj| obj.downcast::<NSString>().ok())
-                .map(|s| s.to_string())
-        }
+        // Wrap in autoreleasepool to ensure proper memory management of temporary objects
+        autoreleasepool(|_| {
+            // Create an NSString from the key
+            let key_nsstring = NSString::from_str(key);
+            
+            unsafe {
+                // Get the value for the key
+                let value_obj = dict.valueForKey(&key_nsstring)?;
+                
+                // Try to downcast to NSString and convert to Rust String
+                let ns_string = value_obj.downcast::<NSString>().ok()?;
+                
+                // Use to_string which properly handles memory management
+                Some(ns_string.to_string())
+            }
+        })
     }
 
     fn get_number_property(
@@ -493,25 +517,32 @@ impl IOKit for IOKitImpl {
             ) -> i32;
         }
 
-        unsafe {
-            let entry_id = entry as *const AnyObject as c_uint;
-            let mut parent_id: c_uint = 0;
+        // Use autoreleasepool to ensure proper memory management
+        autoreleasepool(|_| {
+            unsafe {
+                let entry_id = entry as *const AnyObject as c_uint;
+                let mut parent_id: c_uint = 0;
 
-            // Get the parent in the IOService plane
-            let plane = match CString::new("IOService") {
-                Ok(p) => p,
-                Err(_) => return None, // Should never happen as "IOService" is a valid C string
-            };
-            let result = IORegistryEntryGetParentEntry(entry_id, plane.as_ptr(), &mut parent_id);
+                // Get the parent in the IOService plane
+                let plane = match CString::new("IOService") {
+                    Ok(p) => p,
+                    Err(_) => return None, // Should never happen as "IOService" is a valid C string
+                };
+                let result = IORegistryEntryGetParentEntry(entry_id, plane.as_ptr(), &mut parent_id);
 
-            if result != IO_RETURN_SUCCESS || parent_id == 0 {
-                return None;
+                if result != IO_RETURN_SUCCESS || parent_id == 0 {
+                    return None;
+                }
+
+                // Create an AnyObject from the parent ID
+                // The IOKit object needs to be properly managed with retained ownership
+                let parent_ptr = parent_id as *mut AnyObject;
+                
+                // IOKit objects returned by IORegistryEntryGetParentEntry have a +1 retain count
+                // so we can directly wrap them in Retained which will handle the release
+                Retained::from_raw(parent_ptr)
             }
-
-            // Create an AnyObject from the parent ID
-            let parent_ptr = parent_id as *mut AnyObject;
-            Retained::from_raw(parent_ptr)
-        }
+        })
     }
 
     fn get_service(&self, name: &str) -> Result<Retained<AnyObject>> {
@@ -519,12 +550,24 @@ impl IOKit for IOKitImpl {
         if cfg!(feature = "skip-ffi-crashes") {
             return Err(Error::system("Service access disabled for stability"));
         }
-
-        let matching = self.io_service_matching(name);
-        let service = self
-            .io_service_get_matching_service(&matching)
-            .ok_or_else(|| Error::service_not_found(format!("Service {} not found", name)))?;
-        Ok(service)
+        
+        // Use autoreleasepool to ensure proper memory management
+        autoreleasepool(|_| {
+            // Create matching dictionary
+            let matching = self.io_service_matching(name);
+            
+            // Get the service - the matching dictionary remains valid in this scope
+            let service_result = self
+                .io_service_get_matching_service(&matching)
+                .ok_or_else(|| Error::service_not_found(format!("Service {} not found", name)));
+            
+            // Explicitly drop the matching dictionary to ensure proper order
+            // but only after we've used it
+            drop(matching);
+            
+            // Now return the service result
+            service_result
+        })
     }
 
     // Temperature related methods

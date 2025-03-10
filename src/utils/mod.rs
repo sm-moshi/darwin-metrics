@@ -7,10 +7,7 @@
 //!   dictionaries
 //! - `test_utils`: Utilities for testing
 
-// Conditional compilation flag for docs.rs environment
-#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
-pub const IS_DOCS_RS: bool = true;
-#[cfg(not(any(docsrs, use_stubs, not(target_os = "macos"))))]
+// Always set IS_DOCS_RS to false since we've removed docs.rs support
 pub const IS_DOCS_RS: bool = false;
 
 pub mod bindings;
@@ -23,45 +20,17 @@ mod property_utils_tests;
 use std::{
     ffi::{c_char, CStr},
     os::raw::c_double,
-    panic::AssertUnwindSafe,
     slice,
 };
 
-use objc2::{
-    msg_send,
-    rc::{autoreleasepool, Retained},
-    runtime::AnyObject,
-};
-use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
+use std::panic::AssertUnwindSafe;
+
+use objc2::{msg_send, rc::autoreleasepool, runtime::AnyObject};
 
 use crate::error::{Error, Result};
 
-pub trait PropertyUtils {
-    fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
-        let ns_key = NSString::from_str(key);
-        unsafe { dict.valueForKey(&ns_key) }
-            .and_then(|obj| obj.downcast::<NSString>().ok())
-            .map(|s| s.to_string())
-    }
-
-    fn get_number_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
-        let ns_key = NSString::from_str(key);
-        unsafe { dict.valueForKey(&ns_key) }
-            .and_then(|obj| obj.downcast::<NSNumber>().ok())
-            .map(|n: Retained<NSNumber>| n.as_f64())
-    }
-
-    fn get_bool_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool> {
-        let ns_key = NSString::from_str(key);
-        unsafe { dict.valueForKey(&ns_key) }
-            .and_then(|obj| obj.downcast::<NSNumber>().ok())
-            .map(|n: Retained<NSNumber>| n.as_bool())
-    }
-}
-
-pub struct PropertyAccessor;
-
-impl PropertyUtils for PropertyAccessor {}
+// Import PropertyUtils from the property_utils module
+pub use self::property_utils::*;
 
 /// Executes a closure safely within an Objective-C autorelease pool.
 pub fn autorelease_pool<T, F>(f: F) -> T
