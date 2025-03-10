@@ -102,5 +102,3 @@
 - [x] **[C-CLIPPY](https://rust-lang.github.io/api-guidelines/necessities.html#c-clippy)**: Code passes Clippy checks within reason
 - [x] **[C-DENY-WARNINGS](https://rust-lang.github.io/api-guidelines/necessities.html#c-deny-warnings)**: Do not use
   `#![deny(warnings)]` in published code
-
-

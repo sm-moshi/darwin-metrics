@@ -89,13 +89,16 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-darwin-metrics = "0.1.0"
+darwin-metrics = "0.1.3"  # Stable version
+
+# Or for latest development features:
+# darwin-metrics = { git = "https://github.com/sm-moshi/darwin-metrics", branch = "v0.2.x" }
 ```
 
 ### 🔧 Requirements
 
-- macOS 10.11 (El Capitan) or later
-- Rust 1.75 or later
+- macOS 14.5 (Ventura) or later
+- Rust 1.85 or later
 - Xcode Command Line Tools
 
 ## 🚀 Quick Start
@@ -161,7 +164,9 @@ Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed
 
 ### 🚧 In Progress (v0.2.0)
 
-- [ ] Enhanced async support throughout
+- [x] Enhanced async support throughout
+- [ ] Metal API integration for improved GPU monitoring
+- [ ] Memory management optimizations for IOKit interfaces
 - [ ] Cross-platform abstractions (Linux/Windows)
 - [ ] Metrics export to Prometheus/InfluxDB
 - [ ] Performance optimizations
