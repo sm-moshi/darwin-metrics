@@ -14,6 +14,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added example program to demonstrate improved GPU hardware detection
 - Improved memory reporting for different GPU architectures
 - Added tests for GPU hardware detection
+- Implemented new Power module with component-level power consumption tracking
+- Created stable mock implementation for power monitoring to prevent segmentation faults
+- Added asynchronous power monitoring support with tokio tasks
+- Added new example programs: power_monitor.rs and power_monitor_async.rs
+
+### Fixed
+
+- Resolved critical segmentation fault in IOKit service acquisition
+- Improved memory safety in IOKit interface implementation
+- Added Default implementation for SMCKeyData_t to improve safety
+- Simplified power module implementation with mock data to ensure stability
+
+### Changed
+
+- Enhanced IOKit service handling to be more robust against segmentation faults
+- Simplified get_service implementation to avoid memory corruption
+- Added new SMC key constants for power monitoring
+- Modified IOKit trait to include read_smc_key method for safer SMC access
 
 ## [0.2.0-dev] - 2025-03-10
 

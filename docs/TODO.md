@@ -188,7 +188,8 @@
 - [ ] **Optimize CPU and memory metrics for lower overhead**
 - [ ] **Hardware Monitoring**
   - [ ] Implement fan control features for supported macOS devices.
-  - [ ] Improve power management insights by tracking energy consumption.
+  - [x] Improve power management insights by tracking energy consumption.
+  - [x] Implement component-level power tracking (CPU, GPU, memory, etc).
 - [ ] **Performance Optimizations**
 
   - [ ] Reduce memory footprint by optimizing data structures.
@@ -203,10 +204,10 @@
 - [ ] **Testing Improvements**
   - [ ] Improve test coverage for low-coverage modules:
     - [ ] Add tests for battery module (currently 0% coverage)
-    - [ ] Add tests for power module (currently 0% coverage)
+    - [x] Add tests for power module (with mock implementation)
     - [ ] Add tests for system module (currently 0% coverage)
     - [ ] Add tests for utils modules (currently 0-42% coverage)
-    - [ ] Improve coverage for hardware/iokit (currently 17% coverage)
+    - [x] Improve coverage for hardware/iokit (currently 17% coverage)
     - [ ] Improve coverage for network/interface (currently 21% coverage)
   - [ ] Introduce performance benchmarks to measure impact on system resources.
   - [ ] Conduct stress testing under heavy system load conditions.

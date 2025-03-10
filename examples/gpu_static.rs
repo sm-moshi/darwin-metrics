@@ -47,7 +47,7 @@ fn main() {
                 Err(_) => {
                     println!("Error creating CString");
                     return;
-                }
+                },
             };
             let matching = IOServiceMatching(service_name.as_ptr());
 

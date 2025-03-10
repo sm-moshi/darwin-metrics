@@ -222,6 +222,19 @@ pub const SMC_KEY_CPU_POWER: [c_char; 4] =
 pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] =
     [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char]; // CPU thermal throttling (PCTC)
 
+// Apple Silicon specific power keys (based on macmon and NeoAsitop)
+pub const SMC_KEY_PACKAGE_POWER: [c_char; 4] =
+    [b'P' as c_char, b'M' as c_char, b'P' as c_char, b'0' as c_char]; // PMP0 - Package power (SoC)
+
+pub const SMC_KEY_GPU_POWER: [c_char; 4] =
+    [b'P' as c_char, b'G' as c_char, b'P' as c_char, b'G' as c_char]; // PGPG - GPU power
+
+pub const SMC_KEY_DRAM_POWER: [c_char; 4] =
+    [b'P' as c_char, b'D' as c_char, b'R' as c_char, b'P' as c_char]; // PDRP - DRAM/Memory power
+
+pub const SMC_KEY_NEURAL_POWER: [c_char; 4] =
+    [b'P' as c_char, b'N' as c_char, b'P' as c_char, b'0' as c_char]; // PNP0 - Neural Engine power
+
 // SMC data structures
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
@@ -309,6 +322,26 @@ impl Clone for SMCKeyData_t {
 }
 
 impl Copy for SMCKeyData_t {}
+
+impl Default for SMCKeyData_t {
+    fn default() -> Self {
+        unsafe {
+            Self {
+                key: 0,
+                vers: 0,
+                p_limit_data: 0,
+                key_info: 0,
+                padding: 0,
+                result: 0,
+                status: 0,
+                data8: 0,
+                data32: 0,
+                bytes: [0; 2],
+                data: std::mem::zeroed(),
+            }
+        }
+    }
+}
 
 // IOKit function declarations
 #[link(name = "IOKit", kind = "framework")]

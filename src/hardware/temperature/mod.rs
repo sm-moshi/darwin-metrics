@@ -128,13 +128,13 @@ impl Temperature {
             self.sensors.insert("Heatsink".to_string(), 45.0);
             self.sensors.insert("Ambient".to_string(), 32.0);
             self.sensors.insert("Battery".to_string(), 38.0);
-            
+
             // Set throttling to false
             self.is_throttling = false;
-            
+
             // Set CPU power
             self.cpu_power = Some(28.5);
-            
+
             // Add a mock fan
             self.fans.clear();
             self.fans.push(Fan {
@@ -144,13 +144,13 @@ impl Temperature {
                 max_speed: 4000,
                 percentage: 33.3,
             });
-            
+
             // Update refresh timestamp
             self.last_refresh = Instant::now();
-            
+
             return Ok(());
         }
-        
+
         #[cfg(not(feature = "skip-ffi-crashes"))]
         {
             // Get comprehensive thermal information

@@ -59,7 +59,7 @@
 //! ## Feature Flags
 //!
 //! ### Core Features (Enabled by Default)
-//! 
+//!
 //! - `battery` - Enable battery monitoring
 //! - `cpu` - Enable CPU metrics
 //! - `memory` - Enable memory statistics
@@ -140,16 +140,16 @@ pub use battery::Battery;
 pub use disk::{Disk, DiskConfig, DiskType};
 
 #[doc(inline)]
-pub use hardware::cpu::{CPU, FrequencyMetrics};
+pub use hardware::cpu::{FrequencyMetrics, CPU};
 
 #[doc(inline)]
-pub use hardware::gpu::{Gpu, GpuMetrics}; 
+pub use hardware::gpu::{Gpu, GpuMetrics};
 
 #[doc(inline)]
 pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
 
 #[doc(inline)]
-pub use hardware::temperature::{Temperature, ThermalMetrics, Fan};
+pub use hardware::temperature::{Fan, Temperature, ThermalMetrics};
 
 #[doc(inline)]
 pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
