@@ -4,23 +4,23 @@ The Network module in `darwin-metrics` provides comprehensive monitoring for net
 
 ## Features
 
-- **Interface Discovery**: Automatically detect and monitor all network interfaces on macOS
-- **Interface Classification**: Identify interface types (Ethernet, WiFi, Loopback, Virtual)
-- **Traffic Statistics**: Track bytes and packets sent/received in real-time
-- **Error Monitoring**: Track packet errors, collisions, and drops
-- **State Tracking**: Monitor interface up/down status and flags
-- **Interface Information**: Get MAC addresses, IP addresses, and interface capabilities
-- **Speed Calculation**: Calculate real-time upload and download speeds
-- **Connection Monitoring**: Track active network connections and their status
+-   **Interface Discovery**: Automatically detect and monitor all network interfaces on macOS
+-   **Interface Classification**: Identify interface types (Ethernet, WiFi, Loopback, Virtual)
+-   **Traffic Statistics**: Track bytes and packets sent/received in real-time
+-   **Error Monitoring**: Track packet errors, collisions, and drops
+-   **State Tracking**: Monitor interface up/down status and flags
+-   **Interface Information**: Get MAC addresses, IP addresses, and interface capabilities
+-   **Speed Calculation**: Calculate real-time upload and download speeds
+-   **Connection Monitoring**: Track active network connections and their status
 
 ## macOS Implementation Details
 
 The Network module is specifically designed for macOS systems and uses:
 
-- **SystemConfiguration framework**: For network interface enumeration and configuration
-- **Network framework**: For modern network monitoring capabilities
-- **getifaddrs()**: For IP/MAC address collection
-- **IOKit API**: To determine interface capabilities and state
+-   **SystemConfiguration framework**: For network interface enumeration and configuration
+-   **Network framework**: For modern network monitoring capabilities
+-   **getifaddrs()**: For IP/MAC address collection
+-   **IOKit API**: To determine interface capabilities and state
 
 ## Usage Example
 
@@ -297,20 +297,20 @@ async fn connection_monitoring() -> darwin_metrics::Result<()> {
 
 Network operations can return the following error types:
 
-- `Error::Network`: Errors related to network operations
-- `Error::NotAvailable`: When specific network metrics aren't available
-- `Error::System`: Underlying system errors
-- `Error::Permission`: When insufficient permissions exist to access network data
+-   `Error::Network`: Errors related to network operations
+-   `Error::NotAvailable`: When specific network metrics aren't available
+-   `Error::System`: Underlying system errors
+-   `Error::Permission`: When insufficient permissions exist to access network data
 
 The implementation includes graceful fallbacks when some metrics aren't available, avoiding crashes or panics when running on different macOS environments.
 
 ## Performance Considerations
 
-- **Update Frequency**: For real-time monitoring, call `refresh()` at regular intervals (1-5 seconds)
-- **Speed Calculations**: Require at least two measurements over time
-- **Resource Usage**: The implementation is designed to be lightweight with minimal system impact
-- **Thread Safety**: The API is designed to be used safely with tokio's async runtime
-- **Caching Strategy**: Some data is cached to reduce system calls and improve performance
+-   **Update Frequency**: For real-time monitoring, call `refresh()` at regular intervals (1-5 seconds)
+-   **Speed Calculations**: Require at least two measurements over time
+-   **Resource Usage**: The implementation is designed to be lightweight with minimal system impact
+-   **Thread Safety**: The API is designed to be used safely with tokio's async runtime
+-   **Caching Strategy**: Some data is cached to reduce system calls and improve performance
 
 ## Common Usage Patterns
 

@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.3")]
+#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.4")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // Explicitly configure for platform-specific code
 #![cfg_attr(not(target_os = "macos"), allow(unused_imports))]

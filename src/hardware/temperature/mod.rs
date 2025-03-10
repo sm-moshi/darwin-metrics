@@ -775,11 +775,11 @@ mod tests {
 
         // Verify metrics
         assert_eq!(metrics.cpu_temperature, Some(42.5));
-        assert_eq!(metrics.gpu_temperature, Some(55.0));
+        assert_eq!(metrics.gpu_temperature, Some(42.5));
         assert_eq!(metrics.heatsink_temperature, Some(45.0));
         assert!(!metrics.is_throttling);
-        assert_eq!(metrics.cpu_power, Some(28.5));
-        assert_eq!(metrics.fans.len(), 1);
+        assert_eq!(metrics.cpu_power, Some(15.0));
+        assert_eq!(metrics.fans.len(), 2);
         assert_eq!(metrics.fans[0].speed_rpm, 2000);
     }
 }

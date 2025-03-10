@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None yet
 
+## [0.1.4] - 2025-03-10
+
+### 0.1.4 - Fixed
+
+- Fixed warnings about non-snake_case fields in bindings.rs
+- Fixed SIGSEGV crashes during test execution
+- Improved test safety by fixing memory management issues
+- Reorganized tests into dedicated files to improve maintainability
+- Fixed missing imports in test modules (msg_send and autoreleasepool)
+- Fixed clippy error about test module placement in bindings.rs 
+- Improved test coverage for hardware/iokit module (from 16.67% to 22.18%)
+
 ## [0.1.3] - 2025-03-09
 
 ### 0.1.3 - Fixed

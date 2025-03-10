@@ -9,6 +9,7 @@ The library is currently transitioning from Phase 1 to Phase 2 of development, w
 ## Development Phases
 
 ### Phase 1: Codebase Refactoring & Cleanup (0.1.x) - Completed
+- Latest release: 0.1.4 (March 10, 2025)
 
 **Goal:** Improve structure, maintainability, and performance before implementing new features.
 

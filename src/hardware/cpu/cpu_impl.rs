@@ -355,14 +355,12 @@ mod tests {
             let mut mock = MockIOKit::new();
 
             // Setup mock behavior
-            mock.expect_get_cpu_temperature()
-                .returning(|| Ok(45.5));
-                
-            mock.expect_get_service()
-                .returning(|_| {
-                    use crate::utils::test_utils;
-                    Ok(test_utils::create_test_object())
-                });
+            mock.expect_get_cpu_temperature().returning(|| Ok(45.5));
+
+            mock.expect_get_service().returning(|_| {
+                use crate::utils::test_utils;
+                Ok(test_utils::create_test_object())
+            });
 
             let cpu = Self {
                 physical_cores: 8,

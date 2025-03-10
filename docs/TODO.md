@@ -38,10 +38,11 @@
   - [x] Standardize toolchain usage (beta for linting, stable for building)
   - [x] Fix GitHub workflow compatibility issues
 
-- [ ] **Critical Bugs**
+- [x] **Critical Bugs**
   - [x] Fix memory management issues with IOKit calls
   - [x] Implement real system API calls instead of simulations
-  - [ ] Fix remaining clippy warnings about non-snake case fields (Optional - can be addressed post-release)
+  - [x] Fix remaining clippy warnings about non-snake case fields in bindings.rs
+  - [x] Fix test module imports and organization issues
 
 - [x] **Release Management**
   - [x] Update the changelog for each release
@@ -184,7 +185,8 @@
 
 - [~] **Testing & Stability**
   - [x] Add tests for power module with mock implementation (96.98% coverage)
-  - [~] Improve coverage for hardware/iokit module (currently 16.67%)
+  - [x] Improve coverage for hardware/iokit module (improved from 16.67% to 22.18%)
+  - [x] Reorganized tests into dedicated files to keep implementation files clean
   - [ ] Expand test coverage for other system metrics, ensuring accuracy in collected data.
   - [~] Improve async testing to validate non-blocking behavior.
 

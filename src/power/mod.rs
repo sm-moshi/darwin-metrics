@@ -1,4 +1,21 @@
+use std::os::raw::c_char;
 use thiserror::Error;
+
+use crate::error::{Error, Result};
+use crate::hardware::iokit::{IOKit, IOKitImpl};
+
+/// Represents the power state of the system
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PowerState {
+    /// System is running on AC power
+    AC,
+    /// System is running on battery power
+    Battery,
+    /// System is charging
+    Charging,
+    /// Power state is unknown
+    Unknown,
+}
 
 #[derive(Debug, Error)]
 pub enum PowerError {
@@ -6,6 +23,19 @@ pub enum PowerError {
     SystemCallFailed,
     #[error("Invalid power data")]
     InvalidData,
+    #[error("Service not found")]
+    ServiceError(String),
+}
+
+impl From<Error> for PowerError {
+    fn from(err: Error) -> Self {
+        match err {
+            Error::InvalidData(_) => PowerError::InvalidData,
+            Error::ServiceNotFound(msg) => PowerError::ServiceError(msg),
+            Error::System(_) => PowerError::SystemCallFailed,
+            _ => PowerError::SystemCallFailed,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -184,19 +214,19 @@ pub async fn get_power_consumption_async() -> Result<PowerConsumption> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_power_new() {
         let _power = Power::new();
         // No assertion needed - test passes if it doesn't panic
     }
-    
+
     #[test]
     fn test_power_consumption() {
         let power = Power::new();
         let result = power.get_power_consumption();
         assert!(result.is_ok(), "Should return Ok result");
-        
+
         let consumption = result.unwrap();
         assert!(consumption.package > 0.0, "Package power should be positive");
         assert!(consumption.cores > 0.0, "Core power should be positive");
@@ -205,79 +235,79 @@ mod tests {
         assert!(consumption.neural_engine.is_some(), "Neural engine power should be present");
         assert_eq!(consumption.power_state, PowerState::AC, "Power state should be AC");
     }
-    
+
     #[test]
     fn test_power_throttling() {
         let power = Power::new();
         let result = power.is_power_throttling();
         assert!(result.is_ok(), "Should return Ok result");
-        
+
         // Our mock implementation always returns false for throttling
         let is_throttling = result.unwrap();
         assert!(!is_throttling, "Mock implementation should not report throttling");
     }
-    
+
     #[test]
     fn test_read_smc_power_key() {
         let power = Power::new();
-        
+
         // Test valid keys
         let cpu_power = power.read_smc_power_key(SMC_KEY_CPU_POWER);
         assert!(cpu_power.is_ok(), "CPU power key should return Ok result");
         assert!(cpu_power.unwrap() > 0.0, "CPU power should be positive");
-        
+
         let gpu_power = power.read_smc_power_key(SMC_KEY_GPU_POWER);
         assert!(gpu_power.is_ok(), "GPU power key should return Ok result");
         assert!(gpu_power.unwrap() > 0.0, "GPU power should be positive");
-        
+
         // Test unknown key (should return 0.0)
         let unknown_key = [b'X' as c_char, b'X' as c_char, b'X' as c_char, b'X' as c_char];
         let unknown_power = power.read_smc_power_key(unknown_key);
         assert!(unknown_power.is_ok(), "Unknown power key should return Ok result");
         assert_eq!(unknown_power.unwrap(), 0.0, "Unknown key should return 0.0");
     }
-    
+
     #[tokio::test]
     async fn test_power_consumption_async() {
         let power = Power::new();
         let result = power.get_power_consumption_async().await;
         assert!(result.is_ok(), "Should return Ok result");
-        
+
         let consumption = result.unwrap();
         assert!(consumption.package > 0.0, "Package power should be positive");
         assert!(consumption.cores > 0.0, "Core power should be positive");
         assert!(consumption.gpu.is_some(), "GPU power should be present");
     }
-    
+
     #[tokio::test]
     async fn test_power_throttling_async() {
         let power = Power::new();
         let result = power.is_power_throttling_async().await;
         assert!(result.is_ok(), "Should return Ok result");
-        
+
         // Our mock implementation always returns false for throttling
         let is_throttling = result.unwrap();
         assert!(!is_throttling, "Mock implementation should not report throttling");
     }
-    
+
     #[test]
     fn test_convenience_functions() {
         let result = get_power_consumption();
         assert!(result.is_ok(), "get_power_consumption should return Ok result");
-        
+
         let consumption = result.unwrap();
         assert!(consumption.package > 0.0, "Package power should be positive");
     }
-    
+
     #[tokio::test]
     async fn test_convenience_functions_async() {
         let result = get_power_consumption_async().await;
         assert!(result.is_ok(), "get_power_consumption_async should return Ok result");
-        
+
         let consumption = result.unwrap();
         assert!(consumption.package > 0.0, "Package power should be positive");
     }
-    
+
     #[test]
     fn test_power_state_enum() {
         // Just ensure the enum variants can be compared
@@ -286,7 +316,7 @@ mod tests {
         assert_ne!(PowerState::Battery, PowerState::Charging);
         assert_ne!(PowerState::Charging, PowerState::Unknown);
     }
-    
+
     #[test]
     fn test_power_consumption_struct() {
         let consumption = PowerConsumption {
@@ -299,7 +329,7 @@ mod tests {
             battery_percentage: Some(75.0),
             power_impact: Some(12.5),
         };
-        
+
         assert_eq!(consumption.package, 10.0);
         assert_eq!(consumption.cores, 5.0);
         assert_eq!(consumption.gpu, Some(3.0));
@@ -309,17 +339,17 @@ mod tests {
         assert_eq!(consumption.battery_percentage, Some(75.0));
         assert_eq!(consumption.power_impact, Some(12.5));
     }
-    
+
     #[test]
     fn test_power_error_conversion() {
         let invalid_data_err = Error::invalid_data("test error");
         let power_err = PowerError::from(invalid_data_err);
         assert!(matches!(power_err, PowerError::InvalidData));
-        
+
         let system_err = Error::system("test error");
         let power_err = PowerError::from(system_err);
         assert!(matches!(power_err, PowerError::SystemCallFailed));
-        
+
         let service_err = Error::service_not_found("test service");
         let power_err = PowerError::from(service_err);
         assert!(matches!(power_err, PowerError::ServiceError(_)));
