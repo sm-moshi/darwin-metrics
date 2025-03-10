@@ -195,7 +195,7 @@ impl Process {
 
             match Self::get_by_pid(pid).await {
                 Ok(process) => processes.push(process),
-                Err(_) => continue, // Skip processes we can't access
+                Err(_) => {}, // Skip processes we can't access
             }
         }
 
@@ -623,7 +623,7 @@ mod tests {
         let processes = match Process::get_all().await {
             Ok(procs) => procs,
             Err(e) => {
-                println!("Note: get_all() failed but we're allowing this test to pass: {}", e);
+                println!("Note: get_all() failed but we're allowing this test to pass: {e}");
                 return; // Skip the test
             },
         };
@@ -640,7 +640,7 @@ mod tests {
                 Ok(_) => println!(
                     "Note: Current process not in process list but can be retrieved directly"
                 ),
-                Err(e) => println!("Warning: Failed to get current process: {}", e),
+                Err(e) => println!("Warning: Failed to get current process: {e}"),
             }
         }
     }
@@ -681,10 +681,7 @@ mod tests {
         let tree = match Process::get_process_tree().await {
             Ok(t) => t,
             Err(e) => {
-                println!(
-                    "Note: get_process_tree() failed but we're allowing this test to pass: {}",
-                    e
-                );
+                println!("Note: get_process_tree() failed but we're allowing this test to pass: {e}");
                 return; // Skip the test
             },
         };

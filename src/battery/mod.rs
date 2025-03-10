@@ -47,12 +47,22 @@ impl Default for Battery {
 }
 
 impl Battery {
+    /// Creates a new Battery instance.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if battery information cannot be retrieved from the system.
     pub fn new() -> Result<Self> {
         let mut battery = Self::default();
         battery.update()?;
         Ok(battery)
     }
 
+    /// Updates battery information.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if battery information cannot be retrieved from the system.
     pub fn update(&mut self) -> Result<()> {
         let matching = self.iokit.io_service_matching("AppleSmartBattery");
         let service = self.iokit.io_service_get_matching_service(&matching);
@@ -110,6 +120,11 @@ impl Battery {
         Ok(())
     }
 
+    /// Gets battery information.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if battery information cannot be retrieved from the system.
     pub fn get_info(&self) -> Result<Self> {
         let matching = self.iokit.io_service_matching("AppleSmartBattery");
         let service = self.iokit.io_service_get_matching_service(&matching);
@@ -125,6 +140,7 @@ impl Battery {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn with_values(
         is_present: bool,
         is_charging: bool,
@@ -397,7 +413,7 @@ mod tests {
             time_remaining: Duration::from_secs(180 * 60),
             power_source: PowerSource::AC,
             cycle_count: 250,
-            health_percentage: 90.90909090909092,
+            health_percentage: 90.909_090_909_090_92,
             temperature: 32.0,
             iokit: Box::new(mock_iokit),
         }
@@ -425,7 +441,7 @@ mod tests {
         assert_eq!(battery.power_source, PowerSource::AC);
         assert_eq!(battery.cycle_count, 250);
         // Use approximate comparison for floating point values
-        assert!((battery.health_percentage - 90.90909090909092).abs() < 0.000001);
+        assert!((battery.health_percentage - 90.909_090_909_090_92).abs() < 0.000_001);
         assert_eq!(battery.temperature, 32.0);
     }
 
