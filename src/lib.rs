@@ -128,12 +128,12 @@
 // When building on docs.rs, we provide stub implementations
 // that allow the documentation to be generated without actually
 // accessing macOS APIs, which are not available in the docs.rs environment.
-#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+#[cfg(any(docsrs, docs_feature, use_stubs, not(target_os = "macos")))]
 mod docs_rs_stubs;
 
 // This macro is used throughout the codebase to conditionally compile code
 // for docs.rs, which runs on Linux and cannot access macOS APIs
-#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+#[cfg(any(docsrs, docs_feature, use_stubs, not(target_os = "macos")))]
 macro_rules! docs_rs_only {
     ($($item:item)*) => {
         $(
@@ -155,14 +155,14 @@ pub mod utils;
 
 // Re-export the core error types for easier use
 // Re-export primary modules for direct access
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use battery::Battery;
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use disk::{Disk, DiskConfig, DiskType};
 // When building on docs.rs, use the stub implementations instead
-#[cfg(any(docsrs, use_stubs, not(target_os = "macos")))]
+#[cfg(any(docsrs, docs_feature, use_stubs, not(target_os = "macos")))]
 #[doc(inline)]
 pub use docs_rs_stubs::{
     Battery, Disk, DiskConfig, DiskType, Fan, FrequencyMetrics, Gpu, GpuMetrics, Memory,
@@ -171,21 +171,21 @@ pub use docs_rs_stubs::{
 };
 #[doc(inline)]
 pub use error::{Error, Result};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use hardware::cpu::{FrequencyMetrics, CPU};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use hardware::gpu::{Gpu, GpuMetrics};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use hardware::temperature::{Fan, Temperature, ThermalMetrics};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
-#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs)))]
+#[cfg(all(target_os = "macos", not(use_stubs), not(docsrs), not(docs_feature)))]
 #[doc(inline)]
 pub use process::{Process, ProcessInfo};

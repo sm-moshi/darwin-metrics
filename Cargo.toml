@@ -79,9 +79,10 @@ process_monitoring = []
 # Optional features
 async = []
 
-# Testing features
-unstable-tests   = []
-skip-ffi-crashes = [] # Skip FFI code that causes crashes in coverage
+# Documentation and testing features
+docs              = [] # Special feature for docs.rs to build on Linux
+unstable-tests    = []
+skip-ffi-crashes  = [] # Skip FFI code that causes crashes in coverage
 
 [profile.release]
 lto           = true
@@ -96,7 +97,9 @@ debug     = true
 
 # Documentation configuration for docs.rs
 [package.metadata.docs.rs]
-all-features = true
+# Only enable the docs feature - don't enable all features
+features = ["docs"]
+no-default-features = true
 # Configure with proper flags for docs.rs build environment
 rustdoc-args = ["--cfg", "docsrs"]
 rustc-args   = ["--cfg", "docsrs"]

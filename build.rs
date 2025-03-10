@@ -14,11 +14,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Check if we're building for docs.rs or a non-macOS platform
     let is_docs_rs = env::var("DOCS_RS").is_ok();
     let is_non_macos = target_os != "macos";
+    let is_docs_feature = std::env::var("CARGO_FEATURE_DOCS").is_ok();
 
     // Check if we're running llvm-cov
     let is_coverage = std::env::args().any(|arg| arg.contains("llvm-cov"));
 
-    if is_docs_rs || is_non_macos {
+    if is_docs_rs || is_non_macos || is_docs_feature {
         println!(
             "cargo:warning=Building for documentation or non-macOS platform. Skipping \
              macOS-specific linking."
@@ -27,6 +28,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Set custom cfg flags for docs.rs and stubs
         if is_docs_rs {
             println!("cargo:rustc-cfg=docsrs");
+        }
+        if is_docs_feature {
+            println!("cargo:rustc-cfg=docs_feature");
         }
         println!("cargo:rustc-cfg=use_stubs");
         return Ok(());
