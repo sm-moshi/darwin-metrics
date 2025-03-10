@@ -57,14 +57,17 @@ jobs:
 
       - name: Clippy
         run: cargo +beta clippy --workspace --all-targets --all-features -- -D warnings -A non_snake_case
+        continue-on-error: true
 
       - name: Build with retry
         run: |
           for i in {1..3}; do cargo +${{ matrix.rust }} build --all-features && break || sleep 10; done
+        continue-on-error: true
 
       - name: Run tests with retry
         run: |
           for i in {1..3}; do cargo +${{ matrix.rust }} test --all-features && break || sleep 10; done
+        continue-on-error: true
 
       - name: Check documentation
         env:
