@@ -593,3 +593,67 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
     }
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_proc_name() {
+        // Create a kinfo_proc structure with a process name
+        let mut proc_info = kinfo_proc {
+            kp_proc: proc_info {
+                p_flag: 0,
+                p_pid: 123,
+                p_ppid: 1,
+                p_stat: 0,
+            },
+            kp_eproc: extern_proc {
+                p_starttime: timeval {
+                    tv_sec: 0,
+                    tv_usec: 0,
+                },
+                p_comm: [0; 16],
+            },
+        };
+
+        // Set a process name
+        let test_name = b"test_process\0";
+        for (i, &byte) in test_name.iter().enumerate() {
+            if i < proc_info.kp_eproc.p_comm.len() {
+                proc_info.kp_eproc.p_comm[i] = byte;
+            }
+        }
+
+        // Extract the name
+        let extracted_name = extract_proc_name(&proc_info);
+        assert_eq!(extracted_name, "test_process");
+    }
+
+    #[test]
+    fn test_is_system_process() {
+        // Test system processes
+        assert!(is_system_process(1, "launchd"));
+        assert!(is_system_process(999, "random_system_process"));
+        assert!(is_system_process(1234, "com.apple.service"));
+        assert!(is_system_process(5000, "kernel_task"));
+        assert!(is_system_process(5000, "WindowServer"));
+
+        // Test non-system processes
+        assert!(!is_system_process(1000, "user_app"));
+        assert!(!is_system_process(1234, "firefox"));
+        assert!(!is_system_process(5000, "chrome"));
+    }
+
+    #[test]
+    fn test_smc_key_from_chars() {
+        let key = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
+        let result = smc_key_from_chars(key);
+
+        // Calculate the expected value: ('T' << 24) | ('C' << 16) | ('0' << 8) | 'P'
+        let expected = 
+            (b'T' as u32) << 24 | (b'C' as u32) << 16 | (b'0' as u32) << 8 | (b'P' as u32);
+
+        assert_eq!(result, expected);
+    }
+}
