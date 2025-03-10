@@ -8,10 +8,7 @@ use thiserror::Error;
 pub enum Error {
     /// Error originating from the system's IO subsystem
     #[error("IO error: {kind} - {message}")]
-    Io {
-        kind: io::ErrorKind,
-        message: String,
-    },
+    Io { kind: io::ErrorKind, message: String },
 
     /// Error related to IOKit operations
     #[error("IOKit error: {0}")]
@@ -152,10 +149,7 @@ pub type Result<T> = result::Result<T, Error>;
 /// Implement conversion from io::Error to Error
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        Error::Io {
-            kind: err.kind(),
-            message: err.to_string(),
-        }
+        Error::Io { kind: err.kind(), message: err.to_string() }
     }
 }
 
@@ -195,15 +189,12 @@ mod tests {
     #[test]
     fn test_error_details_io() {
         // Test IO error details formatting - using a simpler check that avoids exact string match
-        let e1 = Error::Io {
-            kind: ErrorKind::NotFound,
-            message: "file not found".to_string(),
-        };
+        let e1 = Error::Io { kind: ErrorKind::NotFound, message: "file not found".to_string() };
         let details = e1.details();
         assert!(details.contains("file not found"));
         assert!(details.contains("not found"));
     }
-    
+
     #[test]
     fn test_error_details_permission() {
         // Test permission error details
@@ -211,21 +202,21 @@ mod tests {
         assert!(e.details().contains("Permission denied: access denied"));
         assert!(e.details().contains("elevated privileges"));
     }
-    
+
     #[test]
     fn test_error_details_iokit() {
         // Test IOKit error details
         let e = Error::IOKit("service failed".to_string());
         assert!(e.details().contains("IOKit error: service failed"));
     }
-    
+
     #[test]
     fn test_error_details_not_available() {
         // Test not available error details
         let e = Error::NotAvailable("GPU features".to_string());
         assert!(e.details().contains("Feature not available: GPU features"));
     }
-    
+
     #[test]
     fn test_error_details_other() {
         // Test other error details
@@ -239,16 +230,10 @@ mod tests {
         let e1 = Error::PermissionDenied("test".to_string());
         assert!(e1.is_permission_error());
 
-        let e2 = Error::Io {
-            kind: ErrorKind::PermissionDenied,
-            message: "test".to_string(),
-        };
+        let e2 = Error::Io { kind: ErrorKind::PermissionDenied, message: "test".to_string() };
         assert!(e2.is_permission_error());
 
-        let e3 = Error::Io {
-            kind: ErrorKind::NotFound,
-            message: "test".to_string(),
-        };
+        let e3 = Error::Io { kind: ErrorKind::NotFound, message: "test".to_string() };
         assert!(!e3.is_permission_error());
 
         let e4 = Error::Other("test".to_string());
@@ -270,7 +255,7 @@ mod tests {
         // Test From<io::Error> implementation
         let io_err = IoError::new(ErrorKind::ConnectionRefused, "connection error");
         let err: Error = io_err.into();
-        
+
         if let Error::Io { kind, message } = err {
             assert_eq!(kind, ErrorKind::ConnectionRefused);
             assert!(message.contains("connection error"));

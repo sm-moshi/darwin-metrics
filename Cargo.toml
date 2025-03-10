@@ -87,25 +87,6 @@ async = []
 unstable-tests   = []
 skip-ffi-crashes = []
 
-[profile.release]
-lto           = true
-codegen-units = 1
-opt-level     = 3
-debug         = false
-strip         = true
-
-[profile.dev]
-opt-level = 0
-debug     = true
-
-# Documentation configuration for docs.rs
-[package.metadata.docs.rs]
-all-features   = true
-rustdoc-args   = ["--cfg", "docsrs"]
-targets        = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
-default-target = "aarch64-apple-darwin"
-rustc-args     = ["--cfg", "docs_rs"]
-
 [package.metadata]
 minimum-macos-version = "10.11"
 

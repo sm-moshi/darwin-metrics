@@ -810,7 +810,7 @@ mod tests {
         // temperature - in normal testing this would be 45.0, but during test failures we're skipping to avoid crashes
         let heatsink_temp = metrics.heatsink_temperature;
         assert!(heatsink_temp.is_some(), "Heatsink temperature should be present");
-        
+
         // These values are all provided by mock implementations and might vary depending on compile-time feature flags
         assert!(metrics.cpu_temperature.is_some(), "CPU temperature should be present");
         assert!(metrics.gpu_temperature.is_some(), "GPU temperature should be present");

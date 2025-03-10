@@ -2,9 +2,8 @@
 
 //! # darwin-metrics
 //!
-//! `darwin-metrics` is a Rust library that provides native access to macOS
-//! system metrics through low-level system APIs. This crate offers efficient,
-//! safe, and async-capable interfaces for monitoring system resources on macOS.
+//! `darwin-metrics` is a Rust library that provides native access to macOS system metrics through low-level system
+//! APIs. This crate offers efficient, safe, and async-capable interfaces for monitoring system resources on macOS.
 //!
 //! ## Features
 //!
@@ -23,7 +22,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! darwin-metrics = "0.1.0"
+//! darwin-metrics = "0.2.0-alpha.1"
 //! ```
 //!
 //! ## Requirements
@@ -88,8 +87,8 @@
 //!
 //! ## Error Handling
 //!
-//! The crate provides a centralized [`Error`] type that encompasses all
-//! possible error conditions and a convenient [`Result`] type alias.
+//! The crate provides a centralized [`Error`] type that encompasses all possible error conditions and a convenient
+//! [`Result`] type alias.
 //!
 //! ```
 //! # fn foo() {
@@ -104,8 +103,8 @@
 //!
 //! ## Async Support
 //!
-//! When the `async` feature is enabled, the crate provides async versions of
-//! monitoring functions that can be used with the tokio runtime.
+//! When the `async` feature is enabled, the crate provides async versions of monitoring functions that can be used with
+//! the tokio runtime.
 //!
 //! ```ignore
 //! use darwin_metrics::hardware::temperature::Temperature;

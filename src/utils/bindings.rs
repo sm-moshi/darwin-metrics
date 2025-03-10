@@ -629,17 +629,9 @@ mod tests {
     fn test_extract_proc_name() {
         // Create a kinfo_proc structure with a process name
         let mut proc_info = kinfo_proc {
-            kp_proc: proc_info {
-                p_flag: 0,
-                p_pid: 123,
-                p_ppid: 1,
-                p_stat: 0,
-            },
+            kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
             kp_eproc: extern_proc {
-                p_starttime: timeval {
-                    tv_sec: 0,
-                    tv_usec: 0,
-                },
+                p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
                 p_comm: [0; 16],
             },
         };
@@ -678,7 +670,7 @@ mod tests {
         let result = smc_key_from_chars(key);
 
         // Calculate the expected value: ('T' << 24) | ('C' << 16) | ('0' << 8) | 'P'
-        let expected = 
+        let expected =
             (b'T' as u32) << 24 | (b'C' as u32) << 16 | (b'0' as u32) << 8 | (b'P' as u32);
 
         assert_eq!(result, expected);
