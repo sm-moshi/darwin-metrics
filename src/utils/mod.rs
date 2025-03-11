@@ -1,16 +1,17 @@
-//! Utility functions and modules for the darwin-metrics crate.
-//!
-//! This module contains various utilities used throughout the crate, including:
-//!
-//! - `bindings`: FFI bindings for macOS system APIs (sysctl, IOKit, etc.)
-//! - `property_utils`: Utilities for working with property lists and
-//!   dictionaries
-//! - `test_utils`: Utilities for testing
-
-// Always set IS_DOCS_RS to false since we've removed docs.rs support
-pub const IS_DOCS_RS: bool = false;
-
+/// Utility functions and modules for the darwin-metrics crate.
+///
+/// This module contains various utilities used throughout the crate, including:
+///
+/// - `bindings`: FFI bindings for macOS system APIs (sysctl, IOKit, etc.)
+/// - `property_utils`: Utilities for working with property lists and dictionaries
+/// - `test_utils`: Utilities for testing
+/// - `mock_dictionary`: A pure Rust mock dictionary for testing
+/// - `dictionary_access`: A trait for abstracting dictionary access operations
 pub mod bindings;
+#[cfg(test)]
+mod bindings_tests;
+pub mod dictionary_access;
+pub mod mock_dictionary;
 pub mod property_utils;
 pub mod test_utils;
 
@@ -20,17 +21,45 @@ mod property_utils_tests;
 use std::{
     ffi::{c_char, CStr},
     os::raw::c_double,
+    panic::AssertUnwindSafe,
     slice,
 };
 
-use std::panic::AssertUnwindSafe;
-
-use objc2::{msg_send, rc::autoreleasepool, runtime::AnyObject};
+use objc2::{
+    msg_send,
+    rc::{autoreleasepool, Retained},
+    runtime::AnyObject,
+};
+use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
 
 use crate::error::{Error, Result};
 
-// Import PropertyUtils from the property_utils module
-pub use self::property_utils::*;
+pub trait PropertyUtils {
+    fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| obj.downcast::<NSString>().ok())
+            .map(|s| s.to_string())
+    }
+
+    fn get_number_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| obj.downcast::<NSNumber>().ok())
+            .map(|n: Retained<NSNumber>| n.as_f64())
+    }
+
+    fn get_bool_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool> {
+        let ns_key = NSString::from_str(key);
+        unsafe { dict.valueForKey(&ns_key) }
+            .and_then(|obj| obj.downcast::<NSNumber>().ok())
+            .map(|n: Retained<NSNumber>| n.as_bool())
+    }
+}
+
+pub struct PropertyAccessor;
+
+impl PropertyUtils for PropertyAccessor {}
 
 /// Executes a closure safely within an Objective-C autorelease pool.
 pub fn autorelease_pool<T, F>(f: F) -> T
@@ -96,8 +125,7 @@ pub unsafe fn raw_str_to_string(ptr: *const c_char, len: usize) -> Option<String
 ///
 /// The caller must ensure:
 /// - The pointer is valid and properly aligned for f64 values
-/// - The memory range [ptr, ptr+(len*sizeof(f64))) is valid and contains
-///   initialized f64 values
+/// - The memory range [ptr, ptr+(len*sizeof(f64))) is valid and contains initialized f64 values
 /// - The pointer remains valid for the duration of this function call
 /// - No other code will concurrently modify the memory being accessed
 ///
@@ -243,7 +271,6 @@ mod tests {
     fn test_property_accessor() {
         // Test the struct can be created
         let _accessor = PropertyAccessor;
-        // Simple sanity check - no need to test actual property access
-        // since we'd need a real Objective-C dictionary
+        // Simple sanity check - no need to test actual property access since we'd need a real Objective-C dictionary
     }
 }

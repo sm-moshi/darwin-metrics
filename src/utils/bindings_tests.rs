@@ -319,7 +319,7 @@ fn test_getloadavg_binding() {
         assert!(loads[0] >= 0.0);
         assert!(loads[1] >= 0.0);
         assert!(loads[2] >= 0.0);
-        
+
         // The 5-minute and 15-minute averages should be available
         println!("Load averages: 1min={}, 5min={}, 15min={}", loads[0], loads[1], loads[2]);
     }
