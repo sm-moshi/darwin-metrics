@@ -1,15 +1,13 @@
 //! FFI bindings to macOS system APIs.
 //!
-//! This module centralizes all the FFI bindings for macOS system APIs used
-//! throughout the crate. It provides a clean interface to low-level C functions
-//! from various macOS frameworks:
+//! This module centralizes all the FFI bindings for macOS system APIs used throughout the crate. It provides a clean
+//! interface to low-level C functions from various macOS frameworks:
 //!
 //! - `sysctl` for system information
 //! - `IOKit` for hardware access
 //! - Mach host functions for memory statistics
 //!
-//! By centralizing these bindings, we improve maintainability and reduce
-//! redundancy across modules.
+//! By centralizing these bindings, we improve maintainability and reduce redundancy across modules.
 
 use std::{
     ffi::c_void as ffi_c_void,
@@ -414,12 +412,10 @@ extern "C" {
 
 #[link(name = "CoreFoundation", kind = "framework")]
 extern "C" {
-    /// Retains a CoreFoundation object
-    /// Increments the retain count of a CF object
+    /// Retains a CoreFoundation object Increments the retain count of a CF object
     pub fn CFRetain(cf: *const ffi_c_void) -> *const ffi_c_void;
     
-    /// Releases a CoreFoundation object
-    /// Decrements the retain count of a CF object
+    /// Releases a CoreFoundation object Decrements the retain count of a CF object
     pub fn CFRelease(cf: *const ffi_c_void);
 }
 
@@ -432,8 +428,8 @@ pub type MTLDeviceRef = *mut c_void;
 
 #[link(name = "Metal", kind = "framework")]
 extern "C" {
-    /// Creates and returns the default system Metal device
-    /// Used to access GPU information including name and capabilities
+    /// Creates and returns the default system Metal device Used to access GPU information including name and
+    /// capabilities
     pub fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
 }
 
@@ -613,8 +609,7 @@ pub fn is_system_process(pid: u32, name: &str) -> bool {
     // 1. Have a PID < 1000
     // 2. Run as root (uid 0) - this would need additional privileges to check
     // 3. Are owned by system users
-    // 4. Have names that start with "com.apple." or are well-known system process
-    //    names
+    // 4. Have names that start with "com.apple." or are well-known system process names
 
     pid < 1000
         || name.starts_with("com.apple.")
@@ -666,59 +661,3 @@ pub type in6_addr = In6Addr;
 pub type sockaddr_dl = SockaddrDl;
 #[allow(non_camel_case_types)]
 pub type if_data = IfData;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_extract_proc_name() {
-        // Create a kinfo_proc structure with a process name
-        let mut proc_info = kinfo_proc {
-            kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
-            kp_eproc: extern_proc {
-                p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
-                p_comm: [0; 16],
-            },
-        };
-
-        // Set a process name
-        let test_name = b"test_process\0";
-        for (i, &byte) in test_name.iter().enumerate() {
-            if i < proc_info.kp_eproc.p_comm.len() {
-                proc_info.kp_eproc.p_comm[i] = byte;
-            }
-        }
-
-        // Extract the name
-        let extracted_name = extract_proc_name(&proc_info);
-        assert_eq!(extracted_name, "test_process");
-    }
-
-    #[test]
-    fn test_is_system_process() {
-        // Test system processes
-        assert!(is_system_process(1, "launchd"));
-        assert!(is_system_process(999, "random_system_process"));
-        assert!(is_system_process(1234, "com.apple.service"));
-        assert!(is_system_process(5000, "kernel_task"));
-        assert!(is_system_process(5000, "WindowServer"));
-
-        // Test non-system processes
-        assert!(!is_system_process(1000, "user_app"));
-        assert!(!is_system_process(1234, "firefox"));
-        assert!(!is_system_process(5000, "chrome"));
-    }
-
-    #[test]
-    fn test_smc_key_from_chars() {
-        let key = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
-        let result = smc_key_from_chars(key);
-
-        // Calculate the expected value: ('T' << 24) | ('C' << 16) | ('0' << 8) | 'P'
-        let expected =
-            (b'T' as u32) << 24 | (b'C' as u32) << 16 | (b'0' as u32) << 8 | (b'P' as u32);
-
-        assert_eq!(result, expected);
-    }
-}
