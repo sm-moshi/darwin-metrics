@@ -10,7 +10,9 @@
 //! The module uses:
 //! - **getifaddrs()**: For network interface enumeration and IP/MAC address
 //!   collection
-//! - **netstat**: For network traffic statistics collection
+//! - **sysctlbyname**: Primary method for network traffic statistics collection
+//!   using direct kernel APIs
+//! - **netstat**: Fallback method for traffic statistics if sysctlbyname fails
 //! - **IOKit flags**: To determine interface capabilities and state
 //!
 //! ## Features
