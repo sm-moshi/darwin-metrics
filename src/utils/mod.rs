@@ -1,13 +1,17 @@
-//! Utility functions and modules for the darwin-metrics crate.
-//!
-//! This module contains various utilities used throughout the crate, including:
-//!
-//! - `bindings`: FFI bindings for macOS system APIs (sysctl, IOKit, etc.)
-//! - `property_utils`: Utilities for working with property lists and
-//!   dictionaries
-//! - `test_utils`: Utilities for testing
-
+/// Utility functions and modules for the darwin-metrics crate.
+///
+/// This module contains various utilities used throughout the crate, including:
+///
+/// - `bindings`: FFI bindings for macOS system APIs (sysctl, IOKit, etc.)
+/// - `property_utils`: Utilities for working with property lists and dictionaries
+/// - `test_utils`: Utilities for testing
+/// - `mock_dictionary`: A pure Rust mock dictionary for testing
+/// - `dictionary_access`: A trait for abstracting dictionary access operations
 pub mod bindings;
+#[cfg(test)]
+mod bindings_tests;
+pub mod dictionary_access;
+pub mod mock_dictionary;
 pub mod property_utils;
 pub mod test_utils;
 
@@ -121,8 +125,7 @@ pub unsafe fn raw_str_to_string(ptr: *const c_char, len: usize) -> Option<String
 ///
 /// The caller must ensure:
 /// - The pointer is valid and properly aligned for f64 values
-/// - The memory range [ptr, ptr+(len*sizeof(f64))) is valid and contains
-///   initialized f64 values
+/// - The memory range [ptr, ptr+(len*sizeof(f64))) is valid and contains initialized f64 values
 /// - The pointer remains valid for the duration of this function call
 /// - No other code will concurrently modify the memory being accessed
 ///
@@ -268,7 +271,6 @@ mod tests {
     fn test_property_accessor() {
         // Test the struct can be created
         let _accessor = PropertyAccessor;
-        // Simple sanity check - no need to test actual property access
-        // since we'd need a real Objective-C dictionary
+        // Simple sanity check - no need to test actual property access since we'd need a real Objective-C dictionary
     }
 }

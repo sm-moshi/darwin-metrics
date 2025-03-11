@@ -1,16 +1,14 @@
 //! # CPU Module
 //!
-//! The CPU module provides access to macOS CPU metrics including usage
-//! statistics, temperature data, and frequency information.
+//! The CPU module provides access to macOS CPU metrics including usage statistics, temperature data, and frequency
+//! information.
 //!
-//! This module interfaces with the macOS IOKit framework to retrieve detailed
-//! CPU information from the AppleACPICPU service and other system sources. It
-//! offers a simple API to monitor CPU performance metrics on macOS systems.
+//! This module interfaces with the macOS IOKit framework to retrieve detailed CPU information from the AppleACPICPU
+//! service and other system sources. It offers a simple API to monitor CPU performance metrics on macOS systems.
 //!
 //! ## Features
 //!
-//! - **CPU Usage Statistics**: Per-core and aggregated usage metrics (0.0 to
-//!   1.0 scale)
+//! - **CPU Usage Statistics**: Per-core and aggregated usage metrics (0.0 to 1.0 scale)
 //! - **Core Count Detection**: Physical and logical core enumeration
 //! - **Frequency Monitoring**: Comprehensive frequency information:
 //!   - Current operating frequency
@@ -68,6 +66,9 @@
 mod cpu_impl;
 mod frequency;
 
+#[cfg(test)]
+mod tests;
+
 pub use cpu_impl::CPU;
 pub use frequency::{FrequencyMetrics, FrequencyMonitor};
 
@@ -79,18 +80,16 @@ pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
 
 /// Trait defining the standard interface for accessing CPU metrics.
 ///
-/// This trait provides a consistent API for retrieving common CPU metrics
-/// regardless of the underlying CPU architecture or implementation details.
+/// This trait provides a consistent API for retrieving common CPU metrics regardless of the underlying CPU architecture
+/// or implementation details.
 pub trait CpuMetrics {
-    /// Returns the average CPU usage across all cores as a value between 0.0
-    /// (0%) and 1.0 (100%).
+    /// Returns the average CPU usage across all cores as a value between 0.0 (0%) and 1.0 (100%).
     fn get_cpu_usage(&self) -> f64;
 
     /// Returns the CPU temperature in degrees Celsius, if available.
     ///
-    /// On macOS, temperature readings may not be available on all hardware,
-    /// particularly on older systems or in virtualized environments.
-    /// Returns `None` if temperature data cannot be retrieved.
+    /// On macOS, temperature readings may not be available on all hardware, particularly on older systems or in
+    /// virtualized environments. Returns `None` if temperature data cannot be retrieved.
     fn get_cpu_temperature(&self) -> Option<f64>;
 
     /// Returns the current CPU frequency in MHz.

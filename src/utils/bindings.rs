@@ -1,15 +1,13 @@
 //! FFI bindings to macOS system APIs.
 //!
-//! This module centralizes all the FFI bindings for macOS system APIs used
-//! throughout the crate. It provides a clean interface to low-level C functions
-//! from various macOS frameworks:
+//! This module centralizes all the FFI bindings for macOS system APIs used throughout the crate. It provides a clean
+//! interface to low-level C functions from various macOS frameworks:
 //!
 //! - `sysctl` for system information
 //! - `IOKit` for hardware access
 //! - Mach host functions for memory statistics
 //!
-//! By centralizing these bindings, we improve maintainability and reduce
-//! redundancy across modules.
+//! By centralizing these bindings, we improve maintainability and reduce redundancy across modules.
 
 use std::{
     ffi::c_void as ffi_c_void,
@@ -431,8 +429,8 @@ pub type MTLDeviceRef = *mut c_void;
 
 #[link(name = "Metal", kind = "framework")]
 extern "C" {
-    /// Creates and returns the default system Metal device
-    /// Used to access GPU information including name and capabilities
+    /// Creates and returns the default system Metal device Used to access GPU information including name and
+    /// capabilities
     pub fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
 }
 
@@ -543,8 +541,8 @@ pub struct sockaddr_dl {
     pub sdl_data: [c_char; 12],
 }
 
-/// Network interface data structure (from net/if_var.h)
-/// This structure contains all the traffic statistics and interface properties
+/// Network interface data structure (from net/if_var.h) This structure contains all the traffic statistics and
+/// interface properties
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct if_data {
@@ -574,8 +572,8 @@ pub struct if_data {
     pub ifi_lastchange: timeval, // Time of last change
 }
 
-/// 64-bit version of if_data, available since macOS 10.8
-/// This allows for tracking traffic stats beyond 4GB on modern interfaces
+/// 64-bit version of if_data, available since macOS 10.8 This allows for tracking traffic stats beyond 4GB on modern
+/// interfaces
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct if_data64 {
@@ -605,8 +603,8 @@ pub struct if_data64 {
     pub ifi_lastchange: timeval, // Time of last change
 }
 
-// Network Reachability flags for SCNetworkReachabilityGetFlags
-// These match Apple's constants, so we keep the naming convention
+// Network Reachability flags for SCNetworkReachabilityGetFlags These match Apple's constants, so we keep the naming
+// convention
 #[allow(non_upper_case_globals)]
 pub mod reachability_flags {
     pub const kSCNetworkReachabilityFlagsTransientConnection: u32 = 1 << 0;
@@ -690,8 +688,7 @@ pub fn is_system_process(pid: u32, name: &str) -> bool {
     // 1. Have a PID < 1000
     // 2. Run as root (uid 0) - this would need additional privileges to check
     // 3. Are owned by system users
-    // 4. Have names that start with "com.apple." or are well-known system process
-    //    names
+    // 4. Have names that start with "com.apple." or are well-known system process names
 
     pid < 1000
         || name.starts_with("com.apple.")
@@ -710,8 +707,8 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
 
 /// Get network interface statistics using sysctlbyname
 ///
-/// This function retrieves the 64-bit network statistics for a given interface
-/// using the sysctlbyname API, which provides direct access to kernel variables.
+/// This function retrieves the 64-bit network statistics for a given interface using the sysctlbyname API, which
+/// provides direct access to kernel variables.
 ///
 /// # Arguments
 ///
@@ -719,8 +716,8 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
 ///
 /// # Returns
 ///
-/// On success, returns the interface data containing traffic statistics.
-/// On failure, returns an error describing what went wrong.
+/// On success, returns the interface data containing traffic statistics. On failure, returns an error describing what
+/// went wrong.
 ///
 /// # Example
 ///
@@ -768,60 +765,4 @@ pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if
     }
 
     Ok(if_data_64)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_extract_proc_name() {
-        // Create a kinfo_proc structure with a process name
-        let mut proc_info = kinfo_proc {
-            kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
-            kp_eproc: extern_proc {
-                p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
-                p_comm: [0; 16],
-            },
-        };
-
-        // Set a process name
-        let test_name = b"test_process\0";
-        for (i, &byte) in test_name.iter().enumerate() {
-            if i < proc_info.kp_eproc.p_comm.len() {
-                proc_info.kp_eproc.p_comm[i] = byte;
-            }
-        }
-
-        // Extract the name
-        let extracted_name = extract_proc_name(&proc_info);
-        assert_eq!(extracted_name, "test_process");
-    }
-
-    #[test]
-    fn test_is_system_process() {
-        // Test system processes
-        assert!(is_system_process(1, "launchd"));
-        assert!(is_system_process(999, "random_system_process"));
-        assert!(is_system_process(1234, "com.apple.service"));
-        assert!(is_system_process(5000, "kernel_task"));
-        assert!(is_system_process(5000, "WindowServer"));
-
-        // Test non-system processes
-        assert!(!is_system_process(1000, "user_app"));
-        assert!(!is_system_process(1234, "firefox"));
-        assert!(!is_system_process(5000, "chrome"));
-    }
-
-    #[test]
-    fn test_smc_key_from_chars() {
-        let key = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
-        let result = smc_key_from_chars(key);
-
-        // Calculate the expected value: ('T' << 24) | ('C' << 16) | ('0' << 8) | 'P'
-        let expected =
-            (b'T' as u32) << 24 | (b'C' as u32) << 16 | (b'0' as u32) << 8 | (b'P' as u32);
-
-        assert_eq!(result, expected);
-    }
 }

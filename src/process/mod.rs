@@ -92,8 +92,7 @@ impl Process {
         }
     }
 
-    /// Get all processes using the sysctl API for better efficiency (based on
-    /// Bottom's approach)
+    /// Get all processes using the sysctl API for better efficiency (based on Bottom's approach)
     pub async fn get_all() -> crate::Result<Vec<Self>> {
         // Try to use sysctl first for bulk retrieval
         match Self::get_all_via_sysctl().await {
@@ -251,8 +250,7 @@ impl Process {
         // Get thread count (convert from i32 to u32)
         let thread_count = proc_info.ptinfo.pti_threadnum as u32;
 
-        // Check if process is suspended
-        // Use a heuristic since TaskInfo doesn't have pti_suspend_count in this version
+        // Check if process is suspended Use a heuristic since TaskInfo doesn't have pti_suspend_count in this version
         let is_suspended = false; // We can't easily determine if a process is suspended
 
         // Get I/O statistics
@@ -271,8 +269,7 @@ impl Process {
         })
     }
 
-    /// Calculate CPU usage as a percentage, using history to calculate the rate
-    /// of change
+    /// Calculate CPU usage as a percentage, using history to calculate the rate of change
     fn calculate_cpu_usage(pid: u32, current_cpu_time: u64) -> f64 {
         let mut history = get_cpu_history();
         let now = Instant::now();
@@ -287,8 +284,7 @@ impl Process {
                 let cpu_time_delta = current_cpu_time.saturating_sub(prev_cpu_time) as f64;
                 let usage = (cpu_time_delta / time_delta / 1_000_000.0) * 100.0;
 
-                // Cap at 100% per logical CPU (though could be higher for multi-threaded
-                // processes)
+                // Cap at 100% per logical CPU (though could be higher for multi-threaded processes)
                 usage.min(800.0) // 800% cap assuming 8 cores max utilization
             } else {
                 // Time delta too small, just return previous value or 0
@@ -302,8 +298,7 @@ impl Process {
         // Update history
         history.insert(pid, (now, current_cpu_time));
 
-        // Clean up old history entries
-        // This is a simple approach - in a production system, you might want a more
+        // Clean up old history entries This is a simple approach - in a production system, you might want a more
         // sophisticated cleanup
         if history.len() > 1000 {
             // Get all PIDs we're tracking
@@ -417,8 +412,7 @@ impl Process {
         Ok(children)
     }
 
-    /// Check if this process is a system process (running as root with PID <
-    /// 1000)
+    /// Check if this process is a system process (running as root with PID < 1000)
     pub fn is_system_process(&self) -> bool {
         // Use the helper from bindings
         is_system_process(self.pid, &self.name)
@@ -595,126 +589,4 @@ impl Stream for ProcessMetricsStream {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::process::Command;
-
-    use super::*;
-
-    #[tokio::test]
-    async fn test_get_current_process() {
-        let current_pid = std::process::id();
-        let process = Process::get_by_pid(current_pid).await;
-        assert!(process.is_ok(), "Failed to get current process: {:?}", process.err());
-
-        let process = process.unwrap();
-        assert_eq!(process.pid, current_pid);
-        assert!(!process.name.is_empty(), "Process name should not be empty");
-        assert!(process.memory_usage > 0, "Process should have non-zero memory usage");
-        // Suspended check is always false due to API limitations
-        // assert!(!process.is_suspended, "Current process should not be suspended");
-        assert!(process.thread_count > 0, "Process should have at least one thread");
-    }
-
-    #[tokio::test]
-    async fn test_get_all_processes() {
-        // Try to get all processes, if this fails due to permissions, just make the
-        // test pass This is common when running in CI or restricted
-        // environments
-        let processes = match Process::get_all().await {
-            Ok(procs) => procs,
-            Err(e) => {
-                println!("Note: get_all() failed but we're allowing this test to pass: {e}");
-                return; // Skip the test
-            },
-        };
-
-        assert!(!processes.is_empty(), "There should be at least one process");
-
-        // Verify our own process is in the list or fall back to getting it directly
-        let current_pid = std::process::id();
-        let found = processes.iter().any(|p| p.pid == current_pid);
-
-        if !found {
-            // If our process isn't in the list, try to get it directly
-            match Process::get_by_pid(current_pid).await {
-                Ok(_) => println!(
-                    "Note: Current process not in process list but can be retrieved directly"
-                ),
-                Err(e) => println!("Warning: Failed to get current process: {e}"),
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_parent_child_relationship() {
-        // Create a child process using the command line
-        let mut child = Command::new("sleep")
-            .arg("1") // Sleep for 1 second so we can query it
-            .spawn()
-            .expect("Failed to spawn child process");
-
-        let child_pid = child.id();
-
-        // Get the child process
-        let process = Process::get_by_pid(child_pid).await;
-        assert!(process.is_ok(), "Failed to get child process: {:?}", process.err());
-
-        // Get our process ID (unused in this test)
-        let _current_pid = std::process::id();
-
-        // Get the parent of the child process
-        let parent_pid = Process::get_parent_pid(child_pid).await;
-        assert!(parent_pid.is_ok(), "Failed to get parent PID: {:?}", parent_pid.err());
-
-        // The parent should be our process (or a shell if running from a test runner)
-        let parent_pid = parent_pid.unwrap();
-        assert!(parent_pid.is_some(), "Child should have a parent process");
-
-        // Clean up child process
-        let _ = child.wait();
-    }
-
-    #[tokio::test]
-    async fn test_process_tree() {
-        // Try to get process tree, if this fails due to permissions, just make the test
-        // pass This is common when running in CI or restricted environments
-        let tree = match Process::get_process_tree().await {
-            Ok(t) => t,
-            Err(e) => {
-                println!(
-                    "Note: get_process_tree() failed but we're allowing this test to pass: {e}"
-                );
-                return; // Skip the test
-            },
-        };
-
-        // If the tree is empty, that's likely a permission issue, just log and return
-        if tree.is_empty() {
-            println!(
-                "Note: Process tree is empty, likely due to permissions. Allowing test to pass."
-            );
-            return;
-        }
-
-        // The first process should be at depth 0 (root process, usually launchd on
-        // macOS)
-        assert_eq!(tree[0].1, 0, "First process should be at depth 0");
-
-        // Check if our process is in the tree, but don't fail if it's not
-        let current_pid = std::process::id();
-        if !tree.iter().any(|(p, _)| p.pid == current_pid) {
-            println!(
-                "Note: Current process not found in process tree, this may be due to permissions"
-            );
-        }
-
-        // Explicitly clear CPU_HISTORY to prevent memory leaks
-        {
-            let mut history = get_cpu_history();
-            history.clear();
-        }
-
-        // Force drop of tree to clear memory
-        drop(tree);
-    }
-}
+mod tests;

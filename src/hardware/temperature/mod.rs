@@ -65,26 +65,26 @@ impl Default for TemperatureConfig {
     }
 }
 
-/// Hardware temperature implementation for macOS Uses SMC (System Management Controller) to read temperature sensors
+/// Temperature monitoring for CPU, GPU, and other thermal sensors
 #[derive(Debug)]
-pub struct Temperature {
-    /// Collection of temperature sensor readings
-    pub sensors: HashMap<String, f64>,
-    /// Collection of fans in the system
-    pub fans: Vec<Fan>,
+pub struct Temperature<T: IOKit + Clone + 'static = IOKitImpl> {
+    /// Temperature sensor readings (in Celsius)
+    sensors: HashMap<String, f64>,
+    /// Fan information
+    fans: Vec<Fan>,
     /// Whether the system is currently thermal throttling
     pub is_throttling: bool,
-    /// CPU power consumption in watts (if available)
-    pub cpu_power: Option<f64>,
+    /// CPU power consumption in watts
+    cpu_power: Option<f64>,
     /// Configuration for temperature monitoring
     pub config: TemperatureConfig,
     /// The IOKit implementation for hardware access
-    io_kit: IOKitImpl,
+    io_kit: T,
     /// When sensors were last refreshed
     last_refresh: Instant,
 }
 
-impl Temperature {
+impl Temperature<IOKitImpl> {
     /// Create a new Temperature instance with default configuration
     pub fn new() -> Self {
         Self {
@@ -110,6 +110,21 @@ impl Temperature {
             last_refresh: Instant::now() - Duration::from_secs(60), // Force refresh on first access
         }
     }
+}
+
+impl<T: IOKit + Clone + 'static> Temperature<T> {
+    /// Create a new Temperature instance with a custom IOKit implementation and configuration
+    pub fn with_iokit(io_kit: T, config: TemperatureConfig) -> Self {
+        Self {
+            sensors: HashMap::new(),
+            fans: Vec::new(),
+            is_throttling: false,
+            cpu_power: None,
+            config,
+            io_kit,
+            last_refresh: Instant::now() - Duration::from_secs(60), // Force refresh on first access
+        }
+    }
 
     /// Check if sensor data should be refreshed based on poll interval
     fn should_refresh(&self) -> bool {
@@ -120,8 +135,8 @@ impl Temperature {
     pub fn refresh(&mut self) -> Result<()> {
         #[cfg(feature = "skip-ffi-crashes")]
         {
-            // For coverage runs, use consistent mock data to match our tests
-            // These values should match those used in the test_get_thermal_metrics test
+            // For coverage runs, use consistent mock data to match our tests These values should match those used in
+            // the test_get_thermal_metrics test
             self.sensors.insert("CPU".to_string(), 42.5);
             self.sensors.insert("GPU".to_string(), 55.0);
             self.sensors.insert("Heatsink".to_string(), 45.0);
@@ -153,45 +168,44 @@ impl Temperature {
         #[cfg(not(feature = "skip-ffi-crashes"))]
         {
             // Get comprehensive thermal information
-            if let Ok(thermal_info) = self.io_kit.get_thermal_info() {
-                // Update sensors with basic temperature readings
-                self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
-                self.sensors.insert("GPU".to_string(), thermal_info.gpu_temp);
+            let thermal_info = self.io_kit.get_thermal_info()?;
 
-                // Add optional sensors if available
-                if let Some(temp) = thermal_info.heatsink_temp {
-                    self.sensors.insert("Heatsink".to_string(), temp);
-                }
+            // Update sensors with basic temperature readings
+            self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
+            self.sensors.insert("GPU".to_string(), thermal_info.gpu_temp);
 
-                if let Some(temp) = thermal_info.ambient_temp {
-                    self.sensors.insert("Ambient".to_string(), temp);
-                }
-
-                if let Some(temp) = thermal_info.battery_temp {
-                    self.sensors.insert("Battery".to_string(), temp);
-                }
-
-                // Update throttling status
-                self.is_throttling = thermal_info.is_throttling;
-
-                // Update CPU power if available
-                self.cpu_power = thermal_info.cpu_power;
+            // Add optional sensors if available
+            if let Some(temp) = thermal_info.heatsink_temp {
+                self.sensors.insert("Heatsink".to_string(), temp);
             }
 
-            // Get fan information
-            if let Ok(fan_infos) = self.io_kit.get_all_fans() {
-                self.fans.clear();
+            if let Some(temp) = thermal_info.ambient_temp {
+                self.sensors.insert("Ambient".to_string(), temp);
+            }
 
-                // Create Fan objects from the raw IOKitFanInfo structures
-                for (i, fan_info) in fan_infos.iter().enumerate() {
-                    self.fans.push(Fan {
-                        name: format!("Fan {}", i),
-                        speed_rpm: fan_info.speed_rpm,
-                        min_speed: fan_info.min_speed,
-                        max_speed: fan_info.max_speed,
-                        percentage: fan_info.percentage,
-                    });
-                }
+            if let Some(temp) = thermal_info.battery_temp {
+                self.sensors.insert("Battery".to_string(), temp);
+            }
+
+            // Update throttling status
+            self.is_throttling = thermal_info.is_throttling;
+
+            // Update CPU power if available
+            self.cpu_power = thermal_info.cpu_power;
+
+            // Get fan information
+            let fan_infos = self.io_kit.get_all_fans()?;
+            self.fans.clear();
+
+            // Create Fan objects from the raw IOKitFanInfo structures
+            for (i, fan_info) in fan_infos.iter().enumerate() {
+                self.fans.push(Fan {
+                    name: format!("Fan {}", i),
+                    speed_rpm: fan_info.speed_rpm,
+                    min_speed: fan_info.min_speed,
+                    max_speed: fan_info.max_speed,
+                    percentage: fan_info.percentage,
+                });
             }
 
             // Update refresh timestamp
@@ -542,281 +556,11 @@ pub struct ThermalMetrics {
     pub fans: Vec<Fan>,
 }
 
-impl Default for Temperature {
+impl Default for Temperature<IOKitImpl> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{thread, time::Duration};
-
-    use super::*;
-
-    #[test]
-    fn test_temperature_new() {
-        let temp = Temperature::new();
-        assert!(temp.sensors.is_empty());
-        assert!(temp.fans.is_empty());
-        assert!(!temp.is_throttling);
-        assert_eq!(temp.cpu_power, None);
-    }
-
-    #[test]
-    fn test_with_config() {
-        let config = TemperatureConfig {
-            poll_interval_ms: 5000,
-            throttling_threshold: 90.0,
-            auto_refresh: false,
-        };
-
-        let temp = Temperature::with_config(config);
-        assert_eq!(temp.config.poll_interval_ms, 5000);
-        assert_eq!(temp.config.throttling_threshold, 90.0);
-        assert!(!temp.config.auto_refresh);
-    }
-
-    #[test]
-    fn test_should_refresh() {
-        // Create Temperature with short refresh interval
-        let mut temp = Temperature::with_config(TemperatureConfig {
-            poll_interval_ms: 10,
-            throttling_threshold: 80.0,
-            auto_refresh: true,
-        });
-
-        // Should be false immediately after creation (because we set last_refresh to now-60s in constructor)
-        assert!(temp.should_refresh());
-
-        // Manually update last_refresh
-        temp.last_refresh = Instant::now();
-        assert!(!temp.should_refresh());
-
-        // Wait for the interval to elapse
-        thread::sleep(Duration::from_millis(20));
-        assert!(temp.should_refresh());
-    }
-
-    #[test]
-    fn test_cpu_temperature() {
-        // Create a Temperature instance with auto_refresh disabled to avoid SMC reads
-        let mut temp = Temperature::with_config(TemperatureConfig {
-            poll_interval_ms: 1000,
-            throttling_threshold: 80.0,
-            auto_refresh: false,
-        });
-
-        // Insert the test value directly into the sensors map
-        temp.sensors.insert("CPU".to_string(), 42.5);
-
-        // Test the method using the manually inserted value
-        let result = temp.cpu_temperature().unwrap();
-        assert_eq!(result, 42.5);
-    }
-
-    #[test]
-    fn test_gpu_temperature() {
-        // Create a Temperature instance with auto_refresh disabled
-        let mut temp = Temperature::with_config(TemperatureConfig {
-            poll_interval_ms: 1000,
-            throttling_threshold: 80.0,
-            auto_refresh: false,
-        });
-
-        temp.sensors.insert("GPU".to_string(), 55.0);
-
-        // Test the method
-        let result = temp.gpu_temperature().unwrap();
-        assert_eq!(result, 55.0);
-    }
-
-    #[test]
-    fn test_additional_sensors() {
-        // Create a Temperature instance with auto_refresh disabled
-        let mut temp = Temperature::with_config(TemperatureConfig {
-            poll_interval_ms: 1000,
-            throttling_threshold: 80.0,
-            auto_refresh: false,
-        });
-
-        // Add various temperature sensors
-        temp.sensors.insert("Heatsink".to_string(), 45.0);
-        temp.sensors.insert("Ambient".to_string(), 32.0);
-        temp.sensors.insert("Battery".to_string(), 38.0);
-
-        // Test each sensor
-        assert_eq!(temp.heatsink_temperature().unwrap(), 45.0);
-        assert_eq!(temp.ambient_temperature().unwrap(), 32.0);
-        assert_eq!(temp.battery_temperature().unwrap(), 38.0);
-    }
-
-    #[test]
-    fn test_list_sensors() {
-        // Create a Temperature instance with pre-populated data
-        let mut temp = Temperature::with_config(TemperatureConfig {
-            poll_interval_ms: 1000,
-            throttling_threshold: 80.0,
-            auto_refresh: false,
-        });
-
-        temp.sensors.insert("CPU".to_string(), 42.5);
-        temp.sensors.insert("GPU".to_string(), 55.0);
-        temp.sensors.insert("Heatsink".to_string(), 45.0);
-        temp.sensors.insert("Ambient".to_string(), 32.0);
-        temp.sensors.insert("Custom".to_string(), 27.0);
-
-        // Test the method
-        let sensors = temp.list_sensors().unwrap();
-
-        // Verify results
-        assert_eq!(sensors.len(), 5);
-
-        // Check that the sensors have correct locations
-        let has_cpu = sensors
-            .iter()
-            .any(|(name, location)| name == "CPU" && matches!(location, SensorLocation::Cpu));
-        let has_gpu = sensors
-            .iter()
-            .any(|(name, location)| name == "GPU" && matches!(location, SensorLocation::Gpu));
-        let has_heatsink = sensors.iter().any(|(name, location)| {
-            name == "Heatsink" && matches!(location, SensorLocation::Heatsink)
-        });
-        let has_ambient = sensors.iter().any(|(name, location)| {
-            name == "Ambient" && matches!(location, SensorLocation::Ambient)
-        });
-        let has_custom = sensors.iter().any(|(name, location)| {
-            name == "Custom"
-                && if let SensorLocation::Other(custom_name) = location {
-                    custom_name == "Custom"
-                } else {
-                    false
-                }
-        });
-
-        assert!(has_cpu);
-        assert!(has_gpu);
-        assert!(has_heatsink);
-        assert!(has_ambient);
-        assert!(has_custom);
-    }
-
-    #[test]
-    fn test_fan_functions() {
-        let mut temp = Temperature::with_config(TemperatureConfig {
-            poll_interval_ms: 1000,
-            throttling_threshold: 80.0,
-            auto_refresh: false,
-        });
-
-        // Add mock fans
-        temp.fans.push(Fan {
-            name: "Fan 0".to_string(),
-            speed_rpm: 2000,
-            min_speed: 1000,
-            max_speed: 4000,
-            percentage: 33.3,
-        });
-
-        temp.fans.push(Fan {
-            name: "Fan 1".to_string(),
-            speed_rpm: 3000,
-            min_speed: 1200,
-            max_speed: 5000,
-            percentage: 47.4,
-        });
-
-        // Test fan count
-        assert_eq!(temp.fan_count().unwrap(), 2);
-
-        // Test get_fans
-        let fans = temp.get_fans().unwrap();
-        assert_eq!(fans.len(), 2);
-        assert_eq!(fans[0].speed_rpm, 2000);
-        assert_eq!(fans[1].speed_rpm, 3000);
-
-        // Test get_fan
-        let fan0 = temp.get_fan(0).unwrap();
-        assert_eq!(fan0.name, "Fan 0");
-        assert_eq!(fan0.speed_rpm, 2000);
-        assert_eq!(fan0.min_speed, 1000);
-        assert_eq!(fan0.max_speed, 4000);
-        assert!(fan0.percentage > 33.0 && fan0.percentage < 34.0);
-
-        let fan1 = temp.get_fan(1).unwrap();
-        assert_eq!(fan1.name, "Fan 1");
-        assert_eq!(fan1.speed_rpm, 3000);
-
-        // Test get_fan with invalid index
-        assert!(temp.get_fan(2).is_err());
-    }
-
-    #[test]
-    fn test_is_throttling_property() {
-        // The is_throttling() method calls IOKit methods that are difficult to mock in tests So instead, we're testing
-        // that the property correctly reflects the state
-
-        // Test default state
-        let temp = Temperature::new();
-        assert!(!temp.is_throttling);
-
-        // Test setting the property manually
-        let mut temp = Temperature::new();
-        temp.is_throttling = true;
-        assert!(temp.is_throttling);
-    }
-
-    #[test]
-    fn test_is_throttling_temperature_heuristic() {
-        // In this test we're just testing the logic that determines throttling based on CPU temperature compared to the
-        // threshold
-        let threshold = 80.0;
-
-        // Test case 1: Below threshold
-        let cpu_temp = 75.0;
-        assert!(cpu_temp < threshold);
-
-        // Test case 2: Above threshold
-        let cpu_temp = 85.0;
-        assert!(cpu_temp > threshold);
-    }
-
-    #[test]
-    fn test_get_thermal_metrics() {
-        let mut temp = Temperature::with_config(TemperatureConfig {
-            poll_interval_ms: 1000,
-            throttling_threshold: 80.0,
-            auto_refresh: false,
-        });
-
-        // Set up test data
-        temp.sensors.insert("CPU".to_string(), 42.5);
-        temp.sensors.insert("GPU".to_string(), 55.0);
-        temp.sensors.insert("Heatsink".to_string(), 45.0);
-        temp.is_throttling = false;
-        temp.cpu_power = Some(28.5);
-        temp.fans.push(Fan {
-            name: "Fan 0".to_string(),
-            speed_rpm: 2000,
-            min_speed: 1000,
-            max_speed: 4000,
-            percentage: 33.3,
-        });
-
-        // Get metrics
-        let metrics = temp.get_thermal_metrics().unwrap();
-
-        // Verify metrics - when using skip-ffi-crashes, we use constant values that may differ Check heatsink
-        // temperature - in normal testing this would be 45.0, but during test failures we're skipping to avoid crashes
-        let heatsink_temp = metrics.heatsink_temperature;
-        assert!(heatsink_temp.is_some(), "Heatsink temperature should be present");
-
-        // These values are all provided by mock implementations and might vary depending on compile-time feature flags
-        assert!(metrics.cpu_temperature.is_some(), "CPU temperature should be present");
-        assert!(metrics.gpu_temperature.is_some(), "GPU temperature should be present");
-        assert!(!metrics.is_throttling, "System should not be throttling");
-        assert!(metrics.cpu_power.is_some(), "CPU power should be present");
-        assert!(!metrics.fans.is_empty(), "There should be at least one fan");
-        assert!(metrics.fans[0].speed_rpm > 0, "Fan speed should be greater than 0");
-    }
-}
+mod tests;

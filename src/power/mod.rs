@@ -91,8 +91,8 @@ impl Power {
 
     /// Returns the power consumption for system components
     pub fn get_power_consumption(&self) -> Result<PowerConsumption> {
-        // Get power values using the safe mock implementation
-        // This avoids any segmentation faults while still providing meaningful data structure
+        // Get power values using the safe mock implementation This avoids any segmentation faults while still providing
+        // meaningful data structure
 
         // Get package power (total SoC power) using our safe mock implementation
         let package = self.read_smc_power_key(SMC_KEY_PACKAGE_POWER).unwrap_or(12.5);
@@ -118,8 +118,8 @@ impl Power {
             Err(_) => Some(0.7), // Fallback value
         };
 
-        // Use a safe implementation for battery state
-        // For the example we'll just assume AC power with a high battery level
+        // Use a safe implementation for battery state For the example we'll just assume AC power with a high battery
+        // level
         let power_state = PowerState::AC;
         let battery_percentage = Some(95.0);
 
@@ -179,8 +179,8 @@ impl Power {
     ///
     /// Mock implementation to avoid segfaults - returns fake data
     fn read_smc_power_key(&self, key: [c_char; 4]) -> Result<f32> {
-        // Use the key to determine what kind of value to return
-        // This gives the appearance of real data without any risky calls
+        // Use the key to determine what kind of value to return This gives the appearance of real data without any
+        // risky calls
 
         // Convert the key to a string for easier comparison
         let key_bytes = [key[0] as u8, key[1] as u8, key[2] as u8, key[3] as u8];
