@@ -235,8 +235,8 @@ impl IOKitImpl {
                 return Err(Error::io_kit(format!("Failed to read SMC key data: {}", result)));
             }
 
-            // Get the data and convert to temperature (depends on the data type)
-            // Most temperature sensors use SP78 format (fixed point, signed 8.8)
+            // Get the data and convert to temperature (depends on the data type) Most temperature sensors use SP78
+            // format (fixed point, signed 8.8)
             let data_type = output_structure.data.key_info.data_type;
             let data_size = output_structure.data.key_info.data_size;
 
@@ -277,8 +277,7 @@ impl IOKitImpl {
         }
     }
 
-    // Helper method to parse data type and convert to appropriate value
-    // This is available for testing and internal use
+    // Helper method to parse data type and convert to appropriate value This is available for testing and internal use
     #[cfg(all(feature = "skip-ffi-crashes", test))]
     fn parse_smc_data(&self, data_type: [u8; 4], _bytes: [u8; 32]) -> Result<f64> {
         if data_type[0] == b'f' && data_type[1] == b'l' && data_type[2] == b't' {
@@ -357,10 +356,9 @@ impl IOKit for IOKitImpl {
         })
     }
 
-    // A safer approach that avoids direct casting of IOKit service IDs to Objective-C objects
-    // Inspired by macmon, NeoAsitop, and Stats implementations
-    // Completely simplify the method to avoid any Objective-C interactions
-    // that could cause segmentation faults
+    // A safer approach that avoids direct casting of IOKit service IDs to Objective-C objects Inspired by macmon,
+    // NeoAsitop, and Stats implementations Completely simplify the method to avoid any Objective-C interactions that
+    // could cause segmentation faults
     fn io_service_get_matching_service(
         &self,
         _matching: &NSDictionary<NSString, NSObject>,
@@ -406,9 +404,8 @@ impl IOKit for IOKitImpl {
                 println!("DEBUG: Creating props pointer");
                 let mut props: *mut ffi_c_void = ptr::null_mut();
 
-                // IOKit service IDs are special in that they're just raw numbers
-                // That are cast to pointers. For memory safety, we're going to
-                // extract the raw number from the object pointer.
+                // IOKit service IDs are special in that they're just raw numbers That are cast to pointers. For memory
+                // safety, we're going to extract the raw number from the object pointer.
 
                 // Get the value directly from the pointer
                 let service_id = entry as *const AnyObject as u32;
@@ -444,8 +441,7 @@ impl IOKit for IOKitImpl {
     }
 
     fn io_object_release(&self, _obj: &AnyObject) {
-        // The object is automatically released when the Retained<AnyObject> is
-        // dropped
+        // The object is automatically released when the Retained<AnyObject> is dropped
     }
 
     fn get_string_property(
@@ -542,8 +538,8 @@ impl IOKit for IOKitImpl {
                 let is_dict: bool = msg_send![&obj, isKindOfClass: cls];
 
                 if is_dict {
-                    // Explicitly retain the object to ensure proper memory management
-                    // This is crucial because we're creating a new Retained<> from a reference
+                    // Explicitly retain the object to ensure proper memory management This is crucial because we're
+                    // creating a new Retained<> from a reference
                     let _: () = msg_send![&obj, retain];
 
                     // Now create the Retained wrapper from the raw pointer
@@ -551,8 +547,8 @@ impl IOKit for IOKitImpl {
                     let dict_ptr =
                         obj_ref as *const NSObject as *mut NSDictionary<NSString, NSObject>;
 
-                    // Retained::from_raw expects to receive ownership of a +1 retain count object,
-                    // which we've just done with the explicit retain above
+                    // Retained::from_raw expects to receive ownership of a +1 retain count object, which we've just
+                    // done with the explicit retain above
                     return Retained::from_raw(dict_ptr);
                 }
             }
@@ -862,9 +858,8 @@ impl IOKit for IOKitImpl {
 
             // Fallback for Apple Silicon devices where memory isn't explicitly reported
             if stats.memory_total == 0 {
-                // For Apple Silicon, try to get system memory and use a portion of it since
-                // Apple Silicon uses a unified memory architecture - use safer memory
-                // management
+                // For Apple Silicon, try to get system memory and use a portion of it since Apple Silicon uses a
+                // unified memory architecture - use safer memory management
                 {
                     let system_matching = self.io_service_matching("IOPlatformExpertDevice");
                     {
@@ -878,11 +873,9 @@ impl IOKit for IOKitImpl {
                                     if let Some(memory) =
                                         self.get_number_property(&properties, "total-ram-size")
                                     {
-                                        // Assume GPU can use up to 1/4 of system memory on Apple
-                                        // Silicon
+                                        // Assume GPU can use up to 1/4 of system memory on Apple Silicon
                                         stats.memory_total = (memory as u64) / 4;
-                                        // Estimate used VRAM based on utilization, with safety
-                                        // checks
+                                        // Estimate used VRAM based on utilization, with safety checks
                                         let utilization = stats.utilization.clamp(0.0, 100.0);
                                         stats.memory_used = ((utilization / 100.0)
                                             * stats.memory_total as f64)
@@ -929,8 +922,7 @@ impl IOKit for IOKitImpl {
 
             // Fallback name for Apple Silicon
             if stats.name.is_empty() {
-                // Check for Apple Silicon devices - using a safer approach with explicit scope
-                // management
+                // Check for Apple Silicon devices - using a safer approach with explicit scope management
                 let system_matching = self.io_service_matching("IOPlatformExpertDevice");
                 // Create a scope to ensure proper cleanup
                 {
@@ -950,11 +942,9 @@ impl IOKit for IOKitImpl {
                             {
                                 stats.name = format!("Apple {} GPU", chip_name);
                             }
-                            // properties is dropped here - correctly releasing
-                            // CF objects
+                            // properties is dropped here - correctly releasing CF objects
                         }
-                        // system is dropped here - ensuring proper IOService
-                        // release
+                        // system is dropped here - ensuring proper IOService release
                     }
                 }
                 // system_matching is dropped here
@@ -968,8 +958,7 @@ impl IOKit for IOKitImpl {
 
         // Try to get temperature
         if let Ok(temp) = self.get_gpu_temperature() {
-            // Store this in the name for now - we'll add a dedicated temperature field in
-            // the future
+            // Store this in the name for now - we'll add a dedicated temperature field in the future
             stats.name = format!("{} ({}°C)", stats.name, temp);
         }
 

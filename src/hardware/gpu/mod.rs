@@ -11,8 +11,7 @@ use crate::{
     utils::bindings::{MTLCreateSystemDefaultDevice, MTLDeviceRef},
 };
 
-// Simplified GPU module with minimal IOKit interactions
-// and direct Metal framework usage for better safety
+// Simplified GPU module with minimal IOKit interactions and direct Metal framework usage for better safety
 
 #[derive(Debug, Clone, Default)]
 pub struct GpuMemoryInfo {
@@ -49,8 +48,8 @@ pub struct GpuCharacteristics {
 #[derive(Debug)]
 pub struct Gpu {
     metal_device: Option<MTLDeviceRef>,
-    // Note: Support for multiple GPUs will be added in a future version (post-1.0.0)
-    // This field would become a Vec<MTLDeviceRef> or similar to track all available GPUs
+    // Note: Support for multiple GPUs will be added in a future version (post-1.0.0) This field would become a
+    // Vec<MTLDeviceRef> or similar to track all available GPUs
 }
 
 impl Gpu {
@@ -136,11 +135,11 @@ impl Gpu {
                 .to_string_lossy()
                 .into_owned();
 
-            // Parse model identifier to determine chip
-            // Format is typically: Mac[model],[year],[version], e.g., MacBookPro18,1 or Mac14,7
+            // Parse model identifier to determine chip Format is typically: Mac[model],[year],[version], e.g.,
+            // MacBookPro18,1 or Mac14,7
 
-            // Try to identify chip family based on model identifier
-            // These patterns are based on known Apple Silicon models (as of 2025)
+            // Try to identify chip family based on model identifier These patterns are based on known Apple Silicon
+            // models (as of 2025)
 
             // M3 series chips
             if model.contains("Mac15,") || model.contains("Mac16,") || model.contains("Mac17,") {
@@ -188,8 +187,7 @@ impl Gpu {
         use std::ffi::CString;
 
         unsafe {
-            // Try to get GPU info from IORegistry
-            // Look for PCI devices that are likely GPUs
+            // Try to get GPU info from IORegistry Look for PCI devices that are likely GPUs
 
             // Look up IOPCIDevice service
             let service_name = CString::new("IOPCIDevice").ok()?;
@@ -213,10 +211,8 @@ impl Gpu {
                 return None;
             }
 
-            // Try to find model name or device ID
-            // Further implementation would parse the properties dictionary
-            // For now, return a simplified Intel GPU detection
-            // (Full implementation would be more complex)
+            // Try to find model name or device ID Further implementation would parse the properties dictionary For now,
+            // return a simplified Intel GPU detection (Full implementation would be more complex)
 
             // Simple heuristic based on common integrated Intel GPUs
             if let Some(cpu_info) = self.get_cpu_model() {
@@ -282,9 +278,8 @@ impl Gpu {
             // Try to get temperature using SMC first, then fall back to estimation
             let temp_result = self.get_temperature();
             if temp_result.is_err() {
-                // Temperature not available via SMC, use estimation instead
-                // On Apple Silicon, temperature tends to be between 40-60°C
-                // and correlates somewhat with utilization
+                // Temperature not available via SMC, use estimation instead On Apple Silicon, temperature tends to be
+                // between 40-60°C and correlates somewhat with utilization
                 let estimated_temp = if metrics.characteristics.is_apple_silicon {
                     // Apple Silicon tends to run cooler at idle
                     42.0 + (metrics.utilization * 0.12)
@@ -385,11 +380,10 @@ impl Gpu {
         // Get characteristics to determine memory allocation strategy
         let characteristics = self.get_characteristics();
 
-        // Metal on Apple Silicon shares memory with the system
-        // We'll calculate a reasonable portion available to the GPU
+        // Metal on Apple Silicon shares memory with the system We'll calculate a reasonable portion available to the
+        // GPU
         let gpu_total = if characteristics.is_apple_silicon {
-            // On Apple Silicon, unified memory means GPU can access most RAM
-            // Calculate based on system configuration
+            // On Apple Silicon, unified memory means GPU can access most RAM Calculate based on system configuration
             let percent_for_gpu = match total_memory {
                 m if m >= 32 * 1024 * 1024 * 1024 => 0.15, // 15% for 32GB+ systems
                 m if m >= 16 * 1024 * 1024 * 1024 => 0.20, // 20% for 16GB systems
@@ -398,12 +392,12 @@ impl Gpu {
 
             (total_memory as f64 * percent_for_gpu) as u64
         } else if characteristics.is_integrated {
-            // For Intel Macs with integrated graphics
-            // Intel integrated GPUs typically get 1.5GB for lower end, up to 2GB for higher end
+            // For Intel Macs with integrated graphics Intel integrated GPUs typically get 1.5GB for lower end, up to
+            // 2GB for higher end
             2 * 1024 * 1024 * 1024 // 2 GB default for integrated Intel
         } else {
-            // For Intel Macs with discrete GPUs, use a typical size
-            // or try to query the actual VRAM size (not implemented here)
+            // For Intel Macs with discrete GPUs, use a typical size or try to query the actual VRAM size (not
+            // implemented here)
             4 * 1024 * 1024 * 1024 // 4 GB reasonable default for discrete
         };
 
@@ -421,8 +415,7 @@ impl Gpu {
         // Calculate a weighted score for GPU memory usage
         let usage_factor = (util_factor * 0.6) + (memory_pressure * 0.4);
 
-        // Calculate used memory with a baseline minimum
-        // GPUs typically have some baseline memory usage even when idle
+        // Calculate used memory with a baseline minimum GPUs typically have some baseline memory usage even when idle
         let baseline_usage = gpu_total as f32 * 0.05; // 5% baseline usage
         let dynamic_usage = gpu_total as f32 * usage_factor;
         let used_memory = (baseline_usage + dynamic_usage) as u64;
@@ -457,8 +450,8 @@ impl Gpu {
                 total = 16 * 1024 * 1024 * 1024; // Assume 16GB
             }
 
-            // Since vm_statistics64 is complex to access safely across all macOS versions,
-            // we'll use a simpler heuristic based on sysctl values
+            // Since vm_statistics64 is complex to access safely across all macOS versions, we'll use a simpler
+            // heuristic based on sysctl values
 
             // Try to get usable memory via sysctl
             let mut usable: u64 = 0;
@@ -477,8 +470,8 @@ impl Gpu {
 
             // If we couldn't get usable memory, fallback to a percentage of total
             let available = if result != 0 || usable == 0 {
-                // Use a conservative estimate: 30-60% of total RAM is typically available
-                // The exact percentage depends on system activity
+                // Use a conservative estimate: 30-60% of total RAM is typically available The exact percentage depends
+                // on system activity
                 total / 2 // 50% as a reasonable average
             } else {
                 usable
@@ -612,8 +605,7 @@ impl Gpu {
 
     // Get GPU utilization more directly - using IO registry and process statistics
     fn estimate_utilization(&self) -> Result<f32> {
-        // For a more accurate approach that works on most macOS systems
-        // We'll use a weighted combination of:
+        // For a more accurate approach that works on most macOS systems We'll use a weighted combination of:
         // 1. Process activity - weighted at 40%
         // 2. System load - weighted at 30%
         // 3. Recent CPU usage - weighted at 30%
@@ -653,22 +645,21 @@ impl Gpu {
                 return 15.0; // Default to 15% if getloadavg fails
             }
 
-            // More reasonable scaling for most Apple systems
-            // Based on correlation with actual measurements
+            // More reasonable scaling for most Apple systems Based on correlation with actual measurements
             ((loads[0] / 8.0) * 100.0).min(70.0) as f32
         }
     }
 
     // Get component based on process activity
     fn get_process_activity_component(&self) -> f32 {
-        // Get number of processes as a rough proxy for system activity
-        // More processes correlates with more GPU activity on macOS
+        // Get number of processes as a rough proxy for system activity More processes correlates with more GPU activity
+        // on macOS
         let process_count = unsafe {
             // For simplicity, use a simpler approach to estimate process count
             let mut count = 0;
 
-            // Get process count using a task_for_pid loop as a quick approximation
-            // This is not perfect but avoids using complex sysctl APIs
+            // Get process count using a task_for_pid loop as a quick approximation This is not perfect but avoids using
+            // complex sysctl APIs
             for pid in 1..5000 {
                 let mut task: libc::c_uint = 0;
                 let kr = crate::utils::bindings::proc_pidinfo(
@@ -700,12 +691,11 @@ impl Gpu {
             }
         };
 
-        // Map process count to a reasonable utilization percentage
-        // More processes generally means more GPU work on macOS
+        // Map process count to a reasonable utilization percentage More processes generally means more GPU work on
+        // macOS
         let base_component = ((process_count - 100.0) / 10.0).clamp(0.0, 30.0);
 
-        // Add a dynamic component based on active processes
-        // This helps account for GPU-intensive tasks
+        // Add a dynamic component based on active processes This helps account for GPU-intensive tasks
         let active_component = if process_count > 200.0 { 10.0 } else { 5.0 };
 
         base_component + active_component
@@ -713,11 +703,10 @@ impl Gpu {
 
     // Get component based on CPU usage using a simplified approach
     fn get_cpu_usage_component(&self) -> f32 {
-        // On Apple Silicon, CPU and GPU are integrated and share workloads
-        // CPU usage often correlates with GPU activity
+        // On Apple Silicon, CPU and GPU are integrated and share workloads CPU usage often correlates with GPU activity
 
-        // Instead of complex host_statistics calls, we'll use a simpler approach
-        // that's more reliable across different macOS versions
+        // Instead of complex host_statistics calls, we'll use a simpler approach that's more reliable across different
+        // macOS versions
 
         unsafe {
             // Get CPU load average as a fallback approach
@@ -726,16 +715,14 @@ impl Gpu {
                 return 15.0; // Default if we can't get load info
             }
 
-            // Use the 1-minute load average and scale to a reasonable percentage
-            // This is less precise than direct CPU measurements but more reliable
+            // Use the 1-minute load average and scale to a reasonable percentage This is less precise than direct CPU
+            // measurements but more reliable
             let cpu_cores = self.get_cpu_cores().unwrap_or(4) as f64;
 
-            // Calculate CPU usage percentage based on load per core
-            // normalized to a reasonable range
+            // Calculate CPU usage percentage based on load per core normalized to a reasonable range
             let load_percentage = (loads[0] / cpu_cores * 100.0).min(100.0) as f32;
 
-            // Apply more conservative scaling for GPU estimation
-            // GPU usage is generally lower than CPU usage
+            // Apply more conservative scaling for GPU estimation GPU usage is generally lower than CPU usage
             (load_percentage * 0.4).clamp(5.0, 80.0)
         }
     }
@@ -787,217 +774,4 @@ unsafe impl Send for Gpu {}
 unsafe impl Sync for Gpu {}
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_gpu_initialization() {
-        // Test that we can create a GPU
-        let gpu = Gpu::new();
-        assert!(gpu.is_ok(), "Should be able to initialize GPU");
-    }
-
-    #[test]
-    fn test_gpu_name() {
-        // This test should work on all Apple hardware
-        let gpu = Gpu::new().unwrap();
-        let name = gpu.name();
-
-        assert!(name.is_ok(), "Should be able to get GPU name");
-        let name = name.unwrap();
-        assert!(!name.is_empty(), "GPU name should not be empty");
-
-        // Print for debugging
-        println!("GPU name: {}", name);
-    }
-
-    #[test]
-    fn test_memory_info() {
-        let gpu = Gpu::new().unwrap();
-        let memory = gpu.estimate_memory_info();
-
-        assert!(memory.is_ok(), "Should be able to get memory info");
-        let memory = memory.unwrap();
-
-        // Memory should be reasonable values
-        assert!(memory.total > 0, "Total memory should be positive");
-        assert!(memory.used <= memory.total, "Used memory should not exceed total");
-        assert_eq!(
-            memory.free,
-            memory.total.saturating_sub(memory.used),
-            "Free memory should be calculated correctly"
-        );
-
-        // Print for debugging
-        println!("Memory: {:?}", memory);
-    }
-
-    #[test]
-    fn test_metrics() {
-        let gpu = Gpu::new().unwrap();
-        let metrics = gpu.metrics();
-
-        assert!(metrics.is_ok(), "Should be able to get metrics");
-        let metrics = metrics.unwrap();
-
-        // Basic validations
-        assert!(!metrics.name.is_empty(), "Name should not be empty");
-        assert!(
-            metrics.utilization >= 0.0 && metrics.utilization <= 100.0,
-            "Utilization should be between 0-100%"
-        );
-
-        // Print for debugging
-        println!("Metrics: {:?}", metrics);
-    }
-
-    #[test]
-    fn test_gpu_characteristics() {
-        let gpu = Gpu::new().unwrap();
-        let characteristics = gpu.get_characteristics();
-
-        // Architecture validation
-        if cfg!(target_arch = "aarch64") {
-            assert!(
-                characteristics.is_apple_silicon,
-                "Should detect Apple Silicon on aarch64 hardware"
-            );
-            assert!(
-                characteristics.is_integrated,
-                "Apple Silicon GPUs should be detected as integrated"
-            );
-        }
-
-        // Architecture detection tests are handled by individual cases above
-        // The original assertion was logically equivalent to 'true'
-
-        // Raytracing capability should be detected correctly
-        if characteristics.is_apple_silicon && characteristics.has_raytracing {
-            // Check that raytracing is only reported on M2/M3 chips, not M1
-            if let Some(chip_info) = gpu.detect_apple_silicon_chip() {
-                assert!(
-                    chip_info.contains("M2") || chip_info.contains("M3"),
-                    "Raytracing should only be reported on M2/M3 chips, not on: {}",
-                    chip_info
-                );
-            }
-        }
-
-        // Clock speed should be reasonable if available
-        if let Some(clock_speed) = characteristics.clock_speed_mhz {
-            assert!(
-                clock_speed > 500 && clock_speed < 3000,
-                "Clock speed should be in a reasonable range: {}",
-                clock_speed
-            );
-        }
-
-        // Core count should be reasonable if available
-        if let Some(core_count) = characteristics.core_count {
-            assert!(
-                core_count > 0 && core_count < 200,
-                "Core count should be in a reasonable range: {}",
-                core_count
-            );
-        }
-
-        // Print for debugging
-        println!("Characteristics: {:?}", characteristics);
-    }
-
-    #[test]
-    fn test_apple_silicon_detection() {
-        let gpu = Gpu::new().unwrap();
-
-        if cfg!(target_arch = "aarch64") {
-            // On Apple Silicon hardware, this should return a value
-            assert!(
-                gpu.detect_apple_silicon_chip().is_some(),
-                "Should detect chip type on Apple Silicon hardware"
-            );
-
-            if let Some(chip_info) = gpu.detect_apple_silicon_chip() {
-                assert!(
-                    chip_info.contains("M1")
-                        || chip_info.contains("M2")
-                        || chip_info.contains("M3")
-                        || chip_info.contains("Apple Silicon GPU"),
-                    "Should identify an M-series chip on Apple Silicon: {}",
-                    chip_info
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_cpu_detection() {
-        let gpu = Gpu::new().unwrap();
-        let cpu_info = gpu.get_cpu_model();
-
-        // Should get CPU info on any test system
-        assert!(cpu_info.is_some(), "Should retrieve CPU model information");
-
-        // Clone to avoid partial move issues
-        let cpu_info_clone = cpu_info.clone();
-
-        if let Some(info) = cpu_info {
-            assert!(!info.is_empty(), "CPU model info should not be empty");
-
-            if cfg!(target_arch = "aarch64") {
-                // Check for Apple-designed CPU on Apple Silicon
-                assert!(
-                    info.contains("Apple")
-                        || info.contains("M1")
-                        || info.contains("M2")
-                        || info.contains("M3"),
-                    "On Apple Silicon, CPU should be an Apple-designed chip: {}",
-                    info
-                );
-            } else {
-                // On Intel Macs, should be an Intel CPU
-                assert!(
-                    info.contains("Intel"),
-                    "On Intel Macs, CPU should be an Intel chip: {}",
-                    info
-                );
-            }
-        }
-
-        // Print for debugging
-        println!("CPU Model: {:?}", cpu_info_clone);
-    }
-
-    #[test]
-    fn test_metrics_characteristics() {
-        let gpu = Gpu::new().unwrap();
-        let metrics = gpu.metrics().unwrap();
-
-        // Verify that the characteristics field is properly populated
-        if cfg!(target_arch = "aarch64") {
-            assert!(
-                metrics.characteristics.is_apple_silicon,
-                "Metrics should report Apple Silicon on ARM hardware"
-            );
-        }
-
-        // Check that memory info makes sense with the characteristics
-        if metrics.characteristics.is_apple_silicon {
-            // For Apple Silicon, memory should be a percentage of system RAM
-            // Which should be a substantial amount (at least 1GB for any reasonable test system)
-            assert!(
-                metrics.memory.total >= 1_073_741_824,
-                "Apple Silicon GPU should report reasonable memory allocation: {}",
-                metrics.memory.total
-            );
-        }
-
-        // Check that temperature estimation varies by architecture
-        if let Some(temp) = metrics.temperature {
-            assert!(
-                (35.0..=80.0).contains(&temp),
-                "Temperature should be in a reasonable range: {}",
-                temp
-            );
-        }
-    }
-}
+mod tests;

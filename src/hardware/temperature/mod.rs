@@ -179,16 +179,23 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
                     self.sensors.insert("Heatsink".to_string(), temp);
                 }
 
-                if let Some(temp) = thermal_info.ambient_temp {
-                    self.sensors.insert("Ambient".to_string(), temp);
-                }
+            // Add optional sensors if available
+            if let Some(temp) = thermal_info.heatsink_temp {
+                self.sensors.insert("Heatsink".to_string(), temp);
+            }
 
-                if let Some(temp) = thermal_info.battery_temp {
-                    self.sensors.insert("Battery".to_string(), temp);
-                }
+            if let Some(temp) = thermal_info.ambient_temp {
+                self.sensors.insert("Ambient".to_string(), temp);
+            }
 
                 // Update throttling status
                 self.is_throttling = thermal_info.is_throttling;
+
+            // Update CPU power if available
+            self.cpu_power = thermal_info.cpu_power;
+
+            // Update throttling status
+            self.is_throttling = thermal_info.is_throttling;
 
             // Update CPU power if available
             self.cpu_power = thermal_info.cpu_power;
@@ -197,16 +204,15 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             let fan_infos = self.io_kit.get_all_fans()?;
             self.fans.clear();
 
-                // Create Fan objects from the raw IOKitFanInfo structures
-                for (i, fan_info) in fan_infos.iter().enumerate() {
-                    self.fans.push(Fan {
-                        name: format!("Fan {}", i),
-                        speed_rpm: fan_info.speed_rpm,
-                        min_speed: fan_info.min_speed,
-                        max_speed: fan_info.max_speed,
-                        percentage: fan_info.percentage,
-                    });
-                }
+            // Create Fan objects from the raw IOKitFanInfo structures
+            for (i, fan_info) in fan_infos.iter().enumerate() {
+                self.fans.push(Fan {
+                    name: format!("Fan {}", i),
+                    speed_rpm: fan_info.speed_rpm,
+                    min_speed: fan_info.min_speed,
+                    max_speed: fan_info.max_speed,
+                    percentage: fan_info.percentage,
+                });
             }
 
             // Update refresh timestamp
