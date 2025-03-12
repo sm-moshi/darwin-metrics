@@ -1,21 +1,11 @@
 use std::os::raw::c_char;
+
+use crate::{
+    error::{Error, Result},
+    hardware::iokit::{IOKit, IOKitImpl},
+};
+
 use thiserror::Error;
-
-use crate::error::{Error, Result};
-use crate::hardware::iokit::{IOKit, IOKitImpl};
-
-/// Represents the power state of the system
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PowerState {
-    /// System is running on AC power
-    AC,
-    /// System is running on battery power
-    Battery,
-    /// System is charging
-    Charging,
-    /// Power state is unknown
-    Unknown,
-}
 
 #[derive(Debug, Error)]
 pub enum PowerError {
@@ -23,7 +13,9 @@ pub enum PowerError {
     SystemCallFailed,
     #[error("Invalid power data")]
     InvalidData,
-    #[error("Service not found")]
+    #[error("Feature not supported on this hardware")]
+    NotSupported,
+    #[error("Service error: {0}")]
     ServiceError(String),
 }
 
@@ -32,16 +24,32 @@ impl From<Error> for PowerError {
         match err {
             Error::InvalidData(_) => PowerError::InvalidData,
             Error::ServiceNotFound(msg) => PowerError::ServiceError(msg),
-            Error::System(_) => PowerError::SystemCallFailed,
             _ => PowerError::SystemCallFailed,
         }
     }
 }
 
-#[derive(Debug)]
+/// Power state of the system
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PowerState {
+    /// Device is running on battery power
+    Battery,
+    /// Device is running on external power
+    AC,
+    /// Device is running on external power and charging
+    Charging,
+    /// Power state couldn't be determined
+    Unknown,
+}
+
+/// Represents the power consumption of the system components in watts
+#[derive(Debug, Clone)]
 pub struct PowerConsumption {
+    /// Total package power (entire SoC for Apple Silicon, package for Intel)
     pub package: f32,
+    /// CPU cores power consumption
     pub cores: f32,
+    /// GPU power consumption (if available)
     pub gpu: Option<f32>,
     /// Memory subsystem power consumption
     pub dram: Option<f32>,
@@ -83,8 +91,8 @@ impl Power {
 
     /// Returns the power consumption for system components
     pub fn get_power_consumption(&self) -> Result<PowerConsumption> {
-        // Get power values using the safe mock implementation
-        // This avoids any segmentation faults while still providing meaningful data structure
+        // Get power values using the safe mock implementation This avoids any segmentation faults while still providing
+        // meaningful data structure
 
         // Get package power (total SoC power) using our safe mock implementation
         let package = self.read_smc_power_key(SMC_KEY_PACKAGE_POWER).unwrap_or(12.5);
@@ -110,8 +118,8 @@ impl Power {
             Err(_) => Some(0.7), // Fallback value
         };
 
-        // Use a safe implementation for battery state
-        // For the example we'll just assume AC power with a high battery level
+        // Use a safe implementation for battery state For the example we'll just assume AC power with a high battery
+        // level
         let power_state = PowerState::AC;
         let battery_percentage = Some(95.0);
 
@@ -171,8 +179,8 @@ impl Power {
     ///
     /// Mock implementation to avoid segfaults - returns fake data
     fn read_smc_power_key(&self, key: [c_char; 4]) -> Result<f32> {
-        // Use the key to determine what kind of value to return
-        // This gives the appearance of real data without any risky calls
+        // Use the key to determine what kind of value to return This gives the appearance of real data without any
+        // risky calls
 
         // Convert the key to a string for easier comparison
         let key_bytes = [key[0] as u8, key[1] as u8, key[2] as u8, key[3] as u8];

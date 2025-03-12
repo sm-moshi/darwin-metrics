@@ -174,6 +174,11 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
             self.sensors.insert("GPU".to_string(), thermal_info.gpu_temp);
 
+                // Add optional sensors if available
+                if let Some(temp) = thermal_info.heatsink_temp {
+                    self.sensors.insert("Heatsink".to_string(), temp);
+                }
+
             // Add optional sensors if available
             if let Some(temp) = thermal_info.heatsink_temp {
                 self.sensors.insert("Heatsink".to_string(), temp);
@@ -183,9 +188,11 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
                 self.sensors.insert("Ambient".to_string(), temp);
             }
 
-            if let Some(temp) = thermal_info.battery_temp {
-                self.sensors.insert("Battery".to_string(), temp);
-            }
+                // Update throttling status
+                self.is_throttling = thermal_info.is_throttling;
+
+            // Update CPU power if available
+            self.cpu_power = thermal_info.cpu_power;
 
             // Update throttling status
             self.is_throttling = thermal_info.is_throttling;

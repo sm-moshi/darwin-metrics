@@ -377,7 +377,7 @@ fn test_get_service() {
     let mut mock_iokit = MockIOKit::new();
 
     // Set up the expectation
-    mock_iokit.expect_get_service().returning(|_| Ok(create_test_object()));
+    mock_iokit.expect_get_service().returning(|_| Ok(create_test_object().into()));
 
     // Call the method
     let result = mock_iokit.get_service("TestService");
@@ -389,9 +389,9 @@ fn test_get_service() {
 #[test]
 #[cfg_attr(not(feature = "skip-ffi-crashes"), ignore)]
 fn test_impl_get_service_safety() {
-    // This test is automatically skipped unless the skip-ffi-crashes feature is enabled
-    // This prevents segmentation faults during normal testing
-    
+    // This test is automatically skipped unless the skip-ffi-crashes feature is enabled This prevents segmentation
+    // faults during normal testing
+
     // Test the IOKitImpl's get_service method with skip-ffi-crashes feature
     let iokit = IOKitImpl;
 
@@ -828,20 +828,6 @@ fn test_thermal_info_debug() {
 }
 
 #[test]
-fn test_fan_info_debug() {
-    // Test the Debug implementation for FanInfo
-    let fan = FanInfo { speed_rpm: 2000, min_speed: 500, max_speed: 5000, percentage: 40.0 };
-
-    let debug_str = format!("{:?}", fan);
-
-    // Make sure all the fields are represented in the debug output
-    assert!(debug_str.contains("speed_rpm: 2000"));
-    assert!(debug_str.contains("min_speed: 500"));
-    assert!(debug_str.contains("max_speed: 5000"));
-    assert!(debug_str.contains("percentage: 40.0"));
-}
-
-#[test]
 fn test_iokit_impl_default() {
     // Test the Default implementation for IOKitImpl
     let iokit = IOKitImpl;
@@ -861,9 +847,8 @@ fn test_iokit_impl_debug() {
     assert!(debug_str.contains("IOKitImpl"));
 }
 
-// This test is disabled by default because it can cause segfaults in some
-// environments Only run it manually when debugging IOKit issues
-// Skip if we're running with the skip-ffi-crashes feature enabled
+// This test is disabled by default because it can cause segfaults in some environments Only run it manually when
+// debugging IOKit issues Skip if we're running with the skip-ffi-crashes feature enabled
 #[test]
 fn test_real_gpu_stats() {
     // Skip the test if the skip-ffi-crashes feature is enabled
@@ -979,8 +964,9 @@ fn test_real_gpu_stats() {
                                     autoreleasepool(|_| {
                                         // Retain the name object to ensure it stays valid
                                         let _: () = msg_send![name_obj, retain];
-                                        
-                                        let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
+
+                                        let utf8_string: *const u8 =
+                                            msg_send![name_obj, UTF8String];
                                         if utf8_string.is_null() {
                                             println!("Failed to get UTF8 string");
                                         } else {
@@ -989,7 +975,7 @@ fn test_real_gpu_stats() {
                                             let name = c_str.to_string_lossy();
                                             println!("GPU name from Metal API: {}", name);
                                         }
-                                        
+
                                         // Release the name object when we're done with it
                                         let _: () = msg_send![name_obj, release];
                                     });

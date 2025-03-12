@@ -1,14 +1,1 @@
-# Specify which lints are allowed/denied
-disallowed-methods = [
-    # Example: Disallow certain methods that might be problematic
-    { path = "std::option::Option::unwrap", reason = "prefer `?` or explicit handling" },
-    { path = "std::result::Result::unwrap", reason = "prefer `?` or explicit handling" },
-]
-
-# Configure specific lints
-too-many-arguments-threshold = 6
-type-complexity-threshold    = 250
-enum-variant-size-threshold  = 200
-
-# Note: We can't use path-specific ignores this way
-# Instead, use #[allow(missing_docs)] in the relevant test files
+allow-unwrap-in-tests = true

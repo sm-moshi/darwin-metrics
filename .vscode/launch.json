@@ -4,6 +4,38 @@
     {
       "type": "lldb",
       "request": "launch",
+      "name": "Debug IOKit Crashing Test",
+      "cargo": {
+        "args": ["test", "--no-run", "--features=unstable-tests", "--no-default-features"],
+        "filter": {
+          "kind": "test"
+        }
+      },
+      "args": ["test_real_gpu_stats", "--exact"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "full"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug GPU Temperature Crash",
+      "cargo": {
+        "args": ["test", "--no-run", "--no-default-features"],
+        "filter": {
+          "kind": "test"
+        }
+      },
+      "args": ["hardware::gpu::tests::test_metrics", "--exact"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "full"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
       "name": "Debug Library",
       "cargo": {
         "args": ["build", "--lib"]

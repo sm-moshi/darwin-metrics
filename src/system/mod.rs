@@ -113,8 +113,7 @@ mod tests {
         // Architecture should be either Intel or AppleSilicon on real Mac hardware
         assert!(
             matches!(arch, Architecture::Intel | Architecture::AppleSilicon),
-            "Architecture should be Intel or AppleSilicon, got: {:?}",
-            arch
+            "Architecture should be Intel or AppleSilicon, got: {arch:?}"
         );
 
         // On modern Macs, we expect aarch64/Apple Silicon or x86_64/Intel

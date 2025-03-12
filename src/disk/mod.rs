@@ -300,9 +300,8 @@ impl Disk {
             {
                 DiskType::Network
             } else if device.contains("disk") {
-                // For simplicity, we'll assume all local disks are SSDs
-                // A more accurate approach would use IOKit but we've avoided that due to memory
-                // issues
+                // For simplicity, we'll assume all local disks are SSDs A more accurate approach would use IOKit but
+                // we've avoided that due to memory issues
                 DiskType::SSD
             } else {
                 DiskType::Unknown
@@ -469,35 +468,10 @@ impl DiskMonitor {
         use std::{
             ffi::CStr,
             mem::{size_of, MaybeUninit},
-            os::raw::{c_char, c_int},
+            os::raw::c_int,
         };
 
-        const MNT_NOWAIT: c_int = 2;
-
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
-        struct Statfs {
-            f_bsize: u32,                  // Fundamental file system block size
-            f_iosize: i32,                 // Optimal transfer block size
-            f_blocks: u64,                 // Total data blocks in file system
-            f_bfree: u64,                  // Free blocks in file system
-            f_bavail: u64,                 // Free blocks available to non-superuser
-            f_files: u64,                  // Total file nodes in file system
-            f_ffree: u64,                  // Free nodes available
-            f_fsid: [i32; 2],              // File system ID
-            f_owner: u32,                  // User ID of mount owner
-            f_type: u32,                   // Type of file system
-            f_flags: u32,                  // Copy of mount flags
-            f_fssubtype: u32,              // File system subtype
-            f_fstypename: [c_char; 16],    // File system type name
-            f_mntonname: [c_char; 1024],   // Mount point
-            f_mntfromname: [c_char; 1024], // Mount source
-            f_reserved: [u32; 8],          // Reserved for future use
-        }
-
-        extern "C" {
-            fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
-        }
+        use crate::utils::bindings::{getfsstat, Statfs, MNT_NOWAIT};
 
         // First, call with null buffer to get the number of filesystems
         let fs_count = unsafe { getfsstat(std::ptr::null_mut(), 0, MNT_NOWAIT) };
@@ -580,33 +554,10 @@ impl DiskMonitor {
         use std::{
             ffi::{CStr, CString},
             mem::MaybeUninit,
-            os::{raw::c_char, unix::ffi::OsStrExt},
+            os::unix::ffi::OsStrExt,
         };
 
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
-        struct Statfs {
-            f_bsize: u32,                  // Fundamental file system block size
-            f_iosize: i32,                 // Optimal transfer block size
-            f_blocks: u64,                 // Total data blocks in file system
-            f_bfree: u64,                  // Free blocks in file system
-            f_bavail: u64,                 // Free blocks available to non-superuser
-            f_files: u64,                  // Total file nodes in file system
-            f_ffree: u64,                  // Free nodes available
-            f_fsid: [i32; 2],              // File system ID
-            f_owner: u32,                  // User ID of mount owner
-            f_type: u32,                   // Type of file system
-            f_flags: u32,                  // Copy of mount flags
-            f_fssubtype: u32,              // File system subtype
-            f_fstypename: [c_char; 16],    // File system type name
-            f_mntonname: [c_char; 1024],   // Mount point
-            f_mntfromname: [c_char; 1024], // Mount source
-            f_reserved: [u32; 8],          // Reserved for future use
-        }
-
-        extern "C" {
-            fn statfs(path: *const c_char, buf: *mut Statfs) -> i32;
-        }
+        use crate::utils::bindings::{statfs, Statfs};
 
         // Convert path to C string
         let c_path = CString::new(path.as_ref().as_os_str().as_bytes())
@@ -697,9 +648,8 @@ impl DiskMonitor {
             return Ok(performance_map);
         }
 
-        // For subsequent calls, simulate some activity
-        // Instead of using IOKit which has memory management issues, we'll generate
-        // simulated stats
+        // For subsequent calls, simulate some activity Instead of using IOKit which has memory management issues, we'll
+        // generate simulated stats
         let read_ops = 1000 + (now.elapsed().as_millis() % 500) as u64;
         let write_ops = 500 + (now.elapsed().as_millis() % 300) as u64;
         let bytes_read = 20 * 1024 * 1024 + (now.elapsed().as_millis() % 10_000_000) as u64;
@@ -804,9 +754,8 @@ impl DiskMonitor {
     pub fn update(&mut self) -> Result<()> {
         let now = Instant::now();
 
-        // Use an alternative approach that doesn't rely on IOKit
-        // Instead of using IOKit which has memory management issues in our current
-        // code, we'll generate simulated stats for demonstration
+        // Use an alternative approach that doesn't rely on IOKit Instead of using IOKit which has memory management
+        // issues in our current code, we'll generate simulated stats for demonstration
 
         // Simulate stats for the system disk
         let device = "/dev/disk0".to_string();
@@ -839,8 +788,8 @@ impl DiskMonitor {
 
     /// Detects the type of a disk
     fn detect_disk_type(&self, device: &str) -> Result<DiskType> {
-        // Simple disk type detection based solely on the device path
-        // This avoids using IOKit entirely, which is causing memory management issues
+        // Simple disk type detection based solely on the device path This avoids using IOKit entirely, which is causing
+        // memory management issues
 
         // Check for network mounts
         if device.starts_with("//")
@@ -861,8 +810,7 @@ impl DiskMonitor {
             return Ok(DiskType::Virtual);
         }
 
-        // On Apple Silicon Macs, most internal storage is SSD
-        // This is a reasonable default for modern macOS systems
+        // On Apple Silicon Macs, most internal storage is SSD This is a reasonable default for modern macOS systems
         if device.contains("disk") {
             return Ok(DiskType::SSD);
         }
@@ -878,129 +826,6 @@ impl Default for DiskMonitor {
     }
 }
 
+// Add this line to make Rust aware of the tests module
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_disk_usage_percentage() {
-        let disk = Disk::new(
-            "/dev/test".to_string(),
-            "/test".to_string(),
-            "apfs".to_string(),
-            1000,
-            750,
-            250,
-        );
-
-        assert_eq!(disk.usage_percentage(), 25.0);
-    }
-
-    #[test]
-    fn test_is_nearly_full() {
-        let nearly_full_disk = Disk::new(
-            "/dev/test1".to_string(),
-            "/test1".to_string(),
-            "apfs".to_string(),
-            1000,
-            50,  // 5% available
-            950, // 95% used
-        );
-
-        let not_full_disk = Disk::new(
-            "/dev/test2".to_string(),
-            "/test2".to_string(),
-            "apfs".to_string(),
-            1000,
-            500, // 50% available
-            500, // 50% used
-        );
-
-        assert!(nearly_full_disk.is_nearly_full());
-        assert!(!not_full_disk.is_nearly_full());
-    }
-
-    #[test]
-    fn test_format_bytes() {
-        assert_eq!(Disk::format_bytes(500), "500 bytes");
-        assert_eq!(Disk::format_bytes(1024), "1.0 KB");
-        assert_eq!(Disk::format_bytes(1536), "1.5 KB");
-        assert_eq!(Disk::format_bytes(1048576), "1.0 MB");
-        assert_eq!(Disk::format_bytes(1073741824), "1.0 GB");
-        assert_eq!(Disk::format_bytes(1099511627776), "1.0 TB");
-    }
-
-    #[test]
-    fn test_get_root_disk_info() {
-        // This tests the actual implementation on macOS
-        let disk = Disk::get_info();
-        assert!(disk.is_ok(), "Should be able to get root disk info");
-
-        if let Ok(disk) = disk {
-            assert_eq!(disk.mount_point, "/", "Root disk should be mounted at /");
-            assert!(disk.is_boot_volume, "Root disk should be the boot volume");
-            assert!(disk.total > 0, "Total space should be > 0");
-            assert!(disk.available > 0, "Available space should be > 0");
-            assert!(disk.used > 0, "Used space should be > 0");
-            println!("Root disk: {}", disk.summary());
-        }
-    }
-
-    #[test]
-    fn test_get_all_volumes() {
-        // This tests the actual implementation on macOS
-        let disks = Disk::get_all();
-        assert!(disks.is_ok(), "Should be able to get all disk volumes");
-
-        if let Ok(disks) = disks {
-            assert!(!disks.is_empty(), "There should be at least one volume");
-
-            // Find the root volume
-            let root = disks.iter().find(|d| d.mount_point == "/");
-            assert!(root.is_some(), "Root volume should be present");
-
-            for disk in disks {
-                println!("Volume: {} ({})", disk.mount_point, disk.summary());
-            }
-        }
-    }
-
-    #[test]
-    fn test_disk_performance() {
-        // This tests the actual implementation on macOS
-        let mut monitor = DiskMonitor::new();
-
-        // First update to get baseline stats
-        let _ = monitor.update();
-
-        // Sleep briefly to allow for some disk activity
-        std::thread::sleep(std::time::Duration::from_millis(100));
-
-        // Get performance metrics
-        let perf = monitor.get_performance();
-        assert!(perf.is_ok(), "Should be able to get disk performance");
-
-        if let Ok(perf_map) = perf {
-            assert!(!perf_map.is_empty(), "There should be at least one disk performance entry");
-
-            for (device, perf) in perf_map {
-                println!("Device: {}", device);
-                println!(
-                    "  Read: {:.1} ops/s, {} bytes/s",
-                    perf.reads_per_second,
-                    Disk::format_bytes(perf.bytes_read_per_second)
-                );
-                println!(
-                    "  Write: {:.1} ops/s, {} bytes/s",
-                    perf.writes_per_second,
-                    Disk::format_bytes(perf.bytes_written_per_second)
-                );
-                println!(
-                    "  Latency: {:.2} ms read, {:.2} ms write",
-                    perf.read_latency_ms, perf.write_latency_ms
-                );
-                println!("  Utilization: {:.1}%", perf.utilization);
-            }
-        }
-    }
-}
+mod tests;

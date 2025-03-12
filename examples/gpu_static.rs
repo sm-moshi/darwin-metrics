@@ -1,21 +1,9 @@
-use std::os::raw::c_char;
-
 use objc2::rc::autoreleasepool;
 use objc2_foundation::NSProcessInfo;
+use std::ffi::CString;
 
-// Import the necessary macOS frameworks
-#[link(name = "IOKit", kind = "framework")]
-#[allow(dead_code)]
-extern "C" {
-    fn IOServiceMatching(service_name: *const c_char) -> *mut std::ffi::c_void;
-    fn IOServiceGetMatchingService(master_port: u32, matching: *mut std::ffi::c_void) -> u32;
-    fn IORegistryEntryCreateCFProperties(
-        entry: u32,
-        properties: *mut *mut std::ffi::c_void,
-        allocator: *mut std::ffi::c_void,
-        options: u32,
-    ) -> i32;
-}
+// Import the necessary bindings from the crate
+use darwin_metrics::utils::bindings::{IOServiceGetMatchingService, IOServiceMatching};
 
 #[allow(clippy::disallowed_methods, dead_code)]
 fn main() {
@@ -43,7 +31,13 @@ fn main() {
 
         unsafe {
             // Convert C string to create a dictionary for IOKit matching
-            let service_name = std::ffi::CString::new("IOPCIDevice").unwrap();
+            let service_name = match CString::new("IOPCIDevice") {
+                Ok(name) => name,
+                Err(_) => {
+                    println!("Error creating CString");
+                    return;
+                },
+            };
             let matching = IOServiceMatching(service_name.as_ptr());
 
             // Get a reference to the IOService

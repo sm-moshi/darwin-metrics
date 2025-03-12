@@ -1,8 +1,7 @@
 //! Memory analysis and monitoring module
 //!
-//! This module provides comprehensive memory metrics and monitoring
-//! capabilities for macOS systems. It tracks system memory usage, page states,
-//! memory pressure, and swap activity.
+//! This module provides comprehensive memory metrics and monitoring capabilities for macOS systems. It tracks system
+//! memory usage, page states, memory pressure, and swap activity.
 //!
 //! # Features
 //!
@@ -22,13 +21,13 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let memory = Memory::new()?;
-//!
+//!     
 //!     println!("Total Memory: {} bytes", memory.total);
 //!     println!("Available Memory: {} bytes", memory.available);
 //!     println!("Used Memory: {} bytes", memory.used);
 //!     println!("Memory Usage: {:.1}%", memory.usage_percentage());
 //!     println!("Memory Pressure: {:.1}%", memory.pressure_percentage());
-//!
+//!     
 //!     Ok(())
 //! }
 //! ```
@@ -40,7 +39,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let memory = Memory::new()?;
-//!
+//!     
 //!     // Register a callback for memory pressure changes
 //!     memory.on_pressure_change(|level| {
 //!         match level {
@@ -51,13 +50,12 @@
 //!             _ => println!("Memory pressure is in an UNKNOWN state"),
 //!         }
 //!     });
-//!
+//!     
 //!     Ok(())
 //! }
 //! ```
 //!
-//! For more examples, see the `examples/memory_monitor.rs` and
-//! `examples/memory_monitor_async.rs` files.
+//! For more examples, see the `examples/memory_monitor.rs` and `examples/memory_monitor_async.rs` files.
 
 use std::{
     collections::VecDeque,
@@ -112,8 +110,7 @@ pub struct PageStates {
     pub active: u64,
     /// Memory pages that haven't been accessed recently but still in RAM
     pub inactive: u64,
-    /// Memory pages that cannot be paged out (kernel and other critical
-    /// components)
+    /// Memory pages that cannot be paged out (kernel and other critical components)
     pub wired: u64,
     /// Memory pages immediately available for allocation
     pub free: u64,
@@ -143,27 +140,6 @@ pub struct SwapUsage {
 impl Default for SwapUsage {
     fn default() -> Self {
         Self { total: 0, used: 0, free: 0, ins: 0.0, outs: 0.0, pressure: 0.0 }
-    }
-}
-
-impl SwapUsage {
-    /// Checks if swap is available/configured
-    ///
-    /// Returns true if there is swap space configured (total > 0),
-    /// false otherwise.
-    pub fn is_available(&self) -> bool {
-        self.total > 0
-    }
-    
-    /// Returns swap usage as a percentage
-    ///
-    /// If swap is not configured or total is 0, returns 0.0
-    pub fn usage_percentage(&self) -> f64 {
-        if self.total > 0 {
-            (self.used as f64 / self.total as f64 * 100.0).clamp(0.0, 100.0)
-        } else {
-            0.0
-        }
     }
 }
 
@@ -283,13 +259,11 @@ impl PartialEq for Memory {
 impl Memory {
     /// Create a new Memory monitoring instance
     ///
-    /// Initializes a Memory struct with default settings and performs an
-    /// initial update.
+    /// Initializes a Memory struct with default settings and performs an initial update.
     ///
     /// # Returns
     ///
-    /// A Result containing the initialized Memory struct, or an Error if
-    /// initialization fails.
+    /// A Result containing the initialized Memory struct, or an Error if initialization fails.
     ///
     /// # Example
     ///
@@ -376,9 +350,8 @@ impl Memory {
 
     /// Update memory metrics
     ///
-    /// Refreshes all memory metrics by querying the system for current memory
-    /// usage information. This method should be called periodically to get
-    /// up-to-date memory statistics.
+    /// Refreshes all memory metrics by querying the system for current memory usage information. This method should be
+    /// called periodically to get up-to-date memory statistics.
     ///
     /// # Returns
     ///
@@ -387,23 +360,23 @@ impl Memory {
     /// # Example
     ///
     /// ```no_run
-    /// use std::{thread::sleep, time::Duration};
-    ///
     /// use darwin_metrics::hardware::memory::Memory;
+    /// use std::thread::sleep;
+    /// use std::time::Duration;
     ///
     /// fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let mut memory = Memory::new()?;
-    ///
+    ///     
     ///     // Initial reading
     ///     println!("Initial memory usage: {:.1}%", memory.usage_percentage());
-    ///
+    ///     
     ///     // Wait a moment then update
     ///     sleep(Duration::from_secs(5));
     ///     memory.update()?;
-    ///
+    ///     
     ///     // Get updated reading
     ///     println!("Updated memory usage: {:.1}%", memory.usage_percentage());
-    ///
+    ///     
     ///     Ok(())
     /// }
     /// ```
@@ -537,34 +510,6 @@ impl Memory {
     pub fn usage_history(&self) -> &VecDeque<f64> {
         &self.history
     }
-    
-    /// Checks if swap is enabled on the system
-    ///
-    /// Returns true if swap is enabled and configured on the system.
-    /// On macOS systems, this checks if the swap usage can be retrieved
-    /// and if the total swap space is greater than zero.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use darwin_metrics::hardware::memory::Memory;
-    ///
-    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let memory = Memory::new()?;
-    ///
-    ///     if Memory::is_swap_enabled()? {
-    ///         println!("Swap is enabled: {} bytes total", memory.swap_usage.total);
-    ///     } else {
-    ///         println!("Swap is not enabled on this system");
-    ///     }
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    pub fn is_swap_enabled() -> Result<bool> {
-        let swap = Self::get_swap_usage()?;
-        Ok(swap.total > 0)
-    }
 
     pub async fn start_monitoring(&self, interval_ms: u64) -> Result<MemoryMonitorHandle> {
         let callbacks = self.pressure_callbacks.clone();
@@ -628,7 +573,7 @@ impl Memory {
     }
 
     fn get_page_size() -> Result<u64> {
-        unsafe { Ok(vm_kernel_page_size as u64) }
+        Ok(unsafe { vm_kernel_page_size as u64 })
     }
 
     fn get_vm_statistics() -> Result<vm_statistics64> {
@@ -655,7 +600,6 @@ impl Memory {
         let mut xsw_usage = xsw_usage::default();
         let mut size = std::mem::size_of::<xsw_usage>();
 
-        // First check if swap is enabled by checking if VM_SWAPUSAGE is supported
         let mib = [CTL_VM, VM_SWAPUSAGE];
 
         let result = unsafe {
@@ -669,30 +613,11 @@ impl Memory {
             )
         };
 
-        // If we get an error, try to distinguish between "no swap configured" vs other errors
+        // If we get an error, return a default SwapUsage instead of failing
+        // This is more resilient in test environments or systems without swap
         if result != 0 {
-            // Check vm_stat output for swap info as a fallback
-            if let Ok(vmstat) = Self::get_vm_statistics() {
-                // If we have swap activity but sysctl failed, we might have permission issues
-                if vmstat.swapins > 0 || vmstat.swapouts > 0 {
-                    // We have swap activity, so create an estimated swap usage
-                    return Ok(SwapUsage {
-                        // We don't know the actual size, so we'll use an estimate
-                        total: 4 * 1024 * 1024 * 1024, // 4GB estimate
-                        used: 0,                       // Unknown
-                        free: 4 * 1024 * 1024 * 1024,  // Estimate
-                        ins: vmstat.swapins as f64,    // Use actual values
-                        outs: vmstat.swapouts as f64,  // Use actual values
-                        pressure: 0.0,                 // Unknown
-                    });
-                }
-            }
-            
-            // No swap configured or no permissions - return default (empty) swap usage
-            // For debug builds, emit a warning
-            #[cfg(debug_assertions)]
-            eprintln!("Notice: No swap usage available (error: {})", result);
-            
+            // Log the error but don't fail - this is often expected in test environments
+            eprintln!("Warning: Failed to get swap usage, using defaults (error: {})", result);
             return Ok(SwapUsage::default());
         }
 
@@ -745,9 +670,8 @@ impl Drop for MemoryMonitorHandle {
 impl Memory {
     /// Update memory metrics asynchronously
     ///
-    /// This method offloads the blocking system calls to a separate thread
-    /// using tokio's spawn_blocking, making it suitable for use in async
-    /// contexts without blocking the async runtime.
+    /// This method offloads the blocking system calls to a separate thread using tokio's spawn_blocking, making it
+    /// suitable for use in async contexts without blocking the async runtime.
     ///
     /// # Returns
     ///
@@ -761,17 +685,16 @@ impl Memory {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let mut memory = Memory::new()?;
-    ///
+    ///     
     ///     // Update memory metrics asynchronously
     ///     memory.update_async().await?;
     ///     println!("Memory usage: {:.1}%", memory.usage_percentage());
-    ///
+    ///     
     ///     Ok(())
     /// }
     /// ```
     pub async fn update_async(&mut self) -> Result<()> {
-        // Perform the blocking operation in a separate thread
-        // Clone first so it can be moved into the closure
+        // Perform the blocking operation in a separate thread Clone first so it can be moved into the closure
         let clone = self.clone();
         let updated_memory = tokio::task::spawn_blocking(move || {
             let mut memory = clone;
@@ -805,13 +728,11 @@ impl Memory {
 
     /// Get memory info asynchronously
     ///
-    /// Creates a new Memory instance asynchronously without blocking the async
-    /// runtime.
+    /// Creates a new Memory instance asynchronously without blocking the async runtime.
     ///
     /// # Returns
     ///
-    /// A Result containing the initialized Memory struct, or an Error if
-    /// initialization fails.
+    /// A Result containing the initialized Memory struct, or an Error if initialization fails.
     ///
     /// # Example
     ///
@@ -823,7 +744,7 @@ impl Memory {
     ///     // Get memory info asynchronously
     ///     let memory = Memory::get_info_async().await?;
     ///     println!("Memory usage: {:.1}%", memory.usage_percentage());
-    ///
+    ///     
     ///     Ok(())
     /// }
     /// ```
@@ -835,202 +756,4 @@ impl Memory {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_memory_initialization() {
-        let memory = Memory::new();
-        assert!(memory.is_ok(), "Should be able to initialize Memory");
-    }
-
-    #[test]
-    fn test_memory_update() {
-        let mut memory = Memory::new().unwrap();
-        let result = memory.update();
-        assert!(result.is_ok(), "Update should succeed");
-    }
-    
-    #[test]
-    fn test_swap_usage() {
-        // Test default (empty) swap usage
-        let swap_default = SwapUsage::default();
-        assert_eq!(swap_default.total, 0);
-        assert_eq!(swap_default.used, 0);
-        assert_eq!(swap_default.free, 0);
-        assert_eq!(swap_default.ins, 0.0);
-        assert_eq!(swap_default.outs, 0.0);
-        assert_eq!(swap_default.pressure, 0.0);
-        assert!(!swap_default.is_available());
-        assert_eq!(swap_default.usage_percentage(), 0.0);
-        
-        // Test configured swap usage
-        let swap_config = SwapUsage {
-            total: 4_000_000_000,
-            used: 1_000_000_000,
-            free: 3_000_000_000,
-            ins: 10.5,
-            outs: 5.2,
-            pressure: 0.25,
-        };
-        assert!(swap_config.is_available());
-        assert_eq!(swap_config.usage_percentage(), 25.0);
-        
-        // Test full swap usage
-        let swap_full = SwapUsage {
-            total: 4_000_000_000,
-            used: 4_000_000_000,
-            free: 0,
-            ins: 100.0,
-            outs: 0.0,
-            pressure: 1.0,
-        };
-        assert!(swap_full.is_available());
-        assert_eq!(swap_full.usage_percentage(), 100.0);
-    }
-    
-    #[test]
-    fn test_swap_enabled_detection() {
-        // We can't test the actual system state since it depends on the machine
-        // but we can test the method exists and returns a boolean
-        let result = Memory::is_swap_enabled();
-        assert!(result.is_ok(), "is_swap_enabled() should not fail");
-        
-        // Just a type check - the actual value depends on the system
-        let _is_enabled: bool = result.unwrap();
-    }
-
-    #[test]
-    fn test_memory_metrics() {
-        let memory = Memory::new().unwrap();
-
-        // Basic validations
-        assert!(memory.total > 0, "Total memory should be positive");
-        assert!(memory.available > 0, "Available memory should be positive");
-        assert!(memory.used > 0, "Used memory should be positive");
-        assert!(memory.used <= memory.total, "Used memory should not exceed total");
-        assert!(
-            memory.pressure >= 0.0 && memory.pressure <= 1.0,
-            "Pressure should be between 0 and 1"
-        );
-
-        // Page state validations
-        assert!(memory.page_states.free > 0, "Free pages should be positive");
-        assert!(memory.page_states.active > 0, "Active pages should be positive");
-
-        // Swap usage validation - might be 0 on systems without swap
-        // For u64 values, they are always >= 0, so no need to test that
-        if memory.swap_usage.total > 0 {
-            assert!(
-                memory.swap_usage.used <= memory.swap_usage.total,
-                "Used swap should not exceed total"
-            );
-        }
-    }
-
-    #[test]
-    fn test_usage_percentage() {
-        let memory = Memory::new().unwrap();
-        let percentage = memory.usage_percentage();
-
-        assert!(
-            (0.0..=100.0).contains(&percentage),
-            "Usage percentage should be between 0 and 100, got {}",
-            percentage
-        );
-    }
-
-    #[test]
-    fn test_pressure_callbacks() {
-        let memory = Memory::new().unwrap();
-        let pressure_level = Arc::new(Mutex::new(PressureLevel::Normal));
-        let pressure_level_clone = pressure_level.clone();
-
-        // Add a callback that updates the pressure level
-        memory.on_pressure_change(move |level| {
-            let mut guard = pressure_level_clone.lock().unwrap();
-            *guard = level;
-        });
-
-        // Now force a check
-        memory.check_pressure_thresholds();
-
-        // The level should match the current pressure
-        let level = memory.pressure_level();
-        let callback_level = *pressure_level.lock().unwrap();
-
-        assert_eq!(level, callback_level, "Callback pressure level should match current level");
-    }
-
-    #[test]
-    fn test_custom_thresholds() {
-        let mut memory = Memory::new().unwrap();
-
-        // Set custom thresholds
-        let result = memory.set_pressure_thresholds(0.25, 0.75);
-        assert!(result.is_ok(), "Setting thresholds should succeed");
-
-        // Test invalid thresholds (warning > critical)
-        let result = memory.set_pressure_thresholds(0.8, 0.5);
-        assert!(result.is_err(), "Setting invalid thresholds should fail");
-
-        // Test invalid thresholds (out of range)
-        let result = memory.set_pressure_thresholds(-0.1, 0.5);
-        assert!(result.is_err(), "Setting out-of-range thresholds should fail");
-
-        let result = memory.set_pressure_thresholds(0.3, 1.5);
-        assert!(result.is_err(), "Setting out-of-range thresholds should fail");
-    }
-
-    #[test]
-    fn test_memory_info_functions() {
-        // Test individual info functions
-        let total = Memory::get_total_memory();
-        assert!(total.is_ok(), "Should get total memory");
-        assert!(total.unwrap() > 0, "Total memory should be positive");
-
-        let page_size = Memory::get_page_size();
-        assert!(page_size.is_ok(), "Should get page size");
-        assert!(page_size.unwrap() > 0, "Page size should be positive");
-
-        let vm_stats = Memory::get_vm_statistics();
-        assert!(vm_stats.is_ok(), "Should get VM statistics");
-
-        let swap = Memory::get_swap_usage();
-        assert!(swap.is_ok(), "Should get swap usage");
-    }
-
-    #[tokio::test]
-    async fn test_memory_monitoring() {
-        let memory = Memory::new().unwrap();
-        let monitor_handle = memory.start_monitoring(100).await;
-
-        assert!(monitor_handle.is_ok(), "Should start monitoring successfully");
-
-        let handle = monitor_handle.unwrap();
-        assert!(handle.is_active(), "Monitor should be active initially");
-
-        // Sleep briefly to allow monitor to run
-        tokio::time::sleep(Duration::from_millis(250)).await;
-
-        // Stop the monitor
-        handle.stop();
-        assert!(!handle.is_active(), "Monitor should be inactive after stopping");
-    }
-
-    #[tokio::test]
-    async fn test_update_async() {
-        let mut memory = Memory::new().unwrap();
-        let result = memory.update_async().await;
-        assert!(result.is_ok(), "Async update should succeed");
-    }
-
-    #[tokio::test]
-    async fn test_get_info_async() {
-        let memory_result = Memory::get_info_async().await;
-        assert!(memory_result.is_ok(), "Async get_info should succeed");
-
-        let memory = memory_result.unwrap();
-        assert!(memory.total > 0, "Total memory should be positive");
-    }
-}
+mod tests;

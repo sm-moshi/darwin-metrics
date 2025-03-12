@@ -84,6 +84,22 @@
       "problemMatcher": ["$rustc"],
       "group": "build"
     },
+    {
+      "label": "run crashing test",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["test", "--features=unstable-tests", "--no-default-features", "test_real_gpu_stats", "--", "--nocapture"],
+      "problemMatcher": ["$rustc"],
+      "group": "test"
+    },
+    {
+      "label": "debug gpu temperature",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["run", "--example=gpu_monitor_simplified"],
+      "problemMatcher": ["$rustc"],
+      "group": "test"
+    }
   ],
   "inputs": [
     {
