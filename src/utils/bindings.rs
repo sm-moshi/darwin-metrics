@@ -9,6 +9,8 @@
 //!
 //! By centralizing these bindings, we improve maintainability and reduce redundancy across modules.
 
+#![allow(non_camel_case_types)]  // Allow non-camel-case type names for FFI compatibility
+
 use std::{
     ffi::c_void as ffi_c_void,
     os::raw::{c_char, c_int, c_uint, c_void},

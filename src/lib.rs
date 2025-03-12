@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.5")]
+#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.6")]
 
 //! # darwin-metrics
 //!
@@ -22,13 +22,13 @@
 //!
 //! ```toml
 //! [dependencies]
-//! darwin-metrics = "0.2.0-alpha.1"
+//! darwin-metrics = "0.1.6"
 //! ```
 //!
 //! ## Requirements
 //!
 //! - macOS 10.11 (El Capitan) or later
-//! - Rust 1.75 or later
+//! - Rust 1.85 or later
 //! - Xcode Command Line Tools
 //!
 //! ## Quick Start

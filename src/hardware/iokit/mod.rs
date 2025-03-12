@@ -564,14 +564,17 @@ impl IOKit for IOKitImpl {
                 let entry_id = entry as *const AnyObject as c_uint;
                 let mut parent_id: c_uint = 0;
 
-            if result != IO_RETURN_SUCCESS || parent_id == 0 {
-                return None;
-            }
+                let result = IORegistryEntryGetParentEntry(entry_id, c"IOService".as_ptr() as *const i8, &mut parent_id);
 
-            // Create an AnyObject from the parent ID
-            let parent_ptr = parent_id as *mut AnyObject;
-            Retained::from_raw(parent_ptr)
-        }
+                if result != IO_RETURN_SUCCESS || parent_id == 0 {
+                    return None;
+                }
+
+                // Create an AnyObject from the parent ID
+                let parent_ptr = parent_id as *mut AnyObject;
+                Retained::from_raw(parent_ptr)
+            }
+        })
     }
 
     fn get_service(&self, name: &str) -> Result<Retained<AnyObject>> {
@@ -934,4 +937,4 @@ impl IOKit for IOKitImpl {
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {}

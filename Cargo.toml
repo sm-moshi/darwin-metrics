@@ -1,6 +1,6 @@
 [package]
 name = "darwin-metrics"
-version = "0.2.0-alpha.1"
+version = "0.1.6"
 edition = "2021"
 description = "A Rust library exposing native macOS system metrics"
 authors = ["Stuart Meya <sm0sh1@pm.me>"]
