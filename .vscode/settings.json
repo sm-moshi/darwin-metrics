@@ -21,7 +21,6 @@
   "rust-analyzer.lens.references.trait.enable": true,
   "rust-analyzer.hover.actions.enable": true,
   "rust-analyzer.hover.documentation.enable": true,
-
   // Editor settings for Rust
   "editor.formatOnSave": true,
   "[rust]": {
@@ -33,7 +32,6 @@
       100
     ]
   },
-
   // Testing
   "rust-analyzer.cargo.buildScripts.enable": true,
   "coverage-gutters.coverageFileNames": [
@@ -41,12 +39,10 @@
   ],
   "coverage-gutters.showGutterCoverage": true,
   "coverage-gutters.showLineCoverage": true,
-
   // Terminal settings
   "terminal.integrated.env.osx": {
     "RUST_BACKTRACE": "1"
   },
-
   // Debug
   "debug.allowBreakpointsEverywhere": true,
   "lldb.displayFormat": "auto",
@@ -57,11 +53,16 @@
     "pwa-node": "${workspaceFolder}/.vscode/mise-tools/node"
   },
   "go.goroot": "${workspaceFolder}/.vscode/mise-tools/goRoot",
-  "ruff.path": ["${workspaceFolder}/.vscode/mise-tools/ruff"],
+  "ruff.path": [
+    "${workspaceFolder}/.vscode/mise-tools/ruff"
+  ],
   "python.defaultInterpreterPath": "${workspaceFolder}/.vscode/mise-tools/python",
   "go.alternateTools": {
     "go": "${workspaceFolder}/.vscode/mise-tools/go",
     "dlv": "${workspaceFolder}/.vscode/mise-tools/dlv"
   },
-  "ruff.interpreter": ["${workspaceFolder}/.vscode/mise-tools/python"]
+  "ruff.interpreter": [
+    "${workspaceFolder}/.vscode/mise-tools/python"
+  ],
+  "python.languageServer": "None"
 }

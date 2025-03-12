@@ -7,22 +7,6 @@ use crate::{
 
 use thiserror::Error;
 
-use crate::error::{Error, Result};
-use crate::hardware::iokit::{IOKit, IOKitImpl};
-
-/// Represents the power state of the system
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PowerState {
-    /// System is running on AC power
-    AC,
-    /// System is running on battery power
-    Battery,
-    /// System is charging
-    Charging,
-    /// Power state is unknown
-    Unknown,
-}
-
 #[derive(Debug, Error)]
 pub enum PowerError {
     #[error("System call failed")]

@@ -519,34 +519,34 @@ impl Gpu {
                     )));
                 }
 
-            // Read SMC key for GPU temperature
-            let input_structure = SMCKeyData_t {
-                key: smc_key_from_chars(SMC_KEY_GPU_TEMP),
-                vers: 0,
-                p_limit_data: 0,
-                key_info: 0,
-                padding: 0,
-                result: 0,
-                status: 0,
-                data8: 0,
-                data32: 0,
-                bytes: [0; 2],
-                data: std::mem::zeroed(),
-            };
+                // Read SMC key for GPU temperature
+                let input_structure = SMCKeyData_t {
+                    key: smc_key_from_chars(SMC_KEY_GPU_TEMP),
+                    vers: 0,
+                    p_limit_data: 0,
+                    key_info: 0,
+                    padding: 0,
+                    result: 0,
+                    status: 0,
+                    data8: 0,
+                    data32: 0,
+                    bytes: [0; 2],
+                    data: std::mem::zeroed(),
+                };
 
-            let mut output_structure = SMCKeyData_t {
-                key: smc_key_from_chars(SMC_KEY_GPU_TEMP),
-                vers: 0,
-                p_limit_data: 0,
-                key_info: 1, // Get key info first
-                padding: 0,
-                result: 0,
-                status: 0,
-                data8: 0,
-                data32: 0,
-                bytes: [0; 2],
-                data: std::mem::zeroed(),
-            };
+                let mut output_structure = SMCKeyData_t {
+                    key: smc_key_from_chars(SMC_KEY_GPU_TEMP),
+                    vers: 0,
+                    p_limit_data: 0,
+                    key_info: 1, // Get key info first
+                    padding: 0,
+                    result: 0,
+                    status: 0,
+                    data8: 0,
+                    data32: 0,
+                    bytes: [0; 2],
+                    data: std::mem::zeroed(),
+                };
 
                 let mut output_size = IOByteCount(size_of::<SMCKeyData_t>());
 
@@ -565,8 +565,8 @@ impl Gpu {
                     return Err(Error::io_kit(format!("Failed to read SMC key info: {}", result)));
                 }
 
-            // Now read the actual temperature data
-            output_structure.key_info = 0;
+                // Now read the actual temperature data
+                output_structure.key_info = 0;
 
                 let result = IOConnectCallStructMethod(
                     connection,
@@ -584,8 +584,8 @@ impl Gpu {
                     return Err(Error::io_kit(format!("Failed to read SMC key data: {}", result)));
                 }
 
-            // Get the data and convert to temperature (fixed point, signed 8.8)
-            let data_type = output_structure.data.key_info.data_type;
+                // Get the data and convert to temperature (fixed point, signed 8.8)
+                let data_type = output_structure.data.key_info.data_type;
 
                 if data_type[0] == b'S'
                     && data_type[1] == b'P'

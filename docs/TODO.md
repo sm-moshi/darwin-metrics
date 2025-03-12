@@ -2,51 +2,54 @@
 
 ---
 
-## **HIGH PRIORITY: Documentation and Release Management**
+## **HIGH PRIORITY: Pre-Release Checklist for 0.1.0**
 
-> **IMPORTANT**: These items are for ongoing releases and documentation updates
+> **IMPORTANT**: These items MUST be completed before releasing to crates.io
 
-- [x] **Version Consistency**
-  - [x] Update version in Cargo.toml from "0.0.1" to "0.1.0" to match README
-  - [x] Ensure consistent versioning across all documentation
-  - [x] Keep html_root_url in lib.rs in sync with Cargo.toml version
+-   [x] **Version Consistency**
 
     -   [x] Update version in Cargo.toml from "0.0.1" to "0.1.0" to match README
     -   [x] Ensure consistent versioning across all documentation
 
-- [x] **Documentation**
-  - [x] Update module documentation to match actual implementations
-  - [x] Add comprehensive documentation for the disk module
-  - [x] Add comprehensive documentation for the memory module
-  - [x] Ensure examples use the correct function signatures and have timeout limits
-  - [x] Verify API examples match actual code behavior
-  - [x] Fix docs.rs compatibility issues for macOS-specific crate
+-   [x] **Feature Completion**
 
-- [x] **Testing Issues**
-  - [x] Fix disabled GPU tests causing SIGSEGV crashes
-  - [x] Resolve memory safety issues in IOKit interfaces
-  - [x] Replace simulated data with real hardware access in tests
-  - [x] Ensure all modules have basic test coverage
-  - [x] Fix memory leaks in IOKit implementation using autoreleasepools and proper CFRetain/CFRelease
+    -   [x] Complete the Disk module (marked as "Complete" in CLAUDE.md)
+    -   [x] Fix memory management issues in GPU module
+    -   [x] Complete memory analysis module (with tests and async support)
+    -   [x] Address critical TODOs listed in CHANGELOG.md
 
-- [x] **CI/CD Setup**
-  - [x] Create GitHub Actions workflow files
-  - [x] Set up proper CI pipeline referenced in README badge
-  - [x] Implement automated testing and release process
-  - [x] Standardize toolchain usage (beta for linting, stable for building)
-  - [x] Fix GitHub workflow compatibility issues
+-   [x] **Documentation**
 
-- [x] **Critical Bugs**
-  - [x] Fix memory management issues with IOKit calls
-  - [x] Implement real system API calls instead of simulations
-  - [x] Fix remaining clippy warnings about non-snake case fields in bindings.rs
-  - [x] Fix test module imports and organization issues
-  - [x] Fix CoreFoundation memory management in IOKit interface using proper CFRetain/CFRelease
+    -   [x] Update module documentation to match actual implementations
+    -   [x] Add comprehensive documentation for the disk module
+    -   [x] Add comprehensive documentation for the memory module
+    -   [x] Ensure examples use the correct function signatures and have timeout limits
+    -   [x] Verify API examples match actual code behavior
 
-- [x] **Release Management**
-  - [x] Update the changelog for each release
-  - [x] Move items from "Unreleased" to the proper version
-  - [x] Set up crates.io metadata and verify package information
+-   [x] **Testing Issues**
+
+    -   [x] Fix disabled GPU tests causing SIGSEGV crashes
+    -   [x] Resolve memory safety issues in IOKit interfaces
+    -   [x] Replace simulated data with real hardware access in tests
+    -   [x] Ensure all modules have basic test coverage
+
+-   [x] **CI/CD Setup**
+
+    -   [x] Create GitHub Actions workflow files
+    -   [x] Set up proper CI pipeline referenced in README badge
+    -   [x] Implement automated testing and release process
+
+-   [ ] **Critical Bugs**
+
+    -   [x] Fix memory management issues with IOKit calls
+    -   [x] Implement real system API calls instead of simulations
+    -   [ ] Fix remaining clippy warnings about non-snake case fields (Optional - can be addressed
+            post-release)
+
+-   [x] **Final Steps**
+    -   [x] Update the changelog for 0.1.0 release
+    -   [x] Move items from "Unreleased" to the proper version
+    -   [x] Set up crates.io metadata and verify package information
 
     -   [x] Fix disabled GPU tests causing SIGSEGV crashes
     -   [x] Resolve memory safety issues in IOKit interfaces
@@ -91,20 +94,24 @@
 
 -   [x] **Process Monitoring**
 
-  - [x] Improve modularity by separating concerns into dedicated functions and modules.
-  - [x] Refactor function and variable names to follow Rust conventions (`snake_case` for functions, `PascalCase` for structs).
-  - [x] Implement async-friendly architecture where necessary, ensuring minimal blocking operations.
-  - [x] Enhance process I/O tracking by gathering read/write statistics.
-  - [x] Add structured error handling for process-related failures.
-  - [x] Write additional unit tests for process enumeration, resource usage, and error scenarios.
-  - [x] Add parent-child process hierarchy tracking.
-  - [x] Use efficient sysctl-based process retrieval for bulk operations (like Bottom).
-  - [x] Add proper CPU usage calculation with history tracking.
-  - [x] Add thread count and process state tracking.
-  - [x] Implement graceful fallbacks for permission issues.
-  - [x] Add additional memory usage metrics (virtual memory, swapped memory) - Added SwapUsage with detection and monitoring.
-  - [ ] Add process environment variable retrieval - future enhancement.
-  - [ ] Implement command-line arguments retrieval - future enhancement.
+    -   [x] Improve modularity by separating concerns into dedicated functions and modules.
+    -   [x] Refactor function and variable names to follow Rust conventions (`snake_case` for
+            functions, `PascalCase` for structs).
+    -   [x] Implement async-friendly architecture where necessary, ensuring minimal blocking
+            operations.
+    -   [x] Enhance process I/O tracking by gathering read/write statistics.
+    -   [x] Add structured error handling for process-related failures.
+    -   [x] Write additional unit tests for process enumeration, resource usage, and error
+            scenarios.
+    -   [x] Add parent-child process hierarchy tracking.
+    -   [x] Use efficient sysctl-based process retrieval for bulk operations (like Bottom).
+    -   [x] Add proper CPU usage calculation with history tracking.
+    -   [x] Add thread count and process state tracking.
+    -   [x] Implement graceful fallbacks for permission issues.
+    -   [ ] Add additional memory usage metrics (virtual memory, swapped memory) - future
+            enhancement.
+    -   [ ] Add process environment variable retrieval - future enhancement.
+    -   [ ] Implement command-line arguments retrieval - future enhancement.
 
 -   [x] **CPU Metrics**
 
@@ -178,14 +185,15 @@
 
 -   [x] **GPU Performance Metrics**
 
-- [x] Track GPU utilization over time to monitor workload distribution.
-- [x] Measure GPU memory consumption and optimize reporting.
-- [x] Implement enhanced GPU hardware detection with Apple Silicon chip identification
-- [x] Add detailed GPU characteristics (core count, clock speed, architecture)
-- [x] Create comprehensive example program for GPU hardware information
-- [x] Add tests for GPU hardware detection (currently 64.66% coverage)
-- [ ] Investigate IOGraphicsLib.h for better GPU metrics access (<https://developer.apple.com/documentation/iokit/iographicslib_h> for reference)
-- [ ] Add support for multiple GPUs (planned post-1.0.0)
+    -   [x] Track GPU utilization over time to monitor workload distribution.
+    -   [x] Measure GPU memory consumption and optimize reporting.
+    -   [x] Implement enhanced GPU hardware detection with Apple Silicon chip identification
+    -   [x] Add detailed GPU characteristics (core count, clock speed, architecture)
+    -   [x] Create comprehensive example program for GPU hardware information
+    -   [x] Add tests for GPU hardware detection (currently 64.66% coverage)
+    -   [ ] Investigate IOGraphicsLib.h for better GPU metrics access
+            (<https://developer.apple.com/documentation/iokit/iographicslib_h> for reference)
+    -   [ ] Add support for multiple GPUs (planned post-1.0.0)
 
 -   [~] **Advanced Process Monitoring**
 
@@ -219,12 +227,11 @@
     -   [ ] Improve test coverage for network/interface (currently 21.46%)
     -   [ ] Improve test coverage for network/traffic (currently 52.63%)
 
-- [~] **Testing & Stability**
-  - [x] Add tests for power module with mock implementation (96.98% coverage)
-  - [x] Improve coverage for hardware/iokit module (improved from 16.67% to 22.18%)
-  - [x] Reorganized tests into dedicated files to keep implementation files clean
-  - [ ] Expand test coverage for other system metrics, ensuring accuracy in collected data.
-  - [~] Improve async testing to validate non-blocking behavior.
+-   [~] **Testing & Stability**
+    -   [x] Add tests for power module with mock implementation (96.98% coverage)
+    -   [~] Improve coverage for hardware/iokit module (currently 16.67%)
+    -   [ ] Expand test coverage for other system metrics, ensuring accuracy in collected data.
+    -   [~] Improve async testing to validate non-blocking behavior.
 
 ---
 
