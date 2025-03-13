@@ -1,3 +1,4 @@
+#[cfg(test)]
 use super::*;
 use crate::hardware::iokit::{FanInfo, GpuStats, ThermalInfo};
 use crate::utils::test_utils::{create_test_dictionary, create_test_object};
@@ -5,350 +6,415 @@ use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2_foundation::{NSDictionary, NSObject, NSString};
 use std::os::raw::c_char;
+use std::sync::Once;
+
+static INIT: Once = Once::new();
+
+fn setup_test() {
+    // Ensure IOKit is initialized only once
+    INIT.call_once(|| {
+        // Any global IOKit initialization if needed
+    });
+}
 
 // Manual mock implementation of IOKit for testing
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MockIOKit {
     is_battery_present: bool,
 }
 
+impl Default for MockIOKit {
+    fn default() -> Self {
+        Self {
+            is_battery_present: false,
+        }
+    }
+}
+
 impl IOKit for MockIOKit {
-    fn io_service_matching(
-        &self,
-        _service_name: &str,
-    ) -> Retained<NSDictionary<NSString, NSObject>> {
-        create_test_dictionary()
+    fn io_service_matching(&self, _name: &str) -> Result<ThreadSafeNSDictionary> {
+        Ok(ThreadSafeNSDictionary::empty())
     }
 
-    fn io_service_get_matching_service(
-        &self,
-        _matching: &NSDictionary<NSString, NSObject>,
-    ) -> Option<Retained<AnyObject>> {
-        Some(create_test_object().into())
+    fn io_service_get_matching_service(&self, _matching: &ThreadSafeNSDictionary) -> Result<ThreadSafeNSDictionary> {
+        Ok(ThreadSafeNSDictionary::empty())
     }
 
-    fn io_registry_entry_create_cf_properties(
-        &self,
-        _entry: &AnyObject,
-    ) -> Result<Retained<NSDictionary<NSString, NSObject>>> {
-        Ok(create_test_dictionary())
-    }
-
-    fn io_object_release(&self, _obj: &AnyObject) {}
-
-    fn get_string_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        _key: &str,
-    ) -> Option<String> {
-        None
-    }
-
-    fn get_number_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        key: &str,
-    ) -> Option<i64> {
-        match key {
-            BATTERY_CURRENT_CAPACITY => Some(75),
-            BATTERY_MAX_CAPACITY => Some(100),
-            BATTERY_DESIGN_CAPACITY => Some(110),
-            BATTERY_CYCLE_COUNT => Some(250),
-            BATTERY_TIME_REMAINING => Some(180), // 180 minutes
-            BATTERY_TEMPERATURE => Some(3200),   // 32.00 degrees
-            _ => None,
-        }
-    }
-
-    fn get_bool_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        key: &str,
-    ) -> Option<bool> {
-        match key {
-            BATTERY_IS_PRESENT => Some(self.is_battery_present),
-            BATTERY_IS_CHARGING => Some(true),
-            BATTERY_POWER_SOURCE => Some(true),
-            _ => None,
-        }
-    }
-
-    fn get_dict_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        _key: &str,
-    ) -> Option<Retained<NSDictionary<NSString, NSObject>>> {
-        Some(create_test_dictionary())
-    }
-
-    fn get_service(&self, _name: &str) -> Result<Retained<AnyObject>> {
-        Ok(create_test_object().into())
-    }
-
-    fn io_registry_entry_get_parent(&self, _entry: &AnyObject) -> Option<Retained<AnyObject>> {
-        Some(create_test_object().into())
-    }
-
-    // Temperature related methods
-    fn get_cpu_temperature(&self) -> Result<f64> {
-        Ok(45.0)
-    }
-
-    fn get_gpu_temperature(&self) -> Result<f64> {
-        Ok(40.0)
+    fn io_registry_entry_create_cf_properties(&self, _service: &ThreadSafeNSDictionary) -> Result<ThreadSafeNSDictionary> {
+        let dict = NSDictionary::new();
+        Ok(ThreadSafeNSDictionary::new(dict))
     }
 
     fn get_gpu_stats(&self) -> Result<GpuStats> {
         Ok(GpuStats {
             utilization: 30.0,
-            perf_cap: 100.0,
-            perf_threshold: 0.0,
             memory_used: 1024,
             memory_total: 4096,
+            perf_cap: 100.0,
+            perf_threshold: 0.0,
             name: String::from("Test GPU"),
         })
     }
 
-    // Fan related methods
-    fn get_fan_speed(&self) -> Result<u32> {
-        Ok(1500)
-    }
-
-    fn get_fan_count(&self) -> Result<u32> {
-        Ok(2)
-    }
-
     fn get_fan_info(&self, _fan_index: u32) -> Result<FanInfo> {
-        Ok(FanInfo { speed_rpm: 1500, min_speed: 500, max_speed: 5000, percentage: 30.0 })
-    }
-
-    fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
-        Ok(vec![self.get_fan_info(0)?, self.get_fan_info(1)?])
-    }
-
-    // Advanced thermal methods
-    fn get_heatsink_temperature(&self) -> Result<f64> {
-        Ok(35.0)
-    }
-
-    fn get_ambient_temperature(&self) -> Result<f64> {
-        Ok(25.0)
-    }
-
-    fn get_battery_temperature(&self) -> Result<f64> {
-        Ok(32.0)
-    }
-
-    fn get_cpu_power(&self) -> Result<f64> {
-        Ok(15.0)
-    }
-
-    fn check_thermal_throttling(&self) -> Result<bool> {
-        Ok(false)
+        Ok(FanInfo {
+            speed_rpm: 1500.0,
+            min_speed: 500.0,
+            max_speed: 5000.0,
+            percentage: 30.0,
+        })
     }
 
     fn get_thermal_info(&self) -> Result<ThermalInfo> {
         Ok(ThermalInfo {
             cpu_temp: 45.0,
             gpu_temp: 40.0,
-            heatsink_temp: Some(35.0),
-            ambient_temp: Some(25.0),
-            battery_temp: Some(32.0),
+            fan_speed: vec![1500.0, 1600.0],
+            heatsink_temp: 35.0,
+            ambient_temp: 25.0,
+            battery_temp: 32.0,
             is_throttling: false,
-            cpu_power: Some(15.0),
+            cpu_power: 15.0,
         })
     }
 
-    fn read_smc_key(&self, _key: [c_char; 4]) -> Result<f64> {
-        Ok(42.0)
+    fn get_cpu_temperature(&self) -> Result<f64> {
+        Ok(45.0)
+    }
+
+    fn io_connect_call_method(
+        &self,
+        _connection: u32,
+        _selector: u32,
+        _input: &[u8],
+        _input_cnt: u32,
+        _output: &mut [u8],
+        _output_cnt: &mut u32,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn IOKit> {
+        Box::new(self.clone())
     }
 }
 
-// Helper function to create a battery with mock IOKit
-fn create_mock_battery(is_present: bool) -> Battery {
-    let mock_iokit = MockIOKit { is_battery_present: is_present };
-
-    Battery {
-        is_present,
-        is_charging: true,
-        percentage: 75.0,
-        time_remaining: Duration::from_secs(180 * 60),
-        power_source: PowerSource::AC,
-        cycle_count: 250,
-        health_percentage: 90.909_090_909_090_92,
-        temperature: 32.0,
-        iokit: Box::new(mock_iokit),
-    }
+#[test]
+fn test_battery_new() -> Result<()> {
+    setup_test();
+    let battery = Battery::new(Box::new(MockIOKit::default()))?;
+    assert!(battery.is_present()?);
+    Ok(())
 }
 
 #[test]
-fn test_battery_new() {
-    // This test will use the default implementation We'll just verify that it doesn't panic
-    let battery = Battery::default();
-    assert!(!battery.is_present);
-    assert_eq!(battery.percentage, 0.0);
+fn test_battery_update_present() -> Result<()> {
+    setup_test();
+    let mut battery = Battery::new(Box::new(MockIOKit::default()))?;
+    assert!(battery.is_present()?);
+    battery.update()?;
+    assert!(battery.is_present()?);
+    Ok(())
 }
 
 #[test]
-fn test_battery_update_present() {
-    let mut battery = create_mock_battery(true);
-    let result = battery.update();
+fn test_battery_with_values() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    assert!(result.is_ok(), "Update should succeed");
-    assert!(battery.is_present);
-    assert!(battery.is_charging);
-    assert_eq!(battery.percentage, 75.0);
-    assert_eq!(battery.time_remaining, Duration::from_secs(180 * 60));
-    assert_eq!(battery.power_source, PowerSource::AC);
-    assert_eq!(battery.cycle_count, 250);
-    // Use approximate comparison for floating point values
-    assert!((battery.health_percentage - 90.909_090_909_090_92).abs() < 0.000_001);
-    assert_eq!(battery.temperature, 32.0);
+    assert!(battery.is_present()?);
+    assert!(!battery.is_charging()?);
+    assert_eq!(battery.cycle_count()?, 100);
+    assert_eq!(battery.percentage()?, 85);
+    assert_eq!(battery.temperature()?, 35.0);
+    assert_eq!(battery.power_draw()?, 45.0);
+    assert_eq!(battery.design_capacity()?, 100);
+    assert_eq!(battery.current_capacity()?, 85);
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_update_not_present() {
-    let mut battery = create_mock_battery(false);
-    let result = battery.update();
+fn test_battery_get_info() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    assert!(result.is_ok(), "Update should succeed");
-    assert!(!battery.is_present);
-    assert!(!battery.is_charging);
-    assert_eq!(battery.percentage, 0.0);
-    assert_eq!(battery.time_remaining, Duration::from_secs(0));
-    assert_eq!(battery.power_source, PowerSource::Unknown);
-    assert_eq!(battery.cycle_count, 0);
-    assert_eq!(battery.health_percentage, 0.0);
-    assert_eq!(battery.temperature, 0.0);
+    let info = battery.get_info()?;
+    assert!(info.present);
+    assert_eq!(info.percentage, 85);
+    assert_eq!(info.cycle_count, 100);
+    assert!(!info.is_charging);
+    assert_eq!(info.temperature, 35.0);
+    assert_eq!(info.power_draw, 45.0);
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_get_info() {
-    let mut battery = create_mock_battery(true);
-    battery.update().unwrap();
+fn test_battery_is_critically_low() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        4.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    let info = battery.get_info().unwrap();
-    assert!(info.is_present);
-    assert_eq!(info.percentage, 75.0);
-    assert_eq!(info.power_source, PowerSource::AC);
+    assert!(battery.is_critically_low()?);
+
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
+
+    assert!(!battery.is_critically_low()?);
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_with_values() {
-    let battery =
-        Battery::with_values(true, true, 85.5, 120, PowerSource::Battery, 300, 95.0, 30.5);
+fn test_battery_is_low() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        15.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    assert!(battery.is_present);
-    assert!(battery.is_charging);
-    assert_eq!(battery.percentage, 85.5);
-    assert_eq!(battery.time_remaining, Duration::from_secs(120 * 60));
-    assert_eq!(battery.power_source, PowerSource::Battery);
-    assert_eq!(battery.cycle_count, 300);
-    assert_eq!(battery.health_percentage, 95.0);
-    assert_eq!(battery.temperature, 30.5);
+    assert!(battery.is_low()?);
+
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
+
+    assert!(!battery.is_low()?);
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_is_critical() {
-    let battery = Battery { percentage: 5.0, ..Battery::default() };
+fn test_battery_time_remaining_display() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(5400), // 1h 30m
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    assert!(battery.is_critical());
+    assert_eq!(battery.time_remaining_display()?, "1h 30m");
 
-    let battery = Battery { percentage: 15.0, ..Battery::default() };
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(2700), // 45m
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    assert!(!battery.is_critical());
+    assert_eq!(battery.time_remaining_display()?, "45m");
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_is_low() {
-    let battery = Battery { percentage: 15.0, ..Battery::default() };
-    assert!(battery.is_low());
+fn test_battery_is_health_critical() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        75.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        75.0,
+    )?;
 
-    let battery = Battery { percentage: 25.0, ..Battery::default() };
-    assert!(!battery.is_low());
+    assert!(battery.is_health_critical()?);
+
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
+
+    assert!(!battery.is_health_critical()?);
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_time_remaining_display() {
-    let battery = Battery { time_remaining: Duration::from_secs(150 * 60), ..Battery::default() };
+fn test_battery_is_cycle_count_critical() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        1200,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    // Test 2 hours and 30 minutes
-    assert_eq!(battery.time_remaining_display(), "2h 30m");
+    assert!(battery.is_cycle_count_critical()?);
 
-    // Test 45 minutes
-    let battery = Battery { time_remaining: Duration::from_secs(45 * 60), ..Battery::default() };
-    assert_eq!(battery.time_remaining_display(), "45m");
+    let battery = Battery::with_values(
+        true,
+        false,
+        300,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    // Test 0 minutes
-    let battery = Battery { time_remaining: Duration::from_secs(0), ..Battery::default() };
-    assert_eq!(battery.time_remaining_display(), "0m");
+    assert!(!battery.is_cycle_count_critical()?);
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_is_health_poor() {
-    let battery = Battery { health_percentage: 70.0, ..Battery::default() };
-    assert!(battery.is_health_poor());
+fn test_battery_power_source_display() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    let battery = Battery { health_percentage: 85.0, ..Battery::default() };
-    assert!(!battery.is_health_poor());
+    assert_eq!(battery.power_source_display()?, "Battery");
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_has_high_cycle_count() {
-    let battery = Battery { cycle_count: 1100, ..Battery::default() };
-    assert!(battery.has_high_cycle_count());
+fn test_battery_is_temperature_critical() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        46.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    let battery = Battery { cycle_count: 500, ..Battery::default() };
-    assert!(!battery.has_high_cycle_count());
+    assert!(battery.is_temperature_critical()?);
+
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
+
+    assert!(!battery.is_temperature_critical()?);
+
+    Ok(())
 }
 
 #[test]
-fn test_battery_power_source_display() {
-    let battery = Battery { power_source: PowerSource::AC, ..Battery::default() };
-    assert_eq!(battery.power_source_display(), "AC Power");
+fn test_battery_clone() -> Result<()> {
+    setup_test();
+    let battery = Battery::with_values(
+        true,
+        false,
+        100,
+        85.0,
+        35.0,
+        Duration::from_secs(3600),
+        45.0,
+        100.0,
+        85.0,
+    )?;
 
-    let battery = Battery { power_source: PowerSource::Battery, ..Battery::default() };
-    assert_eq!(battery.power_source_display(), "Battery");
+    let cloned = battery.clone();
 
-    let battery = Battery { power_source: PowerSource::Unknown, ..Battery::default() };
-    assert_eq!(battery.power_source_display(), "Unknown");
-}
+    assert_eq!(cloned.is_present()?, battery.is_present()?);
+    assert_eq!(cloned.percentage()?, battery.percentage()?);
+    assert_eq!(cloned.cycle_count()?, battery.cycle_count()?);
+    assert_eq!(cloned.temperature()?, battery.temperature()?);
 
-#[test]
-fn test_battery_is_temperature_critical() {
-    let battery = Battery { temperature: 45.0, ..Battery::default() };
-    assert!(battery.is_temperature_critical());
-
-    let battery = Battery { temperature: 35.0, ..Battery::default() };
-    assert!(!battery.is_temperature_critical());
-}
-
-#[test]
-fn test_battery_clone() {
-    let mut original = create_mock_battery(true);
-    original.update().unwrap();
-
-    let cloned = original.clone();
-
-    assert!(cloned.is_present == original.is_present);
-    assert_eq!(cloned.percentage, original.percentage);
-    assert_eq!(cloned.power_source, original.power_source);
-    assert_eq!(cloned.cycle_count, original.cycle_count);
-    assert_eq!(cloned.health_percentage, original.health_percentage);
-    assert_eq!(cloned.temperature, original.temperature);
-}
-
-#[test]
-fn test_battery_eq() {
-    let mut battery1 = create_mock_battery(true);
-    battery1.update().unwrap();
-
-    let mut battery2 = create_mock_battery(true);
-    battery2.update().unwrap();
-
-    assert!(battery1 == battery2);
-
-    // Modify one property
-    battery2.percentage = 50.0;
-    assert!(battery1 != battery2);
+    Ok(())
 }

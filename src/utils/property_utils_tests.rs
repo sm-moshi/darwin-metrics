@@ -154,3 +154,243 @@ fn test_edge_cases_with_mock() {
     assert_eq!(dict_with_zeros.get_number("zero"), Some(0.0));
     assert_eq!(dict_with_zeros.get_bool("false"), Some(false));
 }
+
+#[test]
+fn test_property_utils_edge_cases() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("empty_string", MockValue::String("".to_string())),
+        ("zero", MockValue::Number(0.0)),
+        ("false", MockValue::Boolean(false)),
+        ("null_equivalent", MockValue::String("\0".to_string())),
+    ]);
+
+    // Test empty string
+    assert_eq!(mock_dict.get_string("empty_string"), Some("".to_string()));
+
+    // Test zero values
+    assert_eq!(mock_dict.get_number("zero"), Some(0.0));
+
+    // Test false boolean
+    assert_eq!(mock_dict.get_bool("false"), Some(false));
+
+    // Test null character in string
+    assert_eq!(mock_dict.get_string("null_equivalent"), Some("\0".to_string()));
+
+    // Test non-existent keys
+    assert_eq!(mock_dict.get_string("nonexistent"), None);
+    assert_eq!(mock_dict.get_number("nonexistent"), None);
+    assert_eq!(mock_dict.get_bool("nonexistent"), None);
+}
+
+#[test]
+fn test_property_utils_type_conversions() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("string_num", MockValue::String("42".to_string())),
+        ("string_bool", MockValue::String("true".to_string())),
+        ("num_string", MockValue::Number(std::f64::consts::PI)),
+        ("bool_string", MockValue::Boolean(true)),
+    ]);
+
+    // Attempting to get numbers as strings and vice versa
+    assert_eq!(mock_dict.get_number("string_num"), None);
+    assert_eq!(mock_dict.get_string("num_string"), None);
+
+    // Attempting to get booleans as strings and vice versa
+    assert_eq!(mock_dict.get_bool("string_bool"), None);
+    assert_eq!(mock_dict.get_string("bool_string"), None);
+
+    // Attempting to get numbers as booleans and vice versa
+    assert_eq!(mock_dict.get_number("bool_string"), None);
+    assert_eq!(mock_dict.get_bool("num_string"), None);
+}
+
+#[test]
+fn test_property_utils_special_values() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("inf", MockValue::Number(f64::INFINITY)),
+        ("neg_inf", MockValue::Number(f64::NEG_INFINITY)),
+        ("nan", MockValue::Number(f64::NAN)),
+        ("max", MockValue::Number(f64::MAX)),
+        ("min", MockValue::Number(f64::MIN)),
+    ]);
+
+    // Test special floating point values
+    assert!(mock_dict.get_number("inf").unwrap().is_infinite());
+    assert!(mock_dict.get_number("neg_inf").unwrap().is_infinite());
+    assert!(mock_dict.get_number("nan").unwrap().is_nan());
+    assert_eq!(mock_dict.get_number("max").unwrap(), f64::MAX);
+    assert_eq!(mock_dict.get_number("min").unwrap(), f64::MIN);
+}
+
+#[test]
+fn test_property_utils_unicode_strings() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("unicode", MockValue::String("Hello, 世界!".to_string())),
+        ("emoji", MockValue::String("🦀 Rust".to_string())),
+        ("mixed", MockValue::String("ASCII and 漢字 mixed".to_string())),
+    ]);
+
+    // Test Unicode string handling
+    assert_eq!(mock_dict.get_string("unicode"), Some("Hello, 世界!".to_string()));
+    assert_eq!(mock_dict.get_string("emoji"), Some("🦀 Rust".to_string()));
+    assert_eq!(mock_dict.get_string("mixed"), Some("ASCII and 漢字 mixed".to_string()));
+}
+
+#[test]
+fn test_property_utils_large_numbers() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("large_int", MockValue::Number(1e9)),
+        ("small_float", MockValue::Number(1e-9)),
+        ("precise", MockValue::Number(std::f64::consts::PI)),
+    ]);
+
+    // Test handling of various numeric values
+    assert_eq!(mock_dict.get_number("large_int"), Some(1e9));
+    assert_eq!(mock_dict.get_number("small_float"), Some(1e-9));
+    assert_eq!(mock_dict.get_number("precise"), Some(std::f64::consts::PI));
+}
+
+#[test]
+fn test_property_utils_multiple_types() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("key1", MockValue::String("value1".to_string())),
+        ("key2", MockValue::Number(42.0)),
+        ("key3", MockValue::Boolean(true)),
+        ("key4", MockValue::String("value2".to_string())),
+    ]);
+
+    // Test multiple operations on the same dictionary
+    assert_eq!(mock_dict.get_string("key1"), Some("value1".to_string()));
+    assert_eq!(mock_dict.get_number("key2"), Some(42.0));
+    assert_eq!(mock_dict.get_bool("key3"), Some(true));
+    assert_eq!(mock_dict.get_string("key4"), Some("value2".to_string()));
+
+    // Test that the operations don't affect each other
+    assert_eq!(mock_dict.get_string("key1"), Some("value1".to_string()));
+    assert_eq!(mock_dict.get_number("key2"), Some(42.0));
+}
+
+#[test]
+fn test_property_utils_error_handling() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("invalid_utf8", MockValue::String("\u{FFFD}".to_string())), // Replacement character
+        ("overflow_number", MockValue::Number(f64::MAX)),
+        ("underflow_number", MockValue::Number(f64::MIN)),
+    ]);
+
+    // Test invalid UTF-8 handling
+    let string_result = mock_dict.get_string("invalid_utf8");
+    assert_eq!(string_result, Some("\u{FFFD}".to_string()));
+
+    // Test number overflow/underflow handling
+    let max_number = mock_dict.get_number("overflow_number");
+    let min_number = mock_dict.get_number("underflow_number");
+    assert_eq!(max_number, Some(f64::MAX));
+    assert_eq!(min_number, Some(f64::MIN));
+}
+
+#[test]
+fn test_property_utils_thread_safety() {
+    use std::sync::Arc;
+    use std::thread;
+
+    let mock_dict = Arc::new(MockDictionary::with_entries(&[
+        ("string", MockValue::String("test".to_string())),
+        ("number", MockValue::Number(42.0)),
+        ("boolean", MockValue::Boolean(true)),
+    ]));
+
+    let mut handles = vec![];
+
+    // Spawn multiple threads to access the dictionary concurrently
+    for i in 0..10 {
+        let dict_clone = Arc::clone(&mock_dict);
+        let handle = thread::spawn(move || match i % 3 {
+            0 => assert_eq!(dict_clone.get_string("string"), Some("test".to_string())),
+            1 => assert_eq!(dict_clone.get_number("number"), Some(42.0)),
+            _ => assert_eq!(dict_clone.get_bool("boolean"), Some(true)),
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+}
+
+#[test]
+fn test_property_utils_nested_access() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("nested.key", MockValue::String("nested_value".to_string())),
+        ("deeply.nested.key", MockValue::Number(42.0)),
+        ("array[0]", MockValue::Boolean(true)),
+    ]);
+
+    assert_eq!(mock_dict.get_string("nested.key"), Some("nested_value".to_string()));
+    assert_eq!(mock_dict.get_number("deeply.nested.key"), Some(42.0));
+    assert_eq!(mock_dict.get_bool("array[0]"), Some(true));
+}
+
+#[test]
+fn test_property_utils_empty_key() {
+    let mock_dict =
+        MockDictionary::with_entries(&[("", MockValue::String("empty_key".to_string()))]);
+
+    assert_eq!(mock_dict.get_string(""), Some("empty_key".to_string()));
+    assert_eq!(mock_dict.get_number(""), None);
+    assert_eq!(mock_dict.get_bool(""), None);
+}
+
+#[test]
+fn test_property_utils_whitespace_handling() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("  key  ", MockValue::String("padded_key".to_string())),
+        ("\tkey\n", MockValue::Number(42.0)),
+        (" ", MockValue::Boolean(true)),
+    ]);
+
+    assert_eq!(mock_dict.get_string("  key  "), Some("padded_key".to_string()));
+    assert_eq!(mock_dict.get_number("\tkey\n"), Some(42.0));
+    assert_eq!(mock_dict.get_bool(" "), Some(true));
+}
+
+#[test]
+fn test_property_utils_case_sensitivity() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("KEY", MockValue::String("upper".to_string())),
+        ("key", MockValue::String("lower".to_string())),
+        ("Key", MockValue::String("mixed".to_string())),
+    ]);
+
+    assert_eq!(mock_dict.get_string("KEY"), Some("upper".to_string()));
+    assert_eq!(mock_dict.get_string("key"), Some("lower".to_string()));
+    assert_eq!(mock_dict.get_string("Key"), Some("mixed".to_string()));
+}
+
+#[test]
+fn test_property_utils_special_characters() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("key!@#$%", MockValue::String("special_chars".to_string())),
+        ("🦀", MockValue::String("rust".to_string())),
+        ("\\n\\t", MockValue::String("escaped".to_string())),
+    ]);
+
+    assert_eq!(mock_dict.get_string("key!@#$%"), Some("special_chars".to_string()));
+    assert_eq!(mock_dict.get_string("🦀"), Some("rust".to_string()));
+    assert_eq!(mock_dict.get_string("\\n\\t"), Some("escaped".to_string()));
+}
+
+#[test]
+fn test_property_utils_boundary_values() {
+    let mock_dict = MockDictionary::with_entries(&[
+        ("max_int", MockValue::Number(i64::MAX as f64)),
+        ("min_int", MockValue::Number(i64::MIN as f64)),
+        ("epsilon", MockValue::Number(f64::EPSILON)),
+        ("smallest", MockValue::Number(f64::MIN_POSITIVE)),
+    ]);
+
+    assert_eq!(mock_dict.get_number("max_int"), Some(i64::MAX as f64));
+    assert_eq!(mock_dict.get_number("min_int"), Some(i64::MIN as f64));
+    assert_eq!(mock_dict.get_number("epsilon"), Some(f64::EPSILON));
+    assert_eq!(mock_dict.get_number("smallest"), Some(f64::MIN_POSITIVE));
+}

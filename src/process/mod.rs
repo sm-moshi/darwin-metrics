@@ -1,54 +1,45 @@
 use std::{
     collections::HashMap,
-    fmt,
-    pin::Pin,
-    task::{Context, Poll},
+    // fmt,
     time::{Duration, Instant, SystemTime},
 };
 
-use async_trait::async_trait;
-use futures::{Future, Stream};
 use libproc::{pid_rusage, proc_pid, task_info};
 
-// Use the bindings from utils
-use crate::utils::bindings::{
-    extract_proc_name, is_system_process, kinfo_proc, sysctl,
-    sysctl_constants::{CTL_KERN, KERN_PROC, KERN_PROC_ALL},
+use std::ffi::c_void;
+use libc::{proc_pidinfo, PROC_PIDTASKINFO};
+use libproc::pid_rusage::RUsageInfoV4;
+
+use crate::{
+    error::{Error, Result},
+    utils::bindings::{
+        extract_proc_name, is_system_process, kinfo_proc, sysctl, proc_info,
+        sysctl_constants::{CTL_KERN, KERN_PROC, KERN_PROC_ALL},
+    },
 };
 
-#[async_trait]
+/// Interface for collecting process information
+///
+/// This trait defines the interface for collecting process-specific information from the operating system.
 pub trait ProcessInfo {
-    async fn collect(&self) -> crate::Result<Vec<u8>>;
+    /// Collects process information and returns it as a byte vector
+    fn collect(&self) -> Result<Vec<u8>>;
 }
 
-#[derive(Default)]
+/// Process I/O statistics
+///
+/// This struct holds information about a process's I/O operations, including read and write counts and bytes
+/// transferred.
+#[derive(Debug, Clone, Default)]
 pub struct ProcessIOStats {
+    /// Number of bytes read from disk
     pub read_bytes: u64,
+    /// Number of bytes written to disk
     pub write_bytes: u64,
+    /// Number of read operations performed
     pub read_count: u64,
+    /// Number of write operations performed
     pub write_count: u64,
-}
-
-impl fmt::Debug for ProcessIOStats {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ProcessIOStats")
-            .field("read_bytes", &self.read_bytes)
-            .field("write_bytes", &self.write_bytes)
-            .field("read_count", &self.read_count)
-            .field("write_count", &self.write_count)
-            .finish()
-    }
-}
-
-impl Clone for ProcessIOStats {
-    fn clone(&self) -> Self {
-        Self {
-            read_bytes: self.read_bytes,
-            write_bytes: self.write_bytes,
-            read_count: self.read_count,
-            write_count: self.write_count,
-        }
-    }
 }
 
 use std::sync::Mutex;
@@ -65,176 +56,93 @@ fn get_cpu_history() -> std::sync::MutexGuard<'static, HashMap<u32, (Instant, u6
     CPU_HISTORY.lock().unwrap()
 }
 
+/// Process information and monitoring functionality
+///
+/// This struct represents a process in the system and provides access to its metrics and status information.
+#[derive(Debug, Clone)]
 pub struct Process {
+    /// Process ID
     pub pid: u32,
+    /// Process name
     pub name: String,
+    /// CPU usage percentage (0-100)
     pub cpu_usage: f64,
+    /// Memory usage in bytes
     pub memory_usage: u64,
+    /// Process uptime
     pub uptime: Duration,
+    /// Process I/O statistics
     pub io_stats: ProcessIOStats,
+    /// Number of threads in the process
     pub thread_count: u32,
+    /// Whether the process is suspended
     pub is_suspended: bool,
-    pending_future: Option<Pin<Box<dyn Future<Output = crate::Result<Process>> + Send>>>,
+}
+
+/// Process metrics monitor
+///
+/// This struct provides a way to periodically check process metrics at regular intervals.
+/// It uses a polling approach where you can check for updates using the next_update method.
+#[derive(Debug, Clone)]
+pub struct ProcessMetricsStream {
+    pid: u32,
+    update_interval: Duration,
+    last_update: Instant,
 }
 
 impl Process {
-    pub fn new(pid: u32, name: impl Into<String>) -> Self {
+    /// Creates a new Process instance with basic information
+    pub fn new(pid: u32, name: &str) -> Self {
         Self {
             pid,
-            name: name.into(),
+            name: name.to_string(),
             cpu_usage: 0.0,
             memory_usage: 0,
-            uptime: Duration::default(),
+            uptime: Duration::new(0, 0),
             io_stats: ProcessIOStats::default(),
             thread_count: 0,
             is_suspended: false,
-            pending_future: None,
         }
     }
 
-    /// Get all processes using the sysctl API for better efficiency (based on Bottom's approach)
-    pub async fn get_all() -> crate::Result<Vec<Self>> {
-        // Try to use sysctl first for bulk retrieval
-        match Self::get_all_via_sysctl().await {
-            Ok(processes) => Ok(processes),
-            Err(_) => {
-                // Fall back to libproc if sysctl fails
-                Self::get_all_via_libproc().await
-            },
-        }
-    }
-
-    /// Get all processes using the sysctl API for efficient bulk retrieval
-    async fn get_all_via_sysctl() -> crate::Result<Vec<Self>> {
-        use std::{mem, os::raw::c_void, ptr};
-
-        unsafe {
-            // First call to get the size of the buffer needed
-            let mut mib = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0, 0, 0];
-            let mut size: usize = 0;
-
-            if sysctl(mib.as_mut_ptr(), 3, ptr::null_mut(), &mut size, ptr::null(), 0) < 0 {
-                return Err(crate::Error::process_error("Failed to get process list size"));
-            }
-
-            // Calculate number of processes
-            let count = size / mem::size_of::<kinfo_proc>();
-
-            // Allocate buffer
-            let mut processes = Vec::<kinfo_proc>::with_capacity(count);
-            let processes_ptr = processes.as_mut_ptr() as *mut c_void;
-
-            // Second call to actually get the data
-            if sysctl(mib.as_mut_ptr(), 3, processes_ptr, &mut size, ptr::null(), 0) < 0 {
-                return Err(crate::Error::process_error("Failed to get process information"));
-            }
-
-            // Set the length of the vector
-            let count = size / mem::size_of::<kinfo_proc>();
-            processes.set_len(count);
-
-            // Convert to our Process struct format
-            let mut result = Vec::with_capacity(count);
-
-            for proc_info in processes {
-                let pid = proc_info.kp_proc.p_pid;
-                if pid <= 0 {
-                    continue;
-                }
-
-                // Use the helper function from bindings
-                let name = extract_proc_name(&proc_info);
-
-                // Create a basic process with the information we have
-                let process = Process {
-                    pid: pid as u32,
-                    name,
-                    cpu_usage: 0.0,  // Will populate with more detailed info later
-                    memory_usage: 0, // Will populate with more detailed info later
-                    uptime: Duration::default(),
-                    io_stats: ProcessIOStats::default(),
-                    thread_count: 0,
-                    is_suspended: false,
-                    pending_future: None,
-                };
-
-                result.push(process);
-            }
-
-            // Populate more detailed information for each process
-            for process in &mut result {
-                // Try to get additional information via libproc, but don't fail if we can't
-                if let Ok(detailed) = Self::get_by_pid(process.pid).await {
-                    process.cpu_usage = detailed.cpu_usage;
-                    process.memory_usage = detailed.memory_usage;
-                    process.uptime = detailed.uptime;
-                    process.io_stats = detailed.io_stats;
-                    process.thread_count = detailed.thread_count;
-                    process.is_suspended = detailed.is_suspended;
-                }
-            }
-
-            Ok(result)
-        }
-    }
-
-    /// Fallback method using libproc (the original implementation)
-    async fn get_all_via_libproc() -> crate::Result<Vec<Self>> {
-        // Use the listpids function for simplicity, handling deprecation warning
-        #[allow(deprecated)]
-        let pids = proc_pid::listpids(proc_pid::ProcType::ProcAllPIDS).map_err(|e| {
-            crate::Error::process_error(format!("Failed to list process IDs: {}", e))
-        })?;
-
-        let mut processes = Vec::with_capacity(pids.len());
-        for pid in pids {
-            if pid == 0 {
-                continue;
-            }
-
-            match Self::get_by_pid(pid).await {
-                Ok(process) => processes.push(process),
-                Err(_) => {}, // Skip processes we can't access
-            }
-        }
-
-        Ok(processes)
-    }
-
-    pub async fn get_by_pid(pid: u32) -> crate::Result<Self> {
+    /// Gets information about a specific process by its PID
+    pub fn get_by_pid(pid: u32) -> Result<Self> {
         let name = libproc::proc_pid::name(pid as i32).map_err(|e| {
-            crate::Error::process_error(format!("Failed to get process name: {}", e))
+            crate::Error::process_error(Some(pid), format!("Failed to get process name: {}", e))
         })?;
 
         let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)
             .map_err(|e| {
-                crate::Error::process_error(format!("Failed to get process info: {}", e))
+                crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e))
             })?;
 
         // Validate and calculate process start time
         let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
             SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
         } else {
-            return Err(crate::Error::process_error("Invalid process start time"));
+            return Err(crate::Error::process_error(Some(pid), "Invalid process start time"));
         };
 
         let now = SystemTime::now();
         match start_time.duration_since(now) {
             Ok(_) => {
-                return Err(crate::Error::Process(
-                    "Process start time is in the future".to_string(),
+                return Err(crate::Error::process_error(
+                    Some(pid),
+                    "Process start time is in the future",
                 ));
             },
             Err(_) => match now.duration_since(start_time) {
                 Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
-                    return Err(crate::Error::Process(
-                        "Process is unrealistically old".to_string(),
+                    return Err(crate::Error::process_error(
+                        Some(pid),
+                        "Process is unrealistically old",
                     ));
                 },
                 Ok(_) => (),
                 Err(_) => {
-                    return Err(crate::Error::Process(
-                        "Failed to calculate process age".to_string(),
+                    return Err(crate::Error::process_error(
+                        Some(pid),
+                        "Failed to calculate process age",
                     ))
                 },
             },
@@ -254,23 +162,210 @@ impl Process {
         let is_suspended = false; // We can't easily determine if a process is suspended
 
         // Get I/O statistics
-        let io_stats = (Self::get_process_io_stats(pid).await).unwrap_or_default();
+        let io_stats = Self::get_process_io_stats(pid).unwrap_or_default();
 
-        Ok(Process {
+        Ok(Self {
             pid,
             name,
             cpu_usage,
             memory_usage,
-            uptime: SystemTime::now().duration_since(start_time).unwrap_or(Duration::ZERO),
+            uptime: now.duration_since(start_time).unwrap_or_else(|_| Duration::new(0, 0)),
             io_stats,
             thread_count,
             is_suspended,
-            pending_future: None,
         })
     }
 
-    /// Calculate CPU usage as a percentage, using history to calculate the rate of change
-    fn calculate_cpu_usage(pid: u32, current_cpu_time: u64) -> f64 {
+    /// Gets information about all running processes
+    pub fn get_all() -> Result<Vec<Self>> {
+        // Try to use sysctl first for bulk retrieval
+        match Self::get_all_via_sysctl() {
+            Ok(processes) => Ok(processes),
+            Err(_) => {
+                // Fall back to libproc if sysctl fails
+                Self::get_all_via_libproc()
+            },
+        }
+    }
+
+    /// Get all processes using the sysctl API for efficient bulk retrieval
+    fn get_all_via_sysctl() -> Result<Vec<Self>> {
+        use std::{mem, os::raw::c_void, ptr};
+
+        unsafe {
+            // First call to get the size of the buffer needed
+            let mut mib = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0, 0, 0];
+            let mut size: usize = 0;
+
+            if sysctl(mib.as_mut_ptr(), 3, ptr::null_mut(), &mut size, ptr::null(), 0) < 0 {
+                return Err(crate::Error::process_error(
+                    Some(0u32), // Use 0 as PID when not available
+                    "Failed to get process list size",
+                ));
+            }
+
+            // Calculate number of processes
+            let count = size / mem::size_of::<kinfo_proc>();
+
+            // Allocate buffer
+            let mut processes = Vec::<kinfo_proc>::with_capacity(count);
+            let processes_ptr = processes.as_mut_ptr() as *mut c_void;
+
+            // Second call to actually get the data
+            if sysctl(mib.as_mut_ptr(), 3, processes_ptr, &mut size, ptr::null(), 0) < 0 {
+                return Err(crate::Error::process_error(
+                    Some(0u32), // Use 0 as PID when not available
+                    "Failed to get process information",
+                ));
+            }
+
+            // Set the length of the vector
+            let count = size / mem::size_of::<kinfo_proc>();
+            processes.set_len(count);
+
+            // Convert to our Process struct format
+            let mut result = Vec::with_capacity(count);
+
+            for proc_info in processes {
+                let pid = proc_info.kp_proc.p_pid;
+                if pid <= 0 {
+                    continue;
+                }
+
+                // Use the helper function from bindings
+                let name = extract_proc_name(&proc_info);
+
+                // Create a basic process with the information we have
+                let process = Self::new(pid as u32, &name);
+
+                result.push(process);
+            }
+
+            // Populate more detailed information for each process
+            for process in &mut result {
+                // Try to get additional information via libproc, but don't fail if we can't
+                if let Ok(detailed) = Self::get_by_pid(process.pid) {
+                    process.cpu_usage = detailed.cpu_usage;
+                    process.memory_usage = detailed.memory_usage;
+                    process.thread_count = detailed.thread_count;
+                    process.is_suspended = detailed.is_suspended;
+                }
+            }
+
+            Ok(result)
+        }
+    }
+
+    /// Fallback method using libproc (the original implementation)
+    fn get_all_via_libproc() -> Result<Vec<Self>> {
+        // Use the listpids function for simplicity, handling deprecation warning
+        #[allow(deprecated)]
+        let pids = proc_pid::listpids(proc_pid::ProcType::ProcAllPIDS).map_err(|e| {
+            crate::Error::process_error(Some(0u32), format!("Failed to list process IDs: {}", e))
+        })?;
+
+        let mut processes = Vec::with_capacity(pids.len());
+        for pid in pids {
+            if pid == 0 {
+                continue;
+            }
+
+            match Self::get_by_pid(pid) {
+                Ok(process) => processes.push(process),
+                Err(_) => {}, // Skip processes we can't access
+            }
+        }
+
+        Ok(processes)
+    }
+
+    /// Gets the parent process ID for a given PID
+    pub fn get_parent_pid(pid: u32) -> Result<Option<u32>> {
+        // Special case for PID 0 and 1
+        if pid == 0 || pid == 1 {
+            return Ok(None);
+        }
+
+        let proc_info =
+            proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0).map_err(|e| {
+                crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e))
+            })?;
+
+        let ppid = proc_info.pbsd.pbi_ppid;
+
+        // If parent PID is 0 or invalid, return None
+        if ppid == 0 {
+            return Ok(None);
+        }
+
+        Ok(Some(ppid as u32))
+    }
+
+    /// Gets the process start time
+    pub fn get_process_start_time(pid: u32) -> Result<SystemTime> {
+        let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)
+            .map_err(|e| {
+                crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e))
+            })?;
+
+        let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
+            SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
+        } else {
+            return Err(crate::Error::process_error(Some(pid), "Invalid process start time"));
+        };
+
+        let now = SystemTime::now();
+        match start_time.duration_since(now) {
+            Ok(_) => {
+                return Err(crate::Error::process_error(
+                    Some(pid),
+                    "Process start time is in the future",
+                ));
+            },
+            Err(_) => match now.duration_since(start_time) {
+                Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
+                    return Err(crate::Error::process_error(
+                        Some(pid),
+                        "Process is unrealistically old",
+                    ));
+                },
+                Ok(_) => (),
+                Err(_) => {
+                    return Err(crate::Error::process_error(
+                        Some(pid),
+                        "Failed to calculate process age",
+                    ))
+                },
+            },
+        }
+
+        Ok(start_time)
+    }
+
+    /// Gets all child processes of a given PID
+    pub fn get_child_processes(pid: u32) -> Result<Vec<Self>> {
+        let all_processes = Self::get_all()?;
+
+        let mut children = Vec::new();
+        for process in all_processes {
+            if let Ok(Some(parent_pid)) = Self::get_parent_pid(process.pid) {
+                if parent_pid == pid {
+                    children.push(process);
+                }
+            }
+        }
+
+        Ok(children)
+    }
+
+    /// Determines if this is a system process
+    pub fn is_system_process(&self) -> bool {
+        // Use the helper from bindings
+        is_system_process(self.pid, &self.name)
+    }
+
+    /// Calculate CPU usage percentage based on total CPU time
+    fn calculate_cpu_usage(pid: u32, total_cpu_time: u64) -> f64 {
         let mut history = get_cpu_history();
         let now = Instant::now();
 
@@ -281,7 +376,7 @@ impl Process {
             // Only calculate if we have a meaningful time difference
             if time_delta >= 0.1 {
                 // Calculate CPU usage as percentage
-                let cpu_time_delta = current_cpu_time.saturating_sub(prev_cpu_time) as f64;
+                let cpu_time_delta = total_cpu_time.saturating_sub(prev_cpu_time) as f64;
                 let usage = (cpu_time_delta / time_delta / 1_000_000.0) * 100.0;
 
                 // Cap at 100% per logical CPU (though could be higher for multi-threaded processes)
@@ -296,7 +391,7 @@ impl Process {
         };
 
         // Update history
-        history.insert(pid, (now, current_cpu_time));
+        history.insert(pid, (now, total_cpu_time));
 
         // Clean up old history entries This is a simple approach - in a production system, you might want a more
         // sophisticated cleanup
@@ -315,278 +410,88 @@ impl Process {
         cpu_usage
     }
 
-    async fn get_process_io_stats(pid: u32) -> crate::Result<ProcessIOStats> {
+    fn get_process_io_stats(pid: u32) -> Result<ProcessIOStats> {
         use pid_rusage::RUsageInfoV4;
 
-        let usage = pid_rusage::pidrusage::<RUsageInfoV4>(pid as i32).map_err(|e| {
-            crate::Error::process_error(format!("Failed to get process I/O stats: {}", e))
+        let rusage = pid_rusage::pidrusage::<RUsageInfoV4>(pid as i32).map_err(|e| {
+            crate::Error::process_error(Some(pid), format!("Failed to get process I/O stats: {}", e))
         })?;
 
         Ok(ProcessIOStats {
-            read_bytes: usage.ri_diskio_bytesread,
-            write_bytes: usage.ri_diskio_byteswritten,
-            read_count: usage.ri_diskio_bytesread / 4096, /* Approximation by bytes read /
-                                                           * typical block size */
-            write_count: usage.ri_diskio_byteswritten / 4096, /* Approximation by bytes written /
-                                                               * typical block size */
+            read_bytes: rusage.ri_diskio_bytesread,
+            write_bytes: rusage.ri_diskio_byteswritten,
+            // Calculate read/write counts based on typical block size (4KB)
+            read_count: rusage.ri_diskio_bytesread / 4096,
+            write_count: rusage.ri_diskio_byteswritten / 4096,
         })
     }
 
-    pub async fn get_process_start_time(pid: u32) -> crate::Result<SystemTime> {
-        let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)
-            .map_err(|e| crate::Error::Process(format!("Failed to get process info: {}", e)))?;
+    fn get_io_stats(&self, rusage: &RUsageInfoV4) -> ProcessIOStats {
+        ProcessIOStats {
+            read_bytes: rusage.ri_diskio_bytesread,
+            write_bytes: rusage.ri_diskio_byteswritten,
+            // Calculate read/write counts based on typical block size (4KB)
+            read_count: rusage.ri_diskio_bytesread / 4096,
+            write_count: rusage.ri_diskio_byteswritten / 4096,
+        }
+    }
 
-        let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
-            SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
-        } else {
-            return Err(crate::Error::Process("Invalid process start time".to_string()));
+    fn get_process_info(pid: i32) -> Result<proc_info> {
+        let mut info: proc_info = unsafe { std::mem::zeroed() };
+        let info_size = std::mem::size_of::<proc_info>();
+
+        let result = unsafe {
+            proc_pidinfo(
+                pid,
+                PROC_PIDTASKINFO,
+                0,
+                &mut info as *mut _ as *mut c_void,
+                info_size as i32,
+            )
         };
 
-        let now = SystemTime::now();
-        match start_time.duration_since(now) {
-            Ok(_) => {
-                return Err(crate::Error::Process(
-                    "Process start time is in the future".to_string(),
-                ));
-            },
-            Err(_) => match now.duration_since(start_time) {
-                Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
-                    return Err(crate::Error::Process(
-                        "Process is unrealistically old".to_string(),
-                    ));
-                },
-                Ok(_) => (),
-                Err(_) => {
-                    return Err(crate::Error::Process(
-                        "Failed to calculate process age".to_string(),
-                    ))
-                },
-            },
+        if result <= 0 {
+            let error_message = Self::get_error_message(result);
+            return Err(Error::process_error(Some(pid as u32), error_message.unwrap_or_else(|| "Failed to get process info".to_string())));
         }
 
-        Ok(start_time)
+        Ok(info)
     }
 
-    pub fn monitor_metrics(
-        pid: u32,
-        interval: Duration,
-    ) -> impl Stream<Item = crate::Result<Self>> {
-        ProcessMetricsStream::new(pid, interval)
-    }
-
-    /// Get the parent process ID for the given process
-    pub async fn get_parent_pid(pid: u32) -> crate::Result<Option<u32>> {
-        // Special case for PID 0 and 1
-        if pid == 0 || pid == 1 {
-            return Ok(None);
-        }
-
-        let proc_info =
-            proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0).map_err(|e| {
-                crate::Error::process_error(format!("Failed to get process info: {}", e))
-            })?;
-
-        let ppid = proc_info.pbsd.pbi_ppid;
-
-        // If parent PID is 0 or invalid, return None
-        if ppid == 0 {
-            return Ok(None);
-        }
-
-        Ok(Some(ppid as u32))
-    }
-
-    /// Get all child processes for the given process
-    pub async fn get_child_processes(pid: u32) -> crate::Result<Vec<Self>> {
-        let all_processes = Self::get_all().await?;
-
-        let mut children = Vec::new();
-        for process in all_processes {
-            if let Ok(Some(parent_pid)) = Self::get_parent_pid(process.pid).await {
-                if parent_pid == pid {
-                    children.push(process);
-                }
-            }
-        }
-
-        Ok(children)
-    }
-
-    /// Check if this process is a system process (running as root with PID < 1000)
-    pub fn is_system_process(&self) -> bool {
-        // Use the helper from bindings
-        is_system_process(self.pid, &self.name)
-    }
-
-    pub async fn get_process_tree() -> crate::Result<Vec<(Self, usize)>> {
-        // Start with all processes - use libproc directly to avoid sysctl errors
-        let all_processes = Self::get_all_via_libproc().await?;
-
-        // Use a scope to limit the lifetime of temporary data structures
-        let result = {
-            // Create a map of PID to process
-            let mut pid_to_process = std::collections::HashMap::with_capacity(all_processes.len());
-            for process in all_processes {
-                pid_to_process.insert(process.pid, process);
-            }
-
-            // Create a map of parent PID to child PIDs
-            let mut parent_to_children = std::collections::HashMap::new();
-            for &pid in pid_to_process.keys() {
-                if let Ok(Some(parent_pid)) = Self::get_parent_pid(pid).await {
-                    parent_to_children.entry(parent_pid).or_insert_with(Vec::new).push(pid);
-                }
-            }
-
-            // Find root processes (usually PID 1 or processes with no parent)
-            let mut root_pids = Vec::new();
-            for &pid in pid_to_process.keys() {
-                if let Ok(ppid) = Self::get_parent_pid(pid).await {
-                    if let Some(parent_pid) = ppid {
-                        if parent_pid == 0 || !pid_to_process.contains_key(&parent_pid) {
-                            root_pids.push(pid);
-                        }
-                    } else {
-                        // No parent pid (ppid is None)
-                        root_pids.push(pid);
-                    }
-                }
-            }
-
-            // Build the tree using depth-first traversal
-            let mut result = Vec::with_capacity(pid_to_process.len());
-            let mut stack = Vec::new();
-
-            // Push root processes to the stack with depth 0
-            for pid in root_pids {
-                if let Some(process) = pid_to_process.get(&pid) {
-                    stack.push((process.clone(), 0));
-                }
-            }
-
-            // Perform depth-first traversal
-            while let Some((process, depth)) = stack.pop() {
-                result.push((process.clone(), depth));
-
-                // Push children to the stack with increased depth
-                if let Some(children) = parent_to_children.get(&process.pid) {
-                    // Push in reverse order so they are processed in the original order
-                    for &child_pid in children.iter().rev() {
-                        if let Some(child) = pid_to_process.get(&child_pid) {
-                            stack.push((child.clone(), depth + 1));
-                        }
-                    }
-                }
-            }
-
-            result
-        }; // End of scope - all temporary structures are dropped here
-
-        Ok(result)
-    }
-}
-
-impl fmt::Debug for Process {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Process")
-            .field("pid", &self.pid)
-            .field("name", &self.name)
-            .field("cpu_usage", &self.cpu_usage)
-            .field("memory_usage", &self.memory_usage)
-            .field("uptime", &self.uptime)
-            .field("io_stats", &self.io_stats)
-            .field("thread_count", &self.thread_count)
-            .field("is_suspended", &self.is_suspended)
-            .field("pending_future", &self.pending_future.as_ref().map(|_| "Future"))
-            .finish()
-    }
-}
-
-impl Clone for Process {
-    fn clone(&self) -> Self {
-        Self {
-            pid: self.pid,
-            name: self.name.clone(),
-            cpu_usage: self.cpu_usage,
-            memory_usage: self.memory_usage,
-            uptime: self.uptime,
-            io_stats: self.io_stats.clone(),
-            thread_count: self.thread_count,
-            is_suspended: self.is_suspended,
-            pending_future: None,
+    fn get_error_message(result: i32) -> Option<String> {
+        if result <= 0 {
+            Some(format!("Process info error: {}", result))
+        } else {
+            None
         }
     }
-}
-
-pub struct ProcessMetricsStream {
-    pid: u32,
-    interval: tokio::time::Interval,
-    pending_future: Option<Pin<Box<dyn Future<Output = crate::Result<Process>> + Send>>>,
 }
 
 impl ProcessMetricsStream {
+    /// Creates a new ProcessMetricsStream for monitoring a specific process
+    ///
+    /// # Arguments
+    /// * `pid` - The process ID to monitor
+    /// * `interval` - The minimum duration between updates
     pub fn new(pid: u32, interval: Duration) -> Self {
-        Self { pid, interval: tokio::time::interval(interval), pending_future: None }
-    }
-}
-
-impl fmt::Debug for ProcessMetricsStream {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ProcessMetricsStream")
-            .field("pid", &self.pid)
-            .field("interval", &self.interval)
-            .field("pending_future", &self.pending_future.as_ref().map(|_| "Future"))
-            .finish()
-    }
-}
-
-impl Clone for ProcessMetricsStream {
-    fn clone(&self) -> Self {
         Self {
-            pid: self.pid,
-            interval: tokio::time::interval(self.interval.period()),
-            pending_future: None,
+            pid,
+            update_interval: interval,
+            last_update: Instant::now(),
+        }
+    }
+
+    /// Checks if enough time has elapsed and returns new process metrics if available
+    ///
+    /// Returns None if the update interval hasn't elapsed yet, or Some(Result<Process>)
+    /// containing either the updated process metrics or an error if the process couldn't be read.
+    pub fn next_update(&mut self) -> Option<Result<Process>> {
+        let now = Instant::now();
+        if now.duration_since(self.last_update) >= self.update_interval {
+            self.last_update = now;
+            Some(Process::get_by_pid(self.pid))
+        } else {
+            None
         }
     }
 }
-
-impl Stream for ProcessMetricsStream {
-    type Item = crate::Result<Process>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.get_mut();
-
-        if let Some(fut) = &mut this.pending_future {
-            match fut.as_mut().poll(cx) {
-                Poll::Ready(result) => {
-                    this.pending_future = None;
-                    return Poll::Ready(Some(result));
-                },
-                Poll::Pending => return Poll::Pending,
-            }
-        }
-
-        match this.interval.poll_tick(cx) {
-            Poll::Ready(_) => {
-                let pid = this.pid;
-                this.pending_future = Some(Box::pin(async move { Process::get_by_pid(pid).await }));
-
-                if let Some(fut) = &mut this.pending_future {
-                    match fut.as_mut().poll(cx) {
-                        Poll::Ready(result) => {
-                            this.pending_future = None;
-                            Poll::Ready(Some(result))
-                        },
-                        Poll::Pending => Poll::Pending,
-                    }
-                } else {
-                    Poll::Ready(None)
-                }
-            },
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests;

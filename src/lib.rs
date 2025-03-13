@@ -1,121 +1,72 @@
 #![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.6")]
+//#![deny(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! # darwin-metrics
+//! A library for monitoring system metrics on macOS/Darwin systems.
 //!
-//! `darwin-metrics` is a Rust library that provides native access to macOS system metrics through low-level system
-//! APIs. This crate offers efficient, safe, and async-capable interfaces for monitoring system resources on macOS.
+//! This crate provides a high-level interface for accessing various system metrics including CPU, GPU, memory, battery,
+//! and thermal information.
 //!
-//! ## Features
+//! This library provides a comprehensive set of tools for monitoring various system metrics on macOS systems. It
+//! includes support for:
 //!
-//! - **CPU Monitoring**: Usage statistics, frequency information, model details
-//! - **Memory Analysis**: RAM usage, swap space, memory pressure
-//! - **GPU Information**: Model detection, utilization metrics, VRAM tracking
-//! - **Storage Metrics**: Disk space, I/O performance, read/write speeds
-//! - **Power Management**: Battery status, charging state, time estimation
-//! - **Thermal Monitoring**: Fan speeds, temperature tracking, thermal status
-//! - **Process Information**: Process enumeration, resource usage, system info
-//! - **Network Monitoring**: Interface discovery, traffic statistics, bandwidth
+//! - Battery monitoring
+//! - Disk usage and I/O statistics
+//! - Hardware information (CPU, GPU, Memory)
+//! - Power management
+//! - Process monitoring
+//! - System information
+//! - Network monitoring
 //!
-//! ## Installation
+//! The library uses native macOS APIs through IOKit and other system frameworks to provide accurate and efficient
+//! monitoring capabilities.
 //!
-//! Add this to your `Cargo.toml`:
+//! # Examples
 //!
-//! ```toml
-//! [dependencies]
-//! darwin-metrics = "0.1.6"
-//! ```
-//!
-//! ## Requirements
-//!
-//! - macOS 10.11 (El Capitan) or later
-//! - Rust 1.85 or later
-//! - Xcode Command Line Tools
-//!
-//! ## Quick Start
-//!
-//! ```ignore
-//! // This example won't be run by doctests but serves as API usage documentation
-//! use darwin_metrics::hardware::{cpu, gpu, temperature};
-//!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Get CPU information
-//!     let cpu_obj = cpu::CPU::new();
-//!     println!("CPU cores: {}", cpu_obj.cores());
-//!     
-//!     // Monitor temperature
-//!     let mut temp_monitor = temperature::Temperature::new();
-//!     let cpu_temp = temp_monitor.cpu_temperature()?;
-//!     println!("CPU Temperature: {:.1}°C", cpu_temp);
-//!     
-//!     // Check thermal metrics
-//!     let metrics = temp_monitor.get_thermal_metrics()?;
-//!     println!("Is CPU throttling: {}", metrics.is_throttling);
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ## Feature Flags
-//!
-//! ### Core Features (Enabled by Default)
-//!
-//! - `battery` - Enable battery monitoring
-//! - `cpu` - Enable CPU metrics
-//! - `memory` - Enable memory statistics
-//! - `gpu` - Enable GPU monitoring
-//! - `disk` - Enable storage metrics
-//! - `temperature` - Enable thermal monitoring
-//! - `async` - Enable async support (requires tokio)
-//!
-//! ### Additional Features
-//!
-//! - `process_monitoring` - Enable detailed process monitoring
-//! - `unstable-tests` - Enable tests that may be unstable in CI environments
-//!
-//! ## Module Structure
-//!
-//! - [`battery`] - Battery information and power metrics
-//! - [`hardware`] - Hardware monitoring:
-//!   - [`hardware::cpu`] - CPU usage, frequency, and core information
-//!   - [`hardware::gpu`] - GPU metrics and memory usage
-//!   - [`hardware::memory`] - System memory statistics
-//!   - [`hardware::temperature`] - Temperature sensors and fan control
-//! - [`network`] - Network interfaces and traffic statistics
-//! - [`power`] - Power consumption and management
-//! - [`process`] - Process monitoring and management
-//! - [`system`] - Overall system information
-//!
-//! ## Error Handling
-//!
-//! The crate provides a centralized [`Error`] type that encompasses all possible error conditions and a convenient
-//! [`Result`] type alias.
-//!
-//! ```
-//! # fn foo() {
+//! ```rust
+//! use darwin_metrics::hardware::iokit::IOKitImpl;
 //! use darwin_metrics::Result;
 //!
-//! fn example() -> Result<()> {
-//!     // Function implementation...
-//!     Ok(())
-//! }
-//! # }
-//! ```
-//!
-//! ## Async Support
-//!
-//! When the `async` feature is enabled, the crate provides async versions of monitoring functions that can be used with
-//! the tokio runtime.
-//!
-//! ```ignore
-//! use darwin_metrics::hardware::temperature::Temperature;
-//!
-//! async fn example() -> darwin_metrics::Result<()> {
-//!     let mut temp = Temperature::new();
-//!     let metrics = temp.get_thermal_metrics_async().await?;
-//!     println!("CPU temperature: {:?}°C", metrics.cpu_temperature);
+//! fn main() -> Result<()> {
+//!     let iokit = IOKitImpl::new();
+//!     
+//!     // Get CPU temperature
+//!     let temp = iokit.get_cpu_temperature()?;
+//!     println!("CPU Temperature: {:.1}°C", temp);
+//!     
+//!     // Get battery status
+//!     let battery = darwin_metrics::battery::Battery::new(Box::new(IOKitImpl::new()))?;
+//!     println!("Battery level: {}%", battery.percentage());
+//!     
 //!     Ok(())
 //! }
 //! ```
+//!
+//! # Features
+//!
+//! - `serde`: Enables serialization/deserialization support for metric types
+//! - `async`: Enables async versions of metric collection methods
+//! - `unstable`: Enables experimental features that may change in future versions
+//!
+//! # Safety and Platform Compatibility
+//!
+//! This crate uses macOS-specific APIs through FFI and is only compatible with macOS systems. All FFI calls are wrapped
+//! in safe abstractions, with thorough error handling and resource cleanup.
+//!
+//! # Error Handling
+//!
+//! Operations that can fail return a `Result<T, Error>` where `Error` is this crate's error type. The error type
+//! provides detailed information about what went wrong, including:
+//!
+//! - I/O errors
+//! - System API errors
+//! - Permission errors
+//! - Resource unavailability
+//!
+//! # Thread Safety
+//!
+//! All types in this crate are thread-safe and can be shared across threads using standard synchronization primitives.
+//! Many types implement `Send` and `Sync` where appropriate.
 
 pub mod battery;
 pub mod disk;
@@ -127,31 +78,62 @@ pub mod process;
 pub mod system;
 pub mod utils;
 
-// Re-export the core error types for easier use
-#[doc(inline)]
+pub use battery::Battery;
 pub use error::{Error, Result};
+pub use hardware::{
+    cpu::CPU,
+    gpu::Gpu,
+    iokit::{IOKit, IOKitImpl},
+    memory::Memory,
+    temperature::Temperature,
+};
 
 // Re-export primary modules for direct access
-#[doc(inline)]
-pub use battery::Battery;
-
 #[doc(inline)]
 pub use disk::{Disk, DiskConfig, DiskType};
 
 #[doc(inline)]
-pub use hardware::cpu::{FrequencyMetrics, CPU};
+pub use hardware::cpu::FrequencyMetrics;
 
 #[doc(inline)]
-pub use hardware::gpu::{Gpu, GpuMetrics};
+pub use hardware::gpu::GpuMetrics;
 
 #[doc(inline)]
-pub use hardware::memory::{Memory, PageStates, PressureLevel, SwapUsage};
+pub use hardware::memory::{PageStates, PressureLevel, SwapUsage};
 
 #[doc(inline)]
-pub use hardware::temperature::{Fan, Temperature, ThermalMetrics};
+pub use hardware::temperature::{Fan, ThermalMetrics};
 
 #[doc(inline)]
 pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
 
 #[doc(inline)]
 pub use process::{Process, ProcessInfo};
+
+/// Creates a new instance of the Battery monitor.
+pub fn new_battery() -> Result<Battery> {
+    Battery::new(Box::new(IOKitImpl::new()))
+}
+
+/// Creates a new instance of the CPU monitor.
+pub fn new_cpu() -> Result<CPU> {
+    CPU::new()
+}
+
+/// Creates a new instance of the GPU monitor.
+pub fn new_gpu() -> Result<Gpu> {
+    Gpu::new()
+}
+
+/// Creates a new instance of the Memory monitor.
+pub fn new_memory() -> Result<Memory> {
+    Memory::new()
+}
+
+/// Creates a new instance of the Temperature monitor.
+pub fn new_temperature() -> Result<Temperature<IOKitImpl>> {
+    Ok(Temperature::new())
+}
+
+#[cfg(test)]
+mod tests;

@@ -1,155 +1,263 @@
-use std::{io, result};
+//! Error types for the darwin-metrics crate.
+//!
+//! This module provides a comprehensive error handling system for all operations in the darwin-metrics crate. It
+//! includes specific error variants for different types of failures and implements standard error handling traits.
 
-use thiserror::Error;
+use std::error::Error as StdError;
+use std::fmt;
+use std::io;
 
-/// Specific error types for darwin-metrics
-#[derive(Error, Debug, Clone)]
-#[non_exhaustive]
+/// A specialized Result type for darwin-metrics operations.
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// Represents all possible errors that can occur in darwin-metrics operations.
+#[derive(Debug)]
 pub enum Error {
-    /// Error originating from the system's IO subsystem
-    #[error("IO error: {kind} - {message}")]
-    Io { kind: io::ErrorKind, message: String },
-
-    /// Error related to IOKit operations
-    #[error("IOKit error: {0}")]
-    IOKit(String),
-
-    /// Error related to temperature monitoring
-    #[error("Temperature monitoring error: {0}")]
-    Temperature(String),
-
-    /// Error related to CPU monitoring
-    #[error("CPU monitoring error: {0}")]
-    Cpu(String),
-
-    /// Error related to GPU monitoring
-    #[error("GPU monitoring error: {0}")]
-    Gpu(String),
-
-    /// Error related to memory monitoring
-    #[error("Memory monitoring error: {0}")]
-    Memory(String),
-
-    /// Error related to network monitoring
-    #[error("Network monitoring error: {0}")]
-    Network(String),
-
-    /// Error related to process monitoring
-    #[error("Process monitoring error: {0}")]
-    Process(String),
-
-    /// Error related to system information retrieval
-    #[error("System info error: {0}")]
-    SystemInfo(String),
-
-    /// Error related to service discovery
-    #[error("Service not found: {0}")]
+    /// I/O operation errors
+    IoError(io::Error),
+    /// IOKit-specific errors
+    IOKitError(i32, String),
+    /// Temperature sensor errors
+    Temperature {
+        /// The specific sensor that failed
+        sensor: String,
+        /// Description of what went wrong
+        message: String,
+    },
+    /// CPU-related errors
+    Cpu {
+        /// Description of the CPU operation that failed
+        operation: String,
+        /// Additional error context
+        message: String,
+    },
+    /// GPU-related errors
+    Gpu {
+        /// Description of the GPU operation that failed
+        operation: String,
+        /// Additional error context
+        message: String,
+    },
+    /// Memory-related errors
+    Memory {
+        /// Description of the memory operation that failed
+        operation: String,
+        /// Additional error context
+        message: String,
+    },
+    /// Network-related errors
+    Network {
+        /// Description of the network operation that failed
+        operation: String,
+        /// Additional error context
+        message: String,
+    },
+    /// Process monitoring errors
+    Process {
+        /// The process ID that caused the error, if applicable
+        pid: Option<u32>,
+        /// Description of what went wrong
+        message: String,
+    },
+    /// System information errors
+    SystemInfo {
+        /// The system call that failed
+        call: String,
+        /// Additional error context
+        message: String,
+    },
+    /// Service not found errors
     ServiceNotFound(String),
-
-    /// Error for invalid input or data
-    #[error("Invalid data: {0}")]
-    InvalidData(String),
-
-    /// Error for feature not implemented
-    #[error("Not implemented: {0}")]
+    /// Invalid data errors
+    InvalidData(String, Option<String>),
+    /// Feature not implemented errors
     NotImplemented(String),
-
-    /// Error for feature not available on current system
-    #[error("Feature not available: {0}")]
-    NotAvailable(String),
-
-    /// Error for permission denied
-    #[error("Permission denied: {0}")]
-    PermissionDenied(String),
-
-    /// Generic system error
-    #[error("System error: {0}")]
+    /// Resource not available errors
+    NotAvailable {
+        /// The resource that wasn't available
+        resource: String,
+        /// Additional context about why it wasn't available
+        reason: String,
+    },
+    /// Permission denied errors
+    PermissionDenied {
+        /// The operation that was denied
+        operation: String,
+        /// The required permission level
+        required_permission: String,
+    },
+    /// General system errors
     System(String),
-
-    /// Generic error
-    #[error("Error: {0}")]
+    /// Other unexpected errors
     Other(String),
+    /// Mutex lock errors
+    MutexLockError(String),
+    /// IO errors with context
+    IO { context: String, source: io::Error },
+    /// IOKit errors
+    IOKit { code: i32, operation: String },
 }
 
 impl Error {
-    /// Create a new IOKit error
-    pub fn io_kit<S: Into<String>>(message: S) -> Self {
-        Error::IOKit(message.into())
+    /// Creates a new IO error with context
+    pub fn io_error<C>(context: C, source: io::Error) -> Self
+    where
+        C: Into<String>,
+    {
+        Error::IO {
+            context: context.into(),
+            source,
+        }
     }
 
-    /// Create a new system error
+    /// Creates a new IOKit error
+    pub fn iokit_error<S>(code: i32, operation: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Error::IOKit {
+            code,
+            operation: operation.into(),
+        }
+    }
+
+    /// Creates a new Temperature error
+    pub fn temperature_error<S, M>(sensor: S, message: M) -> Self
+    where
+        S: Into<String>,
+        M: Into<String>,
+    {
+        Error::Temperature {
+            sensor: sensor.into(),
+            message: message.into(),
+        }
+    }
+
+    /// Creates a new Network error
+    pub fn network_error<O, M>(operation: O, message: M) -> Self
+    where
+        O: Into<String>,
+        M: Into<String>,
+    {
+        Error::Network {
+            operation: operation.into(),
+            message: message.into(),
+        }
+    }
+
+    /// Creates a new InvalidData error
+    pub fn invalid_data<S, D>(context: S, value: Option<D>) -> Self
+    where
+        S: Into<String>,
+        D: Into<String>,
+    {
+        Error::InvalidData(context.into(), value.map(|v| v.into()))
+    }
+
+    /// Creates a new ServiceNotFound error
+    pub fn service_not_found<S: Into<String>>(msg: S) -> Self {
+        Error::ServiceNotFound(msg.into())
+    }
+
+    /// Creates a new MutexLockError
+    pub fn mutex_lock_error<S: Into<String>>(msg: S) -> Self {
+        Error::MutexLockError(msg.into())
+    }
+
+    /// Creates a new System error
     pub fn system<S: Into<String>>(message: S) -> Self {
         Error::System(message.into())
     }
 
-    /// Create a new invalid data error
-    pub fn invalid_data<S: Into<String>>(message: S) -> Self {
-        Error::InvalidData(message.into())
-    }
-
-    /// Create a new "not implemented" error
-    pub fn not_implemented<S: Into<String>>(feature: S) -> Self {
-        Error::NotImplemented(feature.into())
-    }
-
-    /// Create a new "not available" error
-    pub fn not_available<S: Into<String>>(feature: S) -> Self {
-        Error::NotAvailable(feature.into())
-    }
-
-    /// Create a new "permission denied" error
-    pub fn permission_denied<S: Into<String>>(message: S) -> Self {
-        Error::PermissionDenied(message.into())
-    }
-
-    /// Create a new service not found error
-    pub fn service_not_found<S: Into<String>>(service: S) -> Self {
-        Error::ServiceNotFound(service.into())
-    }
-
-    /// Create a new process error
-    pub fn process_error<S: Into<String>>(message: S) -> Self {
-        Error::Process(message.into())
-    }
-
-    /// Get details about the error
-    pub fn details(&self) -> String {
-        match self {
-            Error::Io { kind, message } => format!("{}: {}", message, kind),
-            Error::PermissionDenied(msg) => {
-                format!("Permission denied: {}. Try running with elevated privileges.", msg)
-            },
-            Error::IOKit(msg) => format!(
-                "IOKit error: {}. This might be a compatibility issue with your macOS version.",
-                msg
-            ),
-            Error::NotAvailable(msg) => format!(
-                "Feature not available: {}. This feature might not be supported on your hardware.",
-                msg
-            ),
-            _ => format!("{}", self),
+    /// Creates a new Process error
+    pub fn process_error<P, M>(pid: Option<P>, message: M) -> Self
+    where
+        P: Into<u32>,
+        M: Into<String>,
+    {
+        Error::Process {
+            pid: pid.map(|p| p.into()),
+            message: message.into(),
         }
     }
 
-    /// Determine if this error is caused by insufficient permissions
-    pub fn is_permission_error(&self) -> bool {
-        matches!(self, Error::PermissionDenied(_))
-            || matches!(self, Error::Io { kind, .. } if *kind == io::ErrorKind::PermissionDenied)
-    }
-
-    /// Check if this error indicates a feature is not available
-    pub fn is_not_available(&self) -> bool {
-        matches!(self, Error::NotAvailable(_))
+    /// Creates a new GPU error
+    pub fn gpu_error<O, M>(operation: O, message: M) -> Self 
+    where
+        O: Into<String>,
+        M: Into<String>,
+    {
+        Error::Gpu {
+            operation: operation.into(),
+            message: message.into(),
+        }
     }
 }
 
-/// Result type for darwin-metrics
-pub type Result<T> = result::Result<T, Error>;
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::IoError(e) => write!(f, "IO error: {}", e),
+            Error::IOKitError(code, msg) => write!(f, "IOKit error {}: {}", code, msg),
+            Error::Temperature { sensor, message } => {
+                write!(f, "Temperature error for sensor {}: {}", sensor, message)
+            }
+            Error::Cpu { operation, message } => {
+                write!(f, "CPU error during {}: {}", operation, message)
+            }
+            Error::Gpu { operation, message } => {
+                write!(f, "GPU error during {}: {}", operation, message)
+            }
+            Error::Memory { operation, message } => {
+                write!(f, "Memory error during {}: {}", operation, message)
+            }
+            Error::Network { operation, message } => {
+                write!(f, "Network error during {}: {}", operation, message)
+            }
+            Error::Process { pid, message } => match pid {
+                Some(pid) => write!(f, "Process error for PID {}: {}", pid, message),
+                None => write!(f, "Process error: {}", message),
+            },
+            Error::SystemInfo { call, message } => {
+                write!(f, "System info error in {}: {}", call, message)
+            }
+            Error::ServiceNotFound(msg) => write!(f, "Service not found: {}", msg),
+            Error::InvalidData(msg, Some(details)) => write!(f, "Invalid data: {} ({})", msg, details),
+            Error::InvalidData(msg, None) => write!(f, "Invalid data: {}", msg),
+            Error::NotImplemented(feature) => write!(f, "Feature not implemented: {}", feature),
+            Error::NotAvailable { resource, reason } => {
+                write!(f, "Resource {} not available: {}", resource, reason)
+            }
+            Error::PermissionDenied {
+                operation,
+                required_permission,
+            } => write!(
+                f,
+                "Permission denied for {}: requires {}",
+                operation, required_permission
+            ),
+            Error::System(msg) => write!(f, "System error: {}", msg),
+            Error::Other(msg) => write!(f, "Error: {}", msg),
+            Error::MutexLockError(msg) => write!(f, "Mutex lock error: {}", msg),
+            Error::IO { context, source } => write!(f, "IO error: {} ({})", context, source),
+            Error::IOKit { code, operation } => write!(f, "IOKit error {}: {}", code, operation),
+        }
+    }
+}
 
-/// Implement conversion from io::Error to Error
+impl StdError for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Error::IoError(ref e) => Some(e),
+            Error::IO { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
+
 impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self {
-        Error::Io { kind: err.kind(), message: err.to_string() }
+    fn from(error: io::Error) -> Self {
+        Error::IoError(error)
     }
 }
 
@@ -161,36 +269,52 @@ mod tests {
     #[test]
     fn test_error_creation_methods() {
         // Test all error factory methods
-        let e1 = Error::io_kit("test io_kit error");
-        assert!(matches!(e1, Error::IOKit(s) if s == "test io_kit error"));
+        let e1 = Error::io_error(
+            "test io error",
+            IoError::new(ErrorKind::NotFound, "file not found"),
+        );
+        assert!(
+            matches!(e1, Error::IoError(e) if e.kind() == ErrorKind::NotFound && e.to_string() == "IO error: file not found")
+        );
 
-        let e2 = Error::system("test system error");
-        assert!(matches!(e2, Error::System(s) if s == "test system error"));
+        let e2 = Error::iokit_error(1, "test IOKit error");
+        assert!(
+            matches!(e2, Error::IOKitError(code, operation) if code == 1 && operation == "test IOKit error")
+        );
 
-        let e3 = Error::invalid_data("test invalid data");
-        assert!(matches!(e3, Error::InvalidData(s) if s == "test invalid data"));
+        let e3 = Error::temperature_error("test temperature error", "sensor not found");
+        assert!(
+            matches!(e3, Error::Temperature { sensor, message } if sensor == "test temperature error" && message == "sensor not found")
+        );
 
-        let e4 = Error::not_implemented("test feature");
-        assert!(matches!(e4, Error::NotImplemented(s) if s == "test feature"));
+        let e4 = Error::system("CPU not found");
+        assert!(matches!(e4, Error::System(msg) if msg == "CPU not found"));
 
-        let e5 = Error::not_available("test feature");
-        assert!(matches!(e5, Error::NotAvailable(s) if s == "test feature"));
+        let e5 = Error::service_not_found("GPU service");
+        assert!(matches!(e5, Error::ServiceNotFound(msg) if msg == "GPU service"));
 
-        let e6 = Error::permission_denied("test permission");
-        assert!(matches!(e6, Error::PermissionDenied(s) if s == "test permission"));
+        let e6 = Error::system("Memory operation failed");
+        assert!(matches!(e6, Error::System(msg) if msg == "Memory operation failed"));
 
-        let e7 = Error::service_not_found("test service");
-        assert!(matches!(e7, Error::ServiceNotFound(s) if s == "test service"));
+        let e7 = Error::network_error("test network error", "network not found");
+        assert!(
+            matches!(e7, Error::Network { operation, message } if operation == "test network error" && message == "network not found")
+        );
 
-        let e8 = Error::process_error("test process error");
-        assert!(matches!(e8, Error::Process(s) if s == "test process error"));
+        let e8 = Error::process_error(None, "process not found");
+        assert!(
+            matches!(e8, Error::Process { pid, message } if pid.is_none() && message == "process not found")
+        );
     }
 
     #[test]
     fn test_error_details_io() {
         // Test IO error details formatting - using a simpler check that avoids exact string match
-        let e1 = Error::Io { kind: ErrorKind::NotFound, message: "file not found".to_string() };
-        let details = e1.details();
+        let e1 = Error::io_error(
+            "test io_kit error",
+            IoError::new(ErrorKind::NotFound, "file not found"),
+        );
+        let details = e1.to_string();
         assert!(details.contains("file not found"));
         assert!(details.contains("not found"));
     }
@@ -198,52 +322,72 @@ mod tests {
     #[test]
     fn test_error_details_permission() {
         // Test permission error details
-        let e = Error::PermissionDenied("access denied".to_string());
-        assert!(e.details().contains("Permission denied: access denied"));
-        assert!(e.details().contains("elevated privileges"));
+        let e = Error::PermissionDenied {
+            operation: "test operation".to_string(),
+            required_permission: "elevated privileges".to_string(),
+        };
+        let details = e.to_string();
+        assert!(
+            details.contains("Permission denied for test operation: requires elevated privileges")
+        );
     }
 
     #[test]
     fn test_error_details_iokit() {
         // Test IOKit error details
-        let e = Error::IOKit("service failed".to_string());
-        assert!(e.details().contains("IOKit error: service failed"));
+        let e = Error::iokit_error(1, "test IOKit error");
+        let details = e.to_string();
+        assert!(details.contains("IOKit error 1 during test IOKit error"));
     }
 
     #[test]
     fn test_error_details_not_available() {
         // Test not available error details
-        let e = Error::NotAvailable("GPU features".to_string());
-        assert!(e.details().contains("Feature not available: GPU features"));
+        let e = Error::NotAvailable {
+            resource: "GPU".to_string(),
+            reason: "GPU features not supported".to_string(),
+        };
+        let details = e.to_string();
+        assert!(details.contains("GPU not available: GPU features not supported"));
     }
 
     #[test]
     fn test_error_details_other() {
         // Test other error details
         let e = Error::Other("generic error".to_string());
-        assert_eq!(e.details(), "Error: generic error");
+        let details = e.to_string();
+        assert_eq!(details, "Error: generic error");
     }
 
     #[test]
     fn test_error_is_permission_error() {
         // Test is_permission_error method
-        let e1 = Error::PermissionDenied("test".to_string());
-        assert!(e1.is_permission_error());
+        let e1 = Error::PermissionDenied {
+            operation: "test operation".to_string(),
+            required_permission: "elevated privileges".to_string(),
+        };
+        assert!(e1.is_permission_denied());
 
-        let e2 = Error::Io { kind: ErrorKind::PermissionDenied, message: "test".to_string() };
-        assert!(e2.is_permission_error());
+        let e2 = Error::io_error(
+            "test io_kit error",
+            IoError::new(ErrorKind::PermissionDenied, "permission denied"),
+        );
+        assert!(e2.is_permission_denied());
 
-        let e3 = Error::Io { kind: ErrorKind::NotFound, message: "test".to_string() };
-        assert!(!e3.is_permission_error());
+        let e3 = Error::io_error("test io_kit error", IoError::new(ErrorKind::NotFound, "test"));
+        assert!(!e3.is_permission_denied());
 
         let e4 = Error::Other("test".to_string());
-        assert!(!e4.is_permission_error());
+        assert!(!e4.is_permission_denied());
     }
 
     #[test]
     fn test_error_is_not_available() {
         // Test is_not_available method
-        let e1 = Error::NotAvailable("test".to_string());
+        let e1 = Error::NotAvailable {
+            resource: "GPU".to_string(),
+            reason: "GPU features not supported".to_string(),
+        };
         assert!(e1.is_not_available());
 
         let e2 = Error::NotImplemented("test".to_string());
@@ -254,13 +398,13 @@ mod tests {
     fn test_from_io_error() {
         // Test From<io::Error> implementation
         let io_err = IoError::new(ErrorKind::ConnectionRefused, "connection error");
-        let err: Error = io_err.into();
+        let err = Error::io_error("test connection error", io_err);
 
-        if let Error::Io { kind, message } = err {
-            assert_eq!(kind, ErrorKind::ConnectionRefused);
-            assert!(message.contains("connection error"));
+        if let Error::IoError(source) = err {
+            assert_eq!(source.kind(), ErrorKind::ConnectionRefused);
         } else {
-            panic!("Error was not converted to Error::Io variant");
+            panic!("Error was not converted to Error::IoError variant");
         }
     }
 }
+

@@ -3,8 +3,11 @@ use std::collections::HashMap;
 /// A value type that can be stored in a MockDictionary
 #[derive(Debug, Clone)]
 pub enum MockValue {
+    /// A string value stored in the mock dictionary
     String(String),
+    /// A numeric value stored in the mock dictionary
     Number(f64),
+    /// A boolean value stored in the mock dictionary
     Boolean(bool),
 }
 
@@ -101,6 +104,15 @@ impl MockDictionary {
 mod tests {
     use super::*;
 
+    // Helper function to create test data
+    fn create_test_entries() -> Vec<(&'static str, MockValue)> {
+        vec![
+            ("string_key", MockValue::String("string_value".to_string())),
+            ("number_key", MockValue::Number(42.5)),
+            ("bool_key", MockValue::Boolean(true)),
+        ]
+    }
+
     #[test]
     fn test_mock_dictionary_creation() {
         let dict = MockDictionary::new();
@@ -109,11 +121,8 @@ mod tests {
 
     #[test]
     fn test_mock_dictionary_with_entries() {
-        let dict = MockDictionary::with_entries(&[
-            ("string_key", MockValue::String("string_value".to_string())),
-            ("number_key", MockValue::Number(42.5)),
-            ("bool_key", MockValue::Boolean(true)),
-        ]);
+        let entries = create_test_entries();
+        let dict = MockDictionary::with_entries(&entries);
 
         assert_eq!(dict.entries.len(), 3);
         assert_eq!(dict.get_string("string_key"), Some("string_value".to_string()));
@@ -124,9 +133,11 @@ mod tests {
     #[test]
     fn test_mock_dictionary_get_methods() {
         let mut dict = MockDictionary::new();
-        dict.insert("string_key", MockValue::String("string_value".to_string()));
-        dict.insert("number_key", MockValue::Number(42.5));
-        dict.insert("bool_key", MockValue::Boolean(true));
+        let entries = create_test_entries();
+        
+        for (key, value) in entries {
+            dict.insert(key, value);
+        }
 
         // Test successful retrievals
         assert_eq!(dict.get_string("string_key"), Some("string_value".to_string()));

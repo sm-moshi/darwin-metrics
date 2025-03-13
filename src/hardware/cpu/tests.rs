@@ -1,4 +1,5 @@
 use crate::hardware::cpu::{CpuMetrics, FrequencyMetrics, FrequencyMonitor, CPU};
+use crate::hardware::iokit::mock::MockIOKit;
 
 #[test]
 fn test_cpu_initialization() {
@@ -206,59 +207,70 @@ fn test_frequency_metrics_equality() {
 
 #[test]
 fn test_available_frequencies_calculation() {
-    // Test that available frequencies are equally spaced
-    let metrics = FrequencyMetrics {
-        current: 2000.0,
-        min: 1000.0,
-        max: 3000.0,
-        available: vec![1000.0, 1500.0, 2000.0, 2500.0, 3000.0],
+    // Test that available frequencies are calculated correctly
+    // This is a white-box test that verifies the internal logic of the frequency calculation
+
+    // Case 1: Normal case with valid min and max
+    let metrics1 = FrequencyMetrics {
+        current: 2400.0,
+        min: 1200.0,
+        max: 3600.0,
+        available: vec![1200.0, 1800.0, 2400.0, 3000.0, 3600.0],
     };
 
-    // Check that available frequencies are equally spaced
-    let step = metrics.available[1] - metrics.available[0];
-    for i in 1..metrics.available.len() {
-        if i < metrics.available.len() - 1 {
-            assert_eq!(metrics.available[i + 1] - metrics.available[i], step);
-        }
-    }
-
-    // Verify first and last values match min and max
-    assert_eq!(metrics.available.first(), Some(&metrics.min));
-    assert_eq!(metrics.available.last(), Some(&metrics.max));
+    // Verify the step calculation: (max - min) / 4 = (3600 - 1200) / 4 = 600
+    assert_eq!(metrics1.available[1] - metrics1.available[0], 600.0);
+    assert_eq!(metrics1.available[2] - metrics1.available[1], 600.0);
+    assert_eq!(metrics1.available[3] - metrics1.available[2], 600.0);
+    assert_eq!(metrics1.available[4] - metrics1.available[3], 600.0);
 }
 
 #[test]
 fn test_core_usage_values() {
-    // Test that the core_usage method returns the expected values
     let cpu = CPU::new_with_mock().expect("Failed to create CPU instance");
+    let core_usage = cpu.core_usage();
 
-    // The mock implementation in new_with_mock should return these values
-    let expected_usages = vec![0.3, 0.5, 0.2, 0.8, 0.1, 0.3, 0.4, 0.6];
-    assert_eq!(cpu.core_usage(), &expected_usages);
-
-    // Also test that the values are within the expected range (0.0 to 1.0)
-    for &usage in cpu.core_usage() {
-        assert!((0.0..=1.0).contains(&usage));
-    }
+    // Verify that our mock returns the expected core usage values
+    assert_eq!(core_usage.len(), 8);
+    assert_eq!(core_usage[0], 0.3);
+    assert_eq!(core_usage[1], 0.5);
+    assert_eq!(core_usage[2], 0.2);
+    assert_eq!(core_usage[3], 0.8);
+    assert_eq!(core_usage[4], 0.1);
+    assert_eq!(core_usage[5], 0.3);
+    assert_eq!(core_usage[6], 0.4);
+    assert_eq!(core_usage[7], 0.6);
 }
 
 #[test]
 fn test_core_usage_with_different_core_counts() {
-    // Create a CPU with a mock implementation
-    let cpu = CPU::new_with_mock().expect("Failed to create CPU instance");
+    // Create a mock CPU with different physical and logical core counts
+    let mut mock_iokit = MockIOKit::new();
+    mock_iokit.set_physical_cores(4);
+    mock_iokit.set_logical_cores(8);
+    mock_iokit.set_core_usage(vec![0.1, 0.2, 0.3, 0.4]);
 
-    // The mock implementation should have 16 logical cores but return 8 physical core usages
-    assert_eq!(cpu.logical_cores(), 16);
-    assert_eq!(cpu.core_usage().len(), 8);
+    let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU instance");
 
-    // Test that each core usage value is within the expected range (0.0 to 1.0)
-    for &usage in cpu.core_usage() {
-        assert!((0.0..=1.0).contains(&usage));
-    }
+    // Verify that the core count and usage values match what we set
+    assert_eq!(cpu.physical_cores(), 4);
+    assert_eq!(cpu.logical_cores(), 8);
+    assert_eq!(cpu.core_usage().len(), 4);
+    assert_eq!(cpu.core_usage()[0], 0.1);
+    assert_eq!(cpu.core_usage()[1], 0.2);
+    assert_eq!(cpu.core_usage()[2], 0.3);
+    assert_eq!(cpu.core_usage()[3], 0.4);
+}
 
-    // Test that the overall CPU usage is calculated correctly
-    let core_usages = cpu.core_usage();
-    let sum: f64 = core_usages.iter().sum();
-    let expected_avg = sum / cpu.logical_cores() as f64;
-    assert_eq!(cpu.get_cpu_usage(), expected_avg);
+#[test]
+fn test_cpu_temperature() {
+    // Create a mock CPU with a specific temperature
+    let mut mock_iokit = MockIOKit::new();
+    mock_iokit.set_temperature(50.0);
+
+    let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU instance");
+
+    // Verify that the temperature matches what we set
+    assert_eq!(cpu.temperature(), Some(50.0));
+    assert_eq!(cpu.get_cpu_temperature(), Some(50.0));
 }

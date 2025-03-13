@@ -63,6 +63,11 @@
 //! }
 //! ```
 
+// use crate::{
+//     error::Error,
+//     hardware::iokit::IOKit,
+// };
+
 mod cpu_impl;
 mod frequency;
 

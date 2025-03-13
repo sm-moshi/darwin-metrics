@@ -1,4 +1,5 @@
 use libc;
+use std::ffi::CString;
 
 use crate::error::{Error, Result};
 
@@ -99,6 +100,7 @@ impl FrequencyMonitor {
     }
 }
 
+/// Internal CPU information structure used during frequency retrieval.
 #[derive(Default)]
 struct CpuInfo {
     current_frequency: f64,
@@ -107,6 +109,11 @@ struct CpuInfo {
     available_frequencies: Vec<f64>,
 }
 
+/// Fetches CPU frequency information and returns it as FrequencyMetrics.
+///
+/// # Returns
+///
+/// * `Result<FrequencyMetrics>` - CPU frequency metrics or an error
 fn fetch_cpu_frequencies() -> Result<FrequencyMetrics> {
     let cpu_info = unsafe { retrieve_cpu_info()? };
     Ok(FrequencyMetrics {
@@ -117,6 +124,15 @@ fn fetch_cpu_frequencies() -> Result<FrequencyMetrics> {
     })
 }
 
+/// Retrieves detailed CPU frequency information from the system.
+///
+/// # Safety
+///
+/// This function is unsafe because it calls libc functions.
+///
+/// # Returns
+///
+/// * `Result<CpuInfo>` - CPU frequency information or an error
 unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
     // Get CPU frequency using proper MIBs On macOS, "hw.cpufrequency" gives current CPU frequency in Hz
     // "hw.cpufrequency_min" gives min frequency, "hw.cpufrequency_max" gives max
@@ -140,12 +156,28 @@ unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
         ];
     }
 
-    Ok(CpuInfo { current_frequency, min_frequency, max_frequency, available_frequencies })
+    Ok(CpuInfo { 
+        current_frequency, 
+        min_frequency, 
+        max_frequency, 
+        available_frequencies 
+    })
 }
 
+/// Fetches a frequency value from sysctl by name.
+///
+/// # Safety
+///
+/// This function is unsafe because it calls libc functions.
+///
+/// # Arguments
+///
+/// * `name` - The name of the sysctl parameter to fetch
+///
+/// # Returns
+///
+/// * `Result<f64>` - The frequency value or an error
 unsafe fn fetch_sysctl_frequency_by_name(name: &str) -> Result<f64> {
-    use std::ffi::CString;
-
     // Create null-terminated C string for the sysctl name
     let c_name = CString::new(name).map_err(|_| {
         Error::system(format!("Failed to create C string for sysctl name: {}", name))

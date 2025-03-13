@@ -1,15 +1,8 @@
 //! FFI bindings to macOS system APIs.
 //!
-//! This module centralizes all the FFI bindings for macOS system APIs used throughout the crate. It provides a clean
-//! interface to low-level C functions from various macOS frameworks:
-//!
-//! - `sysctl` for system information
-//! - `IOKit` for hardware access
-//! - Mach host functions for memory statistics
-//!
-//! By centralizing these bindings, we improve maintainability and reduce redundancy across modules.
+//! This module centralizes all the FFI bindings for macOS system APIs used throughout the crate.
 
-#![allow(non_camel_case_types)]  // Allow non-camel-case type names for FFI compatibility
+#![allow(non_camel_case_types)]
 
 use std::{
     ffi::c_void as ffi_c_void,
@@ -24,25 +17,36 @@ use std::{
 pub mod sysctl_constants {
     use std::os::raw::c_int;
 
-    // General categories
+    /// Kernel-related sysctl category
     pub const CTL_KERN: c_int = 1;
+    /// Hardware-related sysctl category
     pub const CTL_HW: c_int = 6;
+    /// Virtual memory sysctl category
     pub const CTL_VM: c_int = 2;
 
-    // Kernel-related
+    /// Kernel process information
     pub const KERN_PROC: c_int = 14;
+    /// System hostname
+    pub const KERN_HOSTNAME: c_int = 10;
+    /// All processes
     pub const KERN_PROC_ALL: c_int = 0;
+    /// Process by PID
     pub const KERN_PROC_PID: c_int = 1;
+    /// Process by process group
     pub const KERN_PROC_PGRP: c_int = 2;
+    /// Process by TTY
     pub const KERN_PROC_TTY: c_int = 3;
+    /// Process by UID
     pub const KERN_PROC_UID: c_int = 4;
+    /// Process by RUID
     pub const KERN_PROC_RUID: c_int = 5;
 
-    // Hardware-related
+    /// Machine hardware type
     pub const HW_MACHINE: c_int = 1;
+    /// Physical memory size
     pub const HW_MEMSIZE: c_int = 24;
 
-    // VM-related
+    /// Swap usage information
     pub const VM_SWAPUSAGE: c_int = 5;
 }
 
@@ -50,7 +54,9 @@ pub mod sysctl_constants {
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub struct kinfo_proc {
+    /// Basic process information
     pub kp_proc: proc_info,
+    /// Extended process information
     pub kp_eproc: extern_proc,
 }
 
@@ -58,20 +64,24 @@ pub struct kinfo_proc {
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub struct proc_info {
+    /// Process flags
     pub p_flag: c_int,
+    /// Process ID
     pub p_pid: c_int,
+    /// Parent process ID
     pub p_ppid: c_int,
+    /// Process state
     pub p_stat: c_int,
-    // More fields exist but aren't needed for basic functionality
 }
 
 /// Extended process information structure
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub struct extern_proc {
+    /// Process start time
     pub p_starttime: timeval,
-    pub p_comm: [u8; 16], /* MAXCOMLEN
-                           * More fields exist but aren't needed for basic functionality */
+    /// Process name (MAXCOMLEN)
+    pub p_comm: [u8; 16],
 }
 
 /// Time value structure used in BSD APIs
@@ -79,7 +89,9 @@ pub struct extern_proc {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct timeval {
+    /// Seconds
     pub tv_sec: i64,
+    /// Microseconds
     pub tv_usec: i32,
 }
 
@@ -90,6 +102,7 @@ pub struct timeval {
 // sysctl function for system information
 #[link(name = "System", kind = "framework")]
 extern "C" {
+    /// Get or set system information
     pub fn sysctl(
         name: *const c_int,
         namelen: c_uint,
@@ -104,322 +117,320 @@ extern "C" {
 // VM Statistics and Memory-related structures
 //------------------------------------------------------------------------------
 
-// Memory and VM constants
+/// Successful Mach operation
 pub const KERN_SUCCESS: i32 = 0;
+/// Host VM info version 64
 pub const HOST_VM_INFO64: i32 = 4;
+/// Count of VM info fields
 pub const HOST_VM_INFO64_COUNT: u32 = 38;
 
+/// Host info type
 pub type HostInfoT = *mut i32;
+/// Mach port type
 pub type MachPortT = u32;
 
+/// Process state constants
+pub mod process_state {
+    /// Process being created by fork
+    pub const SIDL: u8 = 1;
+    /// Running
+    pub const SRUN: u8 = 2;
+    /// Sleeping on an address
+    pub const SSLEEP: u8 = 3;
+    /// Process debugging or suspension
+    pub const SSTOP: u8 = 4;
+    /// Awaiting collection by parent
+    pub const SZOMB: u8 = 5;
+}
+
+/// Filesystem statistics structure
+#[derive(Clone, Debug)]
 #[repr(C)]
-#[derive(Debug, Default)]
-pub struct vm_statistics64 {
-    pub free_count: u32,
-    pub active_count: u32,
-    pub inactive_count: u32,
-    pub wire_count: u32,
-    pub zero_fill_count: u64,
-    pub reactivations: u64,
-    pub pageins: u64,
-    pub pageouts: u64,
-    pub faults: u64,
-    pub cow_faults: u64,
-    pub lookups: u64,
-    pub hits: u64,
-    pub purges: u64,
-    pub purgeable_count: u32,
-    pub speculative_count: u32,
-    pub decompressions: u64,
-    pub compressions: u64,
-    pub swapins: u64,
-    pub swapouts: u64,
-    pub compressor_page_count: u32,
-    pub throttled_count: u32,
-    pub external_page_count: u32,
-    pub internal_page_count: u32,
-    pub total_uncompressed_pages_in_compressor: u64,
-}
-
-#[repr(C)]
-#[derive(Debug, Default)]
-pub struct xsw_usage {
-    pub xsu_total: u64,
-    pub xsu_used: u64,
-    pub xsu_avail: u64,
-}
-
-// Mach host functions
-extern "C" {
-    pub static vm_kernel_page_size: u32;
-
-    pub fn host_statistics64(
-        host_priv: MachPortT,
-        flavor: i32,
-        host_info_out: HostInfoT,
-        host_info_outCnt: *mut u32,
-    ) -> i32;
-
-    pub fn mach_host_self() -> MachPortT;
-}
-
-//------------------------------------------------------------------------------
-// IOKit Constants and Data Structures
-//------------------------------------------------------------------------------
-
-// IOKit constants
-pub const KERNEL_INDEX_SMC: u32 = 2;
-pub const SMC_CMD_READ_BYTES: u8 = 5;
-pub const SMC_CMD_READ_KEYINFO: u8 = 9;
-pub const IO_RETURN_SUCCESS: i32 = 0; // Renamed from kIOReturnSuccess to follow Rust naming convention
-
-// IOKit basic types
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct IOByteCount(pub usize);
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct IOOptionBits(pub u32);
-
-// SMC key definitions for temperature sensors
-pub const SMC_KEY_CPU_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char]; // CPU Temp (TC0P)
-
-pub const SMC_KEY_GPU_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'G' as c_char, b'0' as c_char, b'P' as c_char]; // GPU Temp (TG0P)
-
-// Fan speed keys
-pub const SMC_KEY_FAN_NUM: [c_char; 4] =
-    [b'F' as c_char, b'N' as c_char, b'u' as c_char, b'm' as c_char]; // Number of fans (FNum)
-
-pub const SMC_KEY_FAN_SPEED: [c_char; 4] =
-    [b'F' as c_char, b'0' as c_char, b'A' as c_char, b'c' as c_char]; // Fan 0 Speed (F0Ac)
-
-pub const SMC_KEY_FAN1_SPEED: [c_char; 4] =
-    [b'F' as c_char, b'1' as c_char, b'A' as c_char, b'c' as c_char]; // Fan 1 Speed (F1Ac)
-
-// Fan speed min/max keys
-pub const SMC_KEY_FAN0_MIN: [c_char; 4] =
-    [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'n' as c_char]; // Fan 0 Min Speed (F0Mn)
-
-pub const SMC_KEY_FAN0_MAX: [c_char; 4] =
-    [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'x' as c_char]; // Fan 0 Max Speed (F0Mx)
-
-// Additional thermal sensors
-pub const SMC_KEY_HEATSINK_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'h' as c_char, b'0' as c_char, b'H' as c_char]; // Heatsink temp (Th0H)
-
-pub const SMC_KEY_AMBIENT_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'A' as c_char, b'0' as c_char, b'P' as c_char]; // Ambient temp (TA0P)
-
-pub const SMC_KEY_BATTERY_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'B' as c_char, b'0' as c_char, b'T' as c_char]; // Battery temp (TB0T)
-
-// Power and thermal throttling keys
-pub const SMC_KEY_CPU_POWER: [c_char; 4] =
-    [b'P' as c_char, b'C' as c_char, b'P' as c_char, b'C' as c_char]; // CPU package power (PCPC)
-
-pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] =
-    [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char]; // CPU thermal throttling (PCTC)
-
-// Apple Silicon specific power keys (based on macmon and NeoAsitop)
-pub const SMC_KEY_PACKAGE_POWER: [c_char; 4] =
-    [b'P' as c_char, b'M' as c_char, b'P' as c_char, b'0' as c_char]; // PMP0 - Package power (SoC)
-
-pub const SMC_KEY_GPU_POWER: [c_char; 4] =
-    [b'P' as c_char, b'G' as c_char, b'P' as c_char, b'G' as c_char]; // PGPG - GPU power
-
-pub const SMC_KEY_DRAM_POWER: [c_char; 4] =
-    [b'P' as c_char, b'D' as c_char, b'R' as c_char, b'P' as c_char]; // PDRP - DRAM/Memory power
-
-pub const SMC_KEY_NEURAL_POWER: [c_char; 4] =
-    [b'P' as c_char, b'N' as c_char, b'P' as c_char, b'0' as c_char]; // PNP0 - Neural Engine power
-
-// SMC data structures
-#[repr(C, packed)]
-#[derive(Debug, Copy, Clone)]
-pub struct SMCVersion {
-    pub major: u8,
-    pub minor: u8,
-    pub build: u8,
-    pub reserved: [u8; 1],
-    pub release: u16,
-}
-
-#[repr(C, packed)]
-#[derive(Debug, Copy, Clone)]
-#[allow(non_snake_case)]
-pub struct SMCPLimitData {
-    pub version: u16,
-    pub length: u16,
-    pub cpu_plimit: u32,
-    pub gpu_plimit: u32,
-    pub mem_plimit: u32,
-}
-
-#[repr(C, packed)]
-#[derive(Debug, Copy, Clone)]
-pub struct SMCKeyData_vers_t {
-    pub version: SMCVersion,
-    pub reserved: [u8; 16],
-}
-
-#[repr(C, packed)]
-#[derive(Debug, Copy, Clone)]
-pub struct SMCKeyData_pLimitData_t {
-    pub p_limit_data: SMCPLimitData,
-    pub reserved: [u8; 10],
-}
-
-#[repr(C, packed)]
-#[derive(Debug, Copy, Clone)]
-pub struct SMCKeyData_keyInfo_t {
-    pub data_size: u32,
-    pub data_type: [u8; 4],
-    pub data_attributes: u8,
-}
-
-#[repr(C, packed)]
-pub union SMCKeyData_t_data {
-    pub bytes: [u8; 32],
-    pub uint32: u32,
-    pub float: f32,
-    pub sint16: i16,
-    pub vers: SMCKeyData_vers_t,
-    pub p_limit: SMCKeyData_pLimitData_t,
-    pub key_info: SMCKeyData_keyInfo_t,
-}
-
-// Manual implementations for union
-impl Clone for SMCKeyData_t_data {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl Copy for SMCKeyData_t_data {}
-
-#[repr(C, packed)]
-pub struct SMCKeyData_t {
-    pub key: u32,
-    pub vers: u8,
-    pub p_limit_data: u8,
-    pub key_info: u8,
-    pub padding: u8,
-    pub result: u8,
-    pub status: u8,
-    pub data8: u8,
-    pub data32: u8,
-    pub bytes: [u8; 2],
-    pub data: SMCKeyData_t_data,
-}
-
-// Manual implementations for struct containing union
-impl Clone for SMCKeyData_t {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl Copy for SMCKeyData_t {}
-
-impl Default for SMCKeyData_t {
-    fn default() -> Self {
-        unsafe {
-            Self {
-                key: 0,
-                vers: 0,
-                p_limit_data: 0,
-                key_info: 0,
-                padding: 0,
-                result: 0,
-                status: 0,
-                data8: 0,
-                data32: 0,
-                bytes: [0; 2],
-                data: std::mem::zeroed(),
-            }
-        }
-    }
-}
-
-// IOKit function declarations
-#[link(name = "IOKit", kind = "framework")]
-extern "C" {
-    // IOService functions
-    pub fn IOServiceGetMatchingService(masterPort: u32, matchingDict: *const ffi_c_void) -> u32;
-    pub fn IOServiceMatching(serviceName: *const c_char) -> *mut ffi_c_void;
-    pub fn IOServiceOpen(service: u32, owningTask: u32, type_: u32, handle: *mut u32) -> i32;
-    pub fn IOServiceClose(handle: u32) -> i32;
-    pub fn IORegistryEntryCreateCFProperties(
-        entry: u32,
-        properties: *mut *mut ffi_c_void,
-        allocator: *mut ffi_c_void,
-        options: u32,
-    ) -> i32;
-
-    // SMC specific functions
-    pub fn IOConnectCallStructMethod(
-        connection: u32,
-        selector: u32,
-        inputStruct: *const SMCKeyData_t,
-        inputStructCnt: IOByteCount,
-        outputStruct: *mut SMCKeyData_t,
-        outputStructCnt: *mut IOByteCount,
-    ) -> i32;
-}
-
-//------------------------------------------------------------------------------
-// Process state constants
-//------------------------------------------------------------------------------
-
-/// Process state values from sys/proc.h
-pub mod proc_state {
-    pub const SIDL: u8 = 1; // Process being created by fork
-    pub const SRUN: u8 = 2; // Running
-    pub const SSLEEP: u8 = 3; // Sleeping on an address
-    pub const SSTOP: u8 = 4; // Process debugging or suspension
-    pub const SZOMB: u8 = 5; // Awaiting collection by parent
-}
-
-//------------------------------------------------------------------------------
-// Filesystem related structures and bindings
-//------------------------------------------------------------------------------
-
-/// Filesystem statistics structure from sys/mount.h
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct Statfs {
-    pub f_bsize: u32,                  // Fundamental file system block size
-    pub f_iosize: i32,                 // Optimal transfer block size
-    pub f_blocks: u64,                 // Total data blocks in file system
-    pub f_bfree: u64,                  // Free blocks in file system
-    pub f_bavail: u64,                 // Free blocks available to non-superuser
-    pub f_files: u64,                  // Total file nodes in file system
-    pub f_ffree: u64,                  // Free nodes available
-    pub f_fsid: [i32; 2],              // File system ID
-    pub f_owner: u32,                  // User ID of mount owner
-    pub f_type: u32,                   // Type of file system
-    pub f_flags: u32,                  // Copy of mount flags
-    pub f_fssubtype: u32,              // File system subtype
-    pub f_fstypename: [c_char; 16],    // File system type name
-    pub f_mntonname: [c_char; 1024],   // Mount point
-    pub f_mntfromname: [c_char; 1024], // Mount source
-    pub f_reserved: [u32; 8],          // Reserved for future use
+    /// Fundamental file system block size
+    pub f_bsize: u32,
+    /// Optimal transfer block size
+    pub f_iosize: i32,
+    /// Total data blocks in file system
+    pub f_blocks: u64,
+    /// Free blocks in file system
+    pub f_bfree: u64,
+    /// Free blocks available to non-superuser
+    pub f_bavail: u64,
+    /// Total file nodes in file system
+    pub f_files: u64,
+    /// Free nodes available
+    pub f_ffree: u64,
+    /// File system ID
+    pub f_fsid: [i32; 2],
+    /// User ID of mount owner
+    pub f_owner: u32,
+    /// Type of file system
+    pub f_type: u32,
+    /// Copy of mount flags
+    pub f_flags: u32,
+    /// File system subtype
+    pub f_fssubtype: u32,
+    /// File system type name
+    pub f_fstypename: [c_char; 16],
+    /// Mount point
+    pub f_mntonname: [c_char; 1024],
+    /// Mount source
+    pub f_mntfromname: [c_char; 1024],
+    /// Reserved for future use
+    pub f_reserved: [u32; 8],
 }
 
-/// Filesystem mount flags
-pub const MNT_NOWAIT: c_int = 2; // Don't block for filesystem sync
+/// Network interface address structure
+#[repr(C)]
+pub struct ifaddrs {
+    /// Next interface in list
+    pub ifa_next: *mut ifaddrs,
+    /// Interface name
+    pub ifa_name: *mut c_char,
+    /// Interface flags
+    pub ifa_flags: u32,
+    /// Interface address
+    pub ifa_addr: *mut sockaddr,
+    /// Interface netmask
+    pub ifa_netmask: *mut sockaddr,
+    /// Point-to-point destination address
+    pub ifa_dstaddr: *mut sockaddr,
+    /// Interface-specific data
+    pub ifa_data: *mut c_void,
+}
 
-// Filesystem functions
-#[link(name = "System", kind = "framework")]
+/// Socket address structure
+#[repr(C)]
+pub struct sockaddr {
+    /// Length of structure
+    pub sa_len: u8,
+    /// Address family
+    pub sa_family: u8,
+    /// Protocol-specific address
+    pub sa_data: [c_char; 14],
+}
+
+/// IPv4 socket address structure
+#[repr(C)]
+pub struct sockaddr_in {
+    /// Length of structure
+    pub sin_len: u8,
+    /// Address family (AF_INET)
+    pub sin_family: u8,
+    /// Port number
+    pub sin_port: u16,
+    /// IPv4 address
+    pub sin_addr: in_addr,
+    /// Padding
+    pub sin_zero: [c_char; 8],
+}
+
+/// IPv4 address structure
+#[repr(C)]
+pub struct in_addr {
+    /// IPv4 address in network byte order
+    pub s_addr: u32,
+}
+
+/// IPv6 socket address structure
+#[repr(C)]
+pub struct sockaddr_in6 {
+    /// Length of structure
+    pub sin6_len: u8,
+    /// Address family (AF_INET6)
+    pub sin6_family: u8,
+    /// Port number
+    pub sin6_port: u16,
+    /// Flow information
+    pub sin6_flowinfo: u32,
+    /// IPv6 address
+    pub sin6_addr: in6_addr,
+    /// Scope ID
+    pub sin6_scope_id: u32,
+}
+
+/// IPv6 address structure
+#[repr(C)]
+pub struct in6_addr {
+    /// IPv6 address
+    pub s6_addr: [u8; 16],
+}
+
+/// Link-layer socket address structure
+#[repr(C)]
+pub struct sockaddr_dl {
+    /// Length of structure
+    pub sdl_len: u8,
+    /// Address family (AF_LINK)
+    pub sdl_family: u8,
+    /// Link-layer interface index
+    pub sdl_index: u16,
+    /// Interface type
+    pub sdl_type: u8,
+    /// Name length
+    pub sdl_nlen: u8,
+    /// Address length
+    pub sdl_alen: u8,
+    /// Selector length
+    pub sdl_slen: u8,
+    /// Link-layer address and selector
+    pub sdl_data: [c_char; 12],
+}
+
+/// Network interface statistics structure (32-bit)
+#[repr(C)]
+pub struct if_data {
+    /// Type of interface (ethernet, loopback, etc.)
+    pub ifi_type: u8,
+    /// Physical port/connector type
+    pub ifi_physical: u8,
+    /// Media address length
+    pub ifi_addrlen: u8,
+    /// Media header length
+    pub ifi_hdrlen: u8,
+    /// Receive quota (obsolete)
+    pub ifi_recvquota: u8,
+    /// Transmit quota (obsolete)
+    pub ifi_xmitquota: u8,
+    /// Unused padding
+    pub ifi_unused1: u8,
+    /// Maximum transmission unit
+    pub ifi_mtu: u32,
+    /// Routing metric
+    pub ifi_metric: u32,
+    /// Linespeed
+    pub ifi_baudrate: u32,
+    /// Packets received on interface
+    pub ifi_ipackets: u32,
+    /// Input errors on interface
+    pub ifi_ierrors: u32,
+    /// Packets sent on interface
+    pub ifi_opackets: u32,
+    /// Output errors on interface
+    pub ifi_oerrors: u32,
+    /// Collisions on csma interfaces
+    pub ifi_collisions: u32,
+    /// Total number of bytes received
+    pub ifi_ibytes: u32,
+    /// Total number of bytes sent
+    pub ifi_obytes: u32,
+    /// Multicast packets received
+    pub ifi_imcasts: u32,
+    /// Multicast packets sent
+    pub ifi_omcasts: u32,
+    /// Dropped on input, this interface
+    pub ifi_iqdrops: u32,
+    /// Destined for unsupported protocol
+    pub ifi_noproto: u32,
+    /// Receive timing offset (usec)
+    pub ifi_recvtiming: u32,
+    /// Transmit timing offset (usec)
+    pub ifi_xmittiming: u32,
+    /// Time of last change
+    pub ifi_lastchange: timeval,
+}
+
+/// Interface data structure
+#[derive(Debug)]
+pub struct if_data64 {
+    pub ifi_type: u8,
+    pub ifi_typelen: u8,
+    pub ifi_physical: u8,
+    pub ifi_addrlen: u8,
+    pub ifi_hdrlen: u8,
+    pub ifi_recvquota: u8,
+    pub ifi_xmitquota: u8,
+    pub ifi_unused1: u8,
+    pub ifi_mtu: u32,
+    pub ifi_metric: u32,
+    pub ifi_baudrate: u64,
+    pub ifi_ipackets: u64,
+    pub ifi_ierrors: u64,
+    pub ifi_opackets: u64,
+    pub ifi_oerrors: u64,
+    pub ifi_collisions: u64,
+    pub ifi_ibytes: u64,
+    pub ifi_obytes: u64,
+    pub ifi_imcasts: u64,
+    pub ifi_omcasts: u64,
+    pub ifi_iqdrops: u64,
+    pub ifi_noproto: u64,
+    pub ifi_recvtiming: u32,
+    pub ifi_xmittiming: u32,
+    pub ifi_lastchange: timeval,
+}
+
+/// Network reachability flags
+pub mod reachability_flags {
+    /// Connection is transient
+    pub const kSCNetworkReachabilityFlagsTransientConnection: u32 = 1 << 0;
+    /// Target is reachable
+    pub const kSCNetworkReachabilityFlagsReachable: u32 = 1 << 1;
+    /// Connection is required
+    pub const kSCNetworkReachabilityFlagsConnectionRequired: u32 = 1 << 2;
+    /// Connection needed when there is traffic
+    pub const kSCNetworkReachabilityFlagsConnectionOnTraffic: u32 = 1 << 3;
+    /// User intervention is required
+    pub const kSCNetworkReachabilityFlagsInterventionRequired: u32 = 1 << 4;
+    /// Connection needed on demand
+    pub const kSCNetworkReachabilityFlagsConnectionOnDemand: u32 = 1 << 5;
+    /// Target is a local address
+    pub const kSCNetworkReachabilityFlagsIsLocalAddress: u32 = 1 << 16;
+    /// Connection is direct
+    pub const kSCNetworkReachabilityFlagsIsDirect: u32 = 1 << 17;
+    /// Connection is through cellular network
+    pub const kSCNetworkReachabilityFlagsIsWWAN: u32 = 1 << 18;
+}
+
 extern "C" {
-    /// Get statistics about a mounted filesystem
-    pub fn statfs(path: *const c_char, buf: *mut Statfs) -> c_int;
+    /// Get network interface addresses
+    pub fn getifaddrs(ifap: *mut *mut ifaddrs) -> c_int;
+    /// Free network interface addresses
+    pub fn freeifaddrs(ifp: *mut ifaddrs) -> c_void;
 
-    /// Get statistics about all mounted filesystems
-    pub fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
+    /// Get system control information by name
+    pub fn sysctlbyname(
+        name: *const c_char,
+        oldp: *mut c_void,
+        oldlenp: *mut usize,
+        newp: *const c_void,
+        newlen: usize,
+    ) -> c_int;
+
+    /// Get parent entry in IORegistry
+    pub fn IORegistryEntryGetParentEntry(
+        entry: c_uint,
+        plane: *const c_char,
+        parent: *mut c_uint,
+    ) -> i32;
+
+    /// Create a dynamic store session
+    pub fn SCDynamicStoreCreate(
+        allocator: *mut ffi_c_void,
+        name: *const ffi_c_void,
+        callout: *mut ffi_c_void,
+        context: *mut ffi_c_void,
+    ) -> *mut ffi_c_void;
+
+    /// Copy a value from the dynamic store
+    pub fn SCDynamicStoreCopyValue(
+        store: *mut ffi_c_void,
+        key: *const ffi_c_void,
+        value: *mut *mut ffi_c_void,
+    ) -> *mut ffi_c_void;
+
+    /// Create a network reachability object for an address
+    pub fn SCNetworkReachabilityCreateWithAddress(
+        allocator: *mut ffi_c_void,
+        address: *const sockaddr,
+    ) -> *mut ffi_c_void;
+
+    /// Get network reachability flags
+    pub fn SCNetworkReachabilityGetFlags(target: *mut ffi_c_void, flags: *mut u32) -> bool;
+
+    /// Release a Core Foundation object
+    pub fn CFRelease(cf: *mut ffi_c_void);
 }
 
 //------------------------------------------------------------------------------
@@ -463,213 +474,53 @@ extern "C" {
 
 /// Network Address Family constants
 pub mod address_family {
-    pub const AF_UNSPEC: u8 = 0; // Unspecified
-    pub const AF_INET: u8 = 2; // IPv4
-    pub const AF_INET6: u8 = 30; // IPv6
-    pub const AF_LINK: u8 = 18; // Link level interface
+    /// Unspecified address family
+    pub const AF_UNSPEC: u8 = 0;
+
+    /// IPv4 address family
+    pub const AF_INET: u8 = 2;
+
+    /// IPv6 address family
+    pub const AF_INET6: u8 = 30;
+
+    /// Link level interface address family
+    pub const AF_LINK: u8 = 18;
 }
 
 /// Interface Flags constants
 pub mod if_flags {
-    pub const IFF_UP: u32 = 0x1; // Interface is up
-    pub const IFF_BROADCAST: u32 = 0x2; // Broadcast address valid
-    pub const IFF_DEBUG: u32 = 0x4; // Turn on debugging
-    pub const IFF_LOOPBACK: u32 = 0x8; // Is a loopback net
-    pub const IFF_POINTOPOINT: u32 = 0x10; // Interface is point-to-point link
-    pub const IFF_RUNNING: u32 = 0x40; // Resources allocated
-    pub const IFF_NOARP: u32 = 0x80; // No address resolution protocol
-    pub const IFF_PROMISC: u32 = 0x100; // Receive all packets
-    pub const IFF_ALLMULTI: u32 = 0x200; // Receive all multicast packets
-    pub const IFF_MULTICAST: u32 = 0x8000; // Supports multicast
-    pub const IFF_WIRELESS: u32 = 0x20; // Wireless
-}
+    /// Interface is up
+    pub const IFF_UP: u32 = 0x1;
 
-#[repr(C)]
-pub struct ifaddrs {
-    pub ifa_next: *mut ifaddrs,
-    pub ifa_name: *mut c_char,
-    pub ifa_flags: u32,
-    pub ifa_addr: *mut sockaddr,
-    pub ifa_netmask: *mut sockaddr,
-    pub ifa_dstaddr: *mut sockaddr,
-    pub ifa_data: *mut c_void,
-}
+    /// Broadcast address is valid
+    pub const IFF_BROADCAST: u32 = 0x2;
 
-#[repr(C)]
-pub struct sockaddr {
-    pub sa_len: u8,
-    pub sa_family: u8,
-    pub sa_data: [c_char; 14],
-}
+    /// Turn on debugging
+    pub const IFF_DEBUG: u32 = 0x4;
 
-#[repr(C)]
-pub struct sockaddr_in {
-    pub sin_len: u8,
-    pub sin_family: u8,
-    pub sin_port: u16,
-    pub sin_addr: in_addr,
-    pub sin_zero: [c_char; 8],
-}
+    /// Is a loopback network
+    pub const IFF_LOOPBACK: u32 = 0x8;
 
-#[repr(C)]
-pub struct in_addr {
-    pub s_addr: u32,
-}
+    /// Interface is point-to-point link
+    pub const IFF_POINTOPOINT: u32 = 0x10;
 
-#[repr(C)]
-pub struct sockaddr_in6 {
-    pub sin6_len: u8,
-    pub sin6_family: u8,
-    pub sin6_port: u16,
-    pub sin6_flowinfo: u32,
-    pub sin6_addr: in6_addr,
-    pub sin6_scope_id: u32,
-}
+    /// Resources are allocated
+    pub const IFF_RUNNING: u32 = 0x40;
 
-#[repr(C)]
-pub struct in6_addr {
-    pub s6_addr: [u8; 16],
-}
+    /// No address resolution protocol
+    pub const IFF_NOARP: u32 = 0x80;
 
-#[repr(C)]
-pub struct sockaddr_dl {
-    pub sdl_len: u8,
-    pub sdl_family: u8,
-    pub sdl_index: u16,
-    pub sdl_type: u8,
-    pub sdl_nlen: u8,
-    pub sdl_alen: u8,
-    pub sdl_slen: u8,
-    pub sdl_data: [c_char; 12],
-}
+    /// Receive all packets
+    pub const IFF_PROMISC: u32 = 0x100;
 
-/// Network interface data structure (from net/if_var.h) This structure contains all the traffic statistics and
-/// interface properties
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct if_data {
-    pub ifi_type: u8,            // Type of interface (ethernet, loopback, etc.)
-    pub ifi_physical: u8,        // Physical port/connector type
-    pub ifi_addrlen: u8,         // Media address length
-    pub ifi_hdrlen: u8,          // Media header length
-    pub ifi_recvquota: u8,       // Receive quota (obsolete)
-    pub ifi_xmitquota: u8,       // Transmit quota (obsolete)
-    pub ifi_unused1: u8,         // Unused padding
-    pub ifi_mtu: u32,            // Maximum transmission unit
-    pub ifi_metric: u32,         // Routing metric
-    pub ifi_baudrate: u32,       // Linespeed
-    pub ifi_ipackets: u32,       // Packets received on interface
-    pub ifi_ierrors: u32,        // Input errors on interface
-    pub ifi_opackets: u32,       // Packets sent on interface
-    pub ifi_oerrors: u32,        // Output errors on interface
-    pub ifi_collisions: u32,     // Collisions on csma interfaces
-    pub ifi_ibytes: u32,         // Total number of bytes received
-    pub ifi_obytes: u32,         // Total number of bytes sent
-    pub ifi_imcasts: u32,        // Multicast packets received
-    pub ifi_omcasts: u32,        // Multicast packets sent
-    pub ifi_iqdrops: u32,        // Dropped on input, this interface
-    pub ifi_noproto: u32,        // Destined for unsupported protocol
-    pub ifi_recvtiming: u32,     // Receive timing offset (usec)
-    pub ifi_xmittiming: u32,     // Transmit timing offset (usec)
-    pub ifi_lastchange: timeval, // Time of last change
-}
+    /// Receive all multicast packets
+    pub const IFF_ALLMULTI: u32 = 0x200;
 
-/// 64-bit version of if_data, available since macOS 10.8 This allows for tracking traffic stats beyond 4GB on modern
-/// interfaces
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct if_data64 {
-    pub ifi_type: u8,            // Type of interface (ethernet, loopback, etc.)
-    pub ifi_physical: u8,        // Physical port/connector type
-    pub ifi_addrlen: u8,         // Media address length
-    pub ifi_hdrlen: u8,          // Media header length
-    pub ifi_recvquota: u8,       // Receive quota (obsolete)
-    pub ifi_xmitquota: u8,       // Transmit quota (obsolete)
-    pub ifi_unused1: u8,         // Unused padding
-    pub ifi_mtu: u32,            // Maximum transmission unit
-    pub ifi_metric: u32,         // Routing metric
-    pub ifi_baudrate: u64,       // Linespeed (64-bit)
-    pub ifi_ipackets: u64,       // Packets received on interface (64-bit)
-    pub ifi_ierrors: u64,        // Input errors on interface (64-bit)
-    pub ifi_opackets: u64,       // Packets sent on interface (64-bit)
-    pub ifi_oerrors: u64,        // Output errors on interface (64-bit)
-    pub ifi_collisions: u64,     // Collisions on csma interfaces (64-bit)
-    pub ifi_ibytes: u64,         // Total number of bytes received (64-bit)
-    pub ifi_obytes: u64,         // Total number of bytes sent (64-bit)
-    pub ifi_imcasts: u64,        // Multicast packets received (64-bit)
-    pub ifi_omcasts: u64,        // Multicast packets sent (64-bit)
-    pub ifi_iqdrops: u64,        // Dropped on input, this interface (64-bit)
-    pub ifi_noproto: u64,        // Destined for unsupported protocol (64-bit)
-    pub ifi_recvtiming: u32,     // Receive timing offset (usec)
-    pub ifi_xmittiming: u32,     // Transmit timing offset (usec)
-    pub ifi_lastchange: timeval, // Time of last change
-}
+    /// Supports multicast
+    pub const IFF_MULTICAST: u32 = 0x8000;
 
-// Network Reachability flags for SCNetworkReachabilityGetFlags These match Apple's constants, so we keep the naming
-// convention
-#[allow(non_upper_case_globals)]
-pub mod reachability_flags {
-    pub const kSCNetworkReachabilityFlagsTransientConnection: u32 = 1 << 0;
-    pub const kSCNetworkReachabilityFlagsReachable: u32 = 1 << 1;
-    pub const kSCNetworkReachabilityFlagsConnectionRequired: u32 = 1 << 2;
-    pub const kSCNetworkReachabilityFlagsConnectionOnTraffic: u32 = 1 << 3;
-    pub const kSCNetworkReachabilityFlagsInterventionRequired: u32 = 1 << 4;
-    pub const kSCNetworkReachabilityFlagsConnectionOnDemand: u32 = 1 << 5;
-    pub const kSCNetworkReachabilityFlagsIsLocalAddress: u32 = 1 << 16;
-    pub const kSCNetworkReachabilityFlagsIsDirect: u32 = 1 << 17;
-    pub const kSCNetworkReachabilityFlagsIsWWAN: u32 = 1 << 18;
-}
-
-// System native network API bindings
-#[link(name = "System", kind = "framework")]
-extern "C" {
-    // Interface enumeration APIs
-    pub fn getifaddrs(ifap: *mut *mut ifaddrs) -> c_int;
-    pub fn freeifaddrs(ifp: *mut ifaddrs) -> c_void;
-
-    // sysctl functions for network statistics
-    pub fn sysctlbyname(
-        name: *const c_char,
-        oldp: *mut c_void,
-        oldlenp: *mut usize,
-        newp: *const c_void,
-        newlen: usize,
-    ) -> c_int;
-
-    // IOKit registry entry parent function
-    pub fn IORegistryEntryGetParentEntry(
-        entry: c_uint,
-        plane: *const c_char,
-        parent: *mut c_uint,
-    ) -> i32;
-}
-
-// SystemConfiguration framework bindings for network interface monitoring
-#[link(name = "SystemConfiguration", kind = "framework")]
-extern "C" {
-    // Dynamic store functions for network configuration
-    pub fn SCDynamicStoreCreate(
-        allocator: *mut ffi_c_void,
-        name: *const ffi_c_void,
-        callout: *mut ffi_c_void,
-        context: *mut ffi_c_void,
-    ) -> *mut ffi_c_void;
-
-    pub fn SCDynamicStoreCopyValue(
-        store: *mut ffi_c_void,
-        key: *const ffi_c_void,
-        value: *mut *mut ffi_c_void,
-    ) -> *mut ffi_c_void;
-
-    // Network reachability functions
-    pub fn SCNetworkReachabilityCreateWithAddress(
-        allocator: *mut ffi_c_void,
-        address: *const sockaddr,
-    ) -> *mut ffi_c_void;
-
-    pub fn SCNetworkReachabilityGetFlags(target: *mut ffi_c_void, flags: *mut u32) -> bool;
-
-    pub fn CFRelease(cf: *mut ffi_c_void);
+    /// Is a wireless interface
+    pub const IFF_WIRELESS: u32 = 0x20;
 }
 
 //------------------------------------------------------------------------------
@@ -734,13 +585,21 @@ pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if
     use crate::error::Error;
     use std::{ffi::CString, mem, ptr};
 
+    // Check for empty interface name
+    if interface_name.is_empty() {
+        return Err(Error::network_error(
+            "get_stats",
+            "Failed to get interface data: interface name cannot be empty".to_string(),
+        ));
+    }
+
     // Format the sysctlbyname key
     let sysctl_key = format!("net.link.generic.system.ifdata.{}", interface_name);
-    let c_sysctl_key = CString::new(sysctl_key).map_err(|_| {
-        Error::Network(format!(
-            "Failed to create sysctlbyname key for interface '{}'",
-            interface_name
-        ))
+    let c_sysctl_key = CString::new(sysctl_key).map_err(|e| {
+        Error::network_error(
+            "sysctlbyname",
+            format!("Failed to create sysctlbyname key for interface '{}': {}", interface_name, e),
+        )
     })?;
 
     // Initialize output variables
@@ -759,12 +618,372 @@ pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if
     };
 
     if result != 0 {
-        return Err(Error::Network(format!(
-            "Failed to get network stats for interface '{}': errno={}",
-            interface_name,
-            std::io::Error::last_os_error()
-        )));
+        return Err(Error::network_error(
+            "get_stats",
+            format!(
+                "Failed to get network stats for interface '{}': errno={}",
+                interface_name,
+                std::io::Error::last_os_error()
+            ),
+        ));
     }
 
     Ok(if_data_64)
+}
+
+//------------------------------------------------------------------------------
+// Memory and VM structures
+//------------------------------------------------------------------------------
+
+/// Virtual memory statistics structure
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct vm_statistics64 {
+    /// Number of free pages
+    pub free_count: u32,
+    /// Number of active pages
+    pub active_count: u32,
+    /// Number of inactive pages
+    pub inactive_count: u32,
+    /// Number of wired pages
+    pub wire_count: u32,
+    /// Number of zero fill pages
+    pub zero_fill_count: u64,
+    /// Number of reactivations
+    pub reactivations: u64,
+    /// Number of pageins
+    pub pageins: u64,
+    /// Number of pageouts
+    pub pageouts: u64,
+    /// Number of faults
+    pub faults: u64,
+    /// Number of copy-on-write faults
+    pub cow_faults: u64,
+    /// Number of lookups
+    pub lookups: u64,
+    /// Number of hits
+    pub hits: u64,
+    /// Number of purges
+    pub purges: u64,
+    /// Number of purgeable pages
+    pub purgeable_count: u32,
+    /// Number of speculative pages
+    pub speculative_count: u32,
+    /// Number of decompressions
+    pub decompressions: u64,
+    /// Number of compressions
+    pub compressions: u64,
+    /// Number of swapins
+    pub swapins: u64,
+    /// Number of swapouts
+    pub swapouts: u64,
+    /// Number of compressor pages
+    pub compressor_page_count: u32,
+    /// Number of throttled pages
+    pub throttled_count: u32,
+    /// Number of external pages
+    pub external_page_count: u32,
+    /// Number of internal pages
+    pub internal_page_count: u32,
+    /// Total uncompressed pages in compressor
+    pub total_uncompressed_pages_in_compressor: u64,
+}
+
+/// Swap usage statistics structure
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct xsw_usage {
+    /// Total swap space
+    pub xsu_total: u64,
+    /// Used swap space
+    pub xsu_used: u64,
+    /// Available swap space
+    pub xsu_avail: u64,
+}
+
+//------------------------------------------------------------------------------
+// IOKit Constants and Data Structures
+//------------------------------------------------------------------------------
+
+/// IOKit constants for SMC access
+pub const KERNEL_INDEX_SMC: u32 = 2;
+/// SMC command to read bytes
+pub const SMC_CMD_READ_BYTES: u8 = 5;
+/// SMC command to read key info
+pub const SMC_CMD_READ_KEYINFO: u8 = 9;
+/// Successful IOKit operation
+pub const IO_RETURN_SUCCESS: i32 = 0;
+
+/// IOKit byte count type
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct IOByteCount(pub usize);
+
+/// IOKit option bits type
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct IOOptionBits(pub u32);
+
+/// SMC key for CPU temperature
+pub const SMC_KEY_CPU_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
+/// SMC key for GPU temperature
+pub const SMC_KEY_GPU_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'G' as c_char, b'0' as c_char, b'P' as c_char];
+/// SMC key for number of fans
+pub const SMC_KEY_FAN_NUM: [c_char; 4] =
+    [b'F' as c_char, b'N' as c_char, b'u' as c_char, b'm' as c_char];
+/// SMC key for fan 0 speed
+pub const SMC_KEY_FAN_SPEED: [c_char; 4] =
+    [b'F' as c_char, b'0' as c_char, b'A' as c_char, b'c' as c_char];
+/// SMC key for fan 1 speed
+pub const SMC_KEY_FAN1_SPEED: [c_char; 4] =
+    [b'F' as c_char, b'1' as c_char, b'A' as c_char, b'c' as c_char];
+/// SMC key for fan 0 minimum speed
+pub const SMC_KEY_FAN0_MIN: [c_char; 4] =
+    [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'n' as c_char];
+/// SMC key for fan 0 maximum speed
+pub const SMC_KEY_FAN0_MAX: [c_char; 4] =
+    [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'x' as c_char];
+/// SMC key for heatsink temperature
+pub const SMC_KEY_HEATSINK_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'h' as c_char, b'0' as c_char, b'H' as c_char];
+/// SMC key for ambient temperature
+pub const SMC_KEY_AMBIENT_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'A' as c_char, b'0' as c_char, b'P' as c_char];
+/// SMC key for battery temperature
+pub const SMC_KEY_BATTERY_TEMP: [c_char; 4] =
+    [b'T' as c_char, b'B' as c_char, b'0' as c_char, b'T' as c_char];
+/// SMC key for CPU power
+pub const SMC_KEY_CPU_POWER: [c_char; 4] =
+    [b'P' as c_char, b'C' as c_char, b'P' as c_char, b'C' as c_char];
+/// SMC key for CPU thermal throttling
+pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] =
+    [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char];
+/// SMC key for package power (SoC)
+pub const SMC_KEY_PACKAGE_POWER: [c_char; 4] =
+    [b'P' as c_char, b'M' as c_char, b'P' as c_char, b'0' as c_char];
+/// SMC key for GPU power
+pub const SMC_KEY_GPU_POWER: [c_char; 4] =
+    [b'P' as c_char, b'G' as c_char, b'P' as c_char, b'G' as c_char];
+/// SMC key for DRAM/Memory power
+pub const SMC_KEY_DRAM_POWER: [c_char; 4] =
+    [b'P' as c_char, b'D' as c_char, b'R' as c_char, b'P' as c_char];
+/// SMC key for Neural Engine power
+pub const SMC_KEY_NEURAL_POWER: [c_char; 4] =
+    [b'P' as c_char, b'N' as c_char, b'P' as c_char, b'0' as c_char];
+
+/// SMC version information
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct SMCVersion {
+    /// Major version
+    pub major: u8,
+    /// Minor version
+    pub minor: u8,
+    /// Build version
+    pub build: u8,
+    /// Reserved byte
+    pub reserved: [u8; 1],
+    /// Release version
+    pub release: u16,
+}
+
+/// SMC power limit data
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+#[allow(non_snake_case)]
+pub struct SMCPLimitData {
+    /// Version
+    pub version: u16,
+    /// Length
+    pub length: u16,
+    /// CPU power limit
+    pub cpu_plimit: u32,
+    /// GPU power limit
+    pub gpu_plimit: u32,
+    /// Memory power limit
+    pub mem_plimit: u32,
+}
+
+/// SMC key version data
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct SMCKeyData_vers_t {
+    /// Version information
+    pub version: SMCVersion,
+    /// Reserved bytes
+    pub reserved: [u8; 16],
+}
+
+/// SMC power limit data structure
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct SMCKeyData_pLimitData_t {
+    /// Power limit data
+    pub p_limit_data: SMCPLimitData,
+    /// Reserved bytes
+    pub reserved: [u8; 10],
+}
+
+/// SMC key information
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct SMCKeyData_keyInfo_t {
+    /// Data size
+    pub data_size: u32,
+    /// Data type
+    pub data_type: [u8; 4],
+    /// Data attributes
+    pub data_attributes: u8,
+}
+
+/// SMC key data union
+#[repr(C, packed)]
+pub union SMCKeyData_t_data {
+    /// Raw bytes
+    pub bytes: [u8; 32],
+    /// 32-bit unsigned integer
+    pub uint32: u32,
+    /// 32-bit float
+    pub float: f32,
+    /// 16-bit signed integer
+    pub sint16: i16,
+    /// Version data
+    pub vers: SMCKeyData_vers_t,
+    /// Power limit data
+    pub p_limit: SMCKeyData_pLimitData_t,
+    /// Key information
+    pub key_info: SMCKeyData_keyInfo_t,
+}
+
+impl Clone for SMCKeyData_t_data {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl Copy for SMCKeyData_t_data {}
+
+/// SMC key data structure
+#[repr(C, packed)]
+pub struct SMCKeyData_t {
+    /// Key
+    pub key: u32,
+    /// Version
+    pub vers: u8,
+    /// Power limit data
+    pub p_limit_data: u8,
+    /// Key info
+    pub key_info: u8,
+    /// Padding
+    pub padding: u8,
+    /// Result
+    pub result: u8,
+    /// Status
+    pub status: u8,
+    /// 8-bit data
+    pub data8: u8,
+    /// 32-bit data
+    pub data32: u8,
+    /// Bytes
+    pub bytes: [u8; 2],
+    /// Data union
+    pub data: SMCKeyData_t_data,
+}
+
+impl Clone for SMCKeyData_t {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl Copy for SMCKeyData_t {}
+
+impl Default for SMCKeyData_t {
+    fn default() -> Self {
+        unsafe {
+            Self {
+                key: 0,
+                vers: 0,
+                p_limit_data: 0,
+                key_info: 0,
+                padding: 0,
+                result: 0,
+                status: 0,
+                data8: 0,
+                data32: 0,
+                bytes: [0; 2],
+                data: std::mem::zeroed(),
+            }
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+// Mach host functions
+//------------------------------------------------------------------------------
+
+extern "C" {
+    /// Kernel page size
+    pub static vm_kernel_page_size: u32;
+
+    /// Get host statistics
+    pub fn host_statistics64(
+        host_priv: MachPortT,
+        flavor: i32,
+        host_info_out: HostInfoT,
+        host_info_outCnt: *mut u32,
+    ) -> i32;
+
+    /// Get the current host port
+    pub fn mach_host_self() -> MachPortT;
+}
+
+//------------------------------------------------------------------------------
+// IOKit function declarations
+//------------------------------------------------------------------------------
+
+#[link(name = "IOKit", kind = "framework")]
+extern "C" {
+    /// Get matching service from IOKit registry
+    pub fn IOServiceGetMatchingService(masterPort: u32, matchingDictionary: *mut ffi_c_void) -> u32;
+    /// Create matching dictionary for IOKit service
+    pub fn IOServiceMatching(serviceName: *const c_char) -> *mut ffi_c_void;
+    /// Open IOKit service
+    pub fn IOServiceOpen(service: u32, owningTask: u32, type_: u32, handle: *mut u32) -> i32;
+    /// Close IOKit service
+    pub fn IOServiceClose(handle: u32) -> i32;
+    /// Create CF properties from IOKit registry entry
+    pub fn IORegistryEntryCreateCFProperties(
+        entry: u32,
+        properties: *mut *mut ffi_c_void,
+        allocator: *mut ffi_c_void,
+        options: u32,
+    ) -> i32;
+
+    /// Call IOKit service method with struct parameters
+    pub fn IOConnectCallStructMethod(
+        connection: u32,
+        selector: u32,
+        inputStruct: *const SMCKeyData_t,
+        inputStructCnt: IOByteCount,
+        outputStruct: *mut SMCKeyData_t,
+        outputStructCnt: *mut IOByteCount,
+    ) -> i32;
+}
+
+//------------------------------------------------------------------------------
+// Filesystem functions
+//------------------------------------------------------------------------------
+
+/// Don't block for filesystem sync
+pub const MNT_NOWAIT: c_int = 2;
+
+#[link(name = "System", kind = "framework")]
+extern "C" {
+    /// Get statistics about a mounted filesystem
+    pub fn statfs(path: *const c_char, buf: *mut Statfs) -> c_int;
+    /// Get statistics about all mounted filesystems
+    pub fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
 }

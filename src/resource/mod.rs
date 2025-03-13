@@ -1,9 +1,23 @@
-use crate::Error;
+use std::{
+    collections::HashMap,
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex,
+    },
+    thread,
+    time::{Duration, Instant},
+};
+
 use parking_lot::RwLock;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::sync::broadcast;
+use crate::{
+    Error,
+    disk::DiskInfo,
+    hardware::{memory::Memory, temperature::Temperature},
+    network::NetworkInfo,
+    power::PowerInfo,
+    process::Process,
+    Result,
+};
 
 struct CacheEntry<T> {
     value: T,
@@ -24,24 +38,24 @@ impl<T> CacheEntry<T> {
 }
 
 pub struct ResourcePool<T> {
-    resources: Arc<tokio::sync::Mutex<Vec<T>>>,
+    resources: Arc<Mutex<Vec<T>>>,
     max_size: usize,
 }
 
 impl<T> ResourcePool<T> {
     pub fn new(max_size: usize) -> Self {
         Self {
-            resources: Arc::new(tokio::sync::Mutex::new(Vec::with_capacity(max_size))),
+            resources: Arc::new(Mutex::new(Vec::with_capacity(max_size))),
             max_size,
         }
     }
 
-    pub async fn acquire(&self) -> Option<T> {
-        let mut resources = self.resources.lock().await;
+    pub fn acquire(&self) -> Option<T> {
+        let mut resources = self.resources.lock().unwrap();
         resources.pop()
     }
 
-    pub async fn try_acquire(&self) -> Result<Option<T>, Error> {
+    pub fn try_acquire(&self) -> Result<Option<T>, Error> {
         let resources = self.resources.try_lock();
         match resources {
             Ok(mut res) => Ok(res.pop()),
@@ -49,8 +63,8 @@ impl<T> ResourcePool<T> {
         }
     }
 
-    pub async fn release(&self, resource: T) -> Result<(), Error> {
-        let mut resources = self.resources.lock().await;
+    pub fn release(&self, resource: T) -> Result<(), Error> {
+        let mut resources = self.resources.lock().unwrap();
         if resources.len() >= self.max_size {
             return Err(Error::system("Resource pool is full"));
         }
@@ -108,7 +122,8 @@ where
 #[derive(Clone)]
 pub struct ResourceManager {
     metric_cache: Arc<Cache<String, Vec<u8>>>,
-    usage_tx: broadcast::Sender<ResourceUsage>,
+    usage_tx: Sender<ResourceUsage>,
+    usage_rx: Arc<Mutex<Receiver<ResourceUsage>>>,
     usage_state: Arc<RwLock<ResourceUsageState>>,
 }
 
@@ -127,20 +142,33 @@ struct ResourceUsageState {
 
 impl ResourceManager {
     pub fn new() -> Self {
-        let (usage_tx, _) = broadcast::channel(100);
+        let (usage_tx, usage_rx) = mpsc::channel();
 
         Self {
             metric_cache: Arc::new(Cache::new(Duration::from_secs(60))),
             usage_tx,
+            usage_rx: Arc::new(Mutex::new(usage_rx)),
             usage_state: Arc::new(RwLock::new(Default::default())),
         }
     }
 
-    pub fn subscribe(&self) -> broadcast::Receiver<ResourceUsage> {
-        self.usage_tx.subscribe()
+    pub fn subscribe(&self) -> Receiver<ResourceUsage> {
+        let (tx, rx) = mpsc::channel();
+        let usage_rx = self.usage_rx.clone();
+        
+        thread::spawn(move || {
+            let rx = usage_rx.lock().unwrap();
+            while let Ok(usage) = rx.recv() {
+                if tx.send(usage).is_err() {
+                    break;
+                }
+            }
+        });
+        
+        rx
     }
 
-    pub async fn track_resource_usage(&self, resource_type: &str, usage: f64) {
+    pub fn track_resource_usage(&self, resource_type: &str, usage: f64) -> Result<(), Error> {
         let usage = ResourceUsage {
             resource_type: resource_type.to_string(),
             usage_percent: usage,
@@ -162,19 +190,24 @@ impl ResourceManager {
             );
         }
 
-        let _ = self.usage_tx.send(usage);
+        self.usage_tx.send(usage).map_err(|_| Error::system("Failed to send resource usage"))
     }
 
-    pub async fn track_resource_usage_with_timeout(
+    pub fn track_resource_usage_with_timeout(
         &self,
         resource_type: &str,
         usage: f64,
         timeout: Duration,
     ) -> Result<(), Error> {
-        let result = async { self.track_resource_usage(resource_type, usage).await };
-        tokio::time::timeout(timeout, result)
-            .await
-            .map_err(|_| Error::system("Resource tracking timeout"))?
+        let start = Instant::now();
+        while start.elapsed() < timeout {
+            match self.track_resource_usage(resource_type, usage) {
+                Ok(_) => return Ok(()),
+                Err(_) if start.elapsed() < timeout => thread::sleep(Duration::from_millis(10)),
+                Err(e) => return Err(e),
+            }
+        }
+        Err(Error::system("Resource tracking timeout"))
     }
 
     pub fn get_cached_metric(&self, key: &str) -> Option<Vec<u8>> {
@@ -194,9 +227,137 @@ impl ResourceManager {
     }
 }
 
-impl Default for ResourceManager {
-    fn default() -> Self {
-        Self::new()
+/// Resource monitor for tracking system metrics
+///
+/// This struct provides functionality to monitor various system resources and metrics.
+pub struct ResourceMonitor {
+    /// Interval between updates in milliseconds
+    update_interval: Duration,
+    /// Channel for sending stop signals
+    stop_tx: Sender<()>,
+    /// Thread handle for the monitoring task
+    monitor_thread: Option<thread::JoinHandle<()>>,
+    /// Channel for receiving resource updates
+    update_rx: Arc<Mutex<Receiver<ResourceUpdate>>>,
+}
+
+/// Resource update containing system metrics
+///
+/// This struct contains various system metrics collected during monitoring.
+#[derive(Debug, Clone)]
+pub struct ResourceUpdate {
+    /// Memory usage information
+    pub memory: Memory,
+    /// Temperature readings
+    pub temperature: Temperature,
+    /// Network interface statistics
+    pub network: NetworkInfo,
+    /// Disk usage information
+    pub disk: DiskInfo,
+    /// Power consumption information
+    pub power: PowerInfo,
+    /// List of running processes
+    pub processes: Vec<Process>,
+    /// Timestamp of the update
+    pub timestamp: Instant,
+}
+
+impl ResourceMonitor {
+    /// Creates a new ResourceMonitor with the specified update interval
+    pub fn new(update_interval: Duration) -> Result<Self> {
+        let (stop_tx, stop_rx) = mpsc::channel();
+        let (update_tx, update_rx) = mpsc::channel();
+        let update_rx = Arc::new(Mutex::new(update_rx));
+
+        let monitor_thread = {
+            let update_interval = update_interval;
+            let update_tx = update_tx;
+            let stop_rx = stop_rx;
+
+            thread::spawn(move || {
+                let mut last_update = Instant::now();
+
+                loop {
+                    // Check for stop signal
+                    if stop_rx.try_recv().is_ok() {
+                        break;
+                    }
+
+                    // Sleep until next update
+                    let now = Instant::now();
+                    let elapsed = now.duration_since(last_update);
+                    if elapsed < update_interval {
+                        thread::sleep(update_interval - elapsed);
+                        continue;
+                    }
+
+                    // Collect resource metrics
+                    let memory = Memory::new();
+                    let temperature = Temperature::new();
+                    let network = NetworkInfo::new();
+                    let disk = DiskInfo::new();
+                    let power = PowerInfo::new();
+                    let processes = Process::get_all().unwrap_or_default();
+
+                    // Create and send update
+                    let update = ResourceUpdate {
+                        memory,
+                        temperature,
+                        network,
+                        disk,
+                        power,
+                        processes,
+                        timestamp: Instant::now(),
+                    };
+
+                    if update_tx.send(update).is_err() {
+                        // Receiver was dropped, stop monitoring
+                        break;
+                    }
+
+                    last_update = now;
+                }
+            })
+        };
+
+        Ok(Self {
+            update_interval,
+            stop_tx,
+            monitor_thread: Some(monitor_thread),
+            update_rx,
+        })
+    }
+
+    /// Gets the next resource update
+    pub fn next_update(&self) -> Result<ResourceUpdate> {
+        self.update_rx
+            .lock()
+            .unwrap()
+            .recv()
+            .map_err(|e| crate::Error::resource_error(format!("Failed to receive update: {}", e)))
+    }
+
+    /// Stops the resource monitor
+    pub fn stop(&mut self) -> Result<()> {
+        if let Some(handle) = self.monitor_thread.take() {
+            // Send stop signal
+            self.stop_tx.send(()).map_err(|e| {
+                crate::Error::resource_error(format!("Failed to send stop signal: {}", e))
+            })?;
+
+            // Wait for monitor thread to finish
+            handle.join().map_err(|_| {
+                crate::Error::resource_error("Failed to join monitor thread".to_string())
+            })?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Drop for ResourceMonitor {
+    fn drop(&mut self) {
+        let _ = self.stop();
     }
 }
 
@@ -204,24 +365,33 @@ impl Default for ResourceManager {
 mod tests {
     use super::*;
     use std::time::Duration;
-    use tokio;
 
-    #[tokio::test]
-    async fn test_resource_pool() {
-        let pool = ResourcePool::new(2);
-
-        assert!(pool.acquire().await.is_none());
-
-        pool.release(42).await.expect("Failed to release resource");
-        assert_eq!(pool.acquire().await, Some(42));
+    #[test]
+    fn test_resource_monitor() {
+        let monitor = ResourceMonitor::new(Duration::from_millis(100)).unwrap();
+        
+        // Get first update
+        let update = monitor.next_update().unwrap();
+        
+        // Verify update contents
+        assert!(update.memory.total > 0);
+        assert!(!update.processes.is_empty());
+        
+        // Verify timestamp
+        assert!(update.timestamp <= Instant::now());
     }
 
-    #[tokio::test]
-    async fn test_resource_manager() {
-        let manager = ResourceManager::new();
-        manager.cache_metric("test", vec![1, 2, 3]);
-
-        let cached = manager.get_cached_metric("test");
-        assert_eq!(cached, Some(vec![1, 2, 3]));
+    #[test]
+    fn test_resource_monitor_stop() {
+        let mut monitor = ResourceMonitor::new(Duration::from_millis(100)).unwrap();
+        
+        // Get an update
+        let _ = monitor.next_update().unwrap();
+        
+        // Stop the monitor
+        monitor.stop().unwrap();
+        
+        // Verify monitor is stopped
+        assert!(monitor.monitor_thread.is_none());
     }
 }

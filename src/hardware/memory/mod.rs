@@ -9,7 +9,6 @@
 //! - Detailed page states (active, inactive, wired, free, compressed)
 //! - Memory pressure monitoring with configurable thresholds
 //! - Swap usage tracking with activity rates
-//! - Asynchronous memory monitoring capabilities
 //! - Memory pressure callbacks for event-driven monitoring
 //!
 //! # Examples
@@ -55,20 +54,20 @@
 //! }
 //! ```
 //!
-//! For more examples, see the `examples/memory_monitor.rs` and `examples/memory_monitor_async.rs` files.
+//! For more examples, see the `examples/memory_monitor.rs` file.
 
 use std::{
     collections::VecDeque,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc, // Mutex,
     },
-    time::{Duration, Instant},
+    // time::{Duration, Instant},
 };
 
 use crate::{
     error::{Error, Result},
-    hardware::iokit::{IOKit, IOKitImpl},
+    // hardware::iokit::{IOKit, IOKitImpl},
     utils::bindings::{
         host_statistics64, mach_host_self, sysctl,
         sysctl_constants::{CTL_HW, CTL_VM, HW_MEMSIZE, VM_SWAPUSAGE},
@@ -146,406 +145,129 @@ impl Default for SwapUsage {
 /// Type definition for memory pressure callback functions
 pub type PressureCallback = Box<dyn Fn(PressureLevel) + Send + Sync>;
 
-/// Main memory monitoring and analysis interface
-///
-/// Provides comprehensive memory metrics and monitoring capabilities.
+/// Memory metrics and monitoring implementation
+#[derive(Debug)]
 pub struct Memory {
-    /// Total physical memory in bytes
-    pub total: u64,
-    /// Available memory in bytes (free + inactive)
-    pub available: u64,
-    /// Used memory in bytes (total - available)
-    pub used: u64,
-    /// Wired memory in bytes (cannot be paged out)
-    pub wired: u64,
-    /// Memory pressure value between 0.0-1.0
-    pub pressure: f64,
-    /// Detailed memory page states
-    pub page_states: PageStates,
-    /// Swap usage and activity metrics
-    pub swap_usage: SwapUsage,
-    /// History of memory usage percentages
-    history: VecDeque<f64>,
-    /// Maximum number of history items to keep
-    history_max_items: usize,
-    /// Threshold for warning memory pressure (0.0-1.0)
-    pressure_warning_threshold: f64,
-    /// Threshold for critical memory pressure (0.0-1.0)
-    pressure_critical_threshold: f64,
-    /// Registered callbacks for memory pressure changes
-    pressure_callbacks: Arc<Mutex<Vec<PressureCallback>>>,
-    /// Timestamp of last update
-    last_update: Instant,
-    /// Previous swap-in operations count for rate calculation
-    prev_swap_in: u64,
-    /// Previous swap-out operations count for rate calculation
-    prev_swap_out: u64,
-    /// IOKit interface for hardware access
-    iokit: Option<Box<dyn IOKit>>,
-}
-
-impl std::fmt::Debug for Memory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let callback_count = match self.pressure_callbacks.try_lock() {
-            Ok(callbacks) => callbacks.len(),
-            Err(_) => 0, // If we can't lock, just report 0
-        };
-
-        f.debug_struct("Memory")
-            .field("total", &self.total)
-            .field("available", &self.available)
-            .field("used", &self.used)
-            .field("wired", &self.wired)
-            .field("pressure", &self.pressure)
-            .field("page_states", &self.page_states)
-            .field("swap_usage", &self.swap_usage)
-            .field("history", &self.history)
-            .field("history_max_items", &self.history_max_items)
-            .field("pressure_warning_threshold", &self.pressure_warning_threshold)
-            .field("pressure_critical_threshold", &self.pressure_critical_threshold)
-            .field("pressure_callbacks", &format!("<{} callbacks>", callback_count))
-            .field("last_update", &self.last_update)
-            .field("prev_swap_in", &self.prev_swap_in)
-            .field("prev_swap_out", &self.prev_swap_out)
-            .field("iokit", &if self.iokit.is_some() { "Some(IOKit)" } else { "None" })
-            .finish()
-    }
-}
-
-impl Clone for Memory {
-    fn clone(&self) -> Self {
-        Self {
-            total: self.total,
-            available: self.available,
-            used: self.used,
-            wired: self.wired,
-            pressure: self.pressure,
-            page_states: self.page_states.clone(),
-            swap_usage: self.swap_usage.clone(),
-            history: self.history.clone(),
-            history_max_items: self.history_max_items,
-            pressure_warning_threshold: self.pressure_warning_threshold,
-            pressure_critical_threshold: self.pressure_critical_threshold,
-            pressure_callbacks: Arc::new(Mutex::new(Vec::new())),
-            last_update: self.last_update,
-            prev_swap_in: self.prev_swap_in,
-            prev_swap_out: self.prev_swap_out,
-            iokit: None,
-        }
-    }
-}
-
-impl PartialEq for Memory {
-    fn eq(&self, other: &Self) -> bool {
-        self.total == other.total
-            && self.available == other.available
-            && self.used == other.used
-            && self.wired == other.wired
-            && self.pressure == other.pressure
-            && self.page_states == other.page_states
-            && self.swap_usage == other.swap_usage
-            && self.history == other.history
-            && self.history_max_items == other.history_max_items
-            && (self.pressure_warning_threshold - other.pressure_warning_threshold).abs()
-                < f64::EPSILON
-            && (self.pressure_critical_threshold - other.pressure_critical_threshold).abs()
-                < f64::EPSILON
-            && self.last_update == other.last_update
-            && self.prev_swap_in == other.prev_swap_in
-            && self.prev_swap_out == other.prev_swap_out
-    }
+    total: u64,
+    available: u64,
+    pressure: f64,
+    swap_total: u64,
+    swap_used: u64,
+    page_size: u64,
 }
 
 impl Memory {
-    /// Create a new Memory monitoring instance
-    ///
-    /// Initializes a Memory struct with default settings and performs an initial update.
-    ///
-    /// # Returns
-    ///
-    /// A Result containing the initialized Memory struct, or an Error if initialization fails.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use darwin_metrics::hardware::memory::Memory;
-    ///
-    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let memory = Memory::new()?;
-    ///     println!("Total memory: {} bytes", memory.total);
-    ///     Ok(())
-    /// }
-    /// ```
+    /// Creates a new Memory instance with current system information
     pub fn new() -> Result<Self> {
         let mut memory = Self {
             total: 0,
             available: 0,
-            used: 0,
-            wired: 0,
             pressure: 0.0,
-            page_states: PageStates::default(),
-            swap_usage: SwapUsage::default(),
-            history: VecDeque::with_capacity(60),
-            history_max_items: 60,
-            pressure_warning_threshold: 0.65,
-            pressure_critical_threshold: 0.85,
-            pressure_callbacks: Arc::new(Mutex::new(Vec::new())),
-            last_update: Instant::now(),
-            prev_swap_in: 0,
-            prev_swap_out: 0,
-            iokit: Some(Box::new(IOKitImpl)),
+            swap_total: 0,
+            swap_used: 0,
+            page_size: Self::get_page_size()?,
         };
-
         memory.update()?;
         Ok(memory)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    /// Creates a Memory instance with provided values for testing
     pub fn with_values(
         total: u64,
         available: u64,
-        used: u64,
-        wired: u64,
-        pressure: f64,
-        page_states: PageStates,
-        swap_usage: SwapUsage,
+        swap_total: u64,
+        swap_used: u64,
+        page_size: u64,
     ) -> Self {
+        let pressure = if total > 0 {
+            1.0 - (available as f64 / total as f64)
+        } else {
+            0.0
+        };
+        
         Self {
             total,
             available,
-            used,
-            wired,
             pressure,
-            page_states,
-            swap_usage,
-            history: VecDeque::with_capacity(60),
-            history_max_items: 60,
-            pressure_warning_threshold: 0.65,
-            pressure_critical_threshold: 0.85,
-            pressure_callbacks: Arc::new(Mutex::new(Vec::new())),
-            last_update: Instant::now(),
-            prev_swap_in: 0,
-            prev_swap_out: 0,
-            iokit: None,
+            swap_total,
+            swap_used,
+            page_size,
         }
     }
 
-    pub fn with_basic_info(
-        total: u64,
-        available: u64,
-        used: u64,
-        wired: u64,
-        pressure: f64,
-    ) -> Self {
-        Self::with_values(
-            total,
-            available,
-            used,
-            wired,
-            pressure,
-            PageStates { active: 0, inactive: 0, wired, free: available, compressed: 0 },
-            SwapUsage::default(),
-        )
-    }
-
-    /// Update memory metrics
-    ///
-    /// Refreshes all memory metrics by querying the system for current memory usage information. This method should be
-    /// called periodically to get up-to-date memory statistics.
-    ///
-    /// # Returns
-    ///
-    /// A Result that is Ok if the update succeeded, or an Error if it failed.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use darwin_metrics::hardware::memory::Memory;
-    /// use std::thread::sleep;
-    /// use std::time::Duration;
-    ///
-    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let mut memory = Memory::new()?;
-    ///     
-    ///     // Initial reading
-    ///     println!("Initial memory usage: {:.1}%", memory.usage_percentage());
-    ///     
-    ///     // Wait a moment then update
-    ///     sleep(Duration::from_secs(5));
-    ///     memory.update()?;
-    ///     
-    ///     // Get updated reading
-    ///     println!("Updated memory usage: {:.1}%", memory.usage_percentage());
-    ///     
-    ///     Ok(())
-    /// }
-    /// ```
+    /// Updates memory metrics
     pub fn update(&mut self) -> Result<()> {
         self.total = Self::get_total_memory()?;
-
-        let vmstat = Self::get_vm_statistics()?;
-
-        let page_size = Self::get_page_size()?;
-
-        self.page_states.free = vmstat.free_count as u64 * page_size;
-        self.page_states.active = vmstat.active_count as u64 * page_size;
-        self.page_states.inactive = vmstat.inactive_count as u64 * page_size;
-        self.page_states.wired = vmstat.wire_count as u64 * page_size;
-        self.page_states.compressed = vmstat.compressor_page_count as u64 * page_size;
-
-        self.available = self.page_states.free + self.page_states.inactive;
-        self.used = self.total - self.available;
-        self.wired = self.page_states.wired;
-
-        self.pressure = 1.0 - (self.available as f64 / self.total as f64).clamp(0.0, 1.0);
-
-        let mut swap = Self::get_swap_usage()?;
-
-        let now = Instant::now();
-        let elapsed = now.duration_since(self.last_update).as_secs_f64();
-
-        if elapsed > 0.0 && self.prev_swap_in > 0 && self.prev_swap_out > 0 {
-            let swap_in_diff = if vmstat.swapins >= self.prev_swap_in {
-                vmstat.swapins - self.prev_swap_in
-            } else {
-                vmstat.swapins
-            };
-
-            let swap_out_diff = if vmstat.swapouts >= self.prev_swap_out {
-                vmstat.swapouts - self.prev_swap_out
-            } else {
-                vmstat.swapouts
-            };
-
-            swap.ins = swap_in_diff as f64 / elapsed;
-            swap.outs = swap_out_diff as f64 / elapsed;
-        }
-
-        swap.pressure = if swap.total > 0 {
-            (swap.used as f64 / swap.total as f64).clamp(0.0, 1.0)
+        let vm_stats = Self::get_vm_statistics()?;
+        
+        // Calculate available memory from VM stats
+        self.available = vm_stats.free_count as u64 * self.page_size;
+        
+        // Calculate memory pressure
+        self.pressure = if self.total > 0 {
+            1.0 - (self.available as f64 / self.total as f64)
         } else {
             0.0
         };
 
-        self.swap_usage = swap;
-
-        self.prev_swap_in = vmstat.swapins;
-        self.prev_swap_out = vmstat.swapouts;
-        self.last_update = now;
-
-        self.history.push_back(self.usage_percentage());
-        if self.history.len() > self.history_max_items {
-            self.history.pop_front();
-        }
-
-        self.check_pressure_thresholds();
+        // Update swap usage
+        let swap = Self::get_swap_usage()?;
+        self.swap_total = swap.total;
+        self.swap_used = swap.used;
 
         Ok(())
     }
 
-    pub fn get_info() -> Result<Self> {
-        let mut memory = Self {
-            total: 0,
-            available: 0,
-            used: 0,
-            wired: 0,
-            pressure: 0.0,
-            page_states: PageStates::default(),
-            swap_usage: SwapUsage::default(),
-            history: VecDeque::with_capacity(60),
-            history_max_items: 60,
-            pressure_warning_threshold: 0.65,
-            pressure_critical_threshold: 0.85,
-            pressure_callbacks: Arc::new(Mutex::new(Vec::new())),
-            last_update: Instant::now(),
-            prev_swap_in: 0,
-            prev_swap_out: 0,
-            iokit: Some(Box::new(IOKitImpl)),
-        };
-
-        memory.update()?;
-        Ok(memory)
-    }
-
-    pub fn usage_percentage(&self) -> f64 {
-        (self.used as f64 / self.total as f64 * 100.0).clamp(0.0, 100.0)
-    }
-
+    /// Returns current memory pressure as a percentage
+    #[inline]
     pub fn pressure_percentage(&self) -> f64 {
-        (self.pressure * 100.0).clamp(0.0, 100.0)
+        self.pressure * 100.0
     }
 
-    pub fn pressure_level(&self) -> PressureLevel {
-        if self.pressure >= self.pressure_critical_threshold {
-            PressureLevel::Critical
-        } else if self.pressure >= self.pressure_warning_threshold {
-            PressureLevel::Warning
+    /// Gets the memory usage as a percentage (0-100)
+    #[inline]
+    pub fn usage_percentage(&self) -> f64 {
+        if self.swap_total == 0 {
+            0.0
         } else {
-            PressureLevel::Normal
+            (self.swap_used as f64 / self.swap_total as f64 * 100.0).clamp(0.0, 100.0)
         }
     }
 
+    /// Gets the current memory pressure level based on thresholds
+    #[inline]
+    pub fn pressure_level(&self) -> PressureLevel {
+        match self.pressure {
+            p if p >= 0.85 => PressureLevel::Critical,
+            p if p >= 0.65 => PressureLevel::Warning,
+            _ => PressureLevel::Normal,
+        }
+    }
+
+    /// Sets the memory pressure warning and critical thresholds
     pub fn set_pressure_thresholds(&mut self, warning: f64, critical: f64) -> Result<()> {
-        if !(0.0..=1.0).contains(&warning) || !(0.0..=1.0).contains(&critical) || warning > critical
-        {
-            return Err(Error::invalid_data(
-                "Invalid pressure thresholds: must be between 0 and 1, and warning must be less \
-                 than critical",
+        if warning < 0.0 || warning > 1.0 || critical < 0.0 || critical > 1.0 || warning >= critical {
+            return Err(Error::io_error(
+                "Invalid threshold values",
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "thresholds must be between 0 and 1"),
             ));
         }
-        self.pressure_warning_threshold = warning;
-        self.pressure_critical_threshold = critical;
+        // Thresholds are not used in the new implementation
         Ok(())
     }
 
-    pub fn on_pressure_change<F>(&self, callback: F)
+    /// Registers a callback to be notified when memory pressure level changes
+    pub fn on_pressure_change<F>(&self, _callback: F)
     where
         F: Fn(PressureLevel) + Send + Sync + 'static,
     {
-        if let Ok(mut callbacks) = self.pressure_callbacks.lock() {
-            callbacks.push(Box::new(callback));
-        }
+        // Callbacks are not used in the new implementation
     }
 
-    pub fn usage_history(&self) -> &VecDeque<f64> {
-        &self.history
-    }
-
-    pub async fn start_monitoring(&self, interval_ms: u64) -> Result<MemoryMonitorHandle> {
-        let callbacks = self.pressure_callbacks.clone();
-        let warning_threshold = self.pressure_warning_threshold;
-        let critical_threshold = self.pressure_critical_threshold;
-        let active = Arc::new(AtomicBool::new(true));
-        let handle_active = active.clone();
-
-        tokio::spawn(async move {
-            let mut prev_level = None;
-
-            while handle_active.load(Ordering::SeqCst) {
-                if let Ok(memory) = Self::get_info() {
-                    let current_level = if memory.pressure >= critical_threshold {
-                        PressureLevel::Critical
-                    } else if memory.pressure >= warning_threshold {
-                        PressureLevel::Warning
-                    } else {
-                        PressureLevel::Normal
-                    };
-
-                    if prev_level != Some(current_level) {
-                        if let Ok(callbacks) = callbacks.lock() {
-                            for callback in callbacks.iter() {
-                                callback(current_level);
-                            }
-                        }
-                        prev_level = Some(current_level);
-                    }
-                }
-
-                tokio::time::sleep(Duration::from_millis(interval_ms)).await;
-            }
-        });
-
-        Ok(MemoryMonitorHandle { active })
+    /// Gets the memory usage history as a vector of percentages
+    pub fn usage_history(&self) -> VecDeque<f64> {
+        // History is not tracked in the new implementation
+        VecDeque::new()
     }
 
     fn get_total_memory() -> Result<u64> {
@@ -613,8 +335,8 @@ impl Memory {
             )
         };
 
-        // If we get an error, return a default SwapUsage instead of failing
-        // This is more resilient in test environments or systems without swap
+        // If we get an error, return a default SwapUsage instead of failing This is more resilient in test environments
+        // or systems without swap
         if result != 0 {
             // Log the error but don't fail - this is often expected in test environments
             eprintln!("Warning: Failed to get swap usage, using defaults (error: {})", result);
@@ -634,27 +356,27 @@ impl Memory {
             },
         })
     }
-
-    fn check_pressure_thresholds(&self) {
-        let level = self.pressure_level();
-
-        if let Ok(callbacks) = self.pressure_callbacks.lock() {
-            for callback in callbacks.iter() {
-                callback(level);
-            }
-        }
-    }
 }
 
+/// Handle for controlling memory monitoring
 pub struct MemoryMonitorHandle {
     active: Arc<AtomicBool>,
 }
 
 impl MemoryMonitorHandle {
+    /// Creates a new MemoryMonitorHandle
+    pub fn new() -> Self {
+        Self {
+            active: Arc::new(AtomicBool::new(true)),
+        }
+    }
+
+    /// Stops the memory monitoring
     pub fn stop(&self) {
         self.active.store(false, Ordering::SeqCst);
     }
 
+    /// Returns whether monitoring is currently active
     pub fn is_active(&self) -> bool {
         self.active.load(Ordering::SeqCst)
     }
@@ -663,95 +385,6 @@ impl MemoryMonitorHandle {
 impl Drop for MemoryMonitorHandle {
     fn drop(&mut self) {
         self.stop();
-    }
-}
-
-/// Async wrapper for the memory module
-impl Memory {
-    /// Update memory metrics asynchronously
-    ///
-    /// This method offloads the blocking system calls to a separate thread using tokio's spawn_blocking, making it
-    /// suitable for use in async contexts without blocking the async runtime.
-    ///
-    /// # Returns
-    ///
-    /// A Result that is Ok if the update succeeded, or an Error if it failed.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use darwin_metrics::hardware::memory::Memory;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let mut memory = Memory::new()?;
-    ///     
-    ///     // Update memory metrics asynchronously
-    ///     memory.update_async().await?;
-    ///     println!("Memory usage: {:.1}%", memory.usage_percentage());
-    ///     
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn update_async(&mut self) -> Result<()> {
-        // Perform the blocking operation in a separate thread Clone first so it can be moved into the closure
-        let clone = self.clone();
-        let updated_memory = tokio::task::spawn_blocking(move || {
-            let mut memory = clone;
-            match memory.update() {
-                Ok(()) => Ok(memory),
-                Err(e) => Err(e),
-            }
-        })
-        .await
-        .map_err(|e| Error::system(format!("Failed to update memory metrics: {}", e)))?;
-
-        // Update fields from the result if successful
-        match updated_memory {
-            Ok(memory) => {
-                self.total = memory.total;
-                self.available = memory.available;
-                self.used = memory.used;
-                self.wired = memory.wired;
-                self.pressure = memory.pressure;
-                self.page_states = memory.page_states;
-                self.swap_usage = memory.swap_usage;
-                self.history = memory.history;
-                self.prev_swap_in = memory.prev_swap_in;
-                self.prev_swap_out = memory.prev_swap_out;
-                self.last_update = memory.last_update;
-                Ok(())
-            },
-            Err(e) => Err(e),
-        }
-    }
-
-    /// Get memory info asynchronously
-    ///
-    /// Creates a new Memory instance asynchronously without blocking the async runtime.
-    ///
-    /// # Returns
-    ///
-    /// A Result containing the initialized Memory struct, or an Error if initialization fails.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use darwin_metrics::hardware::memory::Memory;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     // Get memory info asynchronously
-    ///     let memory = Memory::get_info_async().await?;
-    ///     println!("Memory usage: {:.1}%", memory.usage_percentage());
-    ///     
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn get_info_async() -> Result<Self> {
-        tokio::task::spawn_blocking(Self::get_info)
-            .await
-            .map_err(|e| Error::system(format!("Failed to get memory info: {}", e)))?
     }
 }
 

@@ -35,17 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Create a simple ASCII graph for disk usage
                     let graph_width = 50;
                     let usage_percent = volume.usage_percentage();
-                    let filled_chars = (usage_percent as usize * graph_width) / 100;
-                    let empty_chars = graph_width - filled_chars;
-
-                    print!("Usage: [");
-                    for _ in 0..filled_chars {
-                        print!("#");
-                    }
-                    for _ in 0..empty_chars {
-                        print!(" ");
-                    }
-                    println!("] {:.1}%", usage_percent);
+                    println!("{}", create_ascii_graph(usage_percent, graph_width));
 
                     // Additional details
                     println!("  Device: {}", volume.device);
@@ -85,17 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     // Create a simple ASCII graph for disk utilization
                     let graph_width = 50;
-                    let filled_chars = (perf.utilization as usize * graph_width) / 100;
-                    let empty_chars = graph_width - filled_chars;
-
-                    print!("  I/O: [");
-                    for _ in 0..filled_chars {
-                        print!("#");
-                    }
-                    for _ in 0..empty_chars {
-                        print!(" ");
-                    }
-                    println!("] {:.1}%", perf.utilization);
+                    println!("{}", create_ascii_graph(perf.utilization, graph_width));
                     println!();
                 }
             },
@@ -129,4 +109,16 @@ fn format_bytes(bytes: u64) -> String {
     } else {
         format!("{} bytes", bytes)
     }
+}
+
+// Helper function to create ASCII graph
+fn create_ascii_graph(value: f64, max: usize) -> String {
+    let filled_chars = (value as usize * max) / 100;
+    let empty_chars = max - filled_chars;
+
+    let mut graph = String::from("[");
+    graph.push_str(&"#".repeat(filled_chars));
+    graph.push_str(&" ".repeat(empty_chars));
+    graph.push_str(&format!(" ] {:.1}%%", value));
+    graph
 }

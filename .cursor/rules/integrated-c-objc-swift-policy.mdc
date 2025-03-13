@@ -1,0 +1,105 @@
+---
+description: Integrated Language Development Policy
+globs: *.c, *.h, *.m, *.mm, *.swift, *.cpp, *.hpp
+alwaysApply: false
+---
+# Integrated Language Development Policy
+
+## Key Principles
+- Write safe, efficient, and maintainable code across C, Objective-C, and Swift
+- Prioritize memory safety and automatic resource management
+- Follow platform-specific best practices and conventions
+- Create clear, self-documenting code with meaningful names
+- Implement robust error handling and logging
+- Design for testability and maintainability with Rust integration
+
+## Memory Safety and Ownership
+### Core Strategies
+- Prefer automatic memory management (ARC in Objective-C/Swift)
+- Use `__attribute__((cleanup))` for C-based RAII patterns
+- Minimize manual memory management
+- Validate all pointer operations and buffer sizes
+- Prefer `Optional<T>` and safe indexing in Swift
+- Implement safe pointer handling with careful validation
+
+## Concurrency and Thread Safety
+### Synchronization Approaches
+- Leverage Grand Central Dispatch (GCD) for task scheduling
+- Use `dispatch_queue_t` for concurrent operations
+- Implement synchronization with:
+  - `@synchronized`
+  - `os_unfair_lock`
+  - Atomic properties in Objective-C
+- Design thread-safe interfaces
+- Handle task cancellation and cleanup systematically
+- Utilize Swift's `actor` type for thread-safe objects
+
+## Error Handling and Diagnostics
+### Robust Error Management
+- Use `NSError` in Objective-C for error propagation
+- Implement Swift's `try/catch` and `Result` type
+- Use structured logging with `os_log`
+- Provide meaningful error context
+- Handle all error cases explicitly
+- Implement comprehensive cleanup in error paths
+
+## Data and Buffer Handling
+### Safe Data Management
+- Prefer `NSData`/`NSMutableData` over raw buffers
+- Validate memory allocations and sizes
+- Implement proper byte order handling
+- Use safe string operations (`snprintf`, `strlcpy`)
+- Handle data serialization safely
+- Validate input boundaries
+
+## Performance Optimization
+### Efficiency Techniques
+- Use `dispatch_data_t` for memory-mapped buffers
+- Optimize Core Graphics operations
+- Implement `lazy var` for expensive computations
+- Use `os_signpost` for profiling
+- Minimize bridging overhead
+- Strategically reuse objects
+
+## Code Design and Patterns
+### Architecture Principles
+- Follow LLVM style guide
+- Implement composition over inheritance
+- Use Blocks/closures for callbacks
+- Prefer protocols with default implementations
+- Apply dependency injection
+- Create clean wrappers for third-party code
+
+## Security Practices
+### Safety Fundamentals
+- Avoid unsafe pointer casts
+- Validate all string and buffer operations
+- Use secure random number generation
+- Implement thorough input validation
+- Follow platform security guidelines
+- Avoid force-unwrapping in Swift
+
+## Rust Integration Testing
+### Testing Strategy
+- Leverage Rust for comprehensive testing
+- Use `cargo llvm-cov` for code coverage
+- Implement integration tests for critical FFI paths
+- Ensure robust error handling across language boundaries
+
+## Configuration and Metadata
+### Dynamic Management
+- Use `NSUserDefaults` or property lists for settings
+- Implement structured metadata handling
+- Support dynamic configuration updates
+- Avoid hardcoded values
+- Utilize resource bundles effectively
+
+## Continuous Improvement
+- Regularly review and update integration strategies
+- Stay current with platform and Rust ecosystem developments
+- Maintain a focus on safety, performance, and maintainability
+
+**References**
+- Apple Documentation
+- LLVM Documentation
+- Rust Language Guidelines

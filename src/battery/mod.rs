@@ -1,48 +1,66 @@
 use std::time::Duration;
-
 use crate::{
     error::{Error, Result},
-    hardware::iokit::{IOKit, IOKitImpl},
+    hardware::iokit::{IOKit, ThreadSafeAnyObject},
+    utils::dictionary_access::DictionaryAccess,
 };
+// use objc2_foundation::NSDictionary;
 
-const BATTERY_IS_PRESENT: &str = "BatteryInstalled";
-const BATTERY_IS_CHARGING: &str = "IsCharging";
-const BATTERY_CURRENT_CAPACITY: &str = "CurrentCapacity";
-const BATTERY_MAX_CAPACITY: &str = "MaxCapacity";
-const BATTERY_DESIGN_CAPACITY: &str = "DesignCapacity";
-const BATTERY_CYCLE_COUNT: &str = "CycleCount";
-const BATTERY_TEMPERATURE: &str = "Temperature";
-const BATTERY_TIME_REMAINING: &str = "TimeRemaining";
+#[cfg(test)]
+use crate::hardware::iokit::mock::MockIOKit;
+
+const BATTERY_SERVICE: &str = "AppleSmartBattery";
+const BATTERY_PRESENT: &str = "BatteryInstalled";
 const BATTERY_POWER_SOURCE: &str = "ExternalConnected";
+const BATTERY_CYCLE_COUNT: &str = "CycleCount";
+const BATTERY_TIME_REMAINING: &str = "TimeRemaining";
+const BATTERY_TEMPERATURE: &str = "Temperature";
 
+/// Represents the current power source for the system
+///
+/// This enum indicates whether the system is running on battery power, AC power, or if the power source is unknown.
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[non_exhaustive]
 pub enum PowerSource {
+    /// System is running on battery power
     Battery,
+    /// System is running on AC power
     AC,
+    /// Power source could not be determined
     Unknown,
+}
+
+#[derive(Debug, Clone)]
+pub struct BatteryInfo {
+    pub present: bool,
+    pub percentage: i64,
+    pub cycle_count: i64,
+    pub is_charging: bool,
+    pub is_external: bool,
+    pub temperature: f64,
+    pub power_draw: f64,
+    pub design_capacity: i64,
+    pub current_capacity: i64,
 }
 
 #[derive(Debug)]
 pub struct Battery {
-    pub is_present: bool,
-    pub is_charging: bool,
-    pub percentage: f64,
-    pub time_remaining: Duration,
-    pub power_source: PowerSource,
-    pub cycle_count: u32,
-    pub health_percentage: f64,
-    pub temperature: f64,
-
-    #[cfg(not(test))]
     iokit: Box<dyn IOKit>,
-    #[cfg(test)]
-    pub iokit: Box<dyn IOKit>,
+    service: Option<ThreadSafeAnyObject>,
 }
 
-impl Default for Battery {
-    fn default() -> Self {
-        Self::with_values(false, false, 0.0, 0, PowerSource::Unknown, 0, 0.0, 0.0)
+impl Clone for Battery {
+    fn clone(&self) -> Self {
+        Self {
+            iokit: self.iokit.clone_box(),
+            service: self.service.clone(),
+        }
+    }
+}
+
+impl Drop for Battery {
+    fn drop(&mut self) {
+        // No need to explicitly close the service since Retained<AnyObject> handles cleanup
     }
 }
 
@@ -52,10 +70,11 @@ impl Battery {
     /// # Errors
     ///
     /// Returns an error if battery information cannot be retrieved from the system.
-    pub fn new() -> Result<Self> {
-        let mut battery = Self::default();
-        battery.update()?;
-        Ok(battery)
+    pub fn new(iokit: Box<dyn IOKit>) -> Result<Self> {
+        Ok(Self {
+            iokit,
+            service: None,
+        })
     }
 
     /// Updates battery information.
@@ -64,59 +83,8 @@ impl Battery {
     ///
     /// Returns an error if battery information cannot be retrieved from the system.
     pub fn update(&mut self) -> Result<()> {
-        let matching = self.iokit.io_service_matching("AppleSmartBattery");
-        let service = self.iokit.io_service_get_matching_service(&matching);
-
-        let Some(service) = service else {
-            return Err(Error::service_not_found("Battery service not found".to_string()));
-        };
-
-        let properties = self.iokit.io_registry_entry_create_cf_properties(&service)?;
-
-        self.is_present =
-            self.iokit.get_bool_property(&properties, BATTERY_IS_PRESENT).unwrap_or(false);
-
-        if !self.is_present {
-            self.is_charging = false;
-            self.percentage = 0.0;
-            self.time_remaining = Duration::from_secs(0);
-            self.power_source = PowerSource::Unknown;
-            self.cycle_count = 0;
-            self.health_percentage = 0.0;
-            self.temperature = 0.0;
-            return Ok(());
-        }
-
-        self.is_charging =
-            self.iokit.get_bool_property(&properties, BATTERY_IS_CHARGING).unwrap_or(false);
-        let is_external =
-            self.iokit.get_bool_property(&properties, BATTERY_POWER_SOURCE).unwrap_or(false);
-        self.power_source = if is_external { PowerSource::AC } else { PowerSource::Battery };
-
-        let current =
-            self.iokit.get_number_property(&properties, BATTERY_CURRENT_CAPACITY).unwrap_or(0)
-                as f64;
-        let max =
-            self.iokit.get_number_property(&properties, BATTERY_MAX_CAPACITY).unwrap_or(100) as f64;
-        self.percentage = if max > 0.0 { (current / max * 100.0).clamp(0.0, 100.0) } else { 0.0 };
-
-        let design = self
-            .iokit
-            .get_number_property(&properties, BATTERY_DESIGN_CAPACITY)
-            .unwrap_or(max as i64) as f64;
-        self.health_percentage =
-            if design > 0.0 { (max / design * 100.0).clamp(0.0, 100.0) } else { 0.0 };
-
-        self.cycle_count =
-            self.iokit.get_number_property(&properties, BATTERY_CYCLE_COUNT).unwrap_or(0) as u32;
-
-        let time = self.iokit.get_number_property(&properties, BATTERY_TIME_REMAINING).unwrap_or(0);
-        self.time_remaining = Duration::from_secs((time.max(0) * 60) as u64);
-
-        let temp =
-            self.iokit.get_number_property(&properties, BATTERY_TEMPERATURE).unwrap_or(0) as f64;
-        self.temperature = temp / 100.0;
-
+        let service = self.iokit.get_service_matching(BATTERY_SERVICE)?;
+        self.service = service;
         Ok(())
     }
 
@@ -125,113 +93,242 @@ impl Battery {
     /// # Errors
     ///
     /// Returns an error if battery information cannot be retrieved from the system.
-    pub fn get_info(&self) -> Result<Self> {
-        let matching = self.iokit.io_service_matching("AppleSmartBattery");
-        let service = self.iokit.io_service_get_matching_service(&matching);
+    pub fn get_info(&self) -> Result<BatteryInfo> {
+        let service = self.service.as_ref()
+            .ok_or_else(|| Error::io_error("Battery service not found", std::io::Error::new(std::io::ErrorKind::NotFound, "Battery service not found")))?;
+        let props = self.iokit.get_service_properties(service)?;
 
-        let Some(service) = service else {
-            return Err(Error::ServiceNotFound("Battery service not found".to_string()));
-        };
+        let present = props.get_bool("BatteryInstalled").unwrap_or(false);
+        let percentage = props.get_number("CurrentCapacity").unwrap_or(0.0) as i64;
+        let cycle_count = props.get_number("CycleCount").unwrap_or(0.0) as i64;
+        let is_charging = props.get_bool("IsCharging").unwrap_or(false);
+        let is_external = props.get_bool("ExternalConnected").unwrap_or(false);
+        let temperature = self.iokit.get_battery_temperature()?.unwrap_or(0.0);
+        let power_draw = props.get_number("InstantAmperage").unwrap_or(0.0) * 
+                        props.get_number("Voltage").unwrap_or(0.0) / 1000.0;
+        let design_capacity = props.get_number("DesignCapacity").unwrap_or(0.0) as i64;
+        let current_capacity = props.get_number("MaxCapacity").unwrap_or(0.0) as i64;
 
-        match self.iokit.io_registry_entry_create_cf_properties(&service) {
-            Ok(_) => Ok(self.clone()),
-            Err(e) => Err(e),
+        Ok(BatteryInfo {
+            present,
+            percentage,
+            cycle_count,
+            is_charging,
+            is_external,
+            temperature,
+            power_draw,
+            design_capacity,
+            current_capacity,
+        })
+    }
+
+    #[cfg(test)]
+    /// Creates a new Battery instance with the specified values
+    pub fn with_values(
+        battery_is_present: bool,
+        battery_is_charging: bool,
+        battery_cycle_count: u32,
+        battery_health_percentage: f64,
+        battery_temperature: f64,
+        battery_time_remaining: Duration,
+        battery_power_draw: f64,
+        battery_design_capacity: f64,
+        battery_current_capacity: f64,
+    ) -> Result<Self> {
+        let iokit = Box::new(MockIOKit {
+            battery_is_present,
+            battery_is_charging,
+            battery_cycle_count,
+            battery_health_percentage,
+            battery_temperature,
+            battery_time_remaining,
+            battery_power_draw,
+            battery_design_capacity,
+            battery_current_capacity,
+        });
+
+        Self::new(iokit)
+    }
+
+    /// Returns true if the battery level is critically low (below 5%)
+    pub fn is_critically_low(&self) -> Result<bool> {
+        Ok(self.get_info()?.percentage < 5)
+    }
+
+    /// Returns true if the battery level is low (below 20%)
+    pub fn is_low(&self) -> Result<bool> {
+        Ok(self.get_info()?.percentage < 20)
+    }
+
+    /// Returns a human-readable string describing the time remaining
+    pub fn time_remaining_display(&self) -> Result<String> {
+        let _info = self.get_info()?;
+        if let Some(time_remaining) = self.get_time_remaining()? {
+            let total_minutes = time_remaining.as_secs() as u64;
+            let hours = total_minutes / 60;
+            let minutes = total_minutes % 60;
+            if hours > 0 {
+                Ok(format!("{}h {}m", hours, minutes))
+            } else {
+                Ok(format!("{}m", minutes))
+            }
+        } else {
+            Ok("0m".to_string())
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    #[must_use]
-    pub fn with_values(
-        is_present: bool,
+    /// Returns true if the battery health is poor (below 80%)
+    pub fn is_health_critical(&self) -> Result<bool> {
+        let info = self.get_info()?;
+        Ok((info.current_capacity as f64 / info.design_capacity as f64 * 100.0) < 80.0)
+    }
+
+    /// Returns true if the battery has a high cycle count (over 1000)
+    pub fn is_cycle_count_critical(&self) -> Result<bool> {
+        Ok(self.get_info()?.cycle_count > 1000)
+    }
+
+    /// Returns a human-readable string describing the power source
+    pub fn power_source_display(&self) -> Result<&'static str> {
+        let info = self.get_info()?;
+        Ok(if info.is_external {
+            "AC Power"
+        } else if info.present {
+            "Battery"
+        } else {
+            "Unknown"
+        })
+    }
+
+    /// Returns true if the battery temperature is critically high (above 45°C)
+    pub fn is_temperature_critical(&self) -> Result<bool> {
+        Ok(self.get_info()?.temperature > 45.0)
+    }
+
+    /// Returns the current battery percentage
+    pub fn percentage(&self) -> Result<i64> {
+        Ok(self.get_info()?.percentage)
+    }
+
+    /// Returns the current battery time remaining
+    pub fn get_time_remaining(&self) -> Result<Option<Duration>> {
+        let info = self.get_info()?;
+        if info.is_external {
+            Ok(None)
+        } else {
+            let power_draw = info.power_draw;
+            if power_draw > 0.0 {
+                let time_remaining = (info.current_capacity as f64 / power_draw) * 3600.0;
+                Ok(Some(Duration::from_secs(time_remaining as u64)))
+            } else {
+                Ok(None)
+            }
+        }
+    }
+
+    /// Returns the current battery cycle count
+    pub fn cycle_count(&self) -> Result<i64> {
+        Ok(self.get_info()?.cycle_count)
+    }
+
+    /// Returns the current battery temperature
+    pub fn temperature(&self) -> Result<f64> {
+        Ok(self.get_info()?.temperature)
+    }
+
+    /// Returns the current battery power source
+    pub fn power_source(&self) -> Result<PowerSource> {
+        let info = self.get_info()?;
+        Ok(if info.is_external {
+            PowerSource::AC
+        } else if info.present {
+            PowerSource::Battery
+        } else {
+            PowerSource::Unknown
+        })
+    }
+
+    pub fn is_present(&self) -> Result<bool> {
+        Ok(self.get_info()?.present)
+    }
+
+    pub fn is_charging(&self) -> Result<bool> {
+        Ok(self.get_info()?.is_charging)
+    }
+
+    pub fn power_draw(&self) -> Result<f64> {
+        Ok(self.get_info()?.power_draw)
+    }
+
+    pub fn design_capacity(&self) -> Result<i64> {
+        Ok(self.get_info()?.design_capacity)
+    }
+
+    pub fn current_capacity(&self) -> Result<i64> {
+        Ok(self.get_info()?.current_capacity)
+    }
+}
+
+impl BatteryInfo {
+    pub fn new(
+        present: bool,
+        percentage: i64,
+        cycle_count: i64,
         is_charging: bool,
-        percentage: f64,
-        time_remaining: i32,
-        power_source: PowerSource,
-        cycle_count: u32,
-        health_percentage: f64,
+        is_external: bool,
         temperature: f64,
+        power_draw: f64,
+        design_capacity: i64,
+        current_capacity: i64,
     ) -> Self {
         Self {
-            is_present,
-            is_charging,
-            percentage: percentage.clamp(0.0, 100.0),
-            time_remaining: Duration::from_secs((time_remaining * 60) as u64),
-            power_source,
+            present,
+            percentage,
             cycle_count,
-            health_percentage: health_percentage.clamp(0.0, 100.0),
+            is_charging,
+            is_external,
             temperature,
-            iokit: Box::new(IOKitImpl),
+            power_draw,
+            design_capacity,
+            current_capacity,
         }
     }
 
-    pub fn is_critical(&self) -> bool {
-        self.percentage < 10.0
+    pub fn cycle_count(&self) -> i64 {
+        self.cycle_count
     }
 
-    pub fn is_low(&self) -> bool {
-        self.percentage < 20.0
+    pub fn temperature(&self) -> f64 {
+        self.temperature
     }
 
-    pub fn time_remaining_display(&self) -> String {
-        let minutes = self.time_remaining.as_secs() / 60;
-        if minutes < 60 {
-            format!("{minutes}m")
+    pub fn power_source(&self) -> PowerSource {
+        if self.present {
+            if self.is_charging {
+                PowerSource::AC
+            } else {
+                PowerSource::Battery
+            }
         } else {
-            let hours = minutes / 60;
-            let remaining_minutes = minutes % 60;
-            format!("{hours}h {remaining_minutes}m")
+            PowerSource::Unknown
         }
     }
 
-    pub fn is_health_poor(&self) -> bool {
-        self.health_percentage < 80.0
-    }
-
-    pub fn has_high_cycle_count(&self) -> bool {
-        self.cycle_count > 1000
-    }
-
-    pub fn power_source_display(&self) -> &'static str {
-        match self.power_source {
-            PowerSource::Battery => "Battery",
-            PowerSource::AC => "AC Power",
-            PowerSource::Unknown => "Unknown",
-        }
-    }
-
-    pub fn is_temperature_critical(&self) -> bool {
-        self.temperature < -10.0 || self.temperature > 40.0
+    pub fn health_percentage(&self) -> f64 {
+        self.percentage as f64
     }
 }
 
-impl Clone for Battery {
-    fn clone(&self) -> Self {
-        Self {
-            is_present: self.is_present,
-            is_charging: self.is_charging,
-            percentage: self.percentage,
-            time_remaining: self.time_remaining,
-            power_source: self.power_source,
-            cycle_count: self.cycle_count,
-            health_percentage: self.health_percentage,
-            temperature: self.temperature,
-            iokit: Box::new(IOKitImpl),
-        }
-    }
-}
-
-impl PartialEq for Battery {
+impl PartialEq for BatteryInfo {
     fn eq(&self, other: &Self) -> bool {
-        self.is_present == other.is_present
-            && self.is_charging == other.is_charging
-            && self.percentage == other.percentage
-            && self.time_remaining == other.time_remaining
-            && self.power_source == other.power_source
-            && self.cycle_count == other.cycle_count
-            && self.health_percentage == other.health_percentage
-            && self.temperature == other.temperature
+        self.present == other.present &&
+        self.percentage == other.percentage &&
+        self.cycle_count == other.cycle_count &&
+        self.is_charging == other.is_charging &&
+        self.is_external == other.is_external &&
+        self.power_draw == other.power_draw &&
+        self.design_capacity == other.design_capacity &&
+        self.current_capacity == other.current_capacity &&
+        self.temperature == other.temperature
     }
 }
-
-#[cfg(test)]
-mod tests;

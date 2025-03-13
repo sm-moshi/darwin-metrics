@@ -4,8 +4,9 @@ use std::{
 };
 
 use crate::{
+    error::Result,
     hardware::iokit::{IOKit, IOKitImpl},
-    Result,
+    utils::dictionary_access::DictionaryAccess,
 };
 
 /// Represents the location of a temperature sensor in the system
@@ -171,34 +172,27 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             let thermal_info = self.io_kit.get_thermal_info()?;
 
             // Update sensors with basic temperature readings
-            self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
-            self.sensors.insert("GPU".to_string(), thermal_info.gpu_temp);
-
-                // Add optional sensors if available
-                if let Some(temp) = thermal_info.heatsink_temp {
-                    self.sensors.insert("Heatsink".to_string(), temp);
-                }
+            self.sensors.insert("CPU".to_string(), thermal_info.get_number("cpu_temp").unwrap_or(0.0));
+            self.sensors.insert("GPU".to_string(), thermal_info.get_number("gpu_temp").unwrap_or(0.0));
 
             // Add optional sensors if available
-            if let Some(temp) = thermal_info.heatsink_temp {
+            if let Some(temp) = thermal_info.get_number("heatsink_temp") {
                 self.sensors.insert("Heatsink".to_string(), temp);
             }
 
-            if let Some(temp) = thermal_info.ambient_temp {
+            if let Some(temp) = thermal_info.get_number("ambient_temp") {
                 self.sensors.insert("Ambient".to_string(), temp);
             }
 
-                // Update throttling status
-                self.is_throttling = thermal_info.is_throttling;
-
-            // Update CPU power if available
-            self.cpu_power = thermal_info.cpu_power;
+            if let Some(temp) = thermal_info.get_number("battery_temp") {
+                self.sensors.insert("Battery".to_string(), temp);
+            }
 
             // Update throttling status
-            self.is_throttling = thermal_info.is_throttling;
+            self.is_throttling = thermal_info.get_bool("is_throttling").unwrap_or(false);
 
             // Update CPU power if available
-            self.cpu_power = thermal_info.cpu_power;
+            self.cpu_power = thermal_info.get_number("cpu_power");
 
             // Get fan information
             let fan_infos = self.io_kit.get_all_fans()?;
@@ -232,7 +226,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
         }
 
         self.sensors.get("CPU").cloned().ok_or_else(|| {
-            crate::Error::Temperature("CPU temperature sensor not available".to_string())
+            crate::Error::temperature_error("CPU", "CPU temperature sensor not available")
         })
     }
 
@@ -243,7 +237,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
         }
 
         self.sensors.get("GPU").cloned().ok_or_else(|| {
-            crate::Error::Temperature("GPU temperature sensor not available".to_string())
+            crate::Error::temperature_error("GPU", "GPU temperature sensor not available")
         })
     }
 
@@ -254,7 +248,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
         }
 
         self.sensors.get("Heatsink").cloned().ok_or_else(|| {
-            crate::Error::Temperature("Heatsink temperature sensor not available".to_string())
+            crate::Error::temperature_error("Heatsink", "Heatsink temperature sensor not available")
         })
     }
 
@@ -265,7 +259,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
         }
 
         self.sensors.get("Ambient").cloned().ok_or_else(|| {
-            crate::Error::Temperature("Ambient temperature sensor not available".to_string())
+            crate::Error::temperature_error("Ambient", "Ambient temperature sensor not available")
         })
     }
 
@@ -276,7 +270,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
         }
 
         self.sensors.get("Battery").cloned().ok_or_else(|| {
-            crate::Error::Temperature("Battery temperature sensor not available".to_string())
+            crate::Error::temperature_error("Battery", "Battery temperature sensor not available")
         })
     }
 
@@ -311,10 +305,9 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.sensors
-            .get(name)
-            .cloned()
-            .ok_or_else(|| crate::Error::Temperature(format!("Sensor {} not found", name)))
+        self.sensors.get(name).cloned().ok_or_else(|| {
+            crate::Error::temperature_error(name, format!("Sensor {} not found", name))
+        })
     }
 
     /// Get the number of fans in the system
@@ -341,9 +334,9 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.fans
-            .get(index)
-            .ok_or_else(|| crate::Error::Temperature(format!("Fan with index {} not found", index)))
+        self.fans.get(index).ok_or_else(|| {
+            crate::Error::temperature_error("Fan", format!("Fan with index {} not found", index))
+        })
     }
 
     /// Get the CPU power consumption in watts (if available)
@@ -353,7 +346,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
         }
 
         self.cpu_power.ok_or_else(|| {
-            crate::Error::Temperature("CPU power information not available".to_string())
+            crate::Error::temperature_error("CPU Power", "CPU power information not available")
         })
     }
 
@@ -388,157 +381,6 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             cpu_power: self.cpu_power,
             fans: self.fans.clone(),
         })
-    }
-
-    /// Get CPU temperature asynchronously
-    pub async fn cpu_temperature_async(&mut self) -> Result<f64> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh_async().await?;
-        }
-
-        self.sensors.get("CPU").cloned().ok_or_else(|| {
-            crate::Error::Temperature("CPU temperature sensor not available".to_string())
-        })
-    }
-
-    /// Get GPU temperature asynchronously (if available)
-    pub async fn gpu_temperature_async(&mut self) -> Result<f64> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh_async().await?;
-        }
-
-        self.sensors.get("GPU").cloned().ok_or_else(|| {
-            crate::Error::Temperature("GPU temperature sensor not available".to_string())
-        })
-    }
-
-    /// Get heatsink temperature asynchronously (if available)
-    pub async fn heatsink_temperature_async(&mut self) -> Result<f64> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh_async().await?;
-        }
-
-        self.sensors.get("Heatsink").cloned().ok_or_else(|| {
-            crate::Error::Temperature("Heatsink temperature sensor not available".to_string())
-        })
-    }
-
-    /// Get ambient temperature asynchronously (if available)
-    pub async fn ambient_temperature_async(&mut self) -> Result<f64> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh_async().await?;
-        }
-
-        self.sensors.get("Ambient").cloned().ok_or_else(|| {
-            crate::Error::Temperature("Ambient temperature sensor not available".to_string())
-        })
-    }
-
-    /// Get battery temperature asynchronously (if available)
-    pub async fn battery_temperature_async(&mut self) -> Result<f64> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh_async().await?;
-        }
-
-        self.sensors.get("Battery").cloned().ok_or_else(|| {
-            crate::Error::Temperature("Battery temperature sensor not available".to_string())
-        })
-    }
-
-    /// Refresh all temperature and fan readings asynchronously
-    pub async fn refresh_async(&mut self) -> Result<()> {
-        // Perform the actual IO operation in a blocking task to avoid blocking the async runtime
-        let io_kit = self.io_kit.clone();
-        let thermal_info =
-            tokio::task::spawn_blocking(move || io_kit.get_thermal_info())
-                .await
-                .map_err(|e| crate::Error::Temperature(format!("Task join error: {}", e)))??;
-
-        // Update sensors with basic temperature readings
-        self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
-        self.sensors.insert("GPU".to_string(), thermal_info.gpu_temp);
-
-        // Add optional sensors if available
-        if let Some(temp) = thermal_info.heatsink_temp {
-            self.sensors.insert("Heatsink".to_string(), temp);
-        }
-
-        if let Some(temp) = thermal_info.ambient_temp {
-            self.sensors.insert("Ambient".to_string(), temp);
-        }
-
-        if let Some(temp) = thermal_info.battery_temp {
-            self.sensors.insert("Battery".to_string(), temp);
-        }
-
-        // Update throttling status
-        self.is_throttling = thermal_info.is_throttling;
-
-        // Update CPU power if available
-        self.cpu_power = thermal_info.cpu_power;
-
-        // Get fan information in a separate blocking task
-        let io_kit = self.io_kit.clone();
-        let fan_infos = tokio::task::spawn_blocking(move || io_kit.get_all_fans())
-            .await
-            .map_err(|e| crate::Error::Temperature(format!("Task join error: {}", e)))??;
-
-        self.fans.clear();
-
-        // Create Fan objects from the raw IOKitFanInfo structures
-        for (i, fan_info) in fan_infos.iter().enumerate() {
-            self.fans.push(Fan {
-                name: format!("Fan {}", i),
-                speed_rpm: fan_info.speed_rpm,
-                min_speed: fan_info.min_speed,
-                max_speed: fan_info.max_speed,
-                percentage: fan_info.percentage,
-            });
-        }
-
-        // Update refresh timestamp
-        self.last_refresh = Instant::now();
-
-        Ok(())
-    }
-
-    /// Get all thermal metrics in a single async call
-    pub async fn get_thermal_metrics_async(&mut self) -> Result<ThermalMetrics> {
-        // Always refresh for this comprehensive call
-        self.refresh_async().await?;
-
-        Ok(ThermalMetrics {
-            cpu_temperature: self.sensors.get("CPU").cloned(),
-            gpu_temperature: self.sensors.get("GPU").cloned(),
-            heatsink_temperature: self.sensors.get("Heatsink").cloned(),
-            ambient_temperature: self.sensors.get("Ambient").cloned(),
-            battery_temperature: self.sensors.get("Battery").cloned(),
-            is_throttling: self.is_throttling,
-            cpu_power: self.cpu_power,
-            fans: self.fans.clone(),
-        })
-    }
-
-    /// Determine if the system is experiencing thermal throttling asynchronously
-    pub async fn is_throttling_async(&mut self) -> Result<bool> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh_async().await?;
-        }
-
-        // Use the IoKit directly to check throttling in a blocking task This provides more up-to-date information than
-        // cached values
-        let io_kit = self.io_kit.clone();
-        match tokio::task::spawn_blocking(move || io_kit.check_thermal_throttling())
-            .await
-            .map_err(|e| crate::Error::Temperature(format!("Task join error: {}", e)))?
-        {
-            Ok(throttling) => Ok(throttling),
-            Err(_) => {
-                // Fall back to temperature-based heuristic
-                let cpu_temp = self.cpu_temperature_async().await?;
-                Ok(cpu_temp > self.config.throttling_threshold)
-            },
-        }
     }
 }
 

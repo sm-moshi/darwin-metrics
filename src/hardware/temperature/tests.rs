@@ -1,12 +1,13 @@
 use std::{thread, time::Duration};
 
 use super::*;
-use crate::hardware::iokit::{FanInfo, ThermalInfo};
+use crate::hardware::iokit::{FanInfo, ThermalInfo, ThreadSafeNSDictionary, ThreadSafeAnyObject,GpuStats};
 use crate::Error;
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2_foundation::{NSDictionary, NSObject, NSString};
 use std::sync::Arc;
+use std::sync::Mutex;
 
 // Custom mock implementation of IOKit that implements Clone
 #[derive(Clone)]
@@ -31,11 +32,12 @@ impl MockIOKitClone {
                 Ok(ThermalInfo {
                     cpu_temp: 45.0,
                     gpu_temp: 55.0,
-                    heatsink_temp: Some(40.0),
-                    ambient_temp: Some(30.0),
-                    battery_temp: Some(35.0),
+                    heatsink_temp: 40.0,
+                    ambient_temp: 30.0,
+                    battery_temp: 35.0,
                     is_throttling: false,
-                    cpu_power: Some(25.0),
+                    cpu_power: 25.0,
+                    fan_speed: vec![2000.0],
                 })
             }),
             fan_info: Arc::new(|| {
@@ -63,136 +65,71 @@ impl MockIOKitClone {
 }
 
 impl IOKit for MockIOKitClone {
-    fn io_service_matching(
+    fn io_service_matching(&self, _name: &str) -> Result<ThreadSafeNSDictionary> {
+        Ok(ThreadSafeNSDictionary::new(NSDictionary::new()))
+    }
+
+    fn io_service_get_matching_service(&self, _matching: &ThreadSafeNSDictionary) -> Result<ThreadSafeNSDictionary> {
+        Ok(ThreadSafeNSDictionary::new(NSDictionary::new()))
+    }
+
+    fn io_registry_entry_create_cf_properties(&self, _entry: &ThreadSafeNSDictionary) -> Result<ThreadSafeNSDictionary> {
+        Ok(ThreadSafeNSDictionary::new(NSDictionary::new()))
+    }
+
+    fn io_connect_call_method(
         &self,
-        _service_name: &str,
-    ) -> Retained<NSDictionary<NSString, NSObject>> {
-        unimplemented!("Not needed for tests")
+        _connection: u32,
+        _selector: u32,
+        _input: &[u8],
+        _input_cnt: u32,
+        _output: &mut [u8],
+        _output_cnt: &mut u32,
+    ) -> Result<()> {
+        Ok(())
     }
 
-    fn io_service_get_matching_service(
-        &self,
-        _matching: &NSDictionary<NSString, NSObject>,
-    ) -> Option<Retained<AnyObject>> {
-        unimplemented!("Not needed for tests")
+    fn get_number_property(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
+        match key {
+            "CurrentCapacity" => Some(85.0),
+            "CycleCount" => Some(100.0),
+            "Temperature" => Some(35.0),
+            "Voltage" => Some(12.0),
+            "Amperage" => Some(1.5),
+            "DesignCapacity" => Some(100.0),
+            _ => None,
+        }
     }
 
-    fn io_registry_entry_create_cf_properties(
-        &self,
-        _entry: &AnyObject,
-    ) -> Result<Retained<NSDictionary<NSString, NSObject>>> {
-        unimplemented!("Not needed for tests")
+    fn get_service_properties(&self, _service: &ThreadSafeAnyObject) -> Result<ThreadSafeNSDictionary> {
+        Ok(ThreadSafeNSDictionary::new(NSDictionary::new()))
     }
 
-    fn io_object_release(&self, _obj: &AnyObject) {
-        unimplemented!("Not needed for tests")
-    }
-
-    fn get_string_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        _key: &str,
-    ) -> Option<String> {
-        unimplemented!("Not needed for tests")
-    }
-
-    fn get_number_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        _key: &str,
-    ) -> Option<i64> {
-        unimplemented!("Not needed for tests")
-    }
-
-    fn get_bool_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        _key: &str,
-    ) -> Option<bool> {
-        unimplemented!("Not needed for tests")
-    }
-
-    fn get_dict_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        _key: &str,
-    ) -> Option<Retained<NSDictionary<NSString, NSObject>>> {
-        unimplemented!("Not needed for tests")
-    }
-
-    fn get_service(&self, _name: &str) -> Result<Retained<AnyObject>> {
-        unimplemented!("Not needed for tests")
-    }
-
-    fn io_registry_entry_get_parent(&self, _entry: &AnyObject) -> Option<Retained<AnyObject>> {
-        unimplemented!("Not needed for tests")
+    fn get_service_matching(&self, _name: &str) -> Result<Option<ThreadSafeAnyObject>> {
+        Ok(None)
     }
 
     fn get_cpu_temperature(&self) -> Result<f64> {
         Ok((*self.thermal_info)()?.cpu_temp)
     }
 
-    fn get_gpu_temperature(&self) -> Result<f64> {
-        Ok((*self.thermal_info)()?.gpu_temp)
-    }
-
-    fn get_gpu_stats(&self) -> Result<crate::hardware::iokit::GpuStats> {
+    fn get_gpu_stats(&self) -> Result<GpuStats> {
         unimplemented!("Not needed for tests")
-    }
-
-    fn get_fan_speed(&self) -> Result<u32> {
-        unimplemented!("Not needed for tests")
-    }
-
-    fn get_fan_count(&self) -> Result<u32> {
-        Ok((*self.fan_info)()?.len() as u32)
     }
 
     fn get_fan_info(&self, fan_index: u32) -> Result<FanInfo> {
         let fans = (*self.fan_info)()?;
-        fans.get(fan_index as usize)
-            .cloned()
-            .ok_or_else(|| Error::IOKit(format!("Fan index out of bounds: {}", fan_index)))
-    }
-
-    fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
-        (*self.fan_info)()
-    }
-
-    fn get_heatsink_temperature(&self) -> Result<f64> {
-        (*self.thermal_info)()?
-            .heatsink_temp
-            .ok_or_else(|| Error::IOKit("Heatsink temperature not available".to_string()))
-    }
-
-    fn get_ambient_temperature(&self) -> Result<f64> {
-        (*self.thermal_info)()?
-            .ambient_temp
-            .ok_or_else(|| Error::IOKit("Ambient temperature not available".to_string()))
-    }
-
-    fn get_battery_temperature(&self) -> Result<f64> {
-        (*self.thermal_info)()?
-            .battery_temp
-            .ok_or_else(|| Error::IOKit("Battery temperature not available".to_string()))
-    }
-
-    fn get_cpu_power(&self) -> Result<f64> {
-        (*self.thermal_info)()?
-            .cpu_power
-            .ok_or_else(|| Error::IOKit("CPU power not available".to_string()))
-    }
-
-    fn check_thermal_throttling(&self) -> Result<bool> {
-        Ok((*self.thermal_info)()?.is_throttling)
+        fans.get(fan_index as usize).cloned().ok_or_else(|| {
+            Error::iokit_error(-1, format!("Fan index out of bounds: {}", fan_index))
+        })
     }
 
     fn get_thermal_info(&self) -> Result<ThermalInfo> {
         (*self.thermal_info)()
     }
 
-    fn read_smc_key(&self, _key: [std::os::raw::c_char; 4]) -> Result<f64> {
-        unimplemented!("Not needed for tests")
+    fn clone_box(&self) -> Box<dyn IOKit> {
+        Box::new(self.clone())
     }
 }
 
@@ -283,7 +220,7 @@ fn test_should_refresh_elapsed_time() {
 
 #[test]
 fn test_cpu_temperature() {
-    // Create a Temperature instance with auto_refresh disabled to avoid SMC reads
+    // Create a Temperature instance with auto_refresh disabled
     let mut temp = Temperature::with_config(TemperatureConfig {
         poll_interval_ms: 1000,
         throttling_threshold: 80.0,
@@ -815,62 +752,8 @@ fn test_temperature_default() {
     assert_eq!(temp.config.auto_refresh, temp_new.config.auto_refresh);
 }
 
-// Async tests
-#[tokio::test]
-async fn test_cpu_temperature_async() {
-    // Create a Temperature instance with auto_refresh disabled
-    let mut temp = Temperature::with_config(TemperatureConfig {
-        poll_interval_ms: 1000,
-        throttling_threshold: 80.0,
-        auto_refresh: false,
-    });
-
-    // Insert the test value directly into the sensors map
-    temp.sensors.insert("CPU".to_string(), 42.5);
-
-    // Test the method using the manually inserted value
-    let result = temp.cpu_temperature_async().await.unwrap();
-    assert_eq!(result, 42.5);
-}
-
-#[tokio::test]
-async fn test_gpu_temperature_async() {
-    // Create a Temperature instance with auto_refresh disabled
-    let mut temp = Temperature::with_config(TemperatureConfig {
-        poll_interval_ms: 1000,
-        throttling_threshold: 80.0,
-        auto_refresh: false,
-    });
-
-    temp.sensors.insert("GPU".to_string(), 55.0);
-
-    // Test the method
-    let result = temp.gpu_temperature_async().await.unwrap();
-    assert_eq!(result, 55.0);
-}
-
-#[tokio::test]
-async fn test_additional_sensors_async() {
-    // Create a Temperature instance with auto_refresh disabled
-    let mut temp = Temperature::with_config(TemperatureConfig {
-        poll_interval_ms: 1000,
-        throttling_threshold: 80.0,
-        auto_refresh: false,
-    });
-
-    // Add various temperature sensors
-    temp.sensors.insert("Heatsink".to_string(), 45.0);
-    temp.sensors.insert("Ambient".to_string(), 32.0);
-    temp.sensors.insert("Battery".to_string(), 38.0);
-
-    // Test each sensor
-    assert_eq!(temp.heatsink_temperature_async().await.unwrap(), 45.0);
-    assert_eq!(temp.ambient_temperature_async().await.unwrap(), 32.0);
-    assert_eq!(temp.battery_temperature_async().await.unwrap(), 38.0);
-}
-
-#[tokio::test]
-async fn test_get_thermal_metrics_async() {
+#[test]
+fn test_get_thermal_metrics() {
     let mut temp = Temperature::with_config(TemperatureConfig {
         poll_interval_ms: 1000,
         throttling_threshold: 80.0,
@@ -895,23 +778,8 @@ async fn test_get_thermal_metrics_async() {
         percentage: 33.3,
     });
 
-    // Mock the refresh_async method by creating a custom implementation that doesn't actually call IOKit methods
-    let metrics = ThermalMetrics {
-        cpu_temperature: Some(42.5),
-        gpu_temperature: Some(55.0),
-        heatsink_temperature: Some(45.0),
-        ambient_temperature: Some(32.0),
-        battery_temperature: Some(38.0),
-        is_throttling: false,
-        cpu_power: Some(28.5),
-        fans: vec![Fan {
-            name: "Test Fan".to_string(),
-            speed_rpm: 2000,
-            min_speed: 1000,
-            max_speed: 4000,
-            percentage: 33.3,
-        }],
-    };
+    // Get metrics
+    let metrics = temp.get_thermal_metrics().unwrap();
 
     // Verify the metrics structure
     assert_eq!(metrics.cpu_temperature, Some(42.5));
@@ -925,8 +793,8 @@ async fn test_get_thermal_metrics_async() {
     assert_eq!(metrics.fans[0].speed_rpm, 2000);
 }
 
-#[tokio::test]
-async fn test_is_throttling_async() {
+#[test]
+fn test_is_throttling() {
     // Create a Temperature instance with auto_refresh disabled
     let mut temp = Temperature::with_config(TemperatureConfig {
         poll_interval_ms: 1000,
@@ -936,12 +804,12 @@ async fn test_is_throttling_async() {
 
     // Test with CPU temperature below threshold
     temp.sensors.insert("CPU".to_string(), 75.0);
-    let result = temp.is_throttling_async().await.unwrap();
+    let result = temp.is_throttling().unwrap();
     assert!(!result);
 
     // Test with CPU temperature above threshold
     temp.sensors.insert("CPU".to_string(), 85.0);
-    let result = temp.is_throttling_async().await.unwrap();
+    let result = temp.is_throttling().unwrap();
     assert!(result);
 }
 
@@ -982,50 +850,19 @@ fn test_error_cases() {
     assert!(result.is_err());
 }
 
-#[tokio::test]
-async fn test_async_error_cases() {
-    // Create a Temperature instance with auto_refresh disabled
-    let mut temp = Temperature::with_config(TemperatureConfig {
-        poll_interval_ms: 1000,
-        throttling_threshold: 80.0,
-        auto_refresh: false,
-    });
-
-    // Test error when sensor doesn't exist
-    let result = temp.cpu_temperature_async().await;
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("not available"));
-
-    let result = temp.gpu_temperature_async().await;
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("not available"));
-
-    let result = temp.heatsink_temperature_async().await;
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("not available"));
-
-    let result = temp.ambient_temperature_async().await;
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("not available"));
-
-    let result = temp.battery_temperature_async().await;
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("not available"));
-}
-
 #[test]
 fn test_fan_count_empty() {
-    // Create a mock IOKit implementation that returns an empty fan list
     let mock_iokit = MockIOKitClone::new()
         .with_thermal_info(|| {
             Ok(ThermalInfo {
                 cpu_temp: 45.0,
                 gpu_temp: 55.0,
-                heatsink_temp: None,
-                ambient_temp: None,
-                battery_temp: None,
+                heatsink_temp: 40.0,
+                ambient_temp: 30.0,
+                battery_temp: 35.0,
                 is_throttling: false,
-                cpu_power: None,
+                cpu_power: 25.0,
+                fan_speed: vec![],
             })
         })
         .with_fan_info(|| Ok(vec![]));
@@ -1036,17 +873,17 @@ fn test_fan_count_empty() {
 
 #[test]
 fn test_get_fans_empty() {
-    // Create a mock IOKit implementation that returns an empty fan list
     let mock_iokit = MockIOKitClone::new()
         .with_thermal_info(|| {
             Ok(ThermalInfo {
                 cpu_temp: 45.0,
                 gpu_temp: 55.0,
-                heatsink_temp: None,
-                ambient_temp: None,
-                battery_temp: None,
+                heatsink_temp: 40.0,
+                ambient_temp: 30.0,
+                battery_temp: 35.0,
                 is_throttling: false,
-                cpu_power: None,
+                cpu_power: 25.0,
+                fan_speed: vec![],
             })
         })
         .with_fan_info(|| Ok(vec![]));
@@ -1058,17 +895,17 @@ fn test_get_fans_empty() {
 
 #[test]
 fn test_get_thermal_info() {
-    // Create a mock IOKit implementation
     let mock_iokit = MockIOKitClone::new()
         .with_thermal_info(|| {
             Ok(ThermalInfo {
                 cpu_temp: 42.5,
                 gpu_temp: 55.0,
-                heatsink_temp: Some(45.0),
-                ambient_temp: Some(32.0),
-                battery_temp: Some(38.0),
+                heatsink_temp: 45.0,
+                ambient_temp: 32.0,
+                battery_temp: 38.0,
                 is_throttling: false,
-                cpu_power: Some(28.5),
+                cpu_power: 28.5,
+                fan_speed: vec![2000.0],
             })
         })
         .with_fan_info(|| {
@@ -1081,87 +918,8 @@ fn test_get_thermal_info() {
         });
 
     let mut temp = Temperature::with_iokit(mock_iokit, TemperatureConfig::default());
-
-    // Call the method
-    let result = temp.get_thermal_metrics().unwrap();
-
-    // Verify the result
-    assert_eq!(result.cpu_temperature, Some(42.5));
-    assert_eq!(result.gpu_temperature, Some(55.0));
-    assert_eq!(result.heatsink_temperature, Some(45.0));
-    assert_eq!(result.ambient_temperature, Some(32.0));
-    assert_eq!(result.battery_temperature, Some(38.0));
-    assert!(!result.is_throttling);
-    assert_eq!(result.cpu_power, Some(28.5));
-    assert_eq!(result.fans.len(), 1);
-    assert_eq!(result.fans[0].speed_rpm, 2000);
-}
-
-#[test]
-fn test_get_thermal_info_with_failures() {
-    // Create a mock IOKit implementation with only required fields
-    let mock_iokit = MockIOKitClone::new()
-        .with_thermal_info(|| {
-            Ok(ThermalInfo {
-                cpu_temp: 42.5,
-                gpu_temp: 55.0,
-                heatsink_temp: None,
-                ambient_temp: None,
-                battery_temp: None,
-                is_throttling: false,
-                cpu_power: None,
-            })
-        })
-        .with_fan_info(|| Ok(vec![]));
-
-    let mut temp = Temperature::with_iokit(mock_iokit, TemperatureConfig::default());
-
-    // Call the method
-    let result = temp.get_thermal_metrics().unwrap();
-
-    // Check that required fields were set
-    assert_eq!(result.cpu_temperature, Some(42.5));
-    assert_eq!(result.gpu_temperature, Some(55.0));
-
-    // Check that optional fields were set to None
-    assert_eq!(result.heatsink_temperature, None);
-    assert_eq!(result.ambient_temperature, None);
-    assert_eq!(result.battery_temperature, None);
-    assert_eq!(result.cpu_power, None);
-    assert!(!result.is_throttling);
-    assert!(result.fans.is_empty());
-}
-
-#[test]
-fn test_get_thermal_metrics() {
-    // Create a mock IOKit implementation
-    let mock_iokit = MockIOKitClone::new()
-        .with_thermal_info(|| {
-            Ok(ThermalInfo {
-                cpu_temp: 42.5,
-                gpu_temp: 55.0,
-                heatsink_temp: Some(45.0),
-                ambient_temp: Some(32.0),
-                battery_temp: Some(38.0),
-                is_throttling: false,
-                cpu_power: Some(28.5),
-            })
-        })
-        .with_fan_info(|| {
-            Ok(vec![FanInfo {
-                speed_rpm: 2000,
-                min_speed: 1000,
-                max_speed: 4000,
-                percentage: 33.3,
-            }])
-        });
-
-    let mut temp = Temperature::with_iokit(mock_iokit, TemperatureConfig::default());
-
-    // Get metrics
     let metrics = temp.get_thermal_metrics().unwrap();
 
-    // Verify metrics
     assert_eq!(metrics.cpu_temperature, Some(42.5));
     assert_eq!(metrics.gpu_temperature, Some(55.0));
     assert_eq!(metrics.heatsink_temperature, Some(45.0));
@@ -1171,7 +929,34 @@ fn test_get_thermal_metrics() {
     assert_eq!(metrics.cpu_power, Some(28.5));
     assert_eq!(metrics.fans.len(), 1);
     assert_eq!(metrics.fans[0].speed_rpm, 2000);
-    assert_eq!(metrics.fans[0].min_speed, 1000);
-    assert_eq!(metrics.fans[0].max_speed, 4000);
-    assert_eq!(metrics.fans[0].percentage, 33.3);
+}
+
+#[test]
+fn test_get_thermal_info_with_failures() {
+    let mock_iokit = MockIOKitClone::new()
+        .with_thermal_info(|| {
+            Ok(ThermalInfo {
+                cpu_temp: 42.5,
+                gpu_temp: 55.0,
+                heatsink_temp: 40.0,
+                ambient_temp: 30.0,
+                battery_temp: 35.0,
+                is_throttling: false,
+                cpu_power: 25.0,
+                fan_speed: vec![],
+            })
+        })
+        .with_fan_info(|| Ok(vec![]));
+
+    let mut temp = Temperature::with_iokit(mock_iokit, TemperatureConfig::default());
+    let metrics = temp.get_thermal_metrics().unwrap();
+
+    assert_eq!(metrics.cpu_temperature, Some(42.5));
+    assert_eq!(metrics.gpu_temperature, Some(55.0));
+    assert_eq!(metrics.heatsink_temperature, Some(40.0));
+    assert_eq!(metrics.ambient_temperature, Some(30.0));
+    assert_eq!(metrics.battery_temperature, Some(35.0));
+    assert!(!metrics.is_throttling);
+    assert_eq!(metrics.cpu_power, Some(25.0));
+    assert!(metrics.fans.is_empty());
 }

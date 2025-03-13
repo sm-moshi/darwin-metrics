@@ -1,11 +1,14 @@
-use objc2::{msg_send, rc::Retained};
-use objc2_foundation::NSString;
+use objc2::msg_send; // rc::Retained};
+// use objc2_foundation::NSString;
+use objc2::runtime::AnyObject;
+use std::{ffi::CString, ptr};
+use libc::sysctlbyname;
 
 use super::{CpuMetrics, FrequencyMetrics, FrequencyMonitor};
 #[cfg(test)]
 use crate::hardware::iokit::mock::MockIOKit;
 use crate::{
-    error::Result,
+    error::{Error, Result},
     hardware::iokit::{IOKit, IOKitImpl},
 };
 
@@ -35,6 +38,7 @@ pub struct CPU {
     core_usage: Vec<f64>,
     model_name: String,
     temperature: Option<f64>,
+    power: Option<f64>,
     iokit: Box<dyn IOKit>,
     frequency_monitor: FrequencyMonitor,
     frequency_metrics: Option<FrequencyMetrics>,
@@ -76,6 +80,7 @@ impl CPU {
             core_usage: Vec::new(),
             model_name: String::new(),
             temperature: None,
+            power: None,
             iokit: Box::new(IOKitImpl),
             frequency_monitor: FrequencyMonitor::new(),
             frequency_metrics: None,
@@ -97,39 +102,94 @@ impl CPU {
     ///
     /// Returns an error if any of the system calls or IOKit operations fail.
     pub fn update(&mut self) -> Result<()> {
-        let service = self.iokit.get_service("AppleACPICPU")?;
+        let service = self.iokit.get_service_matching("AppleACPICPU")?;
+        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        
+        // Create an AnyObject from the raw pointer
+        let obj = unsafe { 
+            let ptr = service_ref as *const _ as *mut AnyObject;
+            &*ptr
+        };
 
-        // TODO: Verify if AppleACPICPU service actually provides these methods If not, consider using sysctl or other
-        // methods for getting core counts Example: sysctlbyname("hw.physicalcpu") and sysctlbyname("hw.logicalcpu")
-        self.physical_cores = unsafe { msg_send![&*service, numberOfCores] };
-        self.logical_cores = unsafe { msg_send![&*service, numberOfProcessorCores] };
+        // Get core counts
+        self.physical_cores = unsafe { msg_send![obj, numberOfCores] };
+        self.logical_cores = unsafe { msg_send![obj, numberOfProcessorCores] };
 
-        // Use the FrequencyMonitor to get detailed frequency information We try to get metrics from FrequencyMonitor
-        // first, with a fallback to IOKit
-        match self.frequency_monitor.get_metrics() {
-            Ok(metrics) => {
-                self.frequency_mhz = metrics.current;
-                self.frequency_metrics = Some(metrics);
-            },
-            Err(_) => {
-                // Fallback to IOKit method
-                let frequency: f64 = unsafe { msg_send![&*service, currentProcessorClockSpeed] };
-                self.frequency_mhz = frequency / 1_000_000.0;
-                self.frequency_metrics = None;
-            },
-        }
+        // Get frequency information using a clear, prioritized approach
+        self.update_frequency_information()?;
 
+        // Update core usage information
         self.core_usage = self.fetch_core_usage()?;
 
-        // Get model name as NSString and convert to Rust String TODO: Verify name method, consider using
-        // sysctlbyname("machdep.cpu.brand_string")
-        let ns_name: Retained<NSString> = unsafe { msg_send![&*service, name] };
-        self.model_name = ns_name.to_string();
+        // Get model name using sysctlbyname for more reliability
+        self.model_name = self.get_cpu_model_name_sysctl()?;
 
-        // Temperature from IOKit
-        self.temperature = self.fetch_cpu_temperature();
+        // Get temperature information
+        self.temperature = self.iokit.get_cpu_temperature().ok();
+
+        // Get power information
+        self.power = self.iokit.get_cpu_power().ok();
 
         Ok(())
+    }
+
+    /// Updates CPU frequency information using the most reliable method available.
+    ///
+    /// This method attempts to get frequency information in the following order:
+    /// 1. From FrequencyMonitor (which uses sysctl calls)
+    /// 2. Falling back to IOKit if FrequencyMonitor fails
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Success or an error if all frequency retrieval methods fail
+    fn update_frequency_information(&mut self) -> Result<()> {
+        // First attempt: Use FrequencyMonitor to get detailed frequency metrics
+        match self.frequency_monitor.get_metrics() {
+            Ok(metrics) => {
+                // Successfully retrieved metrics from FrequencyMonitor
+                self.frequency_mhz = metrics.current;
+                self.frequency_metrics = Some(metrics);
+                return Ok(());
+            },
+            Err(primary_error) => {
+                // FrequencyMonitor failed, try fallback method with IOKit
+                match self.get_frequency_from_iokit() {
+                    Ok(frequency_mhz) => {
+                        // Fallback succeeded
+                        self.frequency_mhz = frequency_mhz;
+                        self.frequency_metrics = None;
+                        return Ok(());
+                    },
+                    Err(fallback_error) => {
+                        // Both methods failed, return the primary error
+                        return Err(Error::system(format!(
+                            "Failed to retrieve CPU frequency: primary method error: {}, fallback method error: {}", 
+                            primary_error, fallback_error
+                        )));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Retrieves CPU frequency using IOKit as a fallback method.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<f64>` - CPU frequency in MHz or an error
+    fn get_frequency_from_iokit(&self) -> Result<f64> {
+        let service = self.iokit.get_service_matching("AppleACPICPU")?;
+        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        
+        // Create an AnyObject from the raw pointer
+        let obj = unsafe { 
+            let ptr = service_ref as *const _ as *mut AnyObject;
+            &*ptr
+        };
+        let frequency: f64 = unsafe { msg_send![obj, currentProcessorClockSpeed] };
+        
+        // Convert to MHz if needed (IOKit might return in Hz)
+        Ok(if frequency > 1000.0 { frequency / 1000.0 } else { frequency })
     }
 
     /// Retrieves the current usage for each CPU core.
@@ -147,36 +207,58 @@ impl CPU {
     /// host_processor_info() from the Mach kernel API or sysctlbyname() may be more reliable and are planned for future
     /// updates.
     fn fetch_core_usage(&self) -> Result<Vec<f64>> {
-        // TODO: Verify if AppleACPICPU provides getCoreUsage method Alternative implementation options:
-        // 1. Use host_processor_info() from mach kernel API to get CPU load
-        // 2. Parse the output from the 'vm_stat' command
-        // 3. Use sysctlbyname with specific processor information keys
-        //
-        // Example implementation with host_processor_info would look like: unsafe { let mut cpu_load_info: *mut
-        // processor_cpu_load_info_t = std::ptr::null_mut();     let mut cpu_count: u32 = 0; let result =
-        //     host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO,                                      &mut
-        // cpu_count,                                      &mut cpu_load_info as *mut _ as *mut *mut libc::c_int, &mut
-        //     msg_type);     // Process results and calculate usage percentages }
-
+        // Get a single service instance to use for all cores
+        let service = self.iokit.get_service_matching("AppleACPICPU")?;
+        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        
+        // Create an AnyObject from the raw pointer
+        let obj = unsafe { 
+            let ptr = service_ref as *const _ as *mut AnyObject;
+            &*ptr
+        };
+        
+        // Pre-allocate the vector with the correct capacity
         let mut usages = Vec::with_capacity(self.logical_cores as usize);
+        
+        // Get usage for each core
         for i in 0..self.logical_cores {
-            let service = self.iokit.get_service("AppleACPICPU")?;
-            let usage: f64 = unsafe { msg_send![&*service, getCoreUsage: i] };
+            let usage: f64 = unsafe { msg_send![obj, getCoreUsage: i] };
             usages.push(usage);
         }
+        
         Ok(usages)
     }
 
-    /// Retrieves the current CPU temperature.
+    /// Retrieves the CPU model name using sysctlbyname.
     ///
-    /// This method attempts to read the CPU temperature from the system using the IOKit framework. Temperature readings
-    /// may not be available on all systems.
+    /// This method uses the macOS sysctlbyname API to get the CPU brand string,
+    /// which is more reliable than using IOKit for this purpose.
     ///
     /// # Returns
     ///
-    /// * `Option<f64>` - Temperature in degrees Celsius, or None if unavailable
-    fn fetch_cpu_temperature(&self) -> Option<f64> {
-        self.iokit.get_cpu_temperature().ok()
+    /// * `Result<String>` - The CPU model name or an error
+    fn get_cpu_model_name_sysctl(&self) -> Result<String> {
+        let mut buffer = [0u8; 128];
+        let mut size = buffer.len();
+        let name = CString::new("machdep.cpu.brand_string").unwrap();
+
+        let result = unsafe {
+            sysctlbyname(
+                name.as_ptr(),
+                buffer.as_mut_ptr() as *mut _,
+                &mut size,
+                ptr::null_mut(),
+                0,
+            )
+        };
+
+        if result != 0 {
+            return Err(Error::iokit_error(result, "Failed to get CPU model name"));
+        }
+
+        Ok(String::from_utf8_lossy(&buffer[..size])
+            .trim_matches(|c: char| c == '\0' || c.is_whitespace())
+            .to_string())
     }
 
     /// Returns the number of physical CPU cores.
@@ -248,6 +330,15 @@ impl CPU {
         self.temperature
     }
 
+    /// Returns the current CPU power in watts, if available.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<f64>` - Power in watts, or None if unavailable
+    pub fn power(&self) -> Option<f64> {
+        self.power
+    }
+
     /// Returns detailed CPU frequency metrics if available.
     ///
     /// This method provides access to the detailed frequency information including minimum, maximum, and available
@@ -286,12 +377,52 @@ impl CPU {
     pub fn available_frequencies(&self) -> Option<&[f64]> {
         self.frequency_metrics.as_ref().map(|m| m.available.as_slice())
     }
+
+    #[cfg(test)]
+    pub fn new_with_mock() -> Result<Self> {
+        let mock = MockIOKit::new().unwrap();
+        Ok(Self {
+            physical_cores: 8,
+            logical_cores: 16,
+            frequency_mhz: 3200.0,
+            core_usage: vec![0.3, 0.5, 0.2, 0.8, 0.1, 0.3, 0.4, 0.6],
+            model_name: String::from("Apple M1 Pro"),
+            temperature: Some(45.5),
+            power: Some(20.0),
+            iokit: Box::new(mock),
+            frequency_monitor: FrequencyMonitor::new(),
+            frequency_metrics: Some(FrequencyMetrics {
+                current: 3200.0,
+                min: 1200.0,
+                max: 3600.0,
+                available: vec![1200.0, 1800.0, 2400.0, 3000.0, 3600.0],
+            }),
+        })
+    }
+
+    #[cfg(test)]
+    pub fn new_with_iokit(iokit: Box<dyn IOKit>) -> Result<Self> {
+        let mut cpu = Self {
+            physical_cores: 0,
+            logical_cores: 0,
+            frequency_mhz: 0.0,
+            core_usage: Vec::new(),
+            model_name: String::new(),
+            temperature: None,
+            power: None,
+            iokit,
+            frequency_monitor: FrequencyMonitor::new(),
+            frequency_metrics: None,
+        };
+        cpu.update()?;
+        Ok(cpu)
+    }
 }
 
 /// Implementation of the CpuMetrics trait for the CPU struct.
 ///
 /// This implementation provides a standardized interface for accessing key CPU metrics, allowing consumers to interact
-/// with the CPU information through the trait without needing to know the details of the underlying implementation.
+/// with the CPU struct through a consistent API regardless of the underlying implementation details.
 impl CpuMetrics for CPU {
     /// Returns the average CPU usage across all cores.
     ///
@@ -302,7 +433,15 @@ impl CpuMetrics for CPU {
     ///
     /// * `f64` - Average CPU usage (0.0 to 1.0)
     fn get_cpu_usage(&self) -> f64 {
-        self.core_usage.iter().sum::<f64>() / self.logical_cores as f64
+        // Sum all core usages
+        let total_usage: f64 = self.core_usage.iter().sum();
+        
+        // Calculate average, ensuring we don't divide by zero
+        if self.logical_cores > 0 {
+            total_usage / self.logical_cores as f64
+        } else {
+            0.0
+        }
     }
 
     /// Returns the current CPU temperature in degrees Celsius, if available.
@@ -321,40 +460,5 @@ impl CpuMetrics for CPU {
     /// * `f64` - Current CPU frequency in MHz
     fn get_cpu_frequency(&self) -> f64 {
         self.frequency_mhz
-    }
-}
-
-#[cfg(test)]
-// Create a CPU instance for testing with mock data
-impl CPU {
-    pub fn new_with_mock() -> Result<Self> {
-        let mut mock = MockIOKit::new();
-
-        // Setup mock behavior
-        mock.expect_get_cpu_temperature().returning(|| Ok(45.5));
-
-        mock.expect_get_service().returning(|_| {
-            use crate::utils::test_utils;
-            Ok(test_utils::create_test_object().into())
-        });
-
-        let cpu = Self {
-            physical_cores: 8,
-            logical_cores: 16,
-            frequency_mhz: 3200.0,
-            core_usage: vec![0.3, 0.5, 0.2, 0.8, 0.1, 0.3, 0.4, 0.6],
-            model_name: "Apple M1 Pro".to_string(),
-            temperature: Some(45.5),
-            iokit: Box::new(mock),
-            frequency_monitor: FrequencyMonitor::new(),
-            frequency_metrics: Some(FrequencyMetrics {
-                current: 3200.0,
-                min: 1200.0,
-                max: 3600.0,
-                available: vec![1200.0, 1800.0, 2400.0, 3000.0, 3600.0],
-            }),
-        };
-
-        Ok(cpu)
     }
 }
