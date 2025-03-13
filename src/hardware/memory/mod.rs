@@ -22,7 +22,7 @@
 //!     let memory = Memory::new()?;
 //!     
 //!     println!("Total Memory: {} bytes", memory.total);
-//!     println!("Available Memory: {} bytes", memory.available);
+//!     println!("Available Memory: {} bytes", memory.free);
 //!     println!("Used Memory: {} bytes", memory.used);
 //!     println!("Memory Usage: {:.1}%", memory.usage_percentage());
 //!     println!("Memory Pressure: {:.1}%", memory.pressure_percentage());
@@ -146,26 +146,36 @@ impl Default for SwapUsage {
 pub type PressureCallback = Box<dyn Fn(PressureLevel) + Send + Sync>;
 
 /// Memory metrics and monitoring implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Memory {
-    total: u64,
-    available: u64,
-    pressure: f64,
-    swap_total: u64,
-    swap_used: u64,
-    page_size: u64,
+    pub page_states: PageStates,
+    pub swap_usage: SwapUsage,
+    pub total: u64,
+    pub free: u64,
+    pub used: u64,
+    pub active: u64,
+    pub inactive: u64,
+    pub wired: u64,
+    pub compressed: u64,
+    pub pressure: f64,
+    pub page_size: u64,
 }
 
 impl Memory {
     /// Creates a new Memory instance with current system information
     pub fn new() -> Result<Self> {
         let mut memory = Self {
+            page_states: PageStates::default(),
+            swap_usage: SwapUsage::default(),
             total: 0,
-            available: 0,
+            free: 0,
+            used: 0,
+            active: 0,
+            inactive: 0,
+            wired: 0,
+            compressed: 0,
             pressure: 0.0,
-            swap_total: 0,
-            swap_used: 0,
-            page_size: Self::get_page_size()?,
+            page_size: 0,
         };
         memory.update()?;
         Ok(memory)
@@ -174,23 +184,31 @@ impl Memory {
     /// Creates a Memory instance with provided values for testing
     pub fn with_values(
         total: u64,
-        available: u64,
+        free: u64,
         swap_total: u64,
         swap_used: u64,
         page_size: u64,
     ) -> Self {
-        let pressure = if total > 0 {
-            1.0 - (available as f64 / total as f64)
-        } else {
-            0.0
-        };
-        
-        Self {
+        let pressure = if total > 0 { 1.0 - (free as f64 / total as f64) } else { 0.0 };
+
+        Self { 
+            page_states: PageStates::default(),
+            swap_usage: SwapUsage {
+                total: swap_total,
+                used: swap_used,
+                free: 0,
+                ins: 0.0,
+                outs: 0.0,
+                pressure: pressure,
+            },
             total,
-            available,
-            pressure,
-            swap_total,
-            swap_used,
+            free,
+            used: total - free,
+            active: 0,
+            inactive: 0,
+            wired: 0,
+            compressed: 0,
+            pressure: pressure,
             page_size,
         }
     }
@@ -199,21 +217,22 @@ impl Memory {
     pub fn update(&mut self) -> Result<()> {
         self.total = Self::get_total_memory()?;
         let vm_stats = Self::get_vm_statistics()?;
-        
+
         // Calculate available memory from VM stats
-        self.available = vm_stats.free_count as u64 * self.page_size;
-        
+        self.free = vm_stats.free_count as u64 * Self::get_page_size()? as u64;
+
         // Calculate memory pressure
-        self.pressure = if self.total > 0 {
-            1.0 - (self.available as f64 / self.total as f64)
-        } else {
-            0.0
-        };
+        self.used = self.total - self.free;
 
         // Update swap usage
         let swap = Self::get_swap_usage()?;
-        self.swap_total = swap.total;
-        self.swap_used = swap.used;
+        self.swap_usage = swap;
+
+        // Update page states
+        self.active = vm_stats.active_count as u64;
+        self.inactive = vm_stats.inactive_count as u64;
+        self.wired = vm_stats.wire_count as u64;
+        self.compressed = vm_stats.compressor_page_count as u64;
 
         Ok(())
     }
@@ -221,35 +240,53 @@ impl Memory {
     /// Returns current memory pressure as a percentage
     #[inline]
     pub fn pressure_percentage(&self) -> f64 {
-        self.pressure * 100.0
+        if self.total > 0 { 
+            (1.0 - (self.free as f64 / self.total as f64)) * 100.0 
+        } else { 
+            0.0 
+        }
     }
 
     /// Gets the memory usage as a percentage (0-100)
     #[inline]
     pub fn usage_percentage(&self) -> f64 {
-        if self.swap_total == 0 {
-            0.0
+        if self.total > 0 {
+            (1.0 - (self.free as f64 / self.total as f64)) * 100.0
         } else {
-            (self.swap_used as f64 / self.swap_total as f64 * 100.0).clamp(0.0, 100.0)
+            0.0
         }
     }
 
     /// Gets the current memory pressure level based on thresholds
     #[inline]
     pub fn pressure_level(&self) -> PressureLevel {
-        match self.pressure {
-            p if p >= 0.85 => PressureLevel::Critical,
-            p if p >= 0.65 => PressureLevel::Warning,
+        match self.pressure_percentage() {
+            p if p >= 85.0 => PressureLevel::Critical,
+            p if p >= 65.0 => PressureLevel::Warning,
             _ => PressureLevel::Normal,
+        }
+    }
+
+    /// Gets the free memory as a percentage (0-100)
+    #[inline]
+    pub fn free_percentage(&self) -> f64 {
+        if self.total > 0 {
+            (self.free as f64 / self.total as f64) * 100.0
+        } else {
+            0.0
         }
     }
 
     /// Sets the memory pressure warning and critical thresholds
     pub fn set_pressure_thresholds(&mut self, warning: f64, critical: f64) -> Result<()> {
-        if warning < 0.0 || warning > 1.0 || critical < 0.0 || critical > 1.0 || warning >= critical {
+        if warning < 0.0 || warning > 100.0 || critical < 0.0 || critical > 100.0 || warning >= critical
+        {
             return Err(Error::io_error(
                 "Invalid threshold values",
-                std::io::Error::new(std::io::ErrorKind::InvalidInput, "thresholds must be between 0 and 1"),
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "thresholds must be between 0 and 100",
+                ),
             ));
         }
         // Thresholds are not used in the new implementation
@@ -276,46 +313,45 @@ impl Memory {
 
         let mib = [CTL_HW, HW_MEMSIZE];
 
-        let result = unsafe {
-            sysctl(
+        unsafe {
+            let result = sysctl(
                 mib.as_ptr(),
                 mib.len() as u32,
                 &mut size as *mut u64 as *mut _,
                 &mut size_len,
                 std::ptr::null(),
                 0,
-            )
-        };
-
-        if result == 0 {
-            Ok(size)
-        } else {
-            Err(Error::system(format!("Failed to get total memory: {}", result)))
+            );
+            if result == 0 {
+                Ok(size)
+            } else {
+                Err(Error::system(format!("Failed to get total memory: {}", result)))
+            }
         }
     }
 
     fn get_page_size() -> Result<u64> {
-        Ok(unsafe { vm_kernel_page_size as u64 })
+        unsafe {
+            Ok(vm_kernel_page_size as u64)
+        }
     }
 
     fn get_vm_statistics() -> Result<vm_statistics64> {
         let mut info = vm_statistics64::default();
         let mut count = HOST_VM_INFO64_COUNT;
 
-        let kern_result = unsafe {
-            host_statistics64(
+        unsafe {
+            let kern_result = host_statistics64(
                 mach_host_self(),
                 HOST_VM_INFO64,
                 (&mut info as *mut vm_statistics64) as HostInfoT,
                 &mut count,
-            )
-        };
-
-        if kern_result != KERN_SUCCESS {
-            return Err(Error::system(format!("Failed to get VM statistics: {}", kern_result)));
+            );
+            if kern_result != KERN_SUCCESS {
+                return Err(Error::system(format!("Failed to get VM statistics: {}", kern_result)));
+            }
+            Ok(info)
         }
-
-        Ok(info)
     }
 
     fn get_swap_usage() -> Result<SwapUsage> {
@@ -324,37 +360,35 @@ impl Memory {
 
         let mib = [CTL_VM, VM_SWAPUSAGE];
 
-        let result = unsafe {
-            sysctl(
+        unsafe {
+            let result = sysctl(
                 mib.as_ptr(),
                 mib.len() as u32,
                 &mut xsw_usage as *mut xsw_usage as *mut _,
                 &mut size,
                 std::ptr::null(),
                 0,
-            )
-        };
-
-        // If we get an error, return a default SwapUsage instead of failing This is more resilient in test environments
-        // or systems without swap
-        if result != 0 {
-            // Log the error but don't fail - this is often expected in test environments
-            eprintln!("Warning: Failed to get swap usage, using defaults (error: {})", result);
-            return Ok(SwapUsage::default());
+            );
+            // If we get an error, return a default SwapUsage instead of failing This is more resilient in test environments
+            // or systems without swap
+            if result != 0 {
+                // Log the error but don't fail - this is often expected in test environments
+                eprintln!("Warning: Failed to get swap usage, using defaults (error: {})", result);
+                return Ok(SwapUsage::default());
+            }
+            Ok(SwapUsage {
+                total: xsw_usage.xsu_total,
+                used: xsw_usage.xsu_used,
+                free: xsw_usage.xsu_avail,
+                ins: 0.0,
+                outs: 0.0,
+                pressure: if xsw_usage.xsu_total > 0 {
+                    xsw_usage.xsu_used as f64 / xsw_usage.xsu_total as f64
+                } else {
+                    0.0
+                },
+            })
         }
-
-        Ok(SwapUsage {
-            total: xsw_usage.xsu_total,
-            used: xsw_usage.xsu_used,
-            free: xsw_usage.xsu_avail,
-            ins: 0.0,
-            outs: 0.0,
-            pressure: if xsw_usage.xsu_total > 0 {
-                xsw_usage.xsu_used as f64 / xsw_usage.xsu_total as f64
-            } else {
-                0.0
-            },
-        })
     }
 }
 
@@ -366,9 +400,7 @@ pub struct MemoryMonitorHandle {
 impl MemoryMonitorHandle {
     /// Creates a new MemoryMonitorHandle
     pub fn new() -> Self {
-        Self {
-            active: Arc::new(AtomicBool::new(true)),
-        }
+        Self { active: Arc::new(AtomicBool::new(true)) }
     }
 
     /// Stops the memory monitoring
@@ -389,4 +421,30 @@ impl Drop for MemoryMonitorHandle {
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_total_memory() {
+        let total_memory = Memory::get_total_memory().unwrap();
+        assert!(total_memory > 0);
+    }
+
+    #[test]
+    fn test_get_page_size() {
+        let page_size = Memory::get_page_size().unwrap();
+        assert!(page_size > 0);
+    }
+
+    #[test]
+    fn test_get_vm_statistics() {
+        let vm_stats = Memory::get_vm_statistics().unwrap();
+        assert!(vm_stats.active_count > 0);
+    }
+
+    #[test]
+    fn test_get_swap_usage() {
+        let swap_usage = Memory::get_swap_usage().unwrap();
+        assert!(swap_usage.total >= 0);
+    }
+}

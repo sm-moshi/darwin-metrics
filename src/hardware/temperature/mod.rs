@@ -4,7 +4,6 @@ use std::{
 };
 
 use crate::{
-    error::Result,
     hardware::iokit::{IOKit, IOKitImpl},
     utils::dictionary_access::DictionaryAccess,
 };
@@ -133,7 +132,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Refresh all temperature and fan readings
-    pub fn refresh(&mut self) -> Result<()> {
+    pub fn refresh(&mut self) -> Result<(), crate::error::Error> {
         #[cfg(feature = "skip-ffi-crashes")]
         {
             // For coverage runs, use consistent mock data to match our tests These values should match those used in
@@ -172,8 +171,10 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             let thermal_info = self.io_kit.get_thermal_info()?;
 
             // Update sensors with basic temperature readings
-            self.sensors.insert("CPU".to_string(), thermal_info.get_number("cpu_temp").unwrap_or(0.0));
-            self.sensors.insert("GPU".to_string(), thermal_info.get_number("gpu_temp").unwrap_or(0.0));
+            self.sensors
+                .insert("CPU".to_string(), thermal_info.get_number("cpu_temp").unwrap_or(0.0));
+            self.sensors
+                .insert("GPU".to_string(), thermal_info.get_number("gpu_temp").unwrap_or(0.0));
 
             // Add optional sensors if available
             if let Some(temp) = thermal_info.get_number("heatsink_temp") {
@@ -220,7 +221,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get CPU temperature
-    pub fn cpu_temperature(&mut self) -> Result<f64> {
+    pub fn cpu_temperature(&mut self) -> Result<f64, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -231,7 +232,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get GPU temperature (if available)
-    pub fn gpu_temperature(&mut self) -> Result<f64> {
+    pub fn gpu_temperature(&mut self) -> Result<f64, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -242,7 +243,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get heatsink temperature (if available)
-    pub fn heatsink_temperature(&mut self) -> Result<f64> {
+    pub fn heatsink_temperature(&mut self) -> Result<f64, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -253,7 +254,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get ambient temperature (if available)
-    pub fn ambient_temperature(&mut self) -> Result<f64> {
+    pub fn ambient_temperature(&mut self) -> Result<f64, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -264,7 +265,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get battery temperature (if available)
-    pub fn battery_temperature(&mut self) -> Result<f64> {
+    pub fn battery_temperature(&mut self) -> Result<f64, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -275,7 +276,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get a list of all available temperature sensors
-    pub fn list_sensors(&mut self) -> Result<Vec<(String, SensorLocation)>> {
+    pub fn list_sensors(&mut self) -> Result<Vec<(String, SensorLocation)>, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -300,7 +301,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get temperature for a specific sensor by name
-    pub fn get_sensor_temperature(&mut self, name: &str) -> Result<f64> {
+    pub fn get_sensor_temperature(&mut self, name: &str) -> Result<f64, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -311,7 +312,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get the number of fans in the system
-    pub fn fan_count(&mut self) -> Result<usize> {
+    pub fn fan_count(&mut self) -> Result<usize, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -320,7 +321,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get all fans in the system
-    pub fn get_fans(&mut self) -> Result<&Vec<Fan>> {
+    pub fn get_fans(&mut self) -> Result<&Vec<Fan>, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -329,7 +330,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get a specific fan by index
-    pub fn get_fan(&mut self, index: usize) -> Result<&Fan> {
+    pub fn get_fan(&mut self, index: usize) -> Result<&Fan, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -340,7 +341,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get the CPU power consumption in watts (if available)
-    pub fn cpu_power(&mut self) -> Result<f64> {
+    pub fn cpu_power(&mut self) -> Result<f64, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -351,7 +352,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Determine if the system is experiencing thermal throttling
-    pub fn is_throttling(&mut self) -> Result<bool> {
+    pub fn is_throttling(&mut self) -> Result<bool, crate::error::Error> {
         if self.config.auto_refresh && self.should_refresh() {
             self.refresh()?;
         }
@@ -367,7 +368,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
     }
 
     /// Get all thermal metrics in a single call
-    pub fn get_thermal_metrics(&mut self) -> Result<ThermalMetrics> {
+    pub fn get_thermal_metrics(&mut self) -> Result<ThermalMetrics, crate::error::Error> {
         // Always refresh for this comprehensive call
         self.refresh()?;
 

@@ -6,14 +6,14 @@ use std::{
 
 use libproc::{pid_rusage, proc_pid, task_info};
 
-use std::ffi::c_void;
 use libc::{proc_pidinfo, PROC_PIDTASKINFO};
 use libproc::pid_rusage::RUsageInfoV4;
+use std::ffi::c_void;
 
 use crate::{
     error::{Error, Result},
     utils::bindings::{
-        extract_proc_name, is_system_process, kinfo_proc, sysctl, proc_info,
+        extract_proc_name, is_system_process, kinfo_proc, proc_info, sysctl,
         sysctl_constants::{CTL_KERN, KERN_PROC, KERN_PROC_ALL},
     },
 };
@@ -414,7 +414,10 @@ impl Process {
         use pid_rusage::RUsageInfoV4;
 
         let rusage = pid_rusage::pidrusage::<RUsageInfoV4>(pid as i32).map_err(|e| {
-            crate::Error::process_error(Some(pid), format!("Failed to get process I/O stats: {}", e))
+            crate::Error::process_error(
+                Some(pid),
+                format!("Failed to get process I/O stats: {}", e),
+            )
         })?;
 
         Ok(ProcessIOStats {
@@ -452,7 +455,10 @@ impl Process {
 
         if result <= 0 {
             let error_message = Self::get_error_message(result);
-            return Err(Error::process_error(Some(pid as u32), error_message.unwrap_or_else(|| "Failed to get process info".to_string())));
+            return Err(Error::process_error(
+                Some(pid as u32),
+                error_message.unwrap_or_else(|| "Failed to get process info".to_string()),
+            ));
         }
 
         Ok(info)
@@ -474,11 +480,7 @@ impl ProcessMetricsStream {
     /// * `pid` - The process ID to monitor
     /// * `interval` - The minimum duration between updates
     pub fn new(pid: u32, interval: Duration) -> Self {
-        Self {
-            pid,
-            update_interval: interval,
-            last_update: Instant::now(),
-        }
+        Self { pid, update_interval: interval, last_update: Instant::now() }
     }
 
     /// Checks if enough time has elapsed and returns new process metrics if available

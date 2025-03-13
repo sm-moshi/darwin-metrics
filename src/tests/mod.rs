@@ -2,8 +2,9 @@
 mod tests {
     use super::*;
     use crate::error::Error;
-    use crate::hardware::IOKit;
     use crate::hardware::iokit::mock::MockIOKit;
+    use crate::hardware::IOKit;
+    use crate::utils::dictionary_access::DictionaryAccess;
     use std::io::{Error as IoError, ErrorKind};
 
     #[test]
@@ -73,7 +74,7 @@ mod tests {
     #[test]
     fn test_mock_iokit() {
         let mock = MockIOKit::new();
-        
+
         // Test thermal info
         let thermal_info = mock.get_thermal_info().unwrap();
         assert!(thermal_info.get_number("cpu_temp").is_none());
@@ -97,4 +98,4 @@ mod tests {
         let gpu_stats = mock.get_gpu_stats().unwrap();
         assert!(gpu_stats.get_number("utilization").is_none());
     }
-} 
+}

@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Print column headers
     println!(
         "\n{:<10} | {:<12} | {:<12} | {:<12} | {:<7} | {:<12}",
-        "Total", "Used", "Available", "Wired", "Usage", "Pressure"
+        "Total", "Used", "Free", "Wired", "Usage", "Pressure"
     );
     println!("{:-<10} | {:-<12} | {:-<12} | {:-<12} | {:-<7} | {:-<12}", "", "", "", "", "", "");
 
@@ -36,14 +36,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Format all values in human-readable form
         let total_gb = memory.total as f64 / 1_073_741_824.0;
         let used_gb = memory.used as f64 / 1_073_741_824.0;
-        let available_gb = memory.available as f64 / 1_073_741_824.0;
-        let wired_gb = memory.wired as f64 / 1_073_741_824.0;
+        let free_gb = memory.free as f64 / 1_073_741_824.0;
+        let wired_gb = memory.page_states.wired as f64 / 1_073_741_824.0;
         let usage_pct = memory.usage_percentage();
         let pressure_pct = memory.pressure_percentage();
 
         println!(
             "{:<10.2} | {:<12.2} | {:<12.2} | {:<12.2} | {:<7.1}% | {:<12.1}%",
-            total_gb, used_gb, available_gb, wired_gb, usage_pct, pressure_pct
+            total_gb, used_gb, free_gb, wired_gb, usage_pct, pressure_pct
         );
 
         // Wait 2 seconds before the next update

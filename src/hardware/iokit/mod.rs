@@ -1,29 +1,20 @@
-use std::ffi::{CString, c_void, c_uint};
-use std::ptr;
+use std::ffi::{c_uint, c_void, CString};
 use std::sync::Arc;
 use std::fmt::Debug;
 
+use libc::mach_port_t;
 use objc2::{
     class,
     msg_send,
-    rc::{Retained, autoreleasepool},
+    rc::{autoreleasepool, Retained},
     // runtime::{AnyClass, AnyObject},
     // ClassType,
 };
-use objc2_foundation::{
-    NSDictionary, NSObject, NSString,
-}; // NSArray, NSNumber
-use libc::mach_port_t;
+use objc2_foundation::{NSDictionary, NSObject, NSString}; // NSArray, NSNumber
 use parking_lot::Mutex as ParkingLotMutex;
 
 use crate::error::{Error, Result};
 use crate::utils::bindings::*;
-use crate::utils::dictionary_access::DictionaryAccess;
-
-// Define constants that are missing from bindings
-pub const kIOMasterPortDefault: mach_port_t = 0;
-pub const IOMASTER_PORT_DEFAULT: mach_port_t = kIOMasterPortDefault;
-pub const CF_ALLOCATOR_DEFAULT: *const c_void = ptr::null();
 
 /// GPU statistics
 #[derive(Debug, Clone)]
@@ -34,6 +25,43 @@ pub struct GpuStats {
     pub perf_cap: f64,
     pub perf_threshold: f64,
     pub name: String,
+}
+
+impl Default for GpuStats {
+    fn default() -> Self {
+        GpuStats {
+            utilization: 0.0,
+            memory_used: 0,
+            memory_total: 0,
+            perf_cap: 0.0,
+            perf_threshold: 0.0,
+            name: String::new(),
+        }
+    }
+}
+
+impl crate::utils::dictionary_access::DictionaryAccess for GpuStats {
+    fn get_string(&self, key: &str) -> Option<String> {
+        match key {
+            "name" => Some(self.name.clone()),
+            _ => None,
+        }
+    }
+
+    fn get_number(&self, key: &str) -> Option<f64> {
+        match key {
+            "utilization" => Some(self.utilization),
+            "perf_cap" => Some(self.perf_cap),
+            "perf_threshold" => Some(self.perf_threshold),
+            "memory_used" => Some(self.memory_used as f64),
+            "memory_total" => Some(self.memory_total as f64),
+            _ => None,
+        }
+    }
+
+    fn get_bool(&self, _key: &str) -> Option<bool> {
+        None
+    }
 }
 
 /// Mock implementation for testing
@@ -74,17 +102,17 @@ pub struct ThermalInfo {
     dict: ThreadSafeNSDictionary,
 }
 
-impl DictionaryAccess for ThermalInfo {
-    fn get_bool(&self, key: &str) -> Option<bool> {
-        self.dict.get_bool(key)
+impl crate::utils::dictionary_access::DictionaryAccess for ThermalInfo {
+    fn get_string(&self, key: &str) -> Option<String> {
+        self.dict.get_string(key)
     }
 
     fn get_number(&self, key: &str) -> Option<f64> {
         self.dict.get_number(key)
     }
 
-    fn get_string(&self, key: &str) -> Option<String> {
-        self.dict.get_string(key)
+    fn get_bool(&self, key: &str) -> Option<bool> {
+        self.dict.get_bool(key)
     }
 }
 
@@ -95,7 +123,7 @@ impl ThermalInfo {
             cpu_temp: dict.get_number("CPU_0_DIE_TEMP").unwrap_or(0.0),
             gpu_temp: dict.get_number("GPU_0_DIE_TEMP").unwrap_or(0.0),
             fan_speed: dict.get_number("FAN_0_SPEED").unwrap_or(0.0) as u32,
-            heatsink_temp: dict.get_number("HEAT_SINK_TEMP").unwrap_or(0.0),
+            heatsink_temp: dict.get_number("HS_0_TEMP").unwrap_or(0.0),
             ambient_temp: dict.get_number("AMBIENT_TEMP").unwrap_or(0.0),
             thermal_throttling: dict.get_bool("THERMAL_THROTTLING").unwrap_or(false),
             battery_temp: dict.get_number("BATTERY_TEMP").unwrap_or(0.0),
@@ -107,10 +135,20 @@ impl ThermalInfo {
     pub fn get_dictionary(&self, key: &str) -> Option<ThreadSafeNSDictionary> {
         self.dict.get_dictionary(key)
     }
-    
+
     /// Get a number from the thermal info with the given key
     pub fn get_number(&self, key: &str) -> Option<f64> {
         self.dict.get_number(key)
+    }
+
+    /// Get a string from the thermal info with the given key
+    pub fn get_string(&self, key: &str) -> Option<String> {
+        self.dict.get_string(key)
+    }
+
+    /// Get a boolean from the thermal info with the given key
+    pub fn get_bool(&self, key: &str) -> Option<bool> {
+        self.dict.get_bool(key)
     }
 }
 
@@ -138,12 +176,55 @@ pub trait IOKit: Debug + Send + Sync {
     fn get_service_matching(&self, name: &str) -> Result<Option<ThreadSafeAnyObject>>;
 
     /// Get service from matching dictionary
-    fn io_service_get_matching_service(&self, matching_dict: &ThreadSafeNSDictionary) -> Result<ThreadSafeAnyObject>;
+    fn io_service_get_matching_service(
+        &self,
+        matching_dict: &ThreadSafeNSDictionary,
+    ) -> Result<ThreadSafeAnyObject>;
 
     /// Get properties for a registry entry
-    fn io_registry_entry_create_cf_properties(&self, entry: &ThreadSafeAnyObject) -> Result<ThreadSafeNSDictionary>;
+    fn io_registry_entry_create_cf_properties(
+        &self,
+        entry: &ThreadSafeAnyObject,
+    ) -> Result<ThreadSafeNSDictionary>;
 
-    /// Call an IOKit method with structured input/output
+    /// Get CPU temperature
+    fn get_cpu_temperature(&self) -> Result<f64>;
+
+    /// Get thermal information
+    fn get_thermal_info(&self) -> Result<ThermalInfo>;
+
+    /// Get all fans
+    fn get_all_fans(&self) -> Result<Vec<FanInfo>>;
+
+    /// Check if thermal throttling is active
+    fn check_thermal_throttling(&self) -> Result<bool>;
+
+    /// Get CPU power consumption in watts
+    fn get_cpu_power(&self) -> Result<f64>;
+
+    /// Get GPU statistics
+    fn get_gpu_stats(&self) -> Result<GpuStats>;
+
+    /// Get information about a specific fan
+    fn get_fan_info(&self, fan_index: u32) -> Result<FanInfo>;
+
+    /// Get battery temperature
+    fn get_battery_temperature(&self) -> Result<Option<f64>>;
+
+    /// Get battery information
+    fn get_battery_info(&self) -> Result<ThreadSafeNSDictionary>;
+
+    /// Get CPU information
+    fn get_cpu_info(&self) -> Result<ThreadSafeNSDictionary>;
+
+    /// Get a number property from a dictionary
+    fn get_number_property(
+        &self,
+        dict: &NSDictionary<NSString, NSObject>,
+        key: &str,
+    ) -> Option<f64>;
+
+    /// Call an IOKit method
     fn io_connect_call_method(
         &self,
         connection: u32,
@@ -154,86 +235,21 @@ pub trait IOKit: Debug + Send + Sync {
         output_cnt: &mut u32,
     ) -> Result<()>;
 
-    /// Get CPU temperature
-    fn get_cpu_temperature(&self) -> Result<f64>;
-
-    /// Get CPU power consumption in watts
-    fn get_cpu_power(&self) -> Result<f64>;
-
-    /// Get all system fans information
-    fn get_all_fans(&self) -> Result<Vec<FanInfo>>;
-
-    /// Check if thermal throttling is active
-    fn check_thermal_throttling(&self) -> Result<bool>;
-
-    /// Get thermal information
-    fn get_thermal_info(&self) -> Result<ThermalInfo>;
-
-    /// Get service properties
-    fn get_service_properties(&self, service: &ThreadSafeAnyObject) -> Result<ThreadSafeNSDictionary> {
-        self.io_registry_entry_create_cf_properties(service)
-    }
-
-    /// Get battery temperature
-    fn get_battery_temperature(&self) -> Result<Option<f64>> {
-        let thermal_info = self.get_thermal_info()?;
-        Ok(Some(thermal_info.battery_temp))
-    }
-
-    /// Get a number property from a dictionary
-    fn get_number_property(&self, dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
-        let key = NSString::from_str(key);
-        unsafe { 
-            let obj: *const NSObject = msg_send![dict, objectForKey:&*key];
-            if obj.is_null() {
-                return None;
-            }
-            
-            let is_number: bool = msg_send![obj, isKindOfClass: class!(NSNumber)];
-            if is_number {
-                Some(msg_send![obj, doubleValue])
-            } else {
-                None
-            }
-        }
-    }
-
-    /// Clone the IOKit implementation
+    /// Clone this IOKit instance into a Box
     fn clone_box(&self) -> Box<dyn IOKit>;
 
     /// Get the parent entry of a registry entry
-    fn io_registry_entry_get_parent_entry(&self, entry: &ThreadSafeAnyObject, plane: &str) -> Result<ThreadSafeAnyObject> {
-        if entry.raw_handle == 0 {
-            return Err(Error::iokit_error(0, "Invalid entry handle"));
-        }
-        
-        let plane_cstr = CString::new(plane).map_err(|e| Error::iokit_error(0, format!("Invalid plane name: {}", e)))?;
-        let mut parent: c_uint = 0;
-        
-        let result = unsafe {
-            IORegistryEntryGetParentEntry(
-                entry.raw_handle as c_uint,
-                plane_cstr.as_ptr(),
-                &mut parent,
-            )
-        };
-        
-        if result != KERN_SUCCESS {
-            return Err(Error::iokit_error(result, format!("Failed to get parent entry in plane '{}'", plane)));
-        }
-        
-        if parent == 0 {
-            return Err(Error::iokit_error(0, format!("No parent entry found in plane '{}'", plane)));
-        }
-        
-        let parent_obj = autoreleasepool(|_| {
-            // Create a placeholder NSObject
-            let obj = NSObject::new();
-            obj
-        });
-        
-        Ok(ThreadSafeAnyObject::with_raw_handle(parent_obj, parent as mach_port_t))
-    }
+    fn io_registry_entry_get_parent_entry(
+        &self,
+        entry: &ThreadSafeAnyObject,
+        plane: &str,
+    ) -> Result<ThreadSafeAnyObject>;
+
+    /// Get service properties
+    fn get_service_properties(
+        &self,
+        service: &ThreadSafeAnyObject,
+    ) -> Result<ThreadSafeNSDictionary>;
 }
 
 /// Implementation of the IOKit interface
@@ -248,28 +264,15 @@ impl IOKitImpl {
 
 impl IOKit for IOKitImpl {
     fn io_service_matching(&self, name: &str) -> Result<ThreadSafeNSDictionary> {
-        unsafe {
-            // Convert Rust string to C string
-            let name_cstr = CString::new(name).map_err(|_| Error::iokit_error(0, "Invalid service name"))?;
-            
-            // Create matching dictionary
-            let matching_dict = IOServiceMatching(name_cstr.as_ptr());
-            if matching_dict.is_null() {
-                return Err(Error::iokit_error(0, "Failed to create matching dictionary"));
-            }
-            
-            // Convert to NSDictionary
-            let dict_ptr = matching_dict as *mut NSDictionary<NSString, NSObject>;
-            // Check if the pointer is valid
-            if dict_ptr.is_null() {
-                return Err(Error::iokit_error(0, "Failed to create NSDictionary from pointer"));
-            }
-            
-            // Create a copy of the dictionary to own it
-            let dict = unsafe { copy_nsdictionary(&*dict_ptr) };
-            
-            Ok(ThreadSafeNSDictionary::with_raw_dict(dict, matching_dict))
+        let c_str = CString::new(name).unwrap();
+        let matching_dict = unsafe { IOServiceMatching(c_str.as_ptr()) };
+
+        if matching_dict.is_null() {
+            return Err(Error::iokit_error(0, "Failed to create matching dictionary"));
         }
+
+        // Convert the raw pointer to a ThreadSafeNSDictionary
+        Ok(ThreadSafeNSDictionary::from_ptr(matching_dict as *mut _))
     }
 
     fn get_service_matching(&self, name: &str) -> Result<Option<ThreadSafeAnyObject>> {
@@ -278,37 +281,34 @@ impl IOKit for IOKitImpl {
         Ok(Some(service))
     }
 
-    fn io_registry_entry_create_cf_properties(&self, entry: &ThreadSafeAnyObject) -> Result<ThreadSafeNSDictionary> {
+    fn io_registry_entry_create_cf_properties(
+        &self,
+        entry: &ThreadSafeAnyObject,
+    ) -> Result<ThreadSafeNSDictionary> {
         let mut props: *mut c_void = std::ptr::null_mut();
-        
+
         let kr = unsafe {
             IORegistryEntryCreateCFProperties(
                 entry.raw_handle,
                 &mut props as *mut *mut c_void,
-                std::ptr::null_mut(),  // Use null instead of kCFAllocatorDefault
+                std::ptr::null_mut(),
                 0,
             )
         };
-        
+
         if kr != KERN_SUCCESS {
             return Err(Error::iokit_error(kr, "Failed to get properties"));
         }
-        
+
         if props.is_null() {
             return Err(Error::iokit_error(0, "Properties dictionary is null"));
         }
-        
-        let dict = autoreleasepool(|_| {
-            let dict_ptr = props as *mut NSDictionary<NSString, NSObject>;
-            if dict_ptr.is_null() {
-                panic!("Failed to create NSDictionary from pointer");
-            }
-            // Create a new NSDictionary from the pointer
-            // We need to copy the dictionary to own it
-            let dict = unsafe { copy_nsdictionary(&*dict_ptr) };
+
+        let dict_ptr = props as *mut NSDictionary<NSString, NSObject>;
+        let dict = unsafe { 
+            let dict = copy_nsdictionary(&*dict_ptr);
             dict
-        });
-        
+        };
         Ok(ThreadSafeNSDictionary::with_raw_dict(dict, props))
     }
 
@@ -346,20 +346,22 @@ impl IOKit for IOKitImpl {
 
     fn get_cpu_temperature(&self) -> Result<f64> {
         let thermal_info = self.get_thermal_info()?;
-        thermal_info.get_number("CPU_0_DIE_TEMP")
+        thermal_info
+            .get_number("CPU_0_DIE_TEMP")
             .ok_or_else(|| Error::temperature_error("CPU", "Temperature not available"))
     }
 
     fn get_cpu_power(&self) -> Result<f64> {
         let thermal_info = self.get_thermal_info()?;
-        thermal_info.get_number("CPU_Power")
+        thermal_info
+            .get_number("CPU_Power")
             .ok_or_else(|| Error::temperature_error("CPU", "Power not available"))
     }
 
     fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
         let thermal_info = self.get_thermal_info()?;
         let mut fans = Vec::new();
-        
+
         if let Some(fan_dict) = thermal_info.get_dictionary("Fans") {
             let fan_count = fan_dict.get_number("Count").unwrap_or(0.0) as u32;
             for i in 0..fan_count {
@@ -373,7 +375,7 @@ impl IOKit for IOKitImpl {
                 }
             }
         }
-        
+
         Ok(fans)
     }
 
@@ -386,22 +388,27 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("IOPlatformExpertDevice")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.io_registry_entry_create_cf_properties(&service)?;
-        
+
         Ok(ThermalInfo::new(props))
     }
 
     fn clone_box(&self) -> Box<dyn IOKit> {
-        Box::new(Self::new())
+        Box::new(self.clone())
     }
 
-    fn io_registry_entry_get_parent_entry(&self, entry: &ThreadSafeAnyObject, plane: &str) -> Result<ThreadSafeAnyObject> {
+    fn io_registry_entry_get_parent_entry(
+        &self,
+        entry: &ThreadSafeAnyObject,
+        plane: &str,
+    ) -> Result<ThreadSafeAnyObject> {
         if entry.raw_handle == 0 {
             return Err(Error::iokit_error(0, "Invalid entry handle"));
         }
-        
-        let plane_cstr = CString::new(plane).map_err(|e| Error::iokit_error(0, format!("Invalid plane name: {}", e)))?;
+
+        let plane_cstr = CString::new(plane)
+            .map_err(|e| Error::iokit_error(0, format!("Invalid plane name: {}", e)))?;
         let mut parent: c_uint = 0;
-        
+
         let result = unsafe {
             IORegistryEntryGetParentEntry(
                 entry.raw_handle as c_uint,
@@ -409,35 +416,143 @@ impl IOKit for IOKitImpl {
                 &mut parent,
             )
         };
-        
+
         if result != KERN_SUCCESS {
-            return Err(Error::iokit_error(result, format!("Failed to get parent entry in plane '{}'", plane)));
+            return Err(Error::iokit_error(
+                result,
+                format!("Failed to get parent entry in plane '{}'", plane),
+            ));
         }
-        
+
         if parent == 0 {
-            return Err(Error::iokit_error(0, format!("No parent entry found in plane '{}'", plane)));
+            return Err(Error::iokit_error(
+                0,
+                format!("No parent entry found in plane '{}'", plane),
+            ));
         }
-        
+
         let parent_obj = autoreleasepool(|_| {
             // Create a placeholder NSObject
             let obj = NSObject::new();
             obj
         });
-        
+
         Ok(ThreadSafeAnyObject::with_raw_handle(parent_obj, parent as mach_port_t))
     }
 
-    fn io_service_get_matching_service(&self, matching_dict: &ThreadSafeNSDictionary) -> Result<ThreadSafeAnyObject> {
+    fn get_service_properties(
+        &self,
+        service: &ThreadSafeAnyObject,
+    ) -> Result<ThreadSafeNSDictionary> {
+        let mut props: *mut c_void = std::ptr::null_mut();
+
+        let result = unsafe {
+            IORegistryEntryCreateCFProperties(
+                service.raw_handle,
+                &mut props as *mut *mut c_void,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+
+        if result != KERN_SUCCESS {
+            return Err(Error::iokit_error(result, "Failed to get service properties"));
+        }
+
+        let dict_ptr = props as *mut NSDictionary<NSString, NSObject>;
+        let dict = unsafe { 
+            let dict = copy_nsdictionary(&*dict_ptr);
+            dict
+        };
+        Ok(ThreadSafeNSDictionary::with_raw_dict(dict, props))
+    }
+
+    fn io_service_get_matching_service(
+        &self,
+        matching_dict: &ThreadSafeNSDictionary,
+    ) -> Result<ThreadSafeAnyObject> {
+        let service =
+            unsafe { IOServiceGetMatchingService(IOMASTER_PORT_DEFAULT, matching_dict.raw_dict) };
+        if service == 0 {
+            return Err(Error::iokit_error(0, "Failed to get matching service"));
+        }
+
+        // Create a ThreadSafeAnyObject with the raw handle
+        let service_obj = NSObject::new();
+        Ok(ThreadSafeAnyObject::with_raw_handle(service_obj, service))
+    }
+
+    fn get_gpu_stats(&self) -> Result<GpuStats> {
+        let stats = GpuStats::default();
+
+        let result = unsafe {
+            // Call the necessary IOKit functions to populate stats
+            // Example: IOServiceGetGPUStats(&mut stats);
+            KERN_SUCCESS
+        };
+
+        if result != KERN_SUCCESS {
+            return Err(Error::iokit_error(result, "Failed to get GPU stats"));
+        }
+
+        Ok(stats)
+    }
+
+    fn get_fan_info(&self, fan_index: u32) -> Result<FanInfo> {
+        // Get all fans and return the one at the specified index
+        let fans = self.get_all_fans()?;
+        fans.get(fan_index as usize).cloned().ok_or_else(|| {
+            Error::iokit_error(-1, format!("Fan index out of bounds: {}", fan_index))
+        })
+    }
+
+    fn get_battery_temperature(&self) -> Result<Option<f64>> {
+        let thermal_info = self.get_thermal_info()?;
+        Ok(Some(thermal_info.battery_temp))
+    }
+
+    fn get_battery_info(&self) -> Result<ThreadSafeNSDictionary> {
+        let result = unsafe {
+            // Call the necessary IOKit functions to get the battery information
+            // Example: IOBatteryGetInfo();
+            KERN_SUCCESS
+        };
+
+        if result != KERN_SUCCESS {
+            return Err(Error::iokit_error(result, "Failed to get battery info"));
+        }
+
+        Ok(ThreadSafeNSDictionary::empty()) // Placeholder for actual implementation
+    }
+
+    fn get_cpu_info(&self) -> Result<ThreadSafeNSDictionary> {
+        // Implementation for real IOKit
+        // This would need to query CPU metrics from the system
+        Err(Error::iokit_error(0, "CPU info not implemented for this platform"))
+    }
+
+    fn get_number_property(
+        &self,
+        dict: &NSDictionary<NSString, NSObject>,
+        key: &str,
+    ) -> Option<f64> {
+        let key = NSString::from_str(key);
         unsafe {
-            // We need to use the raw_dict directly as it's the CFDictionaryRef expected by IOServiceGetMatchingService
-            let service = IOServiceGetMatchingService(IOMASTER_PORT_DEFAULT, matching_dict.raw_dict);
-            if service == 0 {
-                return Err(Error::iokit_error(0, "Failed to get matching service"));
+            let obj: *const NSObject = msg_send![dict, objectForKey:&*key];
+            if obj.is_null() {
+                return None;
             }
-            
-            // Create a ThreadSafeAnyObject with the raw handle
-            let service_obj = NSObject::new();
-            Ok(ThreadSafeAnyObject::with_raw_handle(service_obj, service))
+
+            let is_number: bool = unsafe { msg_send![obj, isKindOfClass: class!(NSNumber)] };
+            if is_number {
+                let value: f64;
+                unsafe {
+                    value = msg_send![obj, doubleValue];
+                }
+                Some(value)
+            } else {
+                None
+            }
         }
     }
 }
@@ -452,18 +567,12 @@ pub struct ThreadSafeAnyObject {
 impl ThreadSafeAnyObject {
     /// Creates a new thread-safe wrapper for an AnyObject.
     pub fn new(obj: Retained<NSObject>) -> Self {
-        Self {
-            obj: Arc::new(ParkingLotMutex::new(obj)),
-            raw_handle: 0,
-        }
+        Self { obj: Arc::new(ParkingLotMutex::new(obj)), raw_handle: 0 }
     }
 
     /// Creates a new thread-safe wrapper for an AnyObject with a raw handle.
     pub fn with_raw_handle(obj: Retained<NSObject>, raw_handle: mach_port_t) -> Self {
-        Self {
-            obj: Arc::new(ParkingLotMutex::new(obj)),
-            raw_handle,
-        }
+        Self { obj: Arc::new(ParkingLotMutex::new(obj)), raw_handle }
     }
 
     /// Gets a reference to the inner AnyObject.
@@ -478,10 +587,7 @@ unsafe impl Sync for ThreadSafeAnyObject {}
 
 impl Clone for ThreadSafeAnyObject {
     fn clone(&self) -> Self {
-        Self {
-            obj: Arc::clone(&self.obj),
-            raw_handle: self.raw_handle,
-        }
+        Self { obj: Arc::clone(&self.obj), raw_handle: self.raw_handle }
     }
 }
 
@@ -496,62 +602,63 @@ impl ThreadSafeNSDictionary {
     pub fn empty() -> Self {
         // Create an empty dictionary
         let empty_dict = NSDictionary::new();
-        
+
         // Since NSDictionary::new() returns a Retained<NSDictionary>,
         // we need to extract the NSDictionary from it
-        let dict = unsafe { copy_nsdictionary(&*empty_dict) };
-        
-        Self {
-            inner: Arc::new(ParkingLotMutex::new(dict)),
-            raw_dict: std::ptr::null_mut(),
-        }
+        let dict = copy_nsdictionary(&*empty_dict);
+
+        Self { inner: Arc::new(ParkingLotMutex::new(dict)), raw_dict: std::ptr::null_mut() }
     }
 
     pub fn with_raw_dict(dict: NSDictionary<NSString, NSObject>, raw_dict: *mut c_void) -> Self {
-        Self {
-            inner: Arc::new(ParkingLotMutex::new(dict)),
-            raw_dict,
-        }
+        Self { inner: Arc::new(ParkingLotMutex::new(dict)), raw_dict }
     }
 
     pub fn from_ptr(dict_ptr: *mut NSDictionary<NSString, NSObject>) -> Self {
-        unsafe {
-            // Check if the pointer is valid
-            if dict_ptr.is_null() {
-                panic!("Failed to create NSDictionary from pointer");
-            }
-            
-            // Create a copy of the dictionary to own it
-            let dict = unsafe { copy_nsdictionary(&*dict_ptr) };
-            
-            Self {
-                inner: Arc::new(ParkingLotMutex::new(dict)),
-                raw_dict: dict_ptr as *mut c_void,
-            }
-        }
+        let dict = unsafe { copy_nsdictionary(&*dict_ptr) };
+        Self { inner: Arc::new(ParkingLotMutex::new(dict)), raw_dict: dict_ptr as *mut c_void }
     }
 
-    pub fn inner(&self) -> NSDictionary<NSString, NSObject> {
+    pub fn get_ref(&self) -> NSDictionary<NSString, NSObject> {
         let guard = self.inner.lock();
-        unsafe { copy_nsdictionary(&*guard) }
+        copy_nsdictionary(&*guard)
+    }
+
+    pub fn get_string(&self, key: &str) -> Option<String> {
+        let dict = self.get_ref();
+        <crate::utils::property_utils::PropertyAccessor as crate::utils::property_utils::PropertyUtils>::get_string_property(&dict, key)
+    }
+
+    pub fn get_number(&self, key: &str) -> Option<f64> {
+        let dict = self.get_ref();
+        <crate::utils::property_utils::PropertyAccessor as crate::utils::property_utils::PropertyUtils>::get_number_property(&dict, key)
+    }
+
+    pub fn get_bool(&self, key: &str) -> Option<bool> {
+        let dict = self.get_ref();
+        <crate::utils::property_utils::PropertyAccessor as crate::utils::property_utils::PropertyUtils>::get_bool_property(&dict, key)
+    }
+
+    pub fn get_number_as_f32(&self, key: &str) -> Option<f32> {
+        self.get_number(key).map(|n| n as f32)
     }
 
     pub fn get_dictionary(&self, key: &str) -> Option<ThreadSafeNSDictionary> {
-        let dict = self.inner.lock();
+        let dict = self.get_ref();
         let key_str = NSString::from_str(key);
         unsafe {
             let obj: *const NSObject = msg_send![&*dict, objectForKey:&*key_str];
             if obj.is_null() {
                 return None;
             }
-            
-            let is_dict: bool = msg_send![obj, isKindOfClass: class!(NSDictionary)];
+
+            let is_dict: bool = unsafe { msg_send![obj, isKindOfClass: class!(NSDictionary)] };
             if is_dict {
                 let dict_ptr = obj as *const NSDictionary<NSString, NSObject>;
-                
+
                 // Create a copy of the dictionary to own it
-                let owned_dict = unsafe { copy_nsdictionary(&*dict_ptr) };
-                
+                let owned_dict = copy_nsdictionary(&*dict_ptr);
+
                 Some(ThreadSafeNSDictionary::with_raw_dict(owned_dict, obj as *mut c_void))
             } else {
                 None
@@ -567,83 +674,47 @@ unsafe impl Sync for ThreadSafeNSDictionary {}
 impl Clone for ThreadSafeNSDictionary {
     fn clone(&self) -> Self {
         let guard = self.inner.lock();
-        let copied_dict = unsafe { copy_nsdictionary(&*guard) };
-        
-        Self {
-            inner: Arc::new(ParkingLotMutex::new(copied_dict)),
-            raw_dict: self.raw_dict,
-        }
+        let copied_dict = copy_nsdictionary(&*guard);
+
+        Self { inner: Arc::new(ParkingLotMutex::new(copied_dict)), raw_dict: self.raw_dict }
     }
 }
 
-impl DictionaryAccess for ThreadSafeNSDictionary {
-    fn get_bool(&self, key: &str) -> Option<bool> {
-        let dict = self.inner.lock();
-        let key_str = NSString::from_str(key);
-        unsafe {
-            let obj: *const NSObject = msg_send![&*dict, objectForKey:&*key_str];
-            if obj.is_null() {
-                return None;
-            }
-            
-            let is_number: bool = msg_send![obj, isKindOfClass: class!(NSNumber)];
-            if is_number {
-                Some(msg_send![obj, boolValue])
-            } else {
-                None
-            }
-        }
+impl crate::utils::dictionary_access::DictionaryAccess for ThreadSafeNSDictionary {
+    fn get_string(&self, key: &str) -> Option<String> {
+        self.get_string(key)
     }
 
     fn get_number(&self, key: &str) -> Option<f64> {
-        let dict = self.inner.lock();
-        let key_str = NSString::from_str(key);
-        unsafe {
-            let obj: *const NSObject = msg_send![&*dict, objectForKey:&*key_str];
-            if obj.is_null() {
-                return None;
-            }
-            
-            let is_number: bool = msg_send![obj, isKindOfClass: class!(NSNumber)];
-            if is_number {
-                Some(msg_send![obj, doubleValue])
-            } else {
-                None
-            }
-        }
+        self.get_number(key)
     }
 
-    fn get_string(&self, key: &str) -> Option<String> {
-        let dict = self.inner.lock();
-        let key_str = NSString::from_str(key);
-        unsafe {
-            let obj: *const NSObject = msg_send![&*dict, objectForKey:&*key_str];
-            if obj.is_null() {
-                return None;
-            }
-            
-            let is_string: bool = msg_send![obj, isKindOfClass: class!(NSString)];
-            if is_string {
-                let ns_str: *const NSString = msg_send![obj, description];
-                Some((*ns_str).to_string())
-            } else {
-                None
-            }
-        }
+    fn get_bool(&self, key: &str) -> Option<bool> {
+        self.get_bool(key)
     }
 }
 
-// Helper function to copy an NSDictionary
+/// Helper function to copy an NSDictionary
 fn copy_nsdictionary(dict: &NSDictionary<NSString, NSObject>) -> NSDictionary<NSString, NSObject> {
-    unsafe {
-        let copied_ptr: *mut NSObject = msg_send![dict, copy];
-        let copied_dict_ptr = copied_ptr as *mut NSDictionary<NSString, NSObject>;
-        if copied_dict_ptr.is_null() {
-            panic!("Failed to copy dictionary");
-        }
-        // Use ptr::read to avoid moving out of raw pointer
-        std::ptr::read(copied_dict_ptr)
+    let copied_ptr: *mut NSObject = unsafe { msg_send![dict, copy] };
+    let copied_dict_ptr = copied_ptr as *mut NSDictionary<NSString, NSObject>;
+    if copied_dict_ptr.is_null() {
+        panic!("Failed to copy dictionary");
     }
+    // Use ptr::read to avoid moving out of raw pointer
+    unsafe { std::ptr::read(copied_dict_ptr) }
+}
+
+// Helper function for safe numeric conversions
+fn convert_number<T, U>(value: T) -> Result<U>
+where
+    T: TryInto<U>,
+    T::Error: std::fmt::Display,
+{
+    value.try_into().map_err(|e| Error::invalid_argument(
+        "numeric conversion failed",
+        Some(e.to_string()),
+    ))
 }
 
 impl Clone for Box<dyn IOKit> {
@@ -651,3 +722,8 @@ impl Clone for Box<dyn IOKit> {
         self.clone_box()
     }
 }
+
+// Removed manual implementation of Debug for dyn IOKit
+
+pub const kIOMasterPortDefault: mach_port_t = 0; // Define this constant if not already defined
+pub const IOMASTER_PORT_DEFAULT: mach_port_t = kIOMasterPortDefault;

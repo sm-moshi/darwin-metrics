@@ -77,10 +77,7 @@ impl<'a> CStringConversion<'a> {
     /// - Pointing to a null-terminated C string
     /// - Valid for the lifetime 'a
     pub unsafe fn new(ptr: *const c_char) -> Self {
-        Self {
-            ptr,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { ptr, _phantom: std::marker::PhantomData }
     }
 }
 
@@ -113,11 +110,7 @@ impl<'a> RawStrConversion<'a> {
     /// - Pointing to valid UTF-8 data
     /// - Valid for the lifetime 'a
     pub unsafe fn new(ptr: *const c_char, len: usize) -> Self {
-        Self {
-            ptr,
-            len,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { ptr, len, _phantom: std::marker::PhantomData }
     }
 }
 
@@ -150,11 +143,7 @@ impl<'a> F64SliceConversion<'a> {
     /// - Valid for `len * size_of::<f64>()` bytes
     /// - Valid for the lifetime 'a
     pub unsafe fn new(ptr: *const c_double, len: usize) -> Self {
-        Self {
-            ptr,
-            len,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { ptr, len, _phantom: std::marker::PhantomData }
     }
 }
 

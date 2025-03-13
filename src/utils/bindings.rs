@@ -947,7 +947,8 @@ extern "C" {
 #[link(name = "IOKit", kind = "framework")]
 extern "C" {
     /// Get matching service from IOKit registry
-    pub fn IOServiceGetMatchingService(masterPort: u32, matchingDictionary: *mut ffi_c_void) -> u32;
+    pub fn IOServiceGetMatchingService(masterPort: u32, matchingDictionary: *mut ffi_c_void)
+        -> u32;
     /// Create matching dictionary for IOKit service
     pub fn IOServiceMatching(serviceName: *const c_char) -> *mut ffi_c_void;
     /// Open IOKit service

@@ -159,7 +159,8 @@ impl InterfaceBuilder {
     }
 
     /// Sets traffic statistics.
-    pub fn traffic_stats(mut self,
+    pub fn traffic_stats(
+        mut self,
         bytes_received: u64,
         bytes_sent: u64,
         packets_received: u64,
@@ -183,14 +184,12 @@ impl InterfaceBuilder {
     /// # Errors
     /// Returns an error if required fields (name, interface_type) are not set.
     pub fn build(self) -> Result<Interface> {
-        let name = self.name.ok_or_else(|| Error::invalid_data(
-            "Interface name is required",
-            None as Option<&str>
-        ))?;
-        let interface_type = self.interface_type.ok_or_else(|| Error::invalid_data(
-            "Interface type is required",
-            None as Option<&str>
-        ))?;
+        let name = self.name.ok_or_else(|| {
+            Error::invalid_data("Interface name is required", None as Option<&str>)
+        })?;
+        let interface_type = self.interface_type.ok_or_else(|| {
+            Error::invalid_data("Interface type is required", None as Option<&str>)
+        })?;
 
         Ok(Interface {
             name,
@@ -329,17 +328,17 @@ impl Interface {
 
 // Define flag-checking methods using the macro
 define_flag_methods! {
-    /// Gets whether this is a loopback interface.
-    is_loopback => if_flags::IFF_LOOPBACK,
+/// Gets whether this is a loopback interface.
+is_loopback => if_flags::IFF_LOOPBACK,
 
-    /// Gets whether this interface supports broadcast.
-    supports_broadcast => if_flags::IFF_BROADCAST,
+/// Gets whether this interface supports broadcast.
+supports_broadcast => if_flags::IFF_BROADCAST,
 
-    /// Gets whether this interface supports multicast.
-    supports_multicast => if_flags::IFF_MULTICAST,
+/// Gets whether this interface supports multicast.
+supports_multicast => if_flags::IFF_MULTICAST,
 
-    /// Gets whether this is a point-to-point interface.
-    is_point_to_point => if_flags::IFF_POINTOPOINT,
+/// Gets whether this is a point-to-point interface.
+is_point_to_point => if_flags::IFF_POINTOPOINT,
 }
 
 impl Interface {
@@ -524,9 +523,7 @@ impl NetworkManager {
                     .addresses(ip_addrs)
                     .traffic_stats(0, 0, 0, 0, 0, 0, 0)
                     .build()
-                    .map_err(|e| Error::system(
-                        &format!("Failed to create interface: {}", e)
-                    ))?;
+                    .map_err(|e| Error::system(&format!("Failed to create interface: {}", e)))?;
 
                 interface_map.insert(name.to_string(), interface);
             }

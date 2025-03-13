@@ -1,15 +1,15 @@
-use crate::disk::{Disk, DiskConfig, DiskMonitor, DiskType};
-use std::time::Instant;
-use std::sync::Mutex;
-use once_cell::sync::Lazy;
+use crate::disk::{Disk, DiskConfig, DiskInfo, DiskMonitor, DiskType};
 use crate::utils::test_utils::HARDWARE_TEST_LOCK;
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+use std::time::Instant;
 use std::{thread, time::Duration};
+
+// Initialize the test mutex
+static TEST_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 // Initialize a static semaphore with only one permit to prevent disk tests from running in parallel
 static DISK_TEST_LOCK: Mutex<()> = Mutex::new(());
-
-// Use a mutex to ensure tests don't interfere with each other
-static TEST_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[test]
 fn test_disk_usage_percentage() {
@@ -709,11 +709,20 @@ fn test_get_performance_initial_call() {
             // Since this is simulated data, we can't check exact values but we can verify they're reasonable
             assert!(perf.reads_per_second >= 0.0, "reads_per_second should be non-negative");
             assert!(perf.writes_per_second >= 0.0, "writes_per_second should be non-negative");
-            assert!(perf.bytes_read_per_second >= 0, "bytes_read_per_second should be non-negative");
-            assert!(perf.bytes_written_per_second >= 0, "bytes_written_per_second should be non-negative");
+            assert!(
+                perf.bytes_read_per_second >= 0,
+                "bytes_read_per_second should be non-negative"
+            );
+            assert!(
+                perf.bytes_written_per_second >= 0,
+                "bytes_written_per_second should be non-negative"
+            );
             assert!(perf.read_latency_ms >= 0.0, "read_latency_ms should be non-negative");
             assert!(perf.write_latency_ms >= 0.0, "write_latency_ms should be non-negative");
-            assert!((0.0..=100.0).contains(&perf.utilization), "utilization should be between 0 and 100");
+            assert!(
+                (0.0..=100.0).contains(&perf.utilization),
+                "utilization should be between 0 and 100"
+            );
             assert!(perf.queue_depth >= 0.0, "queue_depth should be non-negative");
         }
     }
@@ -744,11 +753,20 @@ fn test_performance_metrics_calculation() {
             // Verify all metrics are within reasonable ranges
             assert!(perf.reads_per_second >= 0.0, "reads_per_second should be non-negative");
             assert!(perf.writes_per_second >= 0.0, "writes_per_second should be non-negative");
-            assert!(perf.bytes_read_per_second >= 0, "bytes_read_per_second should be non-negative");
-            assert!(perf.bytes_written_per_second >= 0, "bytes_written_per_second should be non-negative");
+            assert!(
+                perf.bytes_read_per_second >= 0,
+                "bytes_read_per_second should be non-negative"
+            );
+            assert!(
+                perf.bytes_written_per_second >= 0,
+                "bytes_written_per_second should be non-negative"
+            );
             assert!(perf.read_latency_ms >= 0.0, "read_latency_ms should be non-negative");
             assert!(perf.write_latency_ms >= 0.0, "write_latency_ms should be non-negative");
-            assert!((0.0..=100.0).contains(&perf.utilization), "utilization should be between 0 and 100");
+            assert!(
+                (0.0..=100.0).contains(&perf.utilization),
+                "utilization should be between 0 and 100"
+            );
             assert!(perf.queue_depth >= 0.0, "queue_depth should be non-negative");
 
             // Format some values for debugging/display
@@ -834,15 +852,15 @@ fn test_multiple_performance_updates() {
 fn test_disk_info() {
     let _guard = TEST_MUTEX.lock().unwrap();
     let info = DiskInfo::new();
-    
+
     // Basic validation
     assert!(info.total_space > 0);
     assert!(info.free_space <= info.total_space);
     assert!(info.available_space <= info.total_space);
-    
+
     // Check mount points
     assert!(!info.mount_points.is_empty());
-    
+
     // Verify each mount point
     for mount in &info.mount_points {
         assert!(!mount.device.is_empty());
@@ -858,7 +876,7 @@ fn test_disk_info() {
 fn test_disk_io_stats() {
     let _guard = TEST_MUTEX.lock().unwrap();
     let info = DiskInfo::new();
-    
+
     // Basic validation of I/O stats
     assert!(info.read_bytes >= 0);
     assert!(info.write_bytes >= 0);
@@ -870,10 +888,10 @@ fn test_disk_io_stats() {
 fn test_disk_partitions() {
     let _guard = TEST_MUTEX.lock().unwrap();
     let info = DiskInfo::new();
-    
+
     // Check partitions
     assert!(!info.partitions.is_empty());
-    
+
     // Verify each partition
     for partition in &info.partitions {
         assert!(!partition.device.is_empty());

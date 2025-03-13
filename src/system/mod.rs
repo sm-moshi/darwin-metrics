@@ -6,7 +6,7 @@ use crate::{
     error::{Error, Result},
     utils::bindings::{
         sysctl,
-        sysctl_constants::{CTL_HW, HW_MACHINE, CTL_KERN, KERN_HOSTNAME},
+        sysctl_constants::{CTL_HW, CTL_KERN, HW_MACHINE, KERN_HOSTNAME},
     },
 };
 
@@ -110,10 +110,7 @@ pub struct SystemInfo {
 impl SystemInfo {
     /// Creates a new SystemInfo instance
     pub fn new() -> Result<Self> {
-        let mut info = Self {
-            architecture: detect_architecture()?,
-            hostname: String::new(),
-        };
+        let mut info = Self { architecture: detect_architecture()?, hostname: String::new() };
         info.update()?;
         Ok(info)
     }
@@ -121,13 +118,15 @@ impl SystemInfo {
     /// Updates system information
     pub fn update(&mut self) -> Result<()> {
         self.architecture = detect_architecture()?;
-        
+
         // Get hostname
         let mut mib = [CTL_KERN, KERN_HOSTNAME];
         let mut size = 0;
-        
+
         unsafe {
-            if sysctl(mib.as_mut_ptr(), 2, std::ptr::null_mut(), &mut size, std::ptr::null(), 0) != 0 {
+            if sysctl(mib.as_mut_ptr(), 2, std::ptr::null_mut(), &mut size, std::ptr::null(), 0)
+                != 0
+            {
                 return Err(Error::system("Failed to get hostname size"));
             }
 
@@ -139,18 +138,19 @@ impl SystemInfo {
                 &mut size,
                 std::ptr::null(),
                 0,
-            ) != 0 {
+            ) != 0
+            {
                 return Err(Error::system("Failed to retrieve hostname"));
             }
 
             // Convert to string, trimming null terminator
-            if let Ok(hostname) = String::from_utf8(buffer[..size-1].to_vec()) {
+            if let Ok(hostname) = String::from_utf8(buffer[..size - 1].to_vec()) {
                 self.hostname = hostname;
             } else {
                 return Err(Error::system("Invalid hostname encoding"));
             }
         }
-        
+
         Ok(())
     }
 
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn test_system_info() {
         let info = SystemInfo::new().unwrap();
-        
+
         // Verify architecture
         assert!(matches!(
             info.architecture,

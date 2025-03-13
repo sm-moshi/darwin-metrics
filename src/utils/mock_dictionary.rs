@@ -134,7 +134,7 @@ mod tests {
     fn test_mock_dictionary_get_methods() {
         let mut dict = MockDictionary::new();
         let entries = create_test_entries();
-        
+
         for (key, value) in entries {
             dict.insert(key, value);
         }

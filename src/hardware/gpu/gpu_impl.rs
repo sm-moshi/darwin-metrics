@@ -65,13 +65,7 @@ impl Gpu {
         let temperature = self.get_temperature().ok();
         let characteristics = self.get_characteristics();
 
-        Ok(GpuMetrics {
-            utilization,
-            memory,
-            temperature,
-            name,
-            characteristics,
-        })
+        Ok(GpuMetrics { utilization, memory, temperature, name, characteristics })
     }
 }
 

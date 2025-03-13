@@ -156,12 +156,7 @@ unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
         ];
     }
 
-    Ok(CpuInfo { 
-        current_frequency, 
-        min_frequency, 
-        max_frequency, 
-        available_frequencies 
-    })
+    Ok(CpuInfo { current_frequency, min_frequency, max_frequency, available_frequencies })
 }
 
 /// Fetches a frequency value from sysctl by name.

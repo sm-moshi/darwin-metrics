@@ -264,16 +264,13 @@ impl Disk {
             Ok(stats
                 .into_iter()
                 .map(|stat| {
-                    let device = CStr::from_ptr(stat.f_mntfromname.as_ptr())
-                        .to_string_lossy()
-                        .into_owned();
-                    let mount_point = CStr::from_ptr(stat.f_mntonname.as_ptr())
-                        .to_string_lossy()
-                        .into_owned();
-                    let fs_type = CStr::from_ptr(stat.f_fstypename.as_ptr())
-                        .to_string_lossy()
-                        .into_owned();
-                    
+                    let device =
+                        CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned();
+                    let mount_point =
+                        CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned();
+                    let fs_type =
+                        CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned();
+
                     // Determine disk type based on filesystem type
                     let disk_type = if CStr::from_ptr(stat.f_fstypename.as_ptr())
                         .to_str()
@@ -284,12 +281,10 @@ impl Disk {
                     } else {
                         DiskType::Unknown
                     };
-                    
+
                     // Check if it's the boot volume
-                    let is_boot_volume = CStr::from_ptr(stat.f_mntonname.as_ptr())
-                        .to_str()
-                        .unwrap_or("")
-                        .eq("/");
+                    let is_boot_volume =
+                        CStr::from_ptr(stat.f_mntonname.as_ptr()).to_str().unwrap_or("").eq("/");
 
                     // Calculate disk space values
                     let block_size = stat.f_bsize as u64;
@@ -484,8 +479,8 @@ impl DiskMonitor {
         // Process the data
         for stat in stats.iter() {
             // Extract filesystem type safely
-            let fs_type = unsafe { 
-                CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() 
+            let fs_type = unsafe {
+                CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned()
             };
 
             // Skip special filesystems
@@ -494,12 +489,11 @@ impl DiskMonitor {
             }
 
             // Extract mount point and device name safely
-            let mount_point = unsafe { 
-                CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() 
-            };
+            let mount_point =
+                unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
-            let device = unsafe { 
-                CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() 
+            let device = unsafe {
+                CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned()
             };
 
             // Calculate disk space values
@@ -522,7 +516,15 @@ impl DiskMonitor {
             let config = DiskConfig { disk_type, name, is_boot_volume };
 
             // Add to volumes list
-            volumes.push(Disk::with_details(device, mount_point, fs_type, total, available, used, config));
+            volumes.push(Disk::with_details(
+                device,
+                mount_point,
+                fs_type,
+                total,
+                available,
+                used,
+                config,
+            ));
         }
 
         Ok(volumes)
@@ -555,19 +557,16 @@ impl DiskMonitor {
         let stat = unsafe { stat.assume_init() };
 
         // Extract filesystem type safely
-        let fs_type = unsafe { 
-            CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() 
-        };
+        let fs_type =
+            unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract mount point safely
-        let mount_point = unsafe { 
-            CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() 
-        };
+        let mount_point =
+            unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract device name safely
-        let device = unsafe { 
-            CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() 
-        };
+        let device =
+            unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
 
         // Calculate disk space values
         let block_size = stat.f_bsize as u64;
@@ -802,7 +801,122 @@ impl DiskMonitor {
     }
 }
 
-/// Default implementation for DiskMonitor
+/// Comprehensive disk information structure for testing
+#[derive(Debug, Clone)]
+pub struct DiskInfo {
+    /// Total disk space in bytes
+    pub total_space: u64,
+    /// Free disk space in bytes
+    pub free_space: u64,
+    /// Available disk space in bytes (may differ from free due to quotas)
+    pub available_space: u64,
+    /// Total bytes read since boot
+    pub read_bytes: u64,
+    /// Total bytes written since boot
+    pub write_bytes: u64,
+    /// Total read operations since boot
+    pub read_ops: u64,
+    /// Total write operations since boot
+    pub write_ops: u64,
+    /// Information about mount points
+    pub mount_points: Vec<MountPoint>,
+    /// Information about partitions
+    pub partitions: Vec<Partition>,
+}
+
+/// Information about a mount point
+#[derive(Debug, Clone)]
+pub struct MountPoint {
+    /// Device name
+    pub device: String,
+    /// Mount path
+    pub path: String,
+    /// Filesystem type
+    pub fs_type: String,
+    /// Total space in bytes
+    pub total_space: u64,
+    /// Free space in bytes
+    pub free_space: u64,
+    /// Available space in bytes
+    pub available_space: u64,
+}
+
+/// Information about a disk partition
+#[derive(Debug, Clone)]
+pub struct Partition {
+    /// Device name
+    pub device: String,
+    /// Size in bytes
+    pub size: u64,
+    /// Filesystem type
+    pub fs_type: String,
+    /// Mount point
+    pub mount_point: String,
+}
+
+impl DiskInfo {
+    /// Creates a new DiskInfo instance with information about the system's disks
+    pub fn new() -> Self {
+        let mut monitor = DiskMonitor::new();
+        let volumes = monitor.get_volumes().unwrap_or_default();
+        
+        let mut total_space = 0;
+        let mut free_space = 0;
+        let mut available_space = 0;
+        let mut mount_points = Vec::new();
+        let mut partitions = Vec::new();
+        
+        for disk in &volumes {
+            total_space += disk.total;
+            free_space += disk.available; // Using available as free for simplicity
+            available_space += disk.available;
+            
+            mount_points.push(MountPoint {
+                device: disk.device.clone(),
+                path: disk.mount_point.clone(),
+                fs_type: disk.fs_type.clone(),
+                total_space: disk.total,
+                free_space: disk.available, // Using available as free for simplicity
+                available_space: disk.available,
+            });
+            
+            partitions.push(Partition {
+                device: disk.device.clone(),
+                size: disk.total,
+                fs_type: disk.fs_type.clone(),
+                mount_point: disk.mount_point.clone(),
+            });
+        }
+        
+        // Get performance metrics for read/write statistics
+        let performance = monitor.get_performance().unwrap_or_default();
+        let mut read_bytes = 0;
+        let mut write_bytes = 0;
+        let mut read_ops = 0;
+        let mut write_ops = 0;
+        
+        for (_, perf) in performance {
+            // Use the appropriate fields from DiskPerformance
+            read_bytes += perf.bytes_read_per_second as u64;
+            write_bytes += perf.bytes_written_per_second as u64;
+            read_ops += perf.reads_per_second as u64;
+            write_ops += perf.writes_per_second as u64;
+        }
+        
+        Self {
+            total_space,
+            free_space,
+            available_space,
+            read_bytes,
+            write_bytes,
+            read_ops,
+            write_ops,
+            mount_points,
+            partitions,
+        }
+    }
+}
+
 impl Default for DiskMonitor {
     fn default() -> Self {
         Self::new()

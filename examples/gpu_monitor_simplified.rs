@@ -19,7 +19,8 @@ fn format_memory(bytes: u64) -> String {
     }
 }
 
-fn display_metrics(metrics: &GpuMetrics) {
+/// Displays GPU metrics in a formatted manner
+fn display_gpu_metrics(metrics: &GpuMetrics) {
     println!("GPU: {}", metrics.name);
     println!("Utilization: {:.1}%", metrics.utilization);
 
@@ -31,14 +32,27 @@ fn display_metrics(metrics: &GpuMetrics) {
 
     println!("Memory:");
     println!("  Total: {}", format_memory(metrics.memory.total));
-    println!(
-        "  Used:  {} ({:.1}%)",
-        format_memory(metrics.memory.used),
-        (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0
-    );
+    println!("  Used:  {} ({:.1}%)", format_memory(metrics.memory.used), (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0);
     println!("  Free:  {}", format_memory(metrics.memory.free));
+    println!();
+}
 
-    println!(); // Empty line for readability
+/// Creates a visual bar for a given percentage
+fn create_visual_bar(percentage: f64, width: usize) -> String {
+    let filled_chars = (percentage * width as f64 / 100.0) as usize;
+    let empty_chars = width - filled_chars;
+
+    let mut bar = String::new();
+    bar.push_str("[");
+    for _ in 0..filled_chars {
+        bar.push('#');
+    }
+    for _ in 0..empty_chars {
+        bar.push(' ');
+    }
+    bar.push_str("]");
+
+    bar
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -74,35 +88,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Get real metrics directly from the GPU
         let metrics = gpu.metrics()?;
-        display_metrics(&metrics);
+        display_gpu_metrics(&metrics);
 
         // Create a visual bar for GPU usage
         let graph_width = 50;
-        let filled_chars = (metrics.utilization as usize * graph_width) / 100;
-        let empty_chars = graph_width - filled_chars;
-
-        print!("Utilization: [");
-        for _ in 0..filled_chars {
-            print!("#");
-        }
-        for _ in 0..empty_chars {
-            print!(" ");
-        }
-        println!("] {:.1}%", metrics.utilization);
+        let utilization_bar = create_visual_bar(metrics.utilization, graph_width);
+        println!("Utilization: {} {:.1}%", utilization_bar, metrics.utilization);
 
         // Memory usage graph
         let memory_percentage = (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0;
-        let filled_chars = (memory_percentage as usize * graph_width) / 100;
-        let empty_chars = graph_width - filled_chars;
-
-        print!("Memory:      [");
-        for _ in 0..filled_chars {
-            print!("#");
-        }
-        for _ in 0..empty_chars {
-            print!(" ");
-        }
-        println!("] {:.1}%", memory_percentage);
+        let memory_bar = create_visual_bar(memory_percentage, graph_width);
+        println!("Memory:      {} {:.1}%", memory_bar, memory_percentage);
 
         println!("\nPress Ctrl+C to exit");
 

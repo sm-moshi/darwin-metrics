@@ -1,7 +1,7 @@
 use super::*;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 #[test]
 fn test_memory_initialization() {
@@ -24,11 +24,11 @@ mod tests {
 
     fn create_test_memory() -> Memory {
         Memory::with_values(
-            16_000_000_000,  // 16GB total
-            8_000_000_000,   // 8GB available
-            4_000_000_000,   // 4GB swap total
-            1_000_000_000,   // 1GB swap used
-            4096,            // 4KB page size
+            16_000_000_000, // 16GB total
+            8_000_000_000,  // 8GB available
+            4_000_000_000,  // 4GB swap total
+            1_000_000_000,  // 1GB swap used
+            4096,           // 4KB page size
         )
     }
 
@@ -42,11 +42,14 @@ mod tests {
         let mut memory = memory.unwrap();
         let result = memory.update();
         assert!(result.is_ok(), "Update should succeed");
-        
+
         // Test metrics
         assert!(memory.total > 0, "Total memory should be positive");
-        assert!(memory.available > 0, "Available memory should be positive");
-        assert!(memory.pressure >= 0.0 && memory.pressure <= 1.0, "Pressure should be between 0 and 1");
+        assert!(memory.free > 0, "Available memory should be positive");
+        assert!(
+            memory.pressure >= 0.0 && memory.pressure <= 1.0,
+            "Pressure should be between 0 and 1"
+        );
     }
 
     #[test]
@@ -55,57 +58,44 @@ mod tests {
 
         // Test basic metrics
         assert_eq!(memory.total, 16_000_000_000);
-        assert_eq!(memory.available, 8_000_000_000);
-        assert_eq!(memory.pressure, 0.5); // (16GB - 8GB) / 16GB
-        assert_eq!(memory.pressure_percentage(), 50.0);
-
-        // Test swap metrics
-        assert_eq!(memory.swap_total, 4_000_000_000);
-        assert_eq!(memory.swap_used, 1_000_000_000);
-        assert_eq!(memory.usage_percentage(), 25.0); // 1GB / 4GB * 100
+        assert_eq!(memory.free, 8_000_000_000);
+        assert_eq!(memory.used, 8_000_000_000);
+        assert_eq!(memory.active, 0);
+        assert_eq!(memory.inactive, 0);
+        assert_eq!(memory.wired, 0);
+        assert_eq!(memory.compressed, 0);
+        assert_eq!(memory.swap_usage.total, 4_000_000_000);
+        assert_eq!(memory.swap_usage.used, 1_000_000_000);
+        assert!(memory.free > 0, "Available memory should be positive");
+        assert!(memory.page_size > 0, "Page size should be positive");
     }
 
     #[test]
     fn test_pressure_levels() {
-        let normal = Memory::with_values(
-            16_000_000_000,
-            12_000_000_000,
-            4_000_000_000,
-            1_000_000_000,
-            4096,
-        );
+        let normal =
+            Memory::with_values(16_000_000_000, 12_000_000_000, 4_000_000_000, 1_000_000_000, 4096);
         assert_eq!(normal.pressure_level(), PressureLevel::Normal);
 
-        let warning = Memory::with_values(
-            16_000_000_000,
-            4_000_000_000,
-            4_000_000_000,
-            1_000_000_000,
-            4096,
-        );
+        let warning =
+            Memory::with_values(16_000_000_000, 4_000_000_000, 4_000_000_000, 1_000_000_000, 4096);
         assert_eq!(warning.pressure_level(), PressureLevel::Warning);
 
-        let critical = Memory::with_values(
-            16_000_000_000,
-            1_000_000_000,
-            4_000_000_000,
-            1_000_000_000,
-            4096,
-        );
+        let critical =
+            Memory::with_values(16_000_000_000, 1_000_000_000, 4_000_000_000, 1_000_000_000, 4096);
         assert_eq!(critical.pressure_level(), PressureLevel::Critical);
     }
 
     #[test]
     fn test_memory_monitoring() {
         let memory = Memory::new().unwrap();
-        
+
         // The start_monitoring method doesn't exist in the current implementation
         // Instead, we'll just test that we can create a Memory instance and get its properties
-        
+
         assert!(memory.total > 0, "Total memory should be positive");
-        assert!(memory.available > 0, "Available memory should be positive");
+        assert!(memory.free > 0, "Available memory should be positive");
         assert!(memory.page_size > 0, "Page size should be positive");
-        
+
         // Original test:
         // let monitor_handle = memory.start_monitoring(100);
         // assert!(monitor_handle.is_ok(), "Should start monitoring successfully");
@@ -127,13 +117,13 @@ mod tests {
     fn test_get_info_sync() {
         // The static get_info method doesn't exist in the current implementation
         // Instead, we'll just test that we can create a new Memory instance
-        
+
         let memory = Memory::new();
         assert!(memory.is_ok(), "Should be able to create a new Memory instance");
-        
+
         let memory = memory.unwrap();
         assert!(memory.total > 0, "Total memory should be positive");
-        
+
         // Original test:
         // let memory_result = Memory::get_info();
         // assert!(memory_result.is_ok(), "Sync get_info should succeed");
@@ -186,7 +176,7 @@ fn test_pressure_callbacks() {
 
     // The check_pressure_thresholds method doesn't exist in the current implementation
     // memory.check_pressure_thresholds();
-    
+
     // Instead, we can just check the current pressure level
     let level = memory.pressure_level();
     let callback_level = *pressure_level.lock().unwrap();

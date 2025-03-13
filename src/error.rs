@@ -96,6 +96,16 @@ pub enum Error {
     IO { context: String, source: io::Error },
     /// IOKit errors
     IOKit { code: i32, operation: String },
+    /// Invalid argument errors
+    InvalidArgument {
+        context: String,
+        value: Option<String>,
+    },
+    /// System errors
+    SystemError {
+        operation: String,
+        message: String,
+    },
 }
 
 impl Error {
@@ -104,10 +114,7 @@ impl Error {
     where
         C: Into<String>,
     {
-        Error::IO {
-            context: context.into(),
-            source,
-        }
+        Error::IO { context: context.into(), source }
     }
 
     /// Creates a new IOKit error
@@ -115,10 +122,7 @@ impl Error {
     where
         S: Into<String>,
     {
-        Error::IOKit {
-            code,
-            operation: operation.into(),
-        }
+        Error::IOKit { code, operation: operation.into() }
     }
 
     /// Creates a new Temperature error
@@ -127,10 +131,7 @@ impl Error {
         S: Into<String>,
         M: Into<String>,
     {
-        Error::Temperature {
-            sensor: sensor.into(),
-            message: message.into(),
-        }
+        Error::Temperature { sensor: sensor.into(), message: message.into() }
     }
 
     /// Creates a new Network error
@@ -139,10 +140,7 @@ impl Error {
         O: Into<String>,
         M: Into<String>,
     {
-        Error::Network {
-            operation: operation.into(),
-            message: message.into(),
-        }
+        Error::Network { operation: operation.into(), message: message.into() }
     }
 
     /// Creates a new InvalidData error
@@ -175,22 +173,48 @@ impl Error {
         P: Into<u32>,
         M: Into<String>,
     {
-        Error::Process {
-            pid: pid.map(|p| p.into()),
-            message: message.into(),
-        }
+        Error::Process { pid: pid.map(|p| p.into()), message: message.into() }
     }
 
     /// Creates a new GPU error
-    pub fn gpu_error<O, M>(operation: O, message: M) -> Self 
+    pub fn gpu_error<O, M>(operation: O, message: M) -> Self
     where
         O: Into<String>,
         M: Into<String>,
     {
-        Error::Gpu {
+        Error::Gpu { operation: operation.into(), message: message.into() }
+    }
+
+    /// Creates a new invalid argument error
+    pub fn invalid_argument<C, V>(context: C, value: Option<V>) -> Self 
+    where
+        C: Into<String>,
+        V: Into<String>,
+    {
+        Error::InvalidArgument {
+            context: context.into(),
+            value: value.map(|v| v.into()),
+        }
+    }
+
+    /// Creates a new system error
+    pub fn system_error<O, M>(operation: O, message: M) -> Self 
+    where
+        O: Into<String>,
+        M: Into<String>,
+    {
+        Error::SystemError {
             operation: operation.into(),
             message: message.into(),
         }
+    }
+
+    pub fn is_permission_denied(&self) -> bool {
+        matches!(self, Error::PermissionDenied { operation: _, required_permission: _ })
+    }
+
+    pub fn is_not_available(&self) -> bool {
+        matches!(self, Error::NotAvailable { resource: _, reason: _ })
     }
 }
 
@@ -201,46 +225,49 @@ impl fmt::Display for Error {
             Error::IOKitError(code, msg) => write!(f, "IOKit error {}: {}", code, msg),
             Error::Temperature { sensor, message } => {
                 write!(f, "Temperature error for sensor {}: {}", sensor, message)
-            }
+            },
             Error::Cpu { operation, message } => {
                 write!(f, "CPU error during {}: {}", operation, message)
-            }
+            },
             Error::Gpu { operation, message } => {
                 write!(f, "GPU error during {}: {}", operation, message)
-            }
+            },
             Error::Memory { operation, message } => {
                 write!(f, "Memory error during {}: {}", operation, message)
-            }
+            },
             Error::Network { operation, message } => {
                 write!(f, "Network error during {}: {}", operation, message)
-            }
+            },
             Error::Process { pid, message } => match pid {
                 Some(pid) => write!(f, "Process error for PID {}: {}", pid, message),
                 None => write!(f, "Process error: {}", message),
             },
             Error::SystemInfo { call, message } => {
                 write!(f, "System info error in {}: {}", call, message)
-            }
+            },
             Error::ServiceNotFound(msg) => write!(f, "Service not found: {}", msg),
-            Error::InvalidData(msg, Some(details)) => write!(f, "Invalid data: {} ({})", msg, details),
+            Error::InvalidData(msg, Some(details)) => {
+                write!(f, "Invalid data: {} ({})", msg, details)
+            },
             Error::InvalidData(msg, None) => write!(f, "Invalid data: {}", msg),
             Error::NotImplemented(feature) => write!(f, "Feature not implemented: {}", feature),
             Error::NotAvailable { resource, reason } => {
                 write!(f, "Resource {} not available: {}", resource, reason)
-            }
-            Error::PermissionDenied {
-                operation,
-                required_permission,
-            } => write!(
-                f,
-                "Permission denied for {}: requires {}",
-                operation, required_permission
-            ),
+            },
+            Error::PermissionDenied { operation, required_permission } => {
+                write!(f, "Permission denied for {}: requires {}", operation, required_permission)
+            },
             Error::System(msg) => write!(f, "System error: {}", msg),
             Error::Other(msg) => write!(f, "Error: {}", msg),
             Error::MutexLockError(msg) => write!(f, "Mutex lock error: {}", msg),
             Error::IO { context, source } => write!(f, "IO error: {} ({})", context, source),
             Error::IOKit { code, operation } => write!(f, "IOKit error {}: {}", code, operation),
+            Error::InvalidArgument { context, value } => {
+                write!(f, "Invalid argument: {} (value: {:?})", context, value)
+            },
+            Error::SystemError { operation, message } => {
+                write!(f, "System error during {}: {}", operation, message)
+            },
         }
     }
 }
@@ -269,10 +296,8 @@ mod tests {
     #[test]
     fn test_error_creation_methods() {
         // Test all error factory methods
-        let e1 = Error::io_error(
-            "test io error",
-            IoError::new(ErrorKind::NotFound, "file not found"),
-        );
+        let e1 =
+            Error::io_error("test io error", IoError::new(ErrorKind::NotFound, "file not found"));
         assert!(
             matches!(e1, Error::IoError(e) if e.kind() == ErrorKind::NotFound && e.to_string() == "IO error: file not found")
         );
@@ -301,7 +326,7 @@ mod tests {
             matches!(e7, Error::Network { operation, message } if operation == "test network error" && message == "network not found")
         );
 
-        let e8 = Error::process_error(None, "process not found");
+        let e8 = Error::process_error(None::<u32>, "process not found");
         assert!(
             matches!(e8, Error::Process { pid, message } if pid.is_none() && message == "process not found")
         );
@@ -407,4 +432,3 @@ mod tests {
         }
     }
 }
-

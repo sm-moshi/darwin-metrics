@@ -1,4 +1,5 @@
 use darwin_metrics::hardware::gpu::Gpu;
+use darwin_metrics::hardware::gpu::GpuMetrics;
 
 /// Demonstrates the improved GPU hardware detection in darwin-metrics
 /// This example shows detailed information about the GPU including hardware
@@ -8,10 +9,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=========================================");
 
     // Initialize the GPU module
-    let gpu = Gpu::new()?;
+    let gpu = Gpu::new().unwrap();
 
     // Get GPU metrics with enhanced hardware detection
-    let metrics = gpu.metrics()?;
+    let metrics = gpu.metrics().unwrap();
 
     // Display basic GPU information
     println!("GPU Model: {}", metrics.name);
@@ -49,17 +50,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!();
 
-    // Display memory information with proper formatting
-    println!("Memory Information:");
-    println!("------------------");
-    println!("Total Memory: {}", format_bytes(metrics.memory.total));
-    println!(
-        "Used Memory: {} ({:.1}%)",
-        format_bytes(metrics.memory.used),
-        (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0
-    );
-    println!("Free Memory: {}", format_bytes(metrics.memory.free));
-    println!();
+    // Display memory information
+    display_memory_info(&metrics);
 
     // Display performance metrics
     println!("Performance Metrics:");
@@ -93,4 +85,18 @@ fn format_bytes(bytes: u64) -> String {
     } else {
         format!("{} bytes", bytes)
     }
+}
+
+/// Formats memory metrics for display
+fn display_memory_info(metrics: &GpuMetrics) {
+    println!("Memory Information:");
+    println!("------------------");
+    println!("Total Memory: {}", format_bytes(metrics.memory.total));
+    println!(
+        "Used Memory: {} ({:.1}%)",
+        format_bytes(metrics.memory.used),
+        (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0
+    );
+    println!("Free Memory: {}", format_bytes(metrics.memory.free));
+    println!();
 }

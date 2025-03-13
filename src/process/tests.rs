@@ -94,7 +94,7 @@ fn test_get_process_start_time() {
                 assert!(age <= Duration::from_secs(60 * 60 * 24 * 365 * 50), 
                     "Process is unrealistically old");
             }
-            return;
+        return;
         }
     }
 }
@@ -191,7 +191,7 @@ fn test_special_parent_pid_cases() {
 fn test_process_metrics_stream_struct() {
     let pid = std::process::id();
     let process = Process::get_by_pid(pid).unwrap();
-    
+
     assert_eq!(process.pid, pid);
     assert!(!process.name.is_empty());
     assert!(process.cpu_usage >= 0.0);

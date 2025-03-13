@@ -1,5 +1,5 @@
-use objc2::{msg_send, rc::autoreleasepool, runtime::AnyObject};
 use crate::error::Result;
+use objc2::{msg_send, rc::autoreleasepool, runtime::AnyObject};
 
 use super::gpu_impl::Gpu;
 
@@ -67,7 +67,7 @@ impl Gpu {
     pub fn detect_apple_silicon_chip(&self) -> Option<String> {
         // Use a more maintainable approach with a mapping structure
         let model = self.get_hardware_model()?;
-        
+
         // Maps model identifiers to chip families
         // Format: (model_prefix, major_version, minor_version_range) -> chip_name
         let chip_mappings = [
@@ -94,19 +94,19 @@ impl Gpu {
             ("MacBookAir10,1", "M1 GPU"),
             ("Macmini9,1", "M1 GPU"),
         ];
-        
+
         // Find the first matching chip mapping
         for (prefix, chip_name) in chip_mappings {
             if model.starts_with(prefix) {
                 return Some(format!("Apple {}", chip_name));
             }
         }
-        
+
         // Fallback for any other Apple Silicon
         if cfg!(target_arch = "aarch64") {
             return Some("Apple Silicon GPU".to_string());
         }
-        
+
         None
     }
 
@@ -134,7 +134,7 @@ impl Gpu {
             let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8)
                 .to_string_lossy()
                 .into_owned();
-                
+
             Some(model)
         }
     }
@@ -143,7 +143,7 @@ impl Gpu {
     pub fn detect_intel_gpu(&self) -> Option<String> {
         // Try to detect Intel GPU from CPU model and other system info
         let cpu_model = self.get_cpu_model()?;
-        
+
         // Check for integrated Intel GPU based on CPU model
         if cpu_model.contains("Intel") {
             // Try to determine generation based on CPU model
@@ -165,11 +165,11 @@ impl Gpu {
                     return Some("Intel Iris Graphics".to_string());
                 }
             }
-            
+
             // Generic fallback for Intel
             return Some("Intel Integrated Graphics".to_string());
         }
-        
+
         None
     }
 
@@ -197,7 +197,7 @@ impl Gpu {
             let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8)
                 .to_string_lossy()
                 .into_owned();
-                
+
             Some(model)
         }
     }
@@ -205,34 +205,33 @@ impl Gpu {
     /// Get GPU characteristics with improved hardware detection
     pub fn get_characteristics(&self) -> GpuCharacteristics {
         let mut characteristics = GpuCharacteristics::default();
-        
+
         // Check if we have a Metal device
         if let Some(device) = self.get_metal_device() {
             unsafe {
                 let device_obj: *mut AnyObject = device.cast();
-                
+
                 // Check if it's an integrated GPU
                 let is_low_power: bool = msg_send![device_obj, isLowPower];
                 characteristics.is_integrated = is_low_power;
-                
+
                 // Check for Apple Silicon GPU
                 if cfg!(target_arch = "aarch64") {
                     characteristics.is_apple_silicon = true;
                 }
-                
+
                 // Check for raytracing support (Metal 3 feature)
                 let supports_raytracing: bool = msg_send![device_obj, supportsRaytracing];
                 characteristics.has_raytracing = supports_raytracing;
             }
-            
+
             // Detect raytracing support (M2 Pro/Max/Ultra and M3 series)
             if let Some(chip_info) = self.detect_apple_silicon_chip() {
-                characteristics.has_raytracing = 
-                    chip_info.contains("M2 Pro") || 
-                    chip_info.contains("M2 Max") || 
-                    chip_info.contains("M2 Ultra") ||
-                    chip_info.contains("M3");
-                    
+                characteristics.has_raytracing = chip_info.contains("M2 Pro")
+                    || chip_info.contains("M2 Max")
+                    || chip_info.contains("M2 Ultra")
+                    || chip_info.contains("M3");
+
                 // Estimate core count based on chip type
                 characteristics.core_count = if chip_info.contains("M3 Max") {
                     Some(40)
@@ -259,7 +258,7 @@ impl Gpu {
                 } else {
                     None
                 };
-                
+
                 // Estimate clock speed based on chip type
                 characteristics.clock_speed_mhz = if chip_info.contains("M3") {
                     Some(1398)
@@ -277,7 +276,7 @@ impl Gpu {
                 // Integrated Intel GPU
                 if gpu_name.contains("Intel") {
                     characteristics.is_integrated = true;
-                    
+
                     // Estimate core count based on GPU type
                     characteristics.core_count = if gpu_name.contains("Iris Xe") {
                         Some(96)
@@ -294,7 +293,7 @@ impl Gpu {
                     } else {
                         None
                     };
-                    
+
                     // Estimate clock speed based on GPU type
                     characteristics.clock_speed_mhz = if gpu_name.contains("Iris Xe") {
                         Some(1300)
@@ -325,16 +324,15 @@ impl Gpu {
                             if !utf8_string.is_null() {
                                 let name = std::ffi::CStr::from_ptr(utf8_string as *const i8)
                                     .to_string_lossy();
-                                
+
                                 // Discrete AMD GPU detection
                                 if name.contains("AMD") || name.contains("Radeon") {
                                     characteristics.is_integrated = false;
-                                    
+
                                     // Raytracing support for newer AMD GPUs
-                                    characteristics.has_raytracing = 
-                                        name.contains("RX 6") || 
-                                        name.contains("RX 7") || 
-                                        name.contains("Radeon Pro");
+                                    characteristics.has_raytracing = name.contains("RX 6")
+                                        || name.contains("RX 7")
+                                        || name.contains("Radeon Pro");
                                 }
                             }
                         }
@@ -342,7 +340,7 @@ impl Gpu {
                 }
             }
         }
-        
+
         characteristics
     }
 }

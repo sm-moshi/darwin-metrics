@@ -15,15 +15,7 @@ fn main() {
 
     // Print system information once
     println!("System Information:");
-    autoreleasepool(|_| {
-        unsafe {
-            // Get system information safely using Foundation
-            let process_info = objc2_foundation::NSProcessInfo::processInfo();
-            println!("  OS Version: {}", process_info.operatingSystemVersionString());
-            println!("  Memory: {} GB", process_info.physicalMemory() as f64 / 1_073_741_824.0);
-            println!("  CPU Cores: {}", process_info.activeProcessorCount());
-        }
-    });
+    display_system_info();
 
     // GPU information - static since this doesn't change
     println!("\nGPU Information:");
@@ -82,6 +74,18 @@ fn main() {
         sample_count += 1;
         sleep(sample_rate);
     }
+}
+
+/// Displays system information in a formatted manner
+fn display_system_info() {
+    autoreleasepool(|_| {
+        unsafe {
+            let process_info = objc2_foundation::NSProcessInfo::processInfo();
+            println!("  OS Version: {}", process_info.operatingSystemVersionString());
+            println!("  Memory: {} GB", process_info.physicalMemory() as f64 / 1_073_741_824.0);
+            println!("  CPU Cores: {}", process_info.activeProcessorCount());
+        }
+    });
 }
 
 // Helper function to get system load averages

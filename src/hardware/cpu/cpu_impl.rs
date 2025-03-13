@@ -1,8 +1,8 @@
 use objc2::msg_send; // rc::Retained};
-// use objc2_foundation::NSString;
+                     // use objc2_foundation::NSString;
+use libc::sysctlbyname;
 use objc2::runtime::AnyObject;
 use std::{ffi::CString, ptr};
-use libc::sysctlbyname;
 
 use super::{CpuMetrics, FrequencyMetrics, FrequencyMonitor};
 #[cfg(test)]
@@ -29,6 +29,7 @@ use crate::{
 /// * `core_usage` - Per-core CPU usage values (0.0 to 1.0)
 /// * `model_name` - CPU model name as reported by the system
 /// * `temperature` - Current CPU temperature in Celsius (if available)
+/// * `power` - Current CPU power in watts (if available)
 /// * `iokit` - IOKit interface for hardware communication
 #[derive(Debug)]
 pub struct CPU {
@@ -103,10 +104,11 @@ impl CPU {
     /// Returns an error if any of the system calls or IOKit operations fail.
     pub fn update(&mut self) -> Result<()> {
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
-        
+        let service_ref =
+            service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+
         // Create an AnyObject from the raw pointer
-        let obj = unsafe { 
+        let obj = unsafe {
             let ptr = service_ref as *const _ as *mut AnyObject;
             &*ptr
         };
@@ -166,9 +168,9 @@ impl CPU {
                             "Failed to retrieve CPU frequency: primary method error: {}, fallback method error: {}", 
                             primary_error, fallback_error
                         )));
-                    }
+                    },
                 }
-            }
+            },
         }
     }
 
@@ -179,15 +181,16 @@ impl CPU {
     /// * `Result<f64>` - CPU frequency in MHz or an error
     fn get_frequency_from_iokit(&self) -> Result<f64> {
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
-        
+        let service_ref =
+            service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+
         // Create an AnyObject from the raw pointer
-        let obj = unsafe { 
+        let obj = unsafe {
             let ptr = service_ref as *const _ as *mut AnyObject;
             &*ptr
         };
         let frequency: f64 = unsafe { msg_send![obj, currentProcessorClockSpeed] };
-        
+
         // Convert to MHz if needed (IOKit might return in Hz)
         Ok(if frequency > 1000.0 { frequency / 1000.0 } else { frequency })
     }
@@ -209,23 +212,24 @@ impl CPU {
     fn fetch_core_usage(&self) -> Result<Vec<f64>> {
         // Get a single service instance to use for all cores
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
-        
+        let service_ref =
+            service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+
         // Create an AnyObject from the raw pointer
-        let obj = unsafe { 
+        let obj = unsafe {
             let ptr = service_ref as *const _ as *mut AnyObject;
             &*ptr
         };
-        
+
         // Pre-allocate the vector with the correct capacity
         let mut usages = Vec::with_capacity(self.logical_cores as usize);
-        
+
         // Get usage for each core
         for i in 0..self.logical_cores {
             let usage: f64 = unsafe { msg_send![obj, getCoreUsage: i] };
             usages.push(usage);
         }
-        
+
         Ok(usages)
     }
 
@@ -380,7 +384,7 @@ impl CPU {
 
     #[cfg(test)]
     pub fn new_with_mock() -> Result<Self> {
-        let mock = MockIOKit::new().unwrap();
+        let mock = MockIOKit::new();
         Ok(Self {
             physical_cores: 8,
             logical_cores: 16,
@@ -435,7 +439,7 @@ impl CpuMetrics for CPU {
     fn get_cpu_usage(&self) -> f64 {
         // Sum all core usages
         let total_usage: f64 = self.core_usage.iter().sum();
-        
+
         // Calculate average, ensuring we don't divide by zero
         if self.logical_cores > 0 {
             total_usage / self.logical_cores as f64

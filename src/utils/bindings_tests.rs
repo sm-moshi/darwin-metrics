@@ -4,10 +4,10 @@ use std::ffi::c_char;
 use crate::error::Error;
 use crate::utils::bindings::{
     address_family, extern_proc, extract_proc_name, get_network_stats_native, getloadavg,
-    if_data64, if_flags, is_system_process, kinfo_proc, proc_info, process_state, smc_key_from_chars,
-    timeval, MTLCreateSystemDefaultDevice, MTLDeviceRef, Statfs, SMC_KEY_AMBIENT_TEMP,
-    SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER, SMC_KEY_CPU_TEMP, SMC_KEY_CPU_THROTTLE,
-    SMC_KEY_FAN_NUM, SMC_KEY_GPU_TEMP, reachability_flags,
+    if_data64, if_flags, is_system_process, kinfo_proc, proc_info, process_state,
+    reachability_flags, smc_key_from_chars, timeval, MTLCreateSystemDefaultDevice, MTLDeviceRef,
+    Statfs, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER, SMC_KEY_CPU_TEMP,
+    SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM, SMC_KEY_GPU_TEMP,
 };
 
 // Macro for testing constant values
@@ -29,20 +29,22 @@ fn test_get_network_stats_native_cases() {
         ("", "interface name cannot be empty", true),
         ("invalid\0interface", "Failed to create sysctlbyname key", true),
         ("nonexistent0", "Failed to get network stats", true),
-        ("lo0", "", false),  // loopback interface usually exists
+        ("lo0", "", false), // loopback interface usually exists
     ];
 
     for (interface, expected_err, should_error) in test_cases {
         let result = get_network_stats_native(interface);
-        
+
         if should_error {
             assert!(result.is_err());
             assert!(result.unwrap_err().to_string().contains(expected_err));
         } else {
             if let Ok(stats) = result {
                 // If successful, verify the stats struct has valid fields
-                println!("Interface {} stats: rx={}, tx={}", 
-                    interface, stats.ifi_ibytes, stats.ifi_obytes);
+                println!(
+                    "Interface {} stats: rx={}, tx={}",
+                    interface, stats.ifi_ibytes, stats.ifi_obytes
+                );
             }
         }
     }

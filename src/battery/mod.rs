@@ -1,9 +1,9 @@
-use std::time::Duration;
 use crate::{
     error::{Error, Result},
     hardware::iokit::{IOKit, ThreadSafeAnyObject},
     utils::dictionary_access::DictionaryAccess,
 };
+use std::time::Duration;
 // use objc2_foundation::NSDictionary;
 
 #[cfg(test)]
@@ -51,10 +51,7 @@ pub struct Battery {
 
 impl Clone for Battery {
     fn clone(&self) -> Self {
-        Self {
-            iokit: self.iokit.clone_box(),
-            service: self.service.clone(),
-        }
+        Self { iokit: self.iokit.clone_box(), service: self.service.clone() }
     }
 }
 
@@ -71,10 +68,7 @@ impl Battery {
     ///
     /// Returns an error if battery information cannot be retrieved from the system.
     pub fn new(iokit: Box<dyn IOKit>) -> Result<Self> {
-        Ok(Self {
-            iokit,
-            service: None,
-        })
+        Ok(Self { iokit, service: None })
     }
 
     /// Updates battery information.
@@ -94,8 +88,12 @@ impl Battery {
     ///
     /// Returns an error if battery information cannot be retrieved from the system.
     pub fn get_info(&self) -> Result<BatteryInfo> {
-        let service = self.service.as_ref()
-            .ok_or_else(|| Error::io_error("Battery service not found", std::io::Error::new(std::io::ErrorKind::NotFound, "Battery service not found")))?;
+        let service = self.service.as_ref().ok_or_else(|| {
+            Error::io_error(
+                "Battery service not found",
+                std::io::Error::new(std::io::ErrorKind::NotFound, "Battery service not found"),
+            )
+        })?;
         let props = self.iokit.get_service_properties(service)?;
 
         let present = props.get_bool("BatteryInstalled").unwrap_or(false);
@@ -104,8 +102,9 @@ impl Battery {
         let is_charging = props.get_bool("IsCharging").unwrap_or(false);
         let is_external = props.get_bool("ExternalConnected").unwrap_or(false);
         let temperature = self.iokit.get_battery_temperature()?.unwrap_or(0.0);
-        let power_draw = props.get_number("InstantAmperage").unwrap_or(0.0) * 
-                        props.get_number("Voltage").unwrap_or(0.0) / 1000.0;
+        let power_draw = props.get_number("InstantAmperage").unwrap_or(0.0)
+            * props.get_number("Voltage").unwrap_or(0.0)
+            / 1000.0;
         let design_capacity = props.get_number("DesignCapacity").unwrap_or(0.0) as i64;
         let current_capacity = props.get_number("MaxCapacity").unwrap_or(0.0) as i64;
 
@@ -145,6 +144,11 @@ impl Battery {
             battery_power_draw,
             battery_design_capacity,
             battery_current_capacity,
+            // Default values for CPU-related fields
+            physical_cores: 4,
+            logical_cores: 8,
+            core_usage: vec![0.0; 4],
+            cpu_temperature: 45.0,
         });
 
         Self::new(iokit)
@@ -321,14 +325,14 @@ impl BatteryInfo {
 
 impl PartialEq for BatteryInfo {
     fn eq(&self, other: &Self) -> bool {
-        self.present == other.present &&
-        self.percentage == other.percentage &&
-        self.cycle_count == other.cycle_count &&
-        self.is_charging == other.is_charging &&
-        self.is_external == other.is_external &&
-        self.power_draw == other.power_draw &&
-        self.design_capacity == other.design_capacity &&
-        self.current_capacity == other.current_capacity &&
-        self.temperature == other.temperature
+        self.present == other.present
+            && self.percentage == other.percentage
+            && self.cycle_count == other.cycle_count
+            && self.is_charging == other.is_charging
+            && self.is_external == other.is_external
+            && self.power_draw == other.power_draw
+            && self.design_capacity == other.design_capacity
+            && self.current_capacity == other.current_capacity
+            && self.temperature == other.temperature
     }
 }

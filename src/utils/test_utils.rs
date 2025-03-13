@@ -1,5 +1,10 @@
 use objc2::rc::Retained;
 use objc2_foundation::{NSDictionary, NSObject, NSString};
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+
+// Global mutex for hardware tests to prevent concurrent access to hardware
+pub static HARDWARE_TEST_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 /// Creates a test dictionary with no entries
 pub fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
