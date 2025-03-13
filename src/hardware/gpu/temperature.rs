@@ -3,9 +3,9 @@ use std::ffi::CString;
 use crate::error::Result;
 use crate::hardware::iokit::IOMASTER_PORT_DEFAULT;
 use crate::utils::bindings::{
-    IOByteCount, IOConnectCallStructMethod, IOServiceClose, IOServiceGetMatchingService,
-    IOServiceMatching, IOServiceOpen, SMCKeyData_t, SMCKeyData_t_data, IO_RETURN_SUCCESS,
-    KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES, SMC_CMD_READ_KEYINFO,
+    IOByteCount, IOConnectCallStructMethod, IOServiceClose, IOServiceGetMatchingService, IOServiceMatching,
+    IOServiceOpen, SMCKeyData_t, SMCKeyData_t_data, IO_RETURN_SUCCESS, KERNEL_INDEX_SMC, SMC_CMD_READ_BYTES,
+    SMC_CMD_READ_KEYINFO,
 };
 
 use super::gpu_impl::Gpu;
@@ -169,16 +169,11 @@ impl Gpu {
 
             // Get IOKit service
             let service_name = CString::new("AppleSMC").unwrap();
-            let io_service = IOServiceGetMatchingService(
-                IOMASTER_PORT_DEFAULT,
-                IOServiceMatching(service_name.as_ptr()),
-            );
+            let io_service =
+                IOServiceGetMatchingService(IOMASTER_PORT_DEFAULT, IOServiceMatching(service_name.as_ptr()));
 
             if io_service == 0 {
-                return Err(crate::error::Error::gpu_error(
-                    "get_temperature",
-                    "Failed to get SMC service",
-                ));
+                return Err(crate::error::Error::gpu_error("get_temperature", "Failed to get SMC service"));
             }
 
             // Open connection to service
@@ -192,10 +187,7 @@ impl Gpu {
             // We don't have IOObjectRelease in bindings, so we'll just continue
 
             if result != IO_RETURN_SUCCESS {
-                return Err(crate::error::Error::gpu_error(
-                    "get_temperature",
-                    "Failed to open connection to SMC",
-                ));
+                return Err(crate::error::Error::gpu_error("get_temperature", "Failed to open connection to SMC"));
             }
 
             // First get key info to determine size and type
@@ -214,10 +206,7 @@ impl Gpu {
 
             if result != IO_RETURN_SUCCESS {
                 IOServiceClose(conn);
-                return Err(crate::error::Error::gpu_error(
-                    "get_temperature",
-                    "Failed to get key info from SMC",
-                ));
+                return Err(crate::error::Error::gpu_error("get_temperature", "Failed to get key info from SMC"));
             }
 
             // Now read the actual data
@@ -236,19 +225,16 @@ impl Gpu {
             IOServiceClose(conn);
 
             if result != IO_RETURN_SUCCESS {
-                return Err(crate::error::Error::gpu_error(
-                    "get_temperature",
-                    "Failed to read SMC value",
-                ));
+                return Err(crate::error::Error::gpu_error("get_temperature", "Failed to read SMC value"));
             }
 
             // Parse output into SmcVal
-            let mut val =
-                SmcVal { data_size: 0, data_type: [0; 4], data_attributes: 0, data: [0; 32] };
+            let mut val = SmcVal { data_size: 0, data_type: [0; 4], data_attributes: 0, data: [0; 32] };
 
             // Extract data type (big endian)
-            let data_type_bytes = output.key_info.to_be_bytes();
-            val.data_type.copy_from_slice(&data_type_bytes[0..4]);
+            let mut data_type_bytes = [0u8; 4];
+            data_type_bytes[0] = output.key_info; // Place the byte in the first position
+            val.data_type.copy_from_slice(&data_type_bytes);
 
             // Extract data size
             val.data_size = (output.data8 & 0x3F) as u32;

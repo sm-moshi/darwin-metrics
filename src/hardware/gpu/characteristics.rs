@@ -131,9 +131,7 @@ impl Gpu {
             }
 
             // Convert model identifier to string
-            let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8)
-                .to_string_lossy()
-                .into_owned();
+            let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8).to_string_lossy().into_owned();
 
             Some(model)
         }
@@ -194,9 +192,7 @@ impl Gpu {
             }
 
             // Convert to string
-            let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8)
-                .to_string_lossy()
-                .into_owned();
+            let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8).to_string_lossy().into_owned();
 
             Some(model)
         }
@@ -218,6 +214,8 @@ impl Gpu {
                 // Check for Apple Silicon GPU
                 if cfg!(target_arch = "aarch64") {
                     characteristics.is_apple_silicon = true;
+                    // Apple Silicon GPUs should always be detected as integrated
+                    characteristics.is_integrated = true;
                 }
 
                 // Check for raytracing support (Metal 3 feature)
@@ -322,17 +320,15 @@ impl Gpu {
                         if !name_obj.is_null() {
                             let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
                             if !utf8_string.is_null() {
-                                let name = std::ffi::CStr::from_ptr(utf8_string as *const i8)
-                                    .to_string_lossy();
+                                let name = std::ffi::CStr::from_ptr(utf8_string as *const i8).to_string_lossy();
 
                                 // Discrete AMD GPU detection
                                 if name.contains("AMD") || name.contains("Radeon") {
                                     characteristics.is_integrated = false;
 
                                     // Raytracing support for newer AMD GPUs
-                                    characteristics.has_raytracing = name.contains("RX 6")
-                                        || name.contains("RX 7")
-                                        || name.contains("Radeon Pro");
+                                    characteristics.has_raytracing =
+                                        name.contains("RX 6") || name.contains("RX 7") || name.contains("Radeon Pro");
                                 }
                             }
                         }

@@ -72,8 +72,8 @@ pub struct PowerConsumption {
 }
 
 use crate::utils::bindings::{
-    SMC_KEY_CPU_POWER, SMC_KEY_CPU_THROTTLE, SMC_KEY_DRAM_POWER, SMC_KEY_GPU_POWER,
-    SMC_KEY_NEURAL_POWER, SMC_KEY_PACKAGE_POWER,
+    SMC_KEY_CPU_POWER, SMC_KEY_CPU_THROTTLE, SMC_KEY_DRAM_POWER, SMC_KEY_GPU_POWER, SMC_KEY_NEURAL_POWER,
+    SMC_KEY_PACKAGE_POWER,
 };
 
 /// Provides power consumption information for the system

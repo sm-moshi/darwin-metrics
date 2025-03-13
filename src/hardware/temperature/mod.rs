@@ -171,10 +171,8 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             let thermal_info = self.io_kit.get_thermal_info()?;
 
             // Update sensors with basic temperature readings
-            self.sensors
-                .insert("CPU".to_string(), thermal_info.get_number("cpu_temp").unwrap_or(0.0));
-            self.sensors
-                .insert("GPU".to_string(), thermal_info.get_number("gpu_temp").unwrap_or(0.0));
+            self.sensors.insert("CPU".to_string(), thermal_info.get_number("cpu_temp").unwrap_or(0.0));
+            self.sensors.insert("GPU".to_string(), thermal_info.get_number("gpu_temp").unwrap_or(0.0));
 
             // Add optional sensors if available
             if let Some(temp) = thermal_info.get_number("heatsink_temp") {
@@ -226,9 +224,10 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.sensors.get("CPU").cloned().ok_or_else(|| {
-            crate::Error::temperature_error("CPU", "CPU temperature sensor not available")
-        })
+        self.sensors
+            .get("CPU")
+            .cloned()
+            .ok_or_else(|| crate::Error::temperature_error("CPU", "CPU temperature sensor not available"))
     }
 
     /// Get GPU temperature (if available)
@@ -237,9 +236,10 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.sensors.get("GPU").cloned().ok_or_else(|| {
-            crate::Error::temperature_error("GPU", "GPU temperature sensor not available")
-        })
+        self.sensors
+            .get("GPU")
+            .cloned()
+            .ok_or_else(|| crate::Error::temperature_error("GPU", "GPU temperature sensor not available"))
     }
 
     /// Get heatsink temperature (if available)
@@ -248,9 +248,10 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.sensors.get("Heatsink").cloned().ok_or_else(|| {
-            crate::Error::temperature_error("Heatsink", "Heatsink temperature sensor not available")
-        })
+        self.sensors
+            .get("Heatsink")
+            .cloned()
+            .ok_or_else(|| crate::Error::temperature_error("Heatsink", "Heatsink temperature sensor not available"))
     }
 
     /// Get ambient temperature (if available)
@@ -259,9 +260,10 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.sensors.get("Ambient").cloned().ok_or_else(|| {
-            crate::Error::temperature_error("Ambient", "Ambient temperature sensor not available")
-        })
+        self.sensors
+            .get("Ambient")
+            .cloned()
+            .ok_or_else(|| crate::Error::temperature_error("Ambient", "Ambient temperature sensor not available"))
     }
 
     /// Get battery temperature (if available)
@@ -270,9 +272,10 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.sensors.get("Battery").cloned().ok_or_else(|| {
-            crate::Error::temperature_error("Battery", "Battery temperature sensor not available")
-        })
+        self.sensors
+            .get("Battery")
+            .cloned()
+            .ok_or_else(|| crate::Error::temperature_error("Battery", "Battery temperature sensor not available"))
     }
 
     /// Get a list of all available temperature sensors
@@ -306,9 +309,10 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.sensors.get(name).cloned().ok_or_else(|| {
-            crate::Error::temperature_error(name, format!("Sensor {} not found", name))
-        })
+        self.sensors
+            .get(name)
+            .cloned()
+            .ok_or_else(|| crate::Error::temperature_error(name, format!("Sensor {} not found", name)))
     }
 
     /// Get the number of fans in the system
@@ -335,9 +339,9 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.fans.get(index).ok_or_else(|| {
-            crate::Error::temperature_error("Fan", format!("Fan with index {} not found", index))
-        })
+        self.fans
+            .get(index)
+            .ok_or_else(|| crate::Error::temperature_error("Fan", format!("Fan with index {} not found", index)))
     }
 
     /// Get the CPU power consumption in watts (if available)
@@ -346,9 +350,8 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
             self.refresh()?;
         }
 
-        self.cpu_power.ok_or_else(|| {
-            crate::Error::temperature_error("CPU Power", "CPU power information not available")
-        })
+        self.cpu_power
+            .ok_or_else(|| crate::Error::temperature_error("CPU Power", "CPU power information not available"))
     }
 
     /// Determine if the system is experiencing thermal throttling

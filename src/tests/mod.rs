@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+
     use crate::error::Error;
     use crate::hardware::iokit::mock::MockIOKit;
     use crate::hardware::IOKit;

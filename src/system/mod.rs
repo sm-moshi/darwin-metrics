@@ -55,20 +55,12 @@ pub fn detect_architecture() -> Result<Architecture> {
         }
 
         let mut buffer = vec![0u8; size];
-        if sysctl(
-            mib.as_mut_ptr(),
-            2,
-            buffer.as_mut_ptr() as *mut c_void,
-            &mut size,
-            std::ptr::null(),
-            0,
-        ) != 0
-        {
+        if sysctl(mib.as_mut_ptr(), 2, buffer.as_mut_ptr() as *mut c_void, &mut size, std::ptr::null(), 0) != 0 {
             return Err(Error::system("Failed to retrieve architecture data"));
         }
 
-        let cstr = std::ffi::CStr::from_bytes_with_nul(&buffer)
-            .map_err(|_| ArchitectureError::InvalidStringEncoding)?;
+        let cstr =
+            std::ffi::CStr::from_bytes_with_nul(&buffer).map_err(|_| ArchitectureError::InvalidStringEncoding)?;
         let arch = cstr.to_str().map_err(|_| ArchitectureError::InvalidStringEncoding)?;
 
         Ok(match arch {
@@ -124,22 +116,12 @@ impl SystemInfo {
         let mut size = 0;
 
         unsafe {
-            if sysctl(mib.as_mut_ptr(), 2, std::ptr::null_mut(), &mut size, std::ptr::null(), 0)
-                != 0
-            {
+            if sysctl(mib.as_mut_ptr(), 2, std::ptr::null_mut(), &mut size, std::ptr::null(), 0) != 0 {
                 return Err(Error::system("Failed to get hostname size"));
             }
 
             let mut buffer = vec![0u8; size];
-            if sysctl(
-                mib.as_mut_ptr(),
-                2,
-                buffer.as_mut_ptr() as *mut c_void,
-                &mut size,
-                std::ptr::null(),
-                0,
-            ) != 0
-            {
+            if sysctl(mib.as_mut_ptr(), 2, buffer.as_mut_ptr() as *mut c_void, &mut size, std::ptr::null(), 0) != 0 {
                 return Err(Error::system("Failed to retrieve hostname"));
             }
 
@@ -218,10 +200,7 @@ mod tests {
         let metrics = result.unwrap();
         // Verify that the architecture field is populated
         assert!(
-            matches!(
-                metrics.architecture,
-                Architecture::Intel | Architecture::AppleSilicon | Architecture::Unknown
-            ),
+            matches!(metrics.architecture, Architecture::Intel | Architecture::AppleSilicon | Architecture::Unknown),
             "Architecture should be a valid value"
         );
     }
@@ -241,10 +220,7 @@ mod tests {
         let info = SystemInfo::new().unwrap();
 
         // Verify architecture
-        assert!(matches!(
-            info.architecture,
-            Architecture::Intel | Architecture::AppleSilicon | Architecture::Unknown
-        ));
+        assert!(matches!(info.architecture, Architecture::Intel | Architecture::AppleSilicon | Architecture::Unknown));
 
         // Verify hostname is not empty
         assert!(!info.hostname().is_empty(), "Hostname should not be empty");

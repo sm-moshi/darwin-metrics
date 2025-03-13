@@ -47,8 +47,7 @@ use std::sync::Mutex;
 use once_cell::sync::Lazy as SyncLazy;
 
 /// Static cache for tracking CPU usage calculations between calls
-static CPU_HISTORY: SyncLazy<Mutex<HashMap<u32, (Instant, u64)>>> =
-    SyncLazy::new(|| Mutex::new(HashMap::new()));
+static CPU_HISTORY: SyncLazy<Mutex<HashMap<u32, (Instant, u64)>>> = SyncLazy::new(|| Mutex::new(HashMap::new()));
 
 /// Get CPU history tracking map
 #[allow(clippy::disallowed_methods)]
@@ -107,14 +106,11 @@ impl Process {
 
     /// Gets information about a specific process by its PID
     pub fn get_by_pid(pid: u32) -> Result<Self> {
-        let name = libproc::proc_pid::name(pid as i32).map_err(|e| {
-            crate::Error::process_error(Some(pid), format!("Failed to get process name: {}", e))
-        })?;
+        let name = libproc::proc_pid::name(pid as i32)
+            .map_err(|e| crate::Error::process_error(Some(pid), format!("Failed to get process name: {}", e)))?;
 
         let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)
-            .map_err(|e| {
-                crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e))
-            })?;
+            .map_err(|e| crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e)))?;
 
         // Validate and calculate process start time
         let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
@@ -126,25 +122,14 @@ impl Process {
         let now = SystemTime::now();
         match start_time.duration_since(now) {
             Ok(_) => {
-                return Err(crate::Error::process_error(
-                    Some(pid),
-                    "Process start time is in the future",
-                ));
+                return Err(crate::Error::process_error(Some(pid), "Process start time is in the future"));
             },
             Err(_) => match now.duration_since(start_time) {
                 Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
-                    return Err(crate::Error::process_error(
-                        Some(pid),
-                        "Process is unrealistically old",
-                    ));
+                    return Err(crate::Error::process_error(Some(pid), "Process is unrealistically old"));
                 },
                 Ok(_) => (),
-                Err(_) => {
-                    return Err(crate::Error::process_error(
-                        Some(pid),
-                        "Failed to calculate process age",
-                    ))
-                },
+                Err(_) => return Err(crate::Error::process_error(Some(pid), "Failed to calculate process age")),
             },
         }
 
@@ -260,9 +245,8 @@ impl Process {
     fn get_all_via_libproc() -> Result<Vec<Self>> {
         // Use the listpids function for simplicity, handling deprecation warning
         #[allow(deprecated)]
-        let pids = proc_pid::listpids(proc_pid::ProcType::ProcAllPIDS).map_err(|e| {
-            crate::Error::process_error(Some(0u32), format!("Failed to list process IDs: {}", e))
-        })?;
+        let pids = proc_pid::listpids(proc_pid::ProcType::ProcAllPIDS)
+            .map_err(|e| crate::Error::process_error(Some(0u32), format!("Failed to list process IDs: {}", e)))?;
 
         let mut processes = Vec::with_capacity(pids.len());
         for pid in pids {
@@ -286,10 +270,8 @@ impl Process {
             return Ok(None);
         }
 
-        let proc_info =
-            proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0).map_err(|e| {
-                crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e))
-            })?;
+        let proc_info = proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)
+            .map_err(|e| crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e)))?;
 
         let ppid = proc_info.pbsd.pbi_ppid;
 
@@ -304,9 +286,7 @@ impl Process {
     /// Gets the process start time
     pub fn get_process_start_time(pid: u32) -> Result<SystemTime> {
         let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0)
-            .map_err(|e| {
-                crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e))
-            })?;
+            .map_err(|e| crate::Error::process_error(Some(pid), format!("Failed to get process info: {}", e)))?;
 
         let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
             SystemTime::UNIX_EPOCH + Duration::from_secs(proc_info.pbsd.pbi_start_tvsec as u64)
@@ -317,25 +297,14 @@ impl Process {
         let now = SystemTime::now();
         match start_time.duration_since(now) {
             Ok(_) => {
-                return Err(crate::Error::process_error(
-                    Some(pid),
-                    "Process start time is in the future",
-                ));
+                return Err(crate::Error::process_error(Some(pid), "Process start time is in the future"));
             },
             Err(_) => match now.duration_since(start_time) {
                 Ok(age) if age > Duration::from_secs(60 * 60 * 24 * 365 * 50) => {
-                    return Err(crate::Error::process_error(
-                        Some(pid),
-                        "Process is unrealistically old",
-                    ));
+                    return Err(crate::Error::process_error(Some(pid), "Process is unrealistically old"));
                 },
                 Ok(_) => (),
-                Err(_) => {
-                    return Err(crate::Error::process_error(
-                        Some(pid),
-                        "Failed to calculate process age",
-                    ))
-                },
+                Err(_) => return Err(crate::Error::process_error(Some(pid), "Failed to calculate process age")),
             },
         }
 
@@ -413,12 +382,8 @@ impl Process {
     fn get_process_io_stats(pid: u32) -> Result<ProcessIOStats> {
         use pid_rusage::RUsageInfoV4;
 
-        let rusage = pid_rusage::pidrusage::<RUsageInfoV4>(pid as i32).map_err(|e| {
-            crate::Error::process_error(
-                Some(pid),
-                format!("Failed to get process I/O stats: {}", e),
-            )
-        })?;
+        let rusage = pid_rusage::pidrusage::<RUsageInfoV4>(pid as i32)
+            .map_err(|e| crate::Error::process_error(Some(pid), format!("Failed to get process I/O stats: {}", e)))?;
 
         Ok(ProcessIOStats {
             read_bytes: rusage.ri_diskio_bytesread,
@@ -443,15 +408,8 @@ impl Process {
         let mut info: proc_info = unsafe { std::mem::zeroed() };
         let info_size = std::mem::size_of::<proc_info>();
 
-        let result = unsafe {
-            proc_pidinfo(
-                pid,
-                PROC_PIDTASKINFO,
-                0,
-                &mut info as *mut _ as *mut c_void,
-                info_size as i32,
-            )
-        };
+        let result =
+            unsafe { proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &mut info as *mut _ as *mut c_void, info_size as i32) };
 
         if result <= 0 {
             let error_message = Self::get_error_message(result);
@@ -485,7 +443,7 @@ impl ProcessMetricsStream {
 
     /// Checks if enough time has elapsed and returns new process metrics if available
     ///
-    /// Returns None if the update interval hasn't elapsed yet, or Some(Result<Process>)
+    /// Returns None if the update interval hasn't elapsed yet, or Some(`Result<Process>`)
     /// containing either the updated process metrics or an error if the process couldn't be read.
     pub fn next_update(&mut self) -> Option<Result<Process>> {
         let now = Instant::now();

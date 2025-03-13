@@ -399,11 +399,7 @@ extern "C" {
     ) -> c_int;
 
     /// Get parent entry in IORegistry
-    pub fn IORegistryEntryGetParentEntry(
-        entry: c_uint,
-        plane: *const c_char,
-        parent: *mut c_uint,
-    ) -> i32;
+    pub fn IORegistryEntryGetParentEntry(entry: c_uint, plane: *const c_char, parent: *mut c_uint) -> i32;
 
     /// Create a dynamic store session
     pub fn SCDynamicStoreCreate(
@@ -459,13 +455,7 @@ extern "C" {
     pub fn getloadavg(loads: *mut f64, nelem: c_int) -> c_int;
 
     /// Get process information by PID
-    pub fn proc_pidinfo(
-        pid: c_int,
-        flavor: c_int,
-        arg: u64,
-        buffer: *mut c_void,
-        buffersize: c_int,
-    ) -> c_int;
+    pub fn proc_pidinfo(pid: c_int, flavor: c_int, arg: u64, buffer: *mut c_void, buffersize: c_int) -> c_int;
 }
 
 //------------------------------------------------------------------------------
@@ -545,8 +535,7 @@ pub fn is_system_process(pid: u32, name: &str) -> bool {
 
     pid < 1000
         || name.starts_with("com.apple.")
-        || ["launchd", "kernel_task", "WindowServer", "systemstats", "logd", "syslogd"]
-            .contains(&name)
+        || ["launchd", "kernel_task", "WindowServer", "systemstats", "logd", "syslogd"].contains(&name)
 }
 
 /// Convert a char array to an SMC key integer
@@ -608,13 +597,7 @@ pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if
 
     // Call sysctlbyname
     let result = unsafe {
-        sysctlbyname(
-            c_sysctl_key.as_ptr(),
-            &mut if_data_64 as *mut _ as *mut c_void,
-            &mut size,
-            ptr::null(),
-            0,
-        )
+        sysctlbyname(c_sysctl_key.as_ptr(), &mut if_data_64 as *mut _ as *mut c_void, &mut size, ptr::null(), 0)
     };
 
     if result != 0 {
@@ -725,53 +708,37 @@ pub struct IOByteCount(pub usize);
 pub struct IOOptionBits(pub u32);
 
 /// SMC key for CPU temperature
-pub const SMC_KEY_CPU_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
+pub const SMC_KEY_CPU_TEMP: [c_char; 4] = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
 /// SMC key for GPU temperature
-pub const SMC_KEY_GPU_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'G' as c_char, b'0' as c_char, b'P' as c_char];
+pub const SMC_KEY_GPU_TEMP: [c_char; 4] = [b'T' as c_char, b'G' as c_char, b'0' as c_char, b'P' as c_char];
 /// SMC key for number of fans
-pub const SMC_KEY_FAN_NUM: [c_char; 4] =
-    [b'F' as c_char, b'N' as c_char, b'u' as c_char, b'm' as c_char];
+pub const SMC_KEY_FAN_NUM: [c_char; 4] = [b'F' as c_char, b'N' as c_char, b'u' as c_char, b'm' as c_char];
 /// SMC key for fan 0 speed
-pub const SMC_KEY_FAN_SPEED: [c_char; 4] =
-    [b'F' as c_char, b'0' as c_char, b'A' as c_char, b'c' as c_char];
+pub const SMC_KEY_FAN_SPEED: [c_char; 4] = [b'F' as c_char, b'0' as c_char, b'A' as c_char, b'c' as c_char];
 /// SMC key for fan 1 speed
-pub const SMC_KEY_FAN1_SPEED: [c_char; 4] =
-    [b'F' as c_char, b'1' as c_char, b'A' as c_char, b'c' as c_char];
+pub const SMC_KEY_FAN1_SPEED: [c_char; 4] = [b'F' as c_char, b'1' as c_char, b'A' as c_char, b'c' as c_char];
 /// SMC key for fan 0 minimum speed
-pub const SMC_KEY_FAN0_MIN: [c_char; 4] =
-    [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'n' as c_char];
+pub const SMC_KEY_FAN0_MIN: [c_char; 4] = [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'n' as c_char];
 /// SMC key for fan 0 maximum speed
-pub const SMC_KEY_FAN0_MAX: [c_char; 4] =
-    [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'x' as c_char];
+pub const SMC_KEY_FAN0_MAX: [c_char; 4] = [b'F' as c_char, b'0' as c_char, b'M' as c_char, b'x' as c_char];
 /// SMC key for heatsink temperature
-pub const SMC_KEY_HEATSINK_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'h' as c_char, b'0' as c_char, b'H' as c_char];
+pub const SMC_KEY_HEATSINK_TEMP: [c_char; 4] = [b'T' as c_char, b'h' as c_char, b'0' as c_char, b'H' as c_char];
 /// SMC key for ambient temperature
-pub const SMC_KEY_AMBIENT_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'A' as c_char, b'0' as c_char, b'P' as c_char];
+pub const SMC_KEY_AMBIENT_TEMP: [c_char; 4] = [b'T' as c_char, b'A' as c_char, b'0' as c_char, b'P' as c_char];
 /// SMC key for battery temperature
-pub const SMC_KEY_BATTERY_TEMP: [c_char; 4] =
-    [b'T' as c_char, b'B' as c_char, b'0' as c_char, b'T' as c_char];
+pub const SMC_KEY_BATTERY_TEMP: [c_char; 4] = [b'T' as c_char, b'B' as c_char, b'0' as c_char, b'T' as c_char];
 /// SMC key for CPU power
-pub const SMC_KEY_CPU_POWER: [c_char; 4] =
-    [b'P' as c_char, b'C' as c_char, b'P' as c_char, b'C' as c_char];
+pub const SMC_KEY_CPU_POWER: [c_char; 4] = [b'P' as c_char, b'C' as c_char, b'P' as c_char, b'C' as c_char];
 /// SMC key for CPU thermal throttling
-pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] =
-    [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char];
+pub const SMC_KEY_CPU_THROTTLE: [c_char; 4] = [b'P' as c_char, b'C' as c_char, b'T' as c_char, b'C' as c_char];
 /// SMC key for package power (SoC)
-pub const SMC_KEY_PACKAGE_POWER: [c_char; 4] =
-    [b'P' as c_char, b'M' as c_char, b'P' as c_char, b'0' as c_char];
+pub const SMC_KEY_PACKAGE_POWER: [c_char; 4] = [b'P' as c_char, b'M' as c_char, b'P' as c_char, b'0' as c_char];
 /// SMC key for GPU power
-pub const SMC_KEY_GPU_POWER: [c_char; 4] =
-    [b'P' as c_char, b'G' as c_char, b'P' as c_char, b'G' as c_char];
+pub const SMC_KEY_GPU_POWER: [c_char; 4] = [b'P' as c_char, b'G' as c_char, b'P' as c_char, b'G' as c_char];
 /// SMC key for DRAM/Memory power
-pub const SMC_KEY_DRAM_POWER: [c_char; 4] =
-    [b'P' as c_char, b'D' as c_char, b'R' as c_char, b'P' as c_char];
+pub const SMC_KEY_DRAM_POWER: [c_char; 4] = [b'P' as c_char, b'D' as c_char, b'R' as c_char, b'P' as c_char];
 /// SMC key for Neural Engine power
-pub const SMC_KEY_NEURAL_POWER: [c_char; 4] =
-    [b'P' as c_char, b'N' as c_char, b'P' as c_char, b'0' as c_char];
+pub const SMC_KEY_NEURAL_POWER: [c_char; 4] = [b'P' as c_char, b'N' as c_char, b'P' as c_char, b'0' as c_char];
 
 /// SMC version information
 #[repr(C, packed)]
@@ -947,8 +914,7 @@ extern "C" {
 #[link(name = "IOKit", kind = "framework")]
 extern "C" {
     /// Get matching service from IOKit registry
-    pub fn IOServiceGetMatchingService(masterPort: u32, matchingDictionary: *mut ffi_c_void)
-        -> u32;
+    pub fn IOServiceGetMatchingService(masterPort: u32, matchingDictionary: *mut ffi_c_void) -> u32;
     /// Create matching dictionary for IOKit service
     pub fn IOServiceMatching(serviceName: *const c_char) -> *mut ffi_c_void;
     /// Open IOKit service

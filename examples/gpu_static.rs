@@ -26,10 +26,7 @@ fn display_system_info() {
         let process_info = NSProcessInfo::processInfo();
         println!("Hostname: {}", process_info.hostName());
         println!("OS Version: {}", process_info.operatingSystemVersionString());
-        println!(
-            "Physical Memory: {} GB",
-            process_info.physicalMemory() as f64 / 1_073_741_824.0
-        );
+        println!("Physical Memory: {} GB", process_info.physicalMemory() as f64 / 1_073_741_824.0);
         println!("Processor Count: {}", process_info.processorCount());
         println!("Active Processor Count: {}", process_info.activeProcessorCount());
     }

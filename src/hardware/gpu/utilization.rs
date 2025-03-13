@@ -86,11 +86,8 @@ impl Gpu {
 
         // Get memory usage percentage
         let memory_info = self.estimate_memory_info()?;
-        let memory_percentage = if memory_info.total > 0 {
-            (memory_info.used as f64 / memory_info.total as f64) * 100.0
-        } else {
-            0.0
-        };
+        let memory_percentage =
+            if memory_info.total > 0 { (memory_info.used as f64 / memory_info.total as f64) * 100.0 } else { 0.0 };
 
         // Get temperature score if available
         let temp_score = if let Ok(temp) = self.get_temperature() {
@@ -102,8 +99,7 @@ impl Gpu {
         };
 
         // Weighted average of scores
-        let utilization =
-            (process_score * 0.5 + memory_percentage * 0.3 + temp_score * 0.2).min(100.0);
+        let utilization = (process_score * 0.5 + memory_percentage * 0.3 + temp_score * 0.2).min(100.0);
 
         Ok(utilization as f32)
     }
@@ -142,14 +138,7 @@ impl Gpu {
             let mut buffer_size: libc::size_t = 0;
 
             // First call to get buffer size
-            let mut result = libc::sysctl(
-                mib.as_mut_ptr(),
-                3,
-                ptr::null_mut(),
-                &mut buffer_size,
-                ptr::null_mut(),
-                0,
-            );
+            let mut result = libc::sysctl(mib.as_mut_ptr(), 3, ptr::null_mut(), &mut buffer_size, ptr::null_mut(), 0);
 
             if result != 0 || buffer_size == 0 {
                 return Ok(50.0); // Default to 50% if sysctl fails

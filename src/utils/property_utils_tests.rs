@@ -37,12 +37,9 @@ fn test_property_accessor_implements_trait() {
     // This test verifies that PropertyAccessor implements PropertyUtils by checking that the trait methods can be
     // assigned to function pointers with the correct signatures
 
-    let _: fn(&NSDictionary<NSString, NSObject>, &str) -> Option<String> =
-        PropertyAccessor::get_string_property;
-    let _: fn(&NSDictionary<NSString, NSObject>, &str) -> Option<f64> =
-        PropertyAccessor::get_number_property;
-    let _: fn(&NSDictionary<NSString, NSObject>, &str) -> Option<bool> =
-        PropertyAccessor::get_bool_property;
+    let _: fn(&NSDictionary<NSString, NSObject>, &str) -> Option<String> = PropertyAccessor::get_string_property;
+    let _: fn(&NSDictionary<NSString, NSObject>, &str) -> Option<f64> = PropertyAccessor::get_number_property;
+    let _: fn(&NSDictionary<NSString, NSObject>, &str) -> Option<bool> = PropertyAccessor::get_bool_property;
 
     // No assertion needed - test passes if it compiles successfully
 }
@@ -142,15 +139,12 @@ fn test_edge_cases_with_mock() {
     assert_eq!(empty_dict.get_bool("any_key"), None);
 
     // Dictionary with empty string
-    let dict_with_empty =
-        MockDictionary::with_entries(&[("empty_string", MockValue::String("".to_string()))]);
+    let dict_with_empty = MockDictionary::with_entries(&[("empty_string", MockValue::String("".to_string()))]);
     assert_eq!(dict_with_empty.get_string("empty_string"), Some("".to_string()));
 
     // Dictionary with zero and false values
-    let dict_with_zeros = MockDictionary::with_entries(&[
-        ("zero", MockValue::Number(0.0)),
-        ("false", MockValue::Boolean(false)),
-    ]);
+    let dict_with_zeros =
+        MockDictionary::with_entries(&[("zero", MockValue::Number(0.0)), ("false", MockValue::Boolean(false))]);
     assert_eq!(dict_with_zeros.get_number("zero"), Some(0.0));
     assert_eq!(dict_with_zeros.get_bool("false"), Some(false));
 }
@@ -333,8 +327,7 @@ fn test_property_utils_nested_access() {
 
 #[test]
 fn test_property_utils_empty_key() {
-    let mock_dict =
-        MockDictionary::with_entries(&[("", MockValue::String("empty_key".to_string()))]);
+    let mock_dict = MockDictionary::with_entries(&[("", MockValue::String("empty_key".to_string()))]);
 
     assert_eq!(mock_dict.get_string(""), Some("empty_key".to_string()));
     assert_eq!(mock_dict.get_number(""), None);

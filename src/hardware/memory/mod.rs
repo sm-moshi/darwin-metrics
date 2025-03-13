@@ -71,8 +71,7 @@ use crate::{
     utils::bindings::{
         host_statistics64, mach_host_self, sysctl,
         sysctl_constants::{CTL_HW, CTL_VM, HW_MEMSIZE, VM_SWAPUSAGE},
-        vm_kernel_page_size, vm_statistics64, xsw_usage, HostInfoT, HOST_VM_INFO64,
-        HOST_VM_INFO64_COUNT, KERN_SUCCESS,
+        vm_kernel_page_size, vm_statistics64, xsw_usage, HostInfoT, HOST_VM_INFO64, HOST_VM_INFO64_COUNT, KERN_SUCCESS,
     },
 };
 
@@ -182,25 +181,12 @@ impl Memory {
     }
 
     /// Creates a Memory instance with provided values for testing
-    pub fn with_values(
-        total: u64,
-        free: u64,
-        swap_total: u64,
-        swap_used: u64,
-        page_size: u64,
-    ) -> Self {
+    pub fn with_values(total: u64, free: u64, swap_total: u64, swap_used: u64, page_size: u64) -> Self {
         let pressure = if total > 0 { 1.0 - (free as f64 / total as f64) } else { 0.0 };
 
-        Self { 
+        Self {
             page_states: PageStates::default(),
-            swap_usage: SwapUsage {
-                total: swap_total,
-                used: swap_used,
-                free: 0,
-                ins: 0.0,
-                outs: 0.0,
-                pressure: pressure,
-            },
+            swap_usage: SwapUsage { total: swap_total, used: swap_used, free: 0, ins: 0.0, outs: 0.0, pressure },
             total,
             free,
             used: total - free,
@@ -208,7 +194,7 @@ impl Memory {
             inactive: 0,
             wired: 0,
             compressed: 0,
-            pressure: pressure,
+            pressure,
             page_size,
         }
     }
@@ -219,7 +205,7 @@ impl Memory {
         let vm_stats = Self::get_vm_statistics()?;
 
         // Calculate available memory from VM stats
-        self.free = vm_stats.free_count as u64 * Self::get_page_size()? as u64;
+        self.free = vm_stats.free_count as u64 * Self::get_page_size()?;
 
         // Calculate memory pressure
         self.used = self.total - self.free;
@@ -240,10 +226,10 @@ impl Memory {
     /// Returns current memory pressure as a percentage
     #[inline]
     pub fn pressure_percentage(&self) -> f64 {
-        if self.total > 0 { 
-            (1.0 - (self.free as f64 / self.total as f64)) * 100.0 
-        } else { 
-            0.0 
+        if self.total > 0 {
+            (1.0 - (self.free as f64 / self.total as f64)) * 100.0
+        } else {
+            0.0
         }
     }
 
@@ -279,14 +265,10 @@ impl Memory {
 
     /// Sets the memory pressure warning and critical thresholds
     pub fn set_pressure_thresholds(&mut self, warning: f64, critical: f64) -> Result<()> {
-        if warning < 0.0 || warning > 100.0 || critical < 0.0 || critical > 100.0 || warning >= critical
-        {
+        if !(0.0..=100.0).contains(&warning) || !(0.0..=100.0).contains(&critical) || warning >= critical {
             return Err(Error::io_error(
                 "Invalid threshold values",
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "thresholds must be between 0 and 100",
-                ),
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "thresholds must be between 0 and 100"),
             ));
         }
         // Thresholds are not used in the new implementation
@@ -331,9 +313,7 @@ impl Memory {
     }
 
     fn get_page_size() -> Result<u64> {
-        unsafe {
-            Ok(vm_kernel_page_size as u64)
-        }
+        unsafe { Ok(vm_kernel_page_size as u64) }
     }
 
     fn get_vm_statistics() -> Result<vm_statistics64> {
@@ -397,6 +377,12 @@ pub struct MemoryMonitorHandle {
     active: Arc<AtomicBool>,
 }
 
+impl Default for MemoryMonitorHandle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryMonitorHandle {
     /// Creates a new MemoryMonitorHandle
     pub fn new() -> Self {
@@ -445,6 +431,7 @@ mod tests {
     #[test]
     fn test_get_swap_usage() {
         let swap_usage = Memory::get_swap_usage().unwrap();
-        assert!(swap_usage.total >= 0);
+        assert!(swap_usage.used <= swap_usage.total);
+        assert!(swap_usage.pressure >= 0.0 && swap_usage.pressure <= 100.0);
     }
 }

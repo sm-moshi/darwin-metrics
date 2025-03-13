@@ -67,10 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         perf.writes_per_second,
                         format_bytes(perf.bytes_written_per_second)
                     );
-                    println!(
-                        "  Latency: {:.2} ms read, {:.2} ms write",
-                        perf.read_latency_ms, perf.write_latency_ms
-                    );
+                    println!("  Latency: {:.2} ms read, {:.2} ms write", perf.read_latency_ms, perf.write_latency_ms);
                     println!("  Utilization: {:.1}%", perf.utilization);
 
                     // Create a simple ASCII graph for disk utilization

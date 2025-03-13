@@ -52,10 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Show memory breakdown by page states
     println!("\nMemory Breakdown by Page States (GB):");
-    println!(
-        "{:<10} | {:<10} | {:<10} | {:<10} | {:<10}",
-        "Active", "Inactive", "Wired", "Free", "Compressed"
-    );
+    println!("{:<10} | {:<10} | {:<10} | {:<10} | {:<10}", "Active", "Inactive", "Wired", "Free", "Compressed");
     println!("{:-<10} | {:-<10} | {:-<10} | {:-<10} | {:-<10}", "", "", "", "", "");
 
     let active_gb = memory.page_states.active as f64 / 1_073_741_824.0;

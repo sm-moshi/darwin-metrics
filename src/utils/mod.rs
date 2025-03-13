@@ -66,7 +66,7 @@ pub struct CStringConversion<'a> {
     _phantom: std::marker::PhantomData<&'a c_char>,
 }
 
-impl<'a> CStringConversion<'a> {
+impl CStringConversion<'_> {
     /// Creates a new CStringConversion
     ///
     /// # Safety
@@ -81,7 +81,7 @@ impl<'a> CStringConversion<'a> {
     }
 }
 
-impl<'a> UnsafeConversion<String> for CStringConversion<'a> {
+impl UnsafeConversion<String> for CStringConversion<'_> {
     unsafe fn convert(&self) -> Option<String> {
         if self.ptr.is_null() {
             return None;
@@ -98,7 +98,7 @@ pub struct RawStrConversion<'a> {
     _phantom: std::marker::PhantomData<&'a c_char>,
 }
 
-impl<'a> RawStrConversion<'a> {
+impl RawStrConversion<'_> {
     /// Creates a new RawStrConversion
     ///
     /// # Safety
@@ -114,7 +114,7 @@ impl<'a> RawStrConversion<'a> {
     }
 }
 
-impl<'a> UnsafeConversion<String> for RawStrConversion<'a> {
+impl UnsafeConversion<String> for RawStrConversion<'_> {
     unsafe fn convert(&self) -> Option<String> {
         if self.ptr.is_null() || self.len == 0 {
             return None;
@@ -132,7 +132,7 @@ pub struct F64SliceConversion<'a> {
     _phantom: std::marker::PhantomData<&'a c_double>,
 }
 
-impl<'a> F64SliceConversion<'a> {
+impl F64SliceConversion<'_> {
     /// Creates a new F64SliceConversion
     ///
     /// # Safety
@@ -147,7 +147,7 @@ impl<'a> F64SliceConversion<'a> {
     }
 }
 
-impl<'a> UnsafeConversion<Vec<f64>> for F64SliceConversion<'a> {
+impl UnsafeConversion<Vec<f64>> for F64SliceConversion<'_> {
     unsafe fn convert(&self) -> Option<Vec<f64>> {
         if self.ptr.is_null() || self.len == 0 {
             return None;
@@ -199,9 +199,7 @@ pub struct PropertyAccessor;
 impl PropertyUtils for PropertyAccessor {
     fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
         let ns_key = NSString::from_str(key);
-        unsafe { dict.valueForKey(&ns_key) }
-            .and_then(|obj| obj.downcast::<NSString>().ok())
-            .map(|s| s.to_string())
+        unsafe { dict.valueForKey(&ns_key) }.and_then(|obj| obj.downcast::<NSString>().ok()).map(|s| s.to_string())
     }
 
     fn get_number_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
@@ -288,10 +286,7 @@ pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<V
 /// Retrieves the name of an Objective-C device.
 pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
     if device.is_null() {
-        return Err(Error::NotAvailable {
-            resource: "device".to_string(),
-            reason: "No device available".to_string(),
-        });
+        return Err(Error::NotAvailable { resource: "device".to_string(), reason: "No device available".to_string() });
     }
 
     autorelease_pool(|| {
@@ -525,10 +520,7 @@ mod tests {
             Ok::<_, Error>(())
         });
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Panic occurred during Objective-C operation"));
+        assert!(result.unwrap_err().to_string().contains("Panic occurred during Objective-C operation"));
     }
 
     #[test]
@@ -548,8 +540,7 @@ mod tests {
 
     #[test]
     fn test_objc_safe_exec_with_autorelease_pool() {
-        let result =
-            objc_safe_exec(|| autorelease_pool(|| Ok::<_, Error>("test string".to_string())));
+        let result = objc_safe_exec(|| autorelease_pool(|| Ok::<_, Error>("test string".to_string())));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "test string");
     }
@@ -617,8 +608,7 @@ mod tests {
 
     #[test]
     fn test_raw_f64_slice_to_vec_special_values() {
-        let test_data: Vec<f64> =
-            vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN, f64::MIN, f64::MAX, 0.0, -0.0];
+        let test_data: Vec<f64> = vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN, f64::MIN, f64::MAX, 0.0, -0.0];
         let ptr = test_data.as_ptr();
         let len = test_data.len();
 

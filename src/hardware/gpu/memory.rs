@@ -41,15 +41,9 @@ impl Gpu {
             // Apple Silicon GPUs use unified memory architecture
             // The GPU portion varies by model but is typically 30-50% of system RAM
             let gpu_portion = if let Some(chip_info) = self.detect_apple_silicon_chip() {
-                if chip_info.contains("M3 Max")
-                    || chip_info.contains("M2 Max")
-                    || chip_info.contains("M1 Max")
-                {
+                if chip_info.contains("M3 Max") || chip_info.contains("M2 Max") || chip_info.contains("M1 Max") {
                     0.5 // 50% for Max chips
-                } else if chip_info.contains("M3 Pro")
-                    || chip_info.contains("M2 Pro")
-                    || chip_info.contains("M1 Pro")
-                {
+                } else if chip_info.contains("M3 Pro") || chip_info.contains("M2 Pro") || chip_info.contains("M1 Pro") {
                     0.4 // 40% for Pro chips
                 } else {
                     0.3 // 30% for base chips
@@ -87,8 +81,8 @@ impl Gpu {
         // This is a fallback and should rarely be used
         Ok(GpuMemoryInfo {
             total: 2 * 1024 * 1024 * 1024, // 2GB as a safe minimum
-            used: 1 * 1024 * 1024 * 1024,  // 1GB as a reasonable usage estimate
-            free: 1 * 1024 * 1024 * 1024,  // 1GB free
+            used: 1024 * 1024 * 1024,      // 1GB as a reasonable usage estimate
+            free: 1024 * 1024 * 1024,      // 1GB free
         })
     }
 
@@ -99,7 +93,8 @@ impl Gpu {
                 let device_obj: *mut AnyObject = device.cast();
 
                 // Try to get total GPU memory
-                let supports_size_selector = msg_send![device_obj, respondsToSelector: objc2::sel!(recommendedMaxWorkingSetSize)];
+                let supports_size_selector =
+                    msg_send![device_obj, respondsToSelector: objc2::sel!(recommendedMaxWorkingSetSize)];
 
                 if supports_size_selector {
                     let total_memory: u64 = msg_send![device_obj, recommendedMaxWorkingSetSize];

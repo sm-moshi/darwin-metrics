@@ -104,8 +104,7 @@ impl CPU {
     /// Returns an error if any of the system calls or IOKit operations fail.
     pub fn update(&mut self) -> Result<()> {
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref =
-            service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
 
         // Create an AnyObject from the raw pointer
         let obj = unsafe {
@@ -151,7 +150,7 @@ impl CPU {
                 // Successfully retrieved metrics from FrequencyMonitor
                 self.frequency_mhz = metrics.current;
                 self.frequency_metrics = Some(metrics);
-                return Ok(());
+                Ok(())
             },
             Err(primary_error) => {
                 // FrequencyMonitor failed, try fallback method with IOKit
@@ -160,14 +159,14 @@ impl CPU {
                         // Fallback succeeded
                         self.frequency_mhz = frequency_mhz;
                         self.frequency_metrics = None;
-                        return Ok(());
+                        Ok(())
                     },
                     Err(fallback_error) => {
                         // Both methods failed, return the primary error
-                        return Err(Error::system(format!(
-                            "Failed to retrieve CPU frequency: primary method error: {}, fallback method error: {}", 
+                        Err(Error::system(format!(
+                            "Failed to retrieve CPU frequency: primary method error: {}, fallback method error: {}",
                             primary_error, fallback_error
-                        )));
+                        )))
                     },
                 }
             },
@@ -181,8 +180,7 @@ impl CPU {
     /// * `Result<f64>` - CPU frequency in MHz or an error
     fn get_frequency_from_iokit(&self) -> Result<f64> {
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref =
-            service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
 
         // Create an AnyObject from the raw pointer
         let obj = unsafe {
@@ -212,8 +210,7 @@ impl CPU {
     fn fetch_core_usage(&self) -> Result<Vec<f64>> {
         // Get a single service instance to use for all cores
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref =
-            service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
 
         // Create an AnyObject from the raw pointer
         let obj = unsafe {
@@ -246,23 +243,14 @@ impl CPU {
         let mut size = buffer.len();
         let name = CString::new("machdep.cpu.brand_string").unwrap();
 
-        let result = unsafe {
-            sysctlbyname(
-                name.as_ptr(),
-                buffer.as_mut_ptr() as *mut _,
-                &mut size,
-                ptr::null_mut(),
-                0,
-            )
-        };
+        let result =
+            unsafe { sysctlbyname(name.as_ptr(), buffer.as_mut_ptr() as *mut _, &mut size, ptr::null_mut(), 0) };
 
         if result != 0 {
             return Err(Error::iokit_error(result, "Failed to get CPU model name"));
         }
 
-        Ok(String::from_utf8_lossy(&buffer[..size])
-            .trim_matches(|c: char| c == '\0' || c.is_whitespace())
-            .to_string())
+        Ok(String::from_utf8_lossy(&buffer[..size]).trim_matches(|c: char| c == '\0' || c.is_whitespace()).to_string())
     }
 
     /// Returns the number of physical CPU cores.

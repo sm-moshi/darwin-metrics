@@ -1,5 +1,4 @@
 use crate::disk::{Disk, DiskConfig, DiskInfo, DiskMonitor, DiskType};
-use crate::utils::test_utils::HARDWARE_TEST_LOCK;
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -13,14 +12,7 @@ static DISK_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_disk_usage_percentage() {
-    let disk = Disk::new(
-        String::from("/dev/disk1s1"),
-        String::from("/"),
-        String::from("apfs"),
-        1000,
-        200,
-        800,
-    );
+    let disk = Disk::new(String::from("/dev/disk1s1"), String::from("/"), String::from("apfs"), 1000, 200, 800);
 
     assert_eq!(disk.usage_percentage(), 80.0);
 }
@@ -120,11 +112,7 @@ fn test_disk_type_default() {
 
 #[test]
 fn test_disk_config() {
-    let config = DiskConfig {
-        disk_type: DiskType::SSD,
-        name: "Test Drive".to_string(),
-        is_boot_volume: true,
-    };
+    let config = DiskConfig { disk_type: DiskType::SSD, name: "Test Drive".to_string(), is_boot_volume: true };
 
     assert_eq!(config.disk_type, DiskType::SSD);
     assert_eq!(config.name, "Test Drive");
@@ -133,14 +121,7 @@ fn test_disk_config() {
 
 #[test]
 fn test_disk_new() {
-    let disk = Disk::new(
-        String::from("/dev/disk1s1"),
-        String::from("/"),
-        String::from("apfs"),
-        1000,
-        200,
-        800,
-    );
+    let disk = Disk::new(String::from("/dev/disk1s1"), String::from("/"), String::from("apfs"), 1000, 200, 800);
 
     assert_eq!(disk.device, "/dev/disk1s1");
     assert_eq!(disk.mount_point, "/");
@@ -159,11 +140,7 @@ fn test_disk_new() {
         1000,
         200,
         800,
-        DiskConfig {
-            disk_type: DiskType::SSD,
-            name: String::from("Macintosh HD"),
-            is_boot_volume: true,
-        },
+        DiskConfig { disk_type: DiskType::SSD, name: String::from("Macintosh HD"), is_boot_volume: true },
     );
 
     assert_eq!(disk_with_details.device, "/dev/disk1s1");
@@ -200,18 +177,15 @@ fn test_disk_monitor() {
 #[test]
 fn test_disk_usage_percentage_cases() {
     // Renamed from test_disk_usage_percentage Normal case
-    let disk =
-        Disk::new("/dev/test".to_string(), "/test".to_string(), "apfs".to_string(), 1000, 750, 250);
+    let disk = Disk::new("/dev/test".to_string(), "/test".to_string(), "apfs".to_string(), 1000, 750, 250);
     assert_eq!(disk.usage_percentage(), 25.0);
 
     // Edge case: empty disk
-    let empty_disk =
-        Disk::new("/dev/empty".to_string(), "/empty".to_string(), "apfs".to_string(), 0, 0, 0);
+    let empty_disk = Disk::new("/dev/empty".to_string(), "/empty".to_string(), "apfs".to_string(), 0, 0, 0);
     assert_eq!(empty_disk.usage_percentage(), 0.0);
 
     // Full disk
-    let full_disk =
-        Disk::new("/dev/full".to_string(), "/full".to_string(), "apfs".to_string(), 1000, 0, 1000);
+    let full_disk = Disk::new("/dev/full".to_string(), "/full".to_string(), "apfs".to_string(), 1000, 0, 1000);
     assert_eq!(full_disk.usage_percentage(), 100.0);
 }
 
@@ -297,85 +271,6 @@ fn test_get_for_path() {
     let result = Disk::get_for_path(".");
     assert!(result.is_ok(), "Should be able to get disk info for current directory");
 
-    // Test with absolute path
-    let home = std::env::var("HOME").unwrap_or_default();
-    let result = Disk::get_for_path(&home);
-    assert!(result.is_ok(), "Should be able to get disk info for home directory");
-
-    // Test with invalid path
-    let result = Disk::get_for_path("/nonexistent/path");
-    assert!(result.is_err(), "Should fail for non-existent path");
-}
-
-#[test]
-fn test_disk_usage_percentage_extended() {
-    // Renamed from test_disk_usage_percentage Normal case
-    let disk =
-        Disk::new("/dev/test".to_string(), "/test".to_string(), "apfs".to_string(), 1000, 750, 250);
-    assert_eq!(disk.usage_percentage(), 25.0);
-
-    // Edge case: empty disk
-    let empty_disk =
-        Disk::new("/dev/empty".to_string(), "/empty".to_string(), "apfs".to_string(), 0, 0, 0);
-    assert_eq!(empty_disk.usage_percentage(), 0.0);
-}
-
-#[test]
-fn test_is_nearly_full_extended() {
-    // Renamed from test_is_nearly_full
-    let nearly_full_disk = Disk::new(
-        "/dev/test".to_string(),
-        "/test".to_string(),
-        "apfs".to_string(),
-        1000,
-        50, // 95% used
-        950,
-    );
-    assert!(nearly_full_disk.is_nearly_full());
-
-    let not_full_disk = Disk::new(
-        "/dev/test".to_string(),
-        "/test".to_string(),
-        "apfs".to_string(),
-        1000,
-        200, // 80% used
-        800,
-    );
-    assert!(!not_full_disk.is_nearly_full());
-}
-
-#[test]
-fn test_format_bytes_detailed() {
-    // Renamed from test_format_bytes
-    assert_eq!(Disk::format_bytes(0), "0 bytes");
-    assert_eq!(Disk::format_bytes(1024), "1.0 KB");
-    assert_eq!(Disk::format_bytes(1024 * 1024), "1.0 MB");
-    assert_eq!(Disk::format_bytes(1024 * 1024 * 1024), "1.0 GB");
-}
-
-#[test]
-fn test_display_methods_extended() {
-    // Renamed from test_display_methods
-    let disk = Disk::new(
-        "/dev/test".to_string(),
-        "/test".to_string(),
-        "apfs".to_string(),
-        1024 * 1024, // 1 MB
-        512 * 1024,  // 512 KB
-        512 * 1024,  // 512 KB
-    );
-
-    assert_eq!(disk.available_display(), "512.0 KB");
-    assert_eq!(disk.total_display(), "1.0 MB");
-    assert_eq!(disk.used_display(), "512.0 KB");
-}
-
-#[test]
-fn test_get_for_path_comprehensive() {
-    // Test with current directory (should always exist)
-    let result = Disk::get_for_path(".");
-    assert!(result.is_ok(), "Should be able to get disk info for current directory");
-
     if let Ok(disk) = result {
         // Verify the returned disk information is valid
         assert!(!disk.mount_point.is_empty(), "Mount point should not be empty");
@@ -384,7 +279,6 @@ fn test_get_for_path_comprehensive() {
         assert!(disk.total > 0, "Total space should be greater than zero");
         assert!(disk.available <= disk.total, "Available space should not exceed total space");
 
-        // Fix: Add underscore to mark calculated_usage as intentionally unused
         let _calculated_usage = disk.total - disk.available;
         assert!(disk.used <= disk.total, "Used space should not exceed total space");
 
@@ -590,13 +484,7 @@ fn test_get_volume_for_path() {
             assert!(!disk.fs_type.is_empty(), "Filesystem type should not be empty");
             assert!(disk.total > 0, "Total space should be greater than zero");
 
-            println!(
-                "Path {} is on volume {} ({}) - {}",
-                path,
-                disk.name,
-                disk.mount_point,
-                disk.summary()
-            );
+            println!("Path {} is on volume {} ({}) - {}", path, disk.name, disk.mount_point, disk.summary());
 
             // For root path, verify it's marked as boot volume
             if path == "/" {
@@ -709,20 +597,9 @@ fn test_get_performance_initial_call() {
             // Since this is simulated data, we can't check exact values but we can verify they're reasonable
             assert!(perf.reads_per_second >= 0.0, "reads_per_second should be non-negative");
             assert!(perf.writes_per_second >= 0.0, "writes_per_second should be non-negative");
-            assert!(
-                perf.bytes_read_per_second >= 0,
-                "bytes_read_per_second should be non-negative"
-            );
-            assert!(
-                perf.bytes_written_per_second >= 0,
-                "bytes_written_per_second should be non-negative"
-            );
             assert!(perf.read_latency_ms >= 0.0, "read_latency_ms should be non-negative");
             assert!(perf.write_latency_ms >= 0.0, "write_latency_ms should be non-negative");
-            assert!(
-                (0.0..=100.0).contains(&perf.utilization),
-                "utilization should be between 0 and 100"
-            );
+            assert!((0.0..=100.0).contains(&perf.utilization), "utilization should be between 0 and 100");
             assert!(perf.queue_depth >= 0.0, "queue_depth should be non-negative");
         }
     }
@@ -753,20 +630,9 @@ fn test_performance_metrics_calculation() {
             // Verify all metrics are within reasonable ranges
             assert!(perf.reads_per_second >= 0.0, "reads_per_second should be non-negative");
             assert!(perf.writes_per_second >= 0.0, "writes_per_second should be non-negative");
-            assert!(
-                perf.bytes_read_per_second >= 0,
-                "bytes_read_per_second should be non-negative"
-            );
-            assert!(
-                perf.bytes_written_per_second >= 0,
-                "bytes_written_per_second should be non-negative"
-            );
             assert!(perf.read_latency_ms >= 0.0, "read_latency_ms should be non-negative");
             assert!(perf.write_latency_ms >= 0.0, "write_latency_ms should be non-negative");
-            assert!(
-                (0.0..=100.0).contains(&perf.utilization),
-                "utilization should be between 0 and 100"
-            );
+            assert!((0.0..=100.0).contains(&perf.utilization), "utilization should be between 0 and 100");
             assert!(perf.queue_depth >= 0.0, "queue_depth should be non-negative");
 
             // Format some values for debugging/display
@@ -795,8 +661,6 @@ fn test_empty_performance_fallback() {
     for (_, stats) in performance {
         assert!(stats.reads_per_second >= 0.0);
         assert!(stats.writes_per_second >= 0.0);
-        assert!(stats.bytes_read_per_second >= 0);
-        assert!(stats.bytes_written_per_second >= 0);
         assert!(stats.read_latency_ms >= 0.0);
         assert!(stats.write_latency_ms >= 0.0);
         assert!(stats.utilization >= 0.0 && stats.utilization <= 100.0);
@@ -875,13 +739,10 @@ fn test_disk_info() {
 #[test]
 fn test_disk_io_stats() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let info = DiskInfo::new();
+    let _info = DiskInfo::new();
 
     // Basic validation of I/O stats
-    assert!(info.read_bytes >= 0);
-    assert!(info.write_bytes >= 0);
-    assert!(info.read_ops >= 0);
-    assert!(info.write_ops >= 0);
+    // No need to check if unsigned integers are >= 0 as they can't be negative
 }
 
 #[test]
@@ -898,5 +759,52 @@ fn test_disk_partitions() {
         assert!(partition.size > 0);
         assert!(!partition.fs_type.is_empty());
         assert!(!partition.mount_point.is_empty());
+    }
+}
+
+#[test]
+fn test_get_for_path_comprehensive() {
+    // Test with current directory (should always exist)
+    let result = Disk::get_for_path(".");
+    assert!(result.is_ok(), "Should be able to get disk info for current directory");
+
+    if let Ok(disk) = result {
+        // Verify the returned disk information is valid
+        assert!(!disk.mount_point.is_empty(), "Mount point should not be empty");
+        assert!(!disk.device.is_empty(), "Device should not be empty");
+        assert!(!disk.fs_type.is_empty(), "Filesystem type should not be empty");
+        assert!(disk.total > 0, "Total space should be greater than zero");
+        assert!(disk.available <= disk.total, "Available space should not exceed total space");
+
+        let _calculated_usage = disk.total - disk.available;
+        assert!(disk.used <= disk.total, "Used space should not exceed total space");
+
+        // Check percentage calculation
+        let percentage = disk.usage_percentage();
+        assert!((0.0..=100.0).contains(&percentage), "Percentage should be between 0 and 100");
+    }
+
+    // Test with absolute paths
+    let home = std::env::var("HOME").unwrap_or_default();
+    if !home.is_empty() {
+        let result = Disk::get_for_path(&home);
+        assert!(result.is_ok(), "Should be able to get disk info for home directory");
+
+        if let Ok(disk) = result {
+            println!("Home directory disk: {}", disk.summary());
+            assert!(!disk.mount_point.is_empty());
+        }
+    }
+
+    // Test with system paths
+    let system_paths = vec!["/", "/tmp", "/var"];
+    for path in system_paths {
+        let result = Disk::get_for_path(path);
+        assert!(result.is_ok(), "Should be able to get disk info for {}", path);
+
+        if let Ok(disk) = result {
+            println!("Path {} is on {} ({})", path, disk.mount_point, disk.device);
+            assert!(disk.total > 0, "Total space should be greater than zero for {}", path);
+        }
     }
 }

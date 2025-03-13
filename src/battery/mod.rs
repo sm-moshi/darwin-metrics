@@ -102,9 +102,8 @@ impl Battery {
         let is_charging = props.get_bool("IsCharging").unwrap_or(false);
         let is_external = props.get_bool("ExternalConnected").unwrap_or(false);
         let temperature = self.iokit.get_battery_temperature()?.unwrap_or(0.0);
-        let power_draw = props.get_number("InstantAmperage").unwrap_or(0.0)
-            * props.get_number("Voltage").unwrap_or(0.0)
-            / 1000.0;
+        let power_draw =
+            props.get_number("InstantAmperage").unwrap_or(0.0) * props.get_number("Voltage").unwrap_or(0.0) / 1000.0;
         let design_capacity = props.get_number("DesignCapacity").unwrap_or(0.0) as i64;
         let current_capacity = props.get_number("MaxCapacity").unwrap_or(0.0) as i64;
 
@@ -168,7 +167,7 @@ impl Battery {
     pub fn time_remaining_display(&self) -> Result<String> {
         let _info = self.get_info()?;
         if let Some(time_remaining) = self.get_time_remaining()? {
-            let total_minutes = time_remaining.as_secs() as u64;
+            let total_minutes = time_remaining.as_secs();
             let hours = total_minutes / 60;
             let minutes = total_minutes % 60;
             if hours > 0 {

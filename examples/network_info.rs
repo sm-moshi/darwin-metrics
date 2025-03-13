@@ -54,22 +54,11 @@ fn print_network_stats(network: &NetworkManager) {
             interface.bytes_received(),
             interface.download_speed() / 1024.0
         );
-        println!(
-            "    Sent: {} bytes ({:.2} KB/s)",
-            interface.bytes_sent(),
-            interface.upload_speed() / 1024.0
-        );
-        println!(
-            "    Packets: {} received, {} sent",
-            interface.packets_received(),
-            interface.packets_sent()
-        );
+        println!("    Sent: {} bytes ({:.2} KB/s)", interface.bytes_sent(), interface.upload_speed() / 1024.0);
+        println!("    Packets: {} received, {} sent", interface.packets_received(), interface.packets_sent());
 
         // Display error statistics if any
-        if interface.receive_errors() > 0
-            || interface.send_errors() > 0
-            || interface.collisions() > 0
-        {
+        if interface.receive_errors() > 0 || interface.send_errors() > 0 || interface.collisions() > 0 {
             println!("  Errors:");
             println!("    Receive errors: {}", interface.receive_errors());
             println!("    Send errors: {}", interface.send_errors());

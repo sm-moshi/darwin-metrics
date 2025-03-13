@@ -10,8 +10,7 @@ use crate::{
     error::{Error, Result},
     network::{traffic::TrafficTracker, NetworkMetrics},
     utils::bindings::{
-        address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in,
-        sockaddr_in6,
+        address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in, sockaddr_in6,
     },
 };
 
@@ -184,12 +183,10 @@ impl InterfaceBuilder {
     /// # Errors
     /// Returns an error if required fields (name, interface_type) are not set.
     pub fn build(self) -> Result<Interface> {
-        let name = self.name.ok_or_else(|| {
-            Error::invalid_data("Interface name is required", None as Option<&str>)
-        })?;
-        let interface_type = self.interface_type.ok_or_else(|| {
-            Error::invalid_data("Interface type is required", None as Option<&str>)
-        })?;
+        let name = self.name.ok_or_else(|| Error::invalid_data("Interface name is required", None as Option<&str>))?;
+        let interface_type = self
+            .interface_type
+            .ok_or_else(|| Error::invalid_data("Interface type is required", None as Option<&str>))?;
 
         Ok(Interface {
             name,
@@ -523,7 +520,7 @@ impl NetworkManager {
                     .addresses(ip_addrs)
                     .traffic_stats(0, 0, 0, 0, 0, 0, 0)
                     .build()
-                    .map_err(|e| Error::system(&format!("Failed to create interface: {}", e)))?;
+                    .map_err(|e| Error::system(format!("Failed to create interface: {}", e)))?;
 
                 interface_map.insert(name.to_string(), interface);
             }
@@ -534,17 +531,11 @@ impl NetworkManager {
 
         // Process traffic data if we got it
         if let Some(traffic_data) = existing_traffic {
-            for (
-                name,
-                (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions),
-            ) in traffic_data
-            {
+            for (name, (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions)) in traffic_data {
                 if let Some(interface) = interface_map.get_mut(&name) {
                     // Update with real traffic stats
-                    interface.update_traffic(
-                        rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors,
-                        collisions,
-                    );
+                    interface
+                        .update_traffic(rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions);
                 } else if !name.is_empty() {
                     // If we have traffic data but no interface, create a placeholder
                     let interface = Interface::new(
@@ -583,10 +574,7 @@ impl NetworkManager {
         unsafe {
             // Call getifaddrs() to get list of interfaces
             if getifaddrs(&mut ifap) != 0 {
-                return Err(Error::network_error(
-                    "get_interfaces",
-                    "Failed to get network interfaces",
-                ));
+                return Err(Error::network_error("get_interfaces", "Failed to get network interfaces"));
             }
 
             // Use scopeguard to ensure ifap is freed
@@ -755,13 +743,7 @@ impl NetworkManager {
                     let collisions = if_data.ifi_collisions;
 
                     // Store in result map
-                    result.insert(
-                        name,
-                        (
-                            rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors,
-                            collisions,
-                        ),
-                    );
+                    result.insert(name, (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions));
                 }
             }
         }
@@ -813,13 +795,9 @@ impl NetworkManager {
             let tx_packets = parts[7].parse::<u64>().unwrap_or(0);
             let tx_errors = parts[8].parse::<u64>().unwrap_or(0);
             let tx_bytes = parts[9].parse::<u64>().unwrap_or(0);
-            let collisions =
-                if parts.len() > 10 { parts[10].parse::<u64>().unwrap_or(0) } else { 0 };
+            let collisions = if parts.len() > 10 { parts[10].parse::<u64>().unwrap_or(0) } else { 0 };
 
-            result.insert(
-                name,
-                (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions),
-            );
+            result.insert(name, (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions));
         }
 
         Some(result)
@@ -838,8 +816,7 @@ impl NetworkManager {
             }
         } else if name.starts_with("wl") || name.starts_with("ath") {
             InterfaceType::WiFi
-        } else if name.starts_with("vnic") || name.starts_with("bridge") || name.starts_with("utun")
-        {
+        } else if name.starts_with("vnic") || name.starts_with("bridge") || name.starts_with("utun") {
             InterfaceType::Virtual
         } else {
             InterfaceType::Other

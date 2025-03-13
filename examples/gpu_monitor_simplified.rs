@@ -32,7 +32,11 @@ fn display_gpu_metrics(metrics: &GpuMetrics) {
 
     println!("Memory:");
     println!("  Total: {}", format_memory(metrics.memory.total));
-    println!("  Used:  {} ({:.1}%)", format_memory(metrics.memory.used), (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0);
+    println!(
+        "  Used:  {} ({:.1}%)",
+        format_memory(metrics.memory.used),
+        (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0
+    );
     println!("  Free:  {}", format_memory(metrics.memory.free));
     println!();
 }
@@ -43,14 +47,14 @@ fn create_visual_bar(percentage: f64, width: usize) -> String {
     let empty_chars = width - filled_chars;
 
     let mut bar = String::new();
-    bar.push_str("[");
+    bar.push('[');
     for _ in 0..filled_chars {
         bar.push('#');
     }
     for _ in 0..empty_chars {
         bar.push(' ');
     }
-    bar.push_str("]");
+    bar.push(']');
 
     bar
 }

@@ -1,12 +1,11 @@
 //! This module is only used to make the automock-generated MockIOKit available to tests in other modules.
 
 use super::{ThreadSafeAnyObject, ThreadSafeNSDictionary};
-use crate::utils::test_utils::create_test_object as other_create_test_object;
 use crate::{
-    error::{Error, Result},
+    error::Result,
     hardware::iokit::{FanInfo, GpuStats, IOKit, ThermalInfo},
 };
-use objc2::{rc::Retained, runtime::AnyObject};
+use objc2::rc::Retained;
 use objc2_foundation::{NSDictionary, NSObject, NSString};
 use std::time::Duration;
 
@@ -25,6 +24,12 @@ pub struct MockIOKit {
     pub logical_cores: usize,
     pub core_usage: Vec<f64>,
     pub cpu_temperature: f64,
+}
+
+impl Default for MockIOKit {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockIOKit {
@@ -81,17 +86,11 @@ impl IOKit for MockIOKit {
         Ok(ThreadSafeNSDictionary::empty())
     }
 
-    fn io_service_get_matching_service(
-        &self,
-        _matching: &ThreadSafeNSDictionary,
-    ) -> Result<ThreadSafeAnyObject> {
+    fn io_service_get_matching_service(&self, _matching: &ThreadSafeNSDictionary) -> Result<ThreadSafeAnyObject> {
         Ok(ThreadSafeAnyObject::new(create_test_object()))
     }
 
-    fn io_registry_entry_create_cf_properties(
-        &self,
-        _service: &ThreadSafeAnyObject,
-    ) -> Result<ThreadSafeNSDictionary> {
+    fn io_registry_entry_create_cf_properties(&self, _service: &ThreadSafeAnyObject) -> Result<ThreadSafeNSDictionary> {
         Ok(ThreadSafeNSDictionary::empty())
     }
 
@@ -114,10 +113,7 @@ impl IOKit for MockIOKit {
         Ok(Some(ThreadSafeAnyObject::new(create_test_object())))
     }
 
-    fn get_service_properties(
-        &self,
-        _service: &ThreadSafeAnyObject,
-    ) -> Result<ThreadSafeNSDictionary> {
+    fn get_service_properties(&self, _service: &ThreadSafeAnyObject) -> Result<ThreadSafeNSDictionary> {
         Ok(ThreadSafeNSDictionary::empty())
     }
 
@@ -154,12 +150,7 @@ impl IOKit for MockIOKit {
     }
 
     fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
-        Ok(vec![FanInfo {
-            speed_rpm: 2000,
-            min_speed: 0,
-            max_speed: 5000,
-            percentage: 40.0,
-        }])
+        Ok(vec![FanInfo { speed_rpm: 2000, min_speed: 0, max_speed: 5000, percentage: 40.0 }])
     }
 
     fn check_thermal_throttling(&self) -> Result<bool> {
@@ -170,11 +161,7 @@ impl IOKit for MockIOKit {
         Ok(25.0)
     }
 
-    fn get_number_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        _key: &str,
-    ) -> Option<f64> {
+    fn get_number_property(&self, _dict: &NSDictionary<NSString, NSObject>, _key: &str) -> Option<f64> {
         Some(42.0)
     }
 
@@ -209,8 +196,8 @@ impl Clone for MockIOKit {
 
 fn create_test_object() -> Retained<NSObject> {
     let dict = NSDictionary::<NSString, NSObject>::new();
-    unsafe { 
+    unsafe {
         let obj_ptr = dict.as_ref() as *const NSObject as *mut NSObject;
-        Retained::from_raw(obj_ptr).expect("Failed to create Retained<NSObject>") 
+        Retained::from_raw(obj_ptr).expect("Failed to create Retained<NSObject>")
     }
 }

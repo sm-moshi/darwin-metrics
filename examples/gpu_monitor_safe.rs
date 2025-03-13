@@ -57,10 +57,7 @@ fn main() {
         let memory_total = 8.0; // Simplified - real systems would calculate this
         let memory_percent = (memory_used / memory_total) * 100.0;
 
-        println!(
-            "Estimated GPU Memory: {:.1} GB/{:.1} GB ({:.1}%)",
-            memory_used, memory_total, memory_percent
-        );
+        println!("Estimated GPU Memory: {:.1} GB/{:.1} GB ({:.1}%)", memory_used, memory_total, memory_percent);
 
         // Create a visual bar for GPU usage
         print_bar("GPU Usage:", estimated_gpu, 50);
@@ -78,13 +75,11 @@ fn main() {
 
 /// Displays system information in a formatted manner
 fn display_system_info() {
-    autoreleasepool(|_| {
-        unsafe {
-            let process_info = objc2_foundation::NSProcessInfo::processInfo();
-            println!("  OS Version: {}", process_info.operatingSystemVersionString());
-            println!("  Memory: {} GB", process_info.physicalMemory() as f64 / 1_073_741_824.0);
-            println!("  CPU Cores: {}", process_info.activeProcessorCount());
-        }
+    autoreleasepool(|_| unsafe {
+        let process_info = objc2_foundation::NSProcessInfo::processInfo();
+        println!("  OS Version: {}", process_info.operatingSystemVersionString());
+        println!("  Memory: {} GB", process_info.physicalMemory() as f64 / 1_073_741_824.0);
+        println!("  CPU Cores: {}", process_info.activeProcessorCount());
     });
 }
 

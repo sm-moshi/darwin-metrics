@@ -3,11 +3,10 @@ use std::ffi::c_char;
 
 use crate::error::Error;
 use crate::utils::bindings::{
-    address_family, extern_proc, extract_proc_name, get_network_stats_native, getloadavg,
-    if_data64, if_flags, is_system_process, kinfo_proc, proc_info, process_state,
-    reachability_flags, smc_key_from_chars, timeval, MTLCreateSystemDefaultDevice, MTLDeviceRef,
-    Statfs, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER, SMC_KEY_CPU_TEMP,
-    SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM, SMC_KEY_GPU_TEMP,
+    address_family, extern_proc, extract_proc_name, get_network_stats_native, getloadavg, if_data64, if_flags,
+    is_system_process, kinfo_proc, proc_info, process_state, reachability_flags, smc_key_from_chars, timeval,
+    MTLCreateSystemDefaultDevice, MTLDeviceRef, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER,
+    SMC_KEY_CPU_TEMP, SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM, SMC_KEY_GPU_TEMP,
 };
 
 // Macro for testing constant values
@@ -38,14 +37,9 @@ fn test_get_network_stats_native_cases() {
         if should_error {
             assert!(result.is_err());
             assert!(result.unwrap_err().to_string().contains(expected_err));
-        } else {
-            if let Ok(stats) = result {
-                // If successful, verify the stats struct has valid fields
-                println!(
-                    "Interface {} stats: rx={}, tx={}",
-                    interface, stats.ifi_ibytes, stats.ifi_obytes
-                );
-            }
+        } else if let Ok(stats) = result {
+            // If successful, verify the stats struct has valid fields
+            println!("Interface {} stats: rx={}, tx={}", interface, stats.ifi_ibytes, stats.ifi_obytes);
         }
     }
 }
@@ -208,15 +202,8 @@ fn test_smc_key_from_chars_predefined_keys() {
     let cpu_throttle_key = smc_key_from_chars(SMC_KEY_CPU_THROTTLE);
 
     // Verify each key is unique
-    let keys = [
-        cpu_temp_key,
-        gpu_temp_key,
-        fan_num_key,
-        ambient_temp_key,
-        battery_temp_key,
-        cpu_power_key,
-        cpu_throttle_key,
-    ];
+    let keys =
+        [cpu_temp_key, gpu_temp_key, fan_num_key, ambient_temp_key, battery_temp_key, cpu_power_key, cpu_throttle_key];
 
     // Check that all keys are unique
     let unique_keys: HashSet<_> = keys.iter().collect();

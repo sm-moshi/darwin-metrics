@@ -5,17 +5,13 @@ macro_rules! define_property_accessor {
     ($name:ident, $type:ty, $converter:expr) => {
         fn $name(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<$type> {
             let ns_key = NSString::from_str(key);
-            unsafe { dict.valueForKey(&ns_key) }
-                .and_then(|obj| obj.downcast::<NSNumber>().ok())
-                .map($converter)
+            unsafe { dict.valueForKey(&ns_key) }.and_then(|obj| obj.downcast::<NSNumber>().ok()).map($converter)
         }
     };
     ($name:ident, String) => {
         fn $name(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
             let ns_key = NSString::from_str(key);
-            unsafe { dict.valueForKey(&ns_key) }
-                .and_then(|obj| obj.downcast::<NSString>().ok())
-                .map(|s| s.to_string())
+            unsafe { dict.valueForKey(&ns_key) }.and_then(|obj| obj.downcast::<NSString>().ok()).map(|s| s.to_string())
         }
     };
 }

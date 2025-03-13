@@ -1,7 +1,5 @@
 use super::*;
-use crate::hardware::iokit::{
-    FanInfo, GpuStats, ThermalInfo, ThreadSafeAnyObject, ThreadSafeNSDictionary,
-};
+use crate::hardware::iokit::{FanInfo, GpuStats, ThermalInfo, ThreadSafeAnyObject, ThreadSafeNSDictionary};
 use crate::Error;
 use crate::GpuMetrics; // Import GpuMetrics
 use objc2::rc::Retained;
@@ -11,9 +9,9 @@ use std::sync::Arc;
 // Helper function to create a test object
 fn create_test_object() -> Retained<NSObject> {
     let dict = NSDictionary::<NSString, NSObject>::new();
-    unsafe { 
+    unsafe {
         let obj_ptr = dict.as_ref() as *const NSObject as *mut NSObject;
-        Retained::from_raw(obj_ptr).expect("Failed to create Retained<NSObject>") 
+        Retained::from_raw(obj_ptr).expect("Failed to create Retained<NSObject>")
     }
 }
 
@@ -26,19 +24,14 @@ struct MockIOKitClone {
 
 impl std::fmt::Debug for MockIOKitClone {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MockIOKitClone")
-            .field("thermal_info", &"<function>")
-            .field("fan_info", &"<function>")
-            .finish()
+        f.debug_struct("MockIOKitClone").field("thermal_info", &"<function>").field("fan_info", &"<function>").finish()
     }
 }
 
 impl MockIOKitClone {
     fn new() -> Self {
         Self {
-            thermal_info: Arc::new(|_| {
-                Ok(ThermalInfo::new(ThreadSafeNSDictionary::empty()))
-            }),
+            thermal_info: Arc::new(|_| Ok(ThermalInfo::new(ThreadSafeNSDictionary::empty()))),
             fan_info: Arc::new(|_| {
                 Ok(vec![
                     FanInfo { speed_rpm: 2000, min_speed: 1000, max_speed: 4000, percentage: 33.3 },
@@ -94,11 +87,7 @@ impl IOKit for MockIOKitClone {
         Ok(())
     }
 
-    fn get_number_property(
-        &self,
-        _dict: &NSDictionary<NSString, NSObject>,
-        key: &str,
-    ) -> Option<f64> {
+    fn get_number_property(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
         match key {
             "CurrentCapacity" => Some(85.0),
             "CycleCount" => Some(100.0),
@@ -110,10 +99,7 @@ impl IOKit for MockIOKitClone {
         }
     }
 
-    fn get_service_properties(
-        &self,
-        _service: &ThreadSafeAnyObject,
-    ) -> Result<ThreadSafeNSDictionary, Error> {
+    fn get_service_properties(&self, _service: &ThreadSafeAnyObject) -> Result<ThreadSafeNSDictionary, Error> {
         Ok(ThreadSafeNSDictionary::empty())
     }
 
@@ -131,9 +117,9 @@ impl IOKit for MockIOKitClone {
 
     fn get_fan_info(&self, fan_index: u32) -> Result<FanInfo, Error> {
         let fans = (*self.fan_info)(ThreadSafeAnyObject::new(create_test_object()))?;
-        fans.get(fan_index as usize).cloned().ok_or_else(|| {
-            Error::iokit_error(-1, format!("Fan index out of bounds: {}", fan_index))
-        })
+        fans.get(fan_index as usize)
+            .cloned()
+            .ok_or_else(|| Error::iokit_error(-1, format!("Fan index out of bounds: {}", fan_index)))
     }
 
     fn get_thermal_info(&self) -> Result<ThermalInfo, Error> {
@@ -182,7 +168,11 @@ fn display_memory_info(metrics: &GpuMetrics) {
     println!("Memory Information:");
     println!("------------------");
     println!("Total Memory: {}", format_bytes(metrics.memory.total));
-    println!("Used Memory: {} ({:.1}%)", format_bytes(metrics.memory.used), (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0);
+    println!(
+        "Used Memory: {} ({:.1}%)",
+        format_bytes(metrics.memory.used),
+        (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0
+    );
     if let Some(temp) = metrics.temperature {
         println!("GPU Temperature: {}°C", temp);
     }

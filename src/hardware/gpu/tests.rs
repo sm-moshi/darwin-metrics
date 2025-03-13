@@ -32,11 +32,7 @@ fn test_memory_info() {
     // Memory should be reasonable values
     assert!(memory.total > 0, "Total memory should be positive");
     assert!(memory.used <= memory.total, "Used memory should not exceed total");
-    assert_eq!(
-        memory.free,
-        memory.total.saturating_sub(memory.used),
-        "Free memory should be calculated correctly"
-    );
+    assert_eq!(memory.free, memory.total.saturating_sub(memory.used), "Free memory should be calculated correctly");
 
     // Print for debugging
     println!("Memory: {:?}", memory);
@@ -52,10 +48,7 @@ fn test_metrics() {
 
     // Basic validations
     assert!(!metrics.name.is_empty(), "Name should not be empty");
-    assert!(
-        metrics.utilization >= 0.0 && metrics.utilization <= 100.0,
-        "Utilization should be between 0-100%"
-    );
+    assert!(metrics.utilization >= 0.0 && metrics.utilization <= 100.0, "Utilization should be between 0-100%");
 
     // Print for debugging
     println!("Metrics: {:?}", metrics);
@@ -68,14 +61,8 @@ fn test_gpu_characteristics() {
 
     // Architecture validation
     if cfg!(target_arch = "aarch64") {
-        assert!(
-            characteristics.is_apple_silicon,
-            "Should detect Apple Silicon on aarch64 hardware"
-        );
-        assert!(
-            characteristics.is_integrated,
-            "Apple Silicon GPUs should be detected as integrated"
-        );
+        assert!(characteristics.is_apple_silicon, "Should detect Apple Silicon on aarch64 hardware");
+        assert!(characteristics.is_integrated, "Apple Silicon GPUs should be detected as integrated");
     }
 
     // Architecture detection tests are handled by individual cases above The original assertion was logically
@@ -104,11 +91,7 @@ fn test_gpu_characteristics() {
 
     // Core count should be reasonable if available
     if let Some(core_count) = characteristics.core_count {
-        assert!(
-            core_count > 0 && core_count < 200,
-            "Core count should be in a reasonable range: {}",
-            core_count
-        );
+        assert!(core_count > 0 && core_count < 200, "Core count should be in a reasonable range: {}", core_count);
     }
 
     // Print for debugging
@@ -121,10 +104,7 @@ fn test_apple_silicon_detection() {
 
     if cfg!(target_arch = "aarch64") {
         // On Apple Silicon hardware, this should return a value
-        assert!(
-            gpu.detect_apple_silicon_chip().is_some(),
-            "Should detect chip type on Apple Silicon hardware"
-        );
+        assert!(gpu.detect_apple_silicon_chip().is_some(), "Should detect chip type on Apple Silicon hardware");
 
         if let Some(chip_info) = gpu.detect_apple_silicon_chip() {
             assert!(
@@ -156,10 +136,7 @@ fn test_cpu_detection() {
         if cfg!(target_arch = "aarch64") {
             // Check for Apple-designed CPU on Apple Silicon
             assert!(
-                info.contains("Apple")
-                    || info.contains("M1")
-                    || info.contains("M2")
-                    || info.contains("M3"),
+                info.contains("Apple") || info.contains("M1") || info.contains("M2") || info.contains("M3"),
                 "On Apple Silicon, CPU should be an Apple-designed chip: {}",
                 info
             );
@@ -180,10 +157,7 @@ fn test_metrics_characteristics() {
 
     // Verify that the characteristics field is properly populated
     if cfg!(target_arch = "aarch64") {
-        assert!(
-            metrics.characteristics.is_apple_silicon,
-            "Metrics should report Apple Silicon on ARM hardware"
-        );
+        assert!(metrics.characteristics.is_apple_silicon, "Metrics should report Apple Silicon on ARM hardware");
     }
 
     // Check that memory info makes sense with the characteristics
@@ -199,10 +173,6 @@ fn test_metrics_characteristics() {
 
     // Check that temperature estimation varies by architecture
     if let Some(temp) = metrics.temperature {
-        assert!(
-            (35.0..=80.0).contains(&temp),
-            "Temperature should be in a reasonable range: {}",
-            temp
-        );
+        assert!((35.0..=80.0).contains(&temp), "Temperature should be in a reasonable range: {}", temp);
     }
 }

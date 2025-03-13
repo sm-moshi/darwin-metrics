@@ -142,14 +142,7 @@ pub struct DiskMonitor {
 
 impl Disk {
     /// Creates a new Disk instance with the given parameters
-    pub fn new(
-        device: String,
-        mount_point: String,
-        fs_type: String,
-        total: u64,
-        available: u64,
-        used: u64,
-    ) -> Self {
+    pub fn new(device: String, mount_point: String, fs_type: String, total: u64, available: u64, used: u64) -> Self {
         Self {
             device,
             mount_point,
@@ -203,16 +196,13 @@ impl Disk {
         let stat = unsafe { fs_stat.assume_init() };
 
         // Extract filesystem type
-        let fs_type =
-            unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
+        let fs_type = unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract mount point (should be "/" for root)
-        let mount_point =
-            unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
+        let mount_point = unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract device name
-        let device =
-            unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
+        let device = unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
 
         // Calculate disk space values
         let block_size = stat.f_bsize as u64;
@@ -235,27 +225,17 @@ impl Disk {
         unsafe {
             let fs_count = getfsstat(std::ptr::null_mut(), 0, MNT_NOWAIT);
             if fs_count < 0 {
-                return Err(Error::io_error(
-                    "Failed to get filesystem count",
-                    io::Error::last_os_error(),
-                ));
+                return Err(Error::io_error("Failed to get filesystem count", io::Error::last_os_error()));
             }
 
             let mut stats = Vec::with_capacity(fs_count as usize);
             // Initialize with zeros since we'll write directly to this memory
             stats.resize(fs_count as usize, std::mem::zeroed());
 
-            let result = getfsstat(
-                stats.as_mut_ptr(),
-                (size_of::<Statfs>() * fs_count as usize) as i32,
-                MNT_NOWAIT,
-            );
+            let result = getfsstat(stats.as_mut_ptr(), (size_of::<Statfs>() * fs_count as usize) as i32, MNT_NOWAIT);
 
             if result < 0 {
-                return Err(Error::io_error(
-                    "Failed to get filesystem stats",
-                    io::Error::last_os_error(),
-                ));
+                return Err(Error::io_error("Failed to get filesystem stats", io::Error::last_os_error()));
             }
 
             // Truncate to actual number of entries returned
@@ -264,33 +244,25 @@ impl Disk {
             Ok(stats
                 .into_iter()
                 .map(|stat| {
-                    let device =
-                        CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned();
-                    let mount_point =
-                        CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned();
-                    let fs_type =
-                        CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned();
+                    let device = CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned();
+                    let mount_point = CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned();
+                    let fs_type = CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned();
 
                     // Determine disk type based on filesystem type
-                    let disk_type = if CStr::from_ptr(stat.f_fstypename.as_ptr())
-                        .to_str()
-                        .unwrap_or("")
-                        .eq("apfs")
-                    {
+                    let disk_type = if CStr::from_ptr(stat.f_fstypename.as_ptr()).to_str().unwrap_or("").eq("apfs") {
                         DiskType::SSD
                     } else {
                         DiskType::Unknown
                     };
 
                     // Check if it's the boot volume
-                    let is_boot_volume =
-                        CStr::from_ptr(stat.f_mntonname.as_ptr()).to_str().unwrap_or("").eq("/");
+                    let is_boot_volume = CStr::from_ptr(stat.f_mntonname.as_ptr()).to_str().unwrap_or("").eq("/");
 
                     // Calculate disk space values
                     let block_size = stat.f_bsize as u64;
                     let total = stat.f_blocks * block_size;
                     let available = stat.f_bavail * block_size;
-                    let used = (stat.f_blocks - stat.f_bfree) as u64 * block_size;
+                    let used = (stat.f_blocks - stat.f_bfree) * block_size;
 
                     // Create a disk config
                     let config = DiskConfig {
@@ -324,16 +296,13 @@ impl Disk {
         let stat = unsafe { fs_stat.assume_init() };
 
         // Extract filesystem type
-        let fs_type =
-            unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
+        let fs_type = unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract mount point
-        let mount_point =
-            unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
+        let mount_point = unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract device name
-        let device =
-            unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
+        let device = unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
 
         // Calculate disk space values
         let block_size = stat.f_bsize as u64;
@@ -444,10 +413,7 @@ impl DiskMonitor {
         let fs_count = unsafe { getfsstat(std::ptr::null_mut(), 0, MNT_NOWAIT) };
 
         if fs_count < 0 {
-            return Err(Error::io_error(
-                "Failed to get filesystem count",
-                io::Error::last_os_error(),
-            ));
+            return Err(Error::io_error("Failed to get filesystem count", io::Error::last_os_error()));
         }
 
         // Create a vector with capacity and initialize with zeros
@@ -458,19 +424,11 @@ impl DiskMonitor {
         }
 
         // Get the actual data
-        let fs_count = unsafe {
-            getfsstat(
-                stats.as_mut_ptr(),
-                (size_of::<Statfs>() * fs_count as usize) as i32,
-                MNT_NOWAIT,
-            )
-        };
+        let fs_count =
+            unsafe { getfsstat(stats.as_mut_ptr(), (size_of::<Statfs>() * fs_count as usize) as i32, MNT_NOWAIT) };
 
         if fs_count < 0 {
-            return Err(Error::io_error(
-                "Failed to get filesystem information",
-                io::Error::last_os_error(),
-            ));
+            return Err(Error::io_error("Failed to get filesystem information", io::Error::last_os_error()));
         }
 
         // Truncate to actual count and process the data
@@ -479,9 +437,7 @@ impl DiskMonitor {
         // Process the data
         for stat in stats.iter() {
             // Extract filesystem type safely
-            let fs_type = unsafe {
-                CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned()
-            };
+            let fs_type = unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
 
             // Skip special filesystems
             if ["devfs", "autofs", "msdos"].contains(&fs_type.as_str()) {
@@ -489,12 +445,9 @@ impl DiskMonitor {
             }
 
             // Extract mount point and device name safely
-            let mount_point =
-                unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
+            let mount_point = unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
-            let device = unsafe {
-                CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned()
-            };
+            let device = unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
 
             // Calculate disk space values
             let block_size = stat.f_bsize as u64;
@@ -516,15 +469,7 @@ impl DiskMonitor {
             let config = DiskConfig { disk_type, name, is_boot_volume };
 
             // Add to volumes list
-            volumes.push(Disk::with_details(
-                device,
-                mount_point,
-                fs_type,
-                total,
-                available,
-                used,
-                config,
-            ));
+            volumes.push(Disk::with_details(device, mount_point, fs_type, total, available, used, config));
         }
 
         Ok(volumes)
@@ -557,16 +502,13 @@ impl DiskMonitor {
         let stat = unsafe { stat.assume_init() };
 
         // Extract filesystem type safely
-        let fs_type =
-            unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
+        let fs_type = unsafe { CStr::from_ptr(stat.f_fstypename.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract mount point safely
-        let mount_point =
-            unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
+        let mount_point = unsafe { CStr::from_ptr(stat.f_mntonname.as_ptr()).to_string_lossy().into_owned() };
 
         // Extract device name safely
-        let device =
-            unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
+        let device = unsafe { CStr::from_ptr(stat.f_mntfromname.as_ptr()).to_string_lossy().into_owned() };
 
         // Calculate disk space values
         let block_size = stat.f_bsize as u64;
@@ -675,11 +617,7 @@ impl DiskMonitor {
                 let total_time_ns = delta_read_time + delta_write_time;
                 let elapsed_ns = (elapsed_secs * 1_000_000_000.0) as u64;
 
-                let utilization = if elapsed_ns > 0 {
-                    (total_time_ns as f64 / elapsed_ns as f64) * 100.0
-                } else {
-                    0.0
-                };
+                let utilization = if elapsed_ns > 0 { (total_time_ns as f64 / elapsed_ns as f64) * 100.0 } else { 0.0 };
 
                 // Build performance struct
                 let perf = DiskPerformance {
@@ -699,15 +637,8 @@ impl DiskMonitor {
         }
 
         // Update current stats for next time
-        let current_stats = DiskStats {
-            read_ops,
-            write_ops,
-            bytes_read,
-            bytes_written,
-            read_time_ns,
-            write_time_ns,
-            timestamp: now,
-        };
+        let current_stats =
+            DiskStats { read_ops, write_ops, bytes_read, bytes_written, read_time_ns, write_time_ns, timestamp: now };
 
         self.previous_stats.insert(device.clone(), current_stats);
 
@@ -717,7 +648,7 @@ impl DiskMonitor {
                 device: device.clone(),
                 reads_per_second: 100.0,
                 writes_per_second: 50.0,
-                bytes_read_per_second: 10 * 1024 * 1024, // 10 MB/s
+                bytes_read_per_second: 10 * 1024 * 1024,   // 10 MB/s
                 bytes_written_per_second: 5 * 1024 * 1024, // 5 MB/s
                 read_latency_ms: 2.5,
                 write_latency_ms: 3.0,
@@ -750,15 +681,8 @@ impl DiskMonitor {
         let write_time_ns = 300_000_000;
 
         // Create stats object
-        let stats = DiskStats {
-            read_ops,
-            write_ops,
-            bytes_read,
-            bytes_written,
-            read_time_ns,
-            write_time_ns,
-            timestamp: now,
-        };
+        let stats =
+            DiskStats { read_ops, write_ops, bytes_read, bytes_written, read_time_ns, write_time_ns, timestamp: now };
 
         // Store the stats
         self.previous_stats.insert(device, stats);
@@ -854,23 +778,29 @@ pub struct Partition {
     pub mount_point: String,
 }
 
+impl Default for DiskInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiskInfo {
     /// Creates a new DiskInfo instance with information about the system's disks
     pub fn new() -> Self {
         let mut monitor = DiskMonitor::new();
         let volumes = monitor.get_volumes().unwrap_or_default();
-        
+
         let mut total_space = 0;
         let mut free_space = 0;
         let mut available_space = 0;
         let mut mount_points = Vec::new();
         let mut partitions = Vec::new();
-        
+
         for disk in &volumes {
             total_space += disk.total;
             free_space += disk.available; // Using available as free for simplicity
             available_space += disk.available;
-            
+
             mount_points.push(MountPoint {
                 device: disk.device.clone(),
                 path: disk.mount_point.clone(),
@@ -879,7 +809,7 @@ impl DiskInfo {
                 free_space: disk.available, // Using available as free for simplicity
                 available_space: disk.available,
             });
-            
+
             partitions.push(Partition {
                 device: disk.device.clone(),
                 size: disk.total,
@@ -887,22 +817,22 @@ impl DiskInfo {
                 mount_point: disk.mount_point.clone(),
             });
         }
-        
+
         // Get performance metrics for read/write statistics
         let performance = monitor.get_performance().unwrap_or_default();
         let mut read_bytes = 0;
         let mut write_bytes = 0;
         let mut read_ops = 0;
         let mut write_ops = 0;
-        
+
         for (_, perf) in performance {
             // Use the appropriate fields from DiskPerformance
-            read_bytes += perf.bytes_read_per_second as u64;
-            write_bytes += perf.bytes_written_per_second as u64;
+            read_bytes += perf.bytes_read_per_second;
+            write_bytes += perf.bytes_written_per_second;
             read_ops += perf.reads_per_second as u64;
             write_ops += perf.writes_per_second as u64;
         }
-        
+
         Self {
             total_space,
             free_space,
