@@ -7,7 +7,6 @@
 /// - `test_utils`: Utilities for testing
 /// - `mock_dictionary`: A pure Rust mock dictionary for testing
 /// - `dictionary_access`: A trait for abstracting dictionary access operations
-
 /// FFI bindings for macOS system APIs
 pub mod bindings;
 
@@ -418,7 +417,7 @@ mod tests {
         let result = get_name(std::ptr::null_mut());
         assert!(result.is_err());
         match result {
-            Err(Error::NotAvailable { resource, reason }) => {
+            Err(Error::NotAvailable { resource: _, reason }) => {
                 assert!(reason.contains("No device available"))
             },
             _ => panic!("Unexpected error type"),

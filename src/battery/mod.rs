@@ -1,10 +1,8 @@
 use crate::{
     error::{Error, Result},
     hardware::iokit::{IOKit, ThreadSafeAnyObject},
-    utils::dictionary_access::DictionaryAccess,
 };
 use std::time::Duration;
-// use objc2_foundation::NSDictionary;
 
 #[cfg(test)]
 use crate::hardware::iokit::mock::MockIOKit;
@@ -28,6 +26,16 @@ pub enum PowerSource {
     AC,
     /// Power source could not be determined
     Unknown,
+}
+
+/// Struct to hold battery parameters
+pub struct BatteryParams {
+    pub present: bool,
+    pub percentage: i64,
+    pub cycle_count: i64,
+    pub current_voltage: i64,
+    pub current_draw: i64,
+    pub current_capacity: i64,
 }
 
 #[derive(Debug, Clone)]
@@ -118,39 +126,6 @@ impl Battery {
             design_capacity,
             current_capacity,
         })
-    }
-
-    #[cfg(test)]
-    /// Creates a new Battery instance with the specified values
-    pub fn with_values(
-        battery_is_present: bool,
-        battery_is_charging: bool,
-        battery_cycle_count: u32,
-        battery_health_percentage: f64,
-        battery_temperature: f64,
-        battery_time_remaining: Duration,
-        battery_power_draw: f64,
-        battery_design_capacity: f64,
-        battery_current_capacity: f64,
-    ) -> Result<Self> {
-        let iokit = Box::new(MockIOKit {
-            battery_is_present,
-            battery_is_charging,
-            battery_cycle_count,
-            battery_health_percentage,
-            battery_temperature,
-            battery_time_remaining,
-            battery_power_draw,
-            battery_design_capacity,
-            battery_current_capacity,
-            // Default values for CPU-related fields
-            physical_cores: 4,
-            logical_cores: 8,
-            core_usage: vec![0.0; 4],
-            cpu_temperature: 45.0,
-        });
-
-        Self::new(iokit)
     }
 
     /// Returns true if the battery level is critically low (below 5%)
@@ -273,27 +248,17 @@ impl Battery {
 }
 
 impl BatteryInfo {
-    pub fn new(
-        present: bool,
-        percentage: i64,
-        cycle_count: i64,
-        is_charging: bool,
-        is_external: bool,
-        temperature: f64,
-        power_draw: f64,
-        design_capacity: i64,
-        current_capacity: i64,
-    ) -> Self {
+    pub fn new(params: BatteryParams) -> Self {
         Self {
-            present,
-            percentage,
-            cycle_count,
-            is_charging,
-            is_external,
-            temperature,
-            power_draw,
-            design_capacity,
-            current_capacity,
+            present: params.present,
+            percentage: params.percentage,
+            cycle_count: params.cycle_count,
+            is_charging: false,
+            is_external: false,
+            temperature: 0.0,
+            power_draw: 0.0,
+            design_capacity: 0,
+            current_capacity: params.current_capacity,
         }
     }
 
@@ -333,5 +298,42 @@ impl PartialEq for BatteryInfo {
             && self.design_capacity == other.design_capacity
             && self.current_capacity == other.current_capacity
             && self.temperature == other.temperature
+    }
+}
+
+#[cfg(test)]
+/// Struct to hold battery values
+pub struct BatteryValues {
+    pub battery_is_present: bool,
+    pub battery_is_charging: bool,
+    pub battery_cycle_count: u32,
+    pub battery_percentage: f64,
+    pub battery_voltage: f64,
+    pub battery_current: f64,
+    pub battery_current_capacity: f64,
+}
+
+#[cfg(test)]
+impl Battery {
+    /// Creates a new Battery instance with the specified values
+    pub fn with_values(values: BatteryValues) -> Result<Self> {
+        let iokit = Box::new(MockIOKit {
+            battery_is_present: values.battery_is_present,
+            battery_is_charging: values.battery_is_charging,
+            battery_cycle_count: values.battery_cycle_count,
+            battery_health_percentage: values.battery_percentage,
+            battery_temperature: values.battery_voltage,
+            battery_time_remaining: Duration::from_secs(0),
+            battery_power_draw: values.battery_current,
+            battery_design_capacity: values.battery_current_capacity,
+            battery_current_capacity: values.battery_current_capacity,
+            // Default values for CPU-related fields
+            physical_cores: 4,
+            logical_cores: 8,
+            core_usage: vec![0.0; 4],
+            cpu_temperature: 45.0,
+        });
+
+        Self::new(iokit)
     }
 }

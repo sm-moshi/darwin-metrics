@@ -98,6 +98,17 @@ pub struct Interface {
     last_update: Instant,
 }
 
+/// Struct to hold traffic statistics parameters
+pub struct TrafficStatsParams {
+    pub bytes_received: u64,
+    pub bytes_sent: u64,
+    pub packets_received: u64,
+    pub packets_sent: u64,
+    pub receive_errors: u64,
+    pub send_errors: u64,
+    pub collisions: u64,
+}
+
 /// Builder for creating Interface instances with a fluent API.
 #[derive(Debug, Default)]
 pub struct InterfaceBuilder {
@@ -158,23 +169,14 @@ impl InterfaceBuilder {
     }
 
     /// Sets traffic statistics.
-    pub fn traffic_stats(
-        mut self,
-        bytes_received: u64,
-        bytes_sent: u64,
-        packets_received: u64,
-        packets_sent: u64,
-        receive_errors: u64,
-        send_errors: u64,
-        collisions: u64,
-    ) -> Self {
-        self.bytes_received = bytes_received;
-        self.bytes_sent = bytes_sent;
-        self.packets_received = packets_received;
-        self.packets_sent = packets_sent;
-        self.receive_errors = receive_errors;
-        self.send_errors = send_errors;
-        self.collisions = collisions;
+    pub fn traffic_stats(mut self, params: TrafficStatsParams) -> Self {
+        self.bytes_received = params.bytes_received;
+        self.bytes_sent = params.bytes_sent;
+        self.packets_received = params.packets_received;
+        self.packets_sent = params.packets_sent;
+        self.receive_errors = params.receive_errors;
+        self.send_errors = params.send_errors;
+        self.collisions = params.collisions;
         self
     }
 
@@ -518,7 +520,15 @@ impl NetworkManager {
                     .flags(flags)
                     .mac_address(mac_addr.unwrap_or_default())
                     .addresses(ip_addrs)
-                    .traffic_stats(0, 0, 0, 0, 0, 0, 0)
+                    .traffic_stats(TrafficStatsParams {
+                        bytes_received: 0,
+                        bytes_sent: 0,
+                        packets_received: 0,
+                        packets_sent: 0,
+                        receive_errors: 0,
+                        send_errors: 0,
+                        collisions: 0,
+                    })
                     .build()
                     .map_err(|e| Error::system(format!("Failed to create interface: {}", e)))?;
 

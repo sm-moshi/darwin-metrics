@@ -99,322 +99,343 @@ impl IOKit for MockIOKit {
     }
 }
 
-#[test]
-fn test_battery_new() -> Result<()> {
-    setup_test();
-    let battery = Battery::new(Box::new(MockIOKit::default()))?;
-    assert!(battery.is_present()?);
-    Ok(())
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_battery_update_present() -> Result<()> {
-    setup_test();
-    let mut battery = Battery::new(Box::new(MockIOKit::default()))?;
-    assert!(battery.is_present()?);
-    battery.update()?;
-    assert!(battery.is_present()?);
-    Ok(())
-}
+    #[test]
+    fn test_battery_new() -> Result<()> {
+        setup_test();
+        let battery = Battery::new(Box::new(MockIOKit::default()))?;
+        assert!(battery.is_present()?);
+        Ok(())
+    }
 
-#[test]
-fn test_battery_with_values() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+    #[test]
+    fn test_battery_update_present() -> Result<()> {
+        setup_test();
+        let mut battery = Battery::new(Box::new(MockIOKit::default()))?;
+        assert!(battery.is_present()?);
+        battery.update()?;
+        assert!(battery.is_present()?);
+        Ok(())
+    }
 
-    assert!(battery.is_present()?);
-    assert!(!battery.is_charging()?);
-    assert_eq!(battery.cycle_count()?, 100);
-    assert_eq!(battery.percentage()?, 85);
-    assert_eq!(battery.temperature()?, 35.0);
-    assert_eq!(battery.power_draw()?, 45.0);
-    assert_eq!(battery.design_capacity()?, 100);
-    assert_eq!(battery.current_capacity()?, 85);
+    #[test]
+    fn test_battery_with_values() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        assert!(battery.is_present()?);
+        assert!(!battery.is_charging()?);
+        assert_eq!(battery.cycle_count()?, 100);
+        assert_eq!(battery.percentage()?, 85);
+        assert_eq!(battery.temperature()?, 35.0);
+        assert_eq!(battery.power_draw()?, 45.0);
+        assert_eq!(battery.design_capacity()?, 100);
+        assert_eq!(battery.current_capacity()?, 85);
 
-#[test]
-fn test_battery_get_info() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        Ok(())
+    }
 
-    let info = battery.get_info()?;
-    assert!(info.present);
-    assert_eq!(info.percentage, 85);
-    assert_eq!(info.cycle_count, 100);
-    assert!(!info.is_charging);
-    assert_eq!(info.temperature, 35.0);
-    assert_eq!(info.power_draw, 45.0);
+    #[test]
+    fn test_battery_get_info() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        let info = battery.get_info()?;
+        assert!(info.present);
+        assert_eq!(info.percentage, 85);
+        assert_eq!(info.cycle_count, 100);
+        assert!(!info.is_charging);
+        assert_eq!(info.temperature, 35.0);
+        assert_eq!(info.power_draw, 45.0);
 
-#[test]
-fn test_battery_is_critically_low() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        4.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        Ok(())
+    }
 
-    assert!(battery.is_critically_low()?);
+    #[test]
+    fn test_battery_is_critically_low() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            4.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        assert!(battery.is_critically_low()?);
 
-    assert!(!battery.is_critically_low()?);
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        assert!(!battery.is_critically_low()?);
 
-#[test]
-fn test_battery_is_low() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        15.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        Ok(())
+    }
 
-    assert!(battery.is_low()?);
+    #[test]
+    fn test_battery_is_low() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            15.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        assert!(battery.is_low()?);
 
-    assert!(!battery.is_low()?);
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        assert!(!battery.is_low()?);
 
-#[test]
-fn test_battery_time_remaining_display() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(5400), // 1h 30m
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        Ok(())
+    }
 
-    assert_eq!(battery.time_remaining_display()?, "1h 30m");
+    #[test]
+    fn test_battery_time_remaining_display() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(5400), // 1h 30m
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(2700), // 45m
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        assert_eq!(battery.time_remaining_display()?, "1h 30m");
 
-    assert_eq!(battery.time_remaining_display()?, "45m");
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(2700), // 45m
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        assert_eq!(battery.time_remaining_display()?, "45m");
 
-#[test]
-fn test_battery_is_health_critical() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        75.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        75.0,
-    )?;
+        Ok(())
+    }
 
-    assert!(battery.is_health_critical()?);
+    #[test]
+    fn test_battery_is_health_critical() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            75.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            75.0,
+        )?;
 
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        assert!(battery.is_health_critical()?);
 
-    assert!(!battery.is_health_critical()?);
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        assert!(!battery.is_health_critical()?);
 
-#[test]
-fn test_battery_is_cycle_count_critical() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        1200,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        Ok(())
+    }
 
-    assert!(battery.is_cycle_count_critical()?);
+    #[test]
+    fn test_battery_is_cycle_count_critical() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            1200,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    let battery = Battery::with_values(
-        true,
-        false,
-        300,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        assert!(battery.is_cycle_count_critical()?);
 
-    assert!(!battery.is_cycle_count_critical()?);
+        let battery = Battery::with_values(
+            true,
+            false,
+            300,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        assert!(!battery.is_cycle_count_critical()?);
 
-#[test]
-fn test_battery_power_source_display() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        Ok(())
+    }
 
-    assert_eq!(battery.power_source_display()?, "Battery");
+    #[test]
+    fn test_battery_power_source_display() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        assert_eq!(battery.power_source_display()?, "Battery");
 
-#[test]
-fn test_battery_is_temperature_critical() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        46.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        Ok(())
+    }
 
-    assert!(battery.is_temperature_critical()?);
+    #[test]
+    fn test_battery_is_temperature_critical() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            46.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        assert!(battery.is_temperature_critical()?);
 
-    assert!(!battery.is_temperature_critical()?);
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    Ok(())
-}
+        assert!(!battery.is_temperature_critical()?);
 
-#[test]
-fn test_battery_clone() -> Result<()> {
-    setup_test();
-    let battery = Battery::with_values(
-        true,
-        false,
-        100,
-        85.0,
-        35.0,
-        Duration::from_secs(3600),
-        45.0,
-        100.0,
-        85.0,
-    )?;
+        Ok(())
+    }
 
-    let cloned = battery.clone();
+    #[test]
+    fn test_battery_clone() -> Result<()> {
+        setup_test();
+        let battery = Battery::with_values(
+            true,
+            false,
+            100,
+            85.0,
+            35.0,
+            Duration::from_secs(3600),
+            45.0,
+            100.0,
+            85.0,
+        )?;
 
-    assert_eq!(cloned.is_present()?, battery.is_present()?);
-    assert_eq!(cloned.percentage()?, battery.percentage()?);
-    assert_eq!(cloned.cycle_count()?, battery.cycle_count()?);
-    assert_eq!(cloned.temperature()?, battery.temperature()?);
+        let cloned = battery.clone();
 
-    Ok(())
+        assert_eq!(cloned.is_present()?, battery.is_present()?);
+        assert_eq!(cloned.percentage()?, battery.percentage()?);
+        assert_eq!(cloned.cycle_count()?, battery.cycle_count()?);
+        assert_eq!(cloned.temperature()?, battery.temperature()?);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_battery_with_values_2() {
+        let values = BatteryValues {
+            battery_is_present: true,
+            battery_is_charging: false,
+            battery_cycle_count: 100,
+            battery_percentage: 75.0,
+            battery_voltage: 12.0,
+            battery_current: 1.5,
+            battery_current_capacity: 10.0,
+        };
+
+        let battery = Battery::with_values(values).unwrap();
+        assert!(battery.is_present());
+    }
 }

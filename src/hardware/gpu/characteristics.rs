@@ -258,12 +258,10 @@ impl Gpu {
                 };
 
                 // Estimate clock speed based on chip type
-                characteristics.clock_speed_mhz = if chip_info.contains("M3") {
-                    Some(1398)
-                } else if chip_info.contains("M2") {
+                characteristics.clock_speed_mhz = if chip_info.contains("M3") || chip_info.contains("M2") {
                     Some(1398)
                 } else if chip_info.contains("M1") {
-                    Some(1278)
+                    Some(1200)
                 } else {
                     None
                 };
@@ -280,9 +278,8 @@ impl Gpu {
                         Some(96)
                     } else if gpu_name.contains("Iris Plus") {
                         Some(64)
-                    } else if gpu_name.contains("UHD 630") {
-                        Some(24)
-                    } else if gpu_name.contains("HD 630") || gpu_name.contains("HD 530") {
+                    } else if gpu_name.contains("UHD 630") || gpu_name.contains("HD 630") || gpu_name.contains("HD 530")
+                    {
                         Some(24)
                     } else if gpu_name.contains("Iris Pro") {
                         Some(48)
@@ -297,14 +294,11 @@ impl Gpu {
                         Some(1300)
                     } else if gpu_name.contains("Iris Plus") {
                         Some(1150)
-                    } else if gpu_name.contains("UHD 630") {
-                        Some(1200)
-                    } else if gpu_name.contains("HD 630") {
-                        Some(1100)
-                    } else if gpu_name.contains("HD 530") {
-                        Some(1050)
+                    } else if gpu_name.contains("UHD 630") || gpu_name.contains("HD 630") || gpu_name.contains("HD 530")
+                    {
+                        Some(24)
                     } else if gpu_name.contains("Iris Pro") {
-                        Some(1200)
+                        Some(50)
                     } else if gpu_name.contains("Iris") {
                         Some(1100)
                     } else {

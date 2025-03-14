@@ -167,10 +167,10 @@ impl IOKit for MockIOKitClone {
 fn display_memory_info(metrics: &GpuMetrics) {
     println!("Memory Information:");
     println!("------------------");
-    println!("Total Memory: {}", format_bytes(metrics.memory.total));
+    println!("Total Memory: {}", metrics.memory.total);
     println!(
         "Used Memory: {} ({:.1}%)",
-        format_bytes(metrics.memory.used),
+        metrics.memory.used,
         (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0
     );
     if let Some(temp) = metrics.temperature {
@@ -178,11 +178,6 @@ fn display_memory_info(metrics: &GpuMetrics) {
     }
     println!("GPU Name: {}", metrics.name);
     println!("Characteristics: {:?}", metrics.characteristics);
-}
-
-fn format_bytes(bytes: u64) -> String {
-    // Implement the function to format bytes into a human-readable string
-    format!("{} bytes", bytes)
 }
 
 // Rest of the code remains the same

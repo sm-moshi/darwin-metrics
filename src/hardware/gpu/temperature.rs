@@ -145,9 +145,7 @@ impl Gpu {
 
         // Convert string to key bytes
         let bytes = key_str.as_bytes();
-        for i in 0..std::cmp::min(bytes.len(), 4) {
-            key.key[i] = bytes[i];
-        }
+        key.key[..std::cmp::min(bytes.len(), 4)].copy_from_slice(&bytes[..std::cmp::min(bytes.len(), 4)]);
 
         Ok(key)
     }
@@ -242,10 +240,8 @@ impl Gpu {
             // Copy data
             let data_size = std::cmp::min(val.data_size as usize, 32);
 
-            // Access the bytes field from the SMCKeyData_t_data union
-            let data_bytes = match output.data {
-                SMCKeyData_t_data { bytes } => bytes,
-            };
+            let SMCKeyData_t_data { bytes } = output.data;
+            let data_bytes = bytes;
 
             val.data[0..data_size].copy_from_slice(&data_bytes[0..data_size]);
 

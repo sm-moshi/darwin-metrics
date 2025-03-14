@@ -18,13 +18,13 @@ macro_rules! define_property_accessor {
 
 /// Trait for common property access patterns in IOKit and Foundation
 pub trait PropertyUtils {
-    /// Get a string property from a dictionary
+    // Get a string property from a dictionary
     define_property_accessor!(get_string_property, String);
 
-    /// Get a number property from a dictionary
+    // Get a number property from a dictionary
     define_property_accessor!(get_number_property, f64, |n| n.as_f64());
 
-    /// Get a boolean property from a dictionary
+    // Get a boolean property from a dictionary
     define_property_accessor!(get_bool_property, bool, |n| n.as_bool());
 }
 

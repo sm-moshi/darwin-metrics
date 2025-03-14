@@ -170,7 +170,7 @@ impl Gpu {
 
             if total_pages > 0.0 {
                 let pressure = (active_count + wire_count) / total_pages;
-                Ok(pressure.min(1.0).max(0.0))
+                Ok(pressure.clamp(0.0, 1.0))
             } else {
                 Ok(0.5) // Default to 50% pressure
             }

@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     hardware::iokit::{IOKit, IOKitImpl},
-    utils::dictionary_access::DictionaryAccess,
+    //utils::dictionary_access::DictionaryAccess,
 };
 
 /// Represents the location of a temperature sensor in the system

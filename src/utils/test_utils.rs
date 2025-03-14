@@ -1,10 +1,5 @@
 use objc2::rc::Retained;
 use objc2_foundation::{NSDictionary, NSObject, NSString};
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
-
-// Global mutex for hardware tests to prevent concurrent access to hardware
-pub static HARDWARE_TEST_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 /// Creates a test dictionary with no entries
 pub fn create_test_dictionary() -> Retained<NSDictionary<NSString, NSObject>> {
@@ -52,7 +47,10 @@ where
 
 /// Creates a test object for testing
 pub fn create_test_object() -> Retained<NSObject> {
-    unsafe { Retained::from_raw(objc2::msg_send![objc2::class!(NSObject), new]).expect("Failed to create test object") }
+    unsafe {
+        Retained::from_raw(objc2::msg_send![objc2::class!(NSObject), new])
+            .expect("Failed to create test object")
+    }
 }
 
 /// Creates a test string
@@ -187,7 +185,8 @@ mod tests {
     #[test]
     fn test_safe_string_operations() {
         let test_str = "Test String";
-        let mock_dict = MockDictionary::with_entries(&[("str_key", MockValue::String(test_str.to_string()))]);
+        let mock_dict =
+            MockDictionary::with_entries(&[("str_key", MockValue::String(test_str.to_string()))]);
 
         assert_eq!(mock_dict.get_string("str_key"), Some(test_str.to_string()));
         assert_eq!(mock_dict.get_string("nonexistent"), None);
@@ -253,7 +252,8 @@ mod tests {
 
     #[test]
     fn test_safe_dictionary_empty_string() {
-        let mock_dict = MockDictionary::with_entries(&[("empty", MockValue::String("".to_string()))]);
+        let mock_dict =
+            MockDictionary::with_entries(&[("empty", MockValue::String("".to_string()))]);
         assert_eq!(mock_dict.get_string("empty"), Some("".to_string()));
         assert_eq!(mock_dict.get_number("empty"), None);
         assert_eq!(mock_dict.get_bool("empty"), None);
@@ -261,8 +261,10 @@ mod tests {
 
     #[test]
     fn test_safe_dictionary_special_chars() {
-        let mock_dict =
-            MockDictionary::with_entries(&[("special", MockValue::String("Hello\n\t\r\0World".to_string()))]);
+        let mock_dict = MockDictionary::with_entries(&[(
+            "special",
+            MockValue::String("Hello\n\t\r\0World".to_string()),
+        )]);
         assert_eq!(mock_dict.get_string("special"), Some("Hello\n\t\r\0World".to_string()));
     }
 
@@ -334,7 +336,10 @@ mod tests {
 
     #[test]
     fn test_safe_dictionary_unicode() {
-        let mock_dict = MockDictionary::with_entries(&[("unicode", MockValue::String("Hello 世界 🦀".to_string()))]);
+        let mock_dict = MockDictionary::with_entries(&[(
+            "unicode",
+            MockValue::String("Hello 世界 🦀".to_string()),
+        )]);
         assert_eq!(mock_dict.get_string("unicode"), Some("Hello 世界 🦀".to_string()));
     }
 

@@ -93,7 +93,7 @@ impl Gpu {
         let temp_score = if let Ok(temp) = self.get_temperature() {
             // Convert temperature to a 0-100 score
             // Assume idle temp is around 40°C and max is around 90°C
-            ((temp as f64 - 40.0) / 50.0 * 100.0).max(0.0).min(100.0)
+            ((temp as f64 - 40.0) / 50.0 * 100.0).clamp(0.0, 100.0)
         } else {
             0.0
         };

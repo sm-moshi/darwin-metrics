@@ -1,17 +1,15 @@
 use std::ffi::{c_uint, c_void, CString};
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use libc::mach_port_t;
 use objc2::{
     class,
     msg_send,
-    rc::{autoreleasepool, Retained},
-    // runtime::{AnyClass, AnyObject},
-    // ClassType,
-};
-use objc2_foundation::{NSDictionary, NSObject, NSString}; // NSArray, NSNumber
-use parking_lot::Mutex as ParkingLotMutex;
+    rc::Retained,
+    Message,
+}; // Import necessary macros and types
+use objc2_foundation::{NSDictionary, NSObject, NSString};
 
 use crate::error::{Error, Result};
 use crate::utils::bindings::*;
@@ -265,7 +263,7 @@ impl IOKit for IOKitImpl {
         }
 
         // Convert the raw pointer to a ThreadSafeNSDictionary
-        Ok(ThreadSafeNSDictionary::from_ptr(matching_dict as *mut _))
+        unsafe { Ok(ThreadSafeNSDictionary::from_ptr(matching_dict as *mut _)) }
     }
 
     fn get_service_matching(&self, name: &str) -> Result<Option<ThreadSafeAnyObject>> {
@@ -291,10 +289,10 @@ impl IOKit for IOKitImpl {
 
         let dict_ptr = props as *mut NSDictionary<NSString, NSObject>;
         let dict = unsafe {
-            // Use ptr::read to avoid moving out of raw pointer
-            copy_nsdictionary(&*dict_ptr)
+            let dict = &*dict_ptr;
+            std::ptr::read(dict)
         };
-        Ok(ThreadSafeNSDictionary::with_raw_dict(dict, props))
+        Ok(unsafe { ThreadSafeNSDictionary::with_raw_dict(dict, props) })
     }
 
     fn io_connect_call_method(
@@ -403,11 +401,7 @@ impl IOKit for IOKitImpl {
             return Err(Error::iokit_error(0, format!("No parent entry found in plane '{}'", plane)));
         }
 
-        let parent_obj = autoreleasepool(|_| {
-            // Create a placeholder NSObject
-            // TODO: This should be replaced with the actual parent object
-            NSObject::new()
-        });
+        let parent_obj = NSObject::new();
 
         Ok(ThreadSafeAnyObject::with_raw_handle(parent_obj, parent as mach_port_t))
     }
@@ -430,10 +424,10 @@ impl IOKit for IOKitImpl {
 
         let dict_ptr = props as *mut NSDictionary<NSString, NSObject>;
         let dict = unsafe {
-            // Use ptr::read to avoid moving out of raw pointer
-            copy_nsdictionary(&*dict_ptr)
+            let dict = &*dict_ptr;
+            std::ptr::read(dict)
         };
-        Ok(ThreadSafeNSDictionary::with_raw_dict(dict, props))
+        Ok(unsafe { ThreadSafeNSDictionary::with_raw_dict(dict, props) })
     }
 
     fn io_service_get_matching_service(&self, matching_dict: &ThreadSafeNSDictionary) -> Result<ThreadSafeAnyObject> {
@@ -490,7 +484,12 @@ impl IOKit for IOKitImpl {
 
     fn get_number_property(&self, dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
         let key = NSString::from_str(key);
-        unsafe {
+        let obj: *const NSObject = unsafe { msg_send![dict, objectForKey:std::convert::AsRef::<NSString>::as_ref(&key)] };
+        if obj.is_null() {
+            return None;
+        }
+
+            unsafe {
             let obj: *const NSObject = msg_send![dict, objectForKey:&*key];
             if obj.is_null() {
                 return None;
@@ -510,24 +509,24 @@ impl IOKit for IOKitImpl {
 /// A thread-safe wrapper for AnyObject that can be shared between threads.
 #[derive(Debug)]
 pub struct ThreadSafeAnyObject {
-    obj: Arc<ParkingLotMutex<Retained<NSObject>>>,
+    obj: Arc<Mutex<Retained<NSObject>>>,
     raw_handle: mach_port_t,
 }
 
 impl ThreadSafeAnyObject {
     /// Creates a new thread-safe wrapper for an AnyObject.
     pub fn new(obj: Retained<NSObject>) -> Self {
-        Self { obj: Arc::new(ParkingLotMutex::new(obj)), raw_handle: 0 }
+        Self { obj: Arc::new(Mutex::new(obj)), raw_handle: 0 }
     }
 
     /// Creates a new thread-safe wrapper for an AnyObject with a raw handle.
     pub fn with_raw_handle(obj: Retained<NSObject>, raw_handle: mach_port_t) -> Self {
-        Self { obj: Arc::new(ParkingLotMutex::new(obj)), raw_handle }
+        Self { obj: Arc::new(Mutex::new(obj)), raw_handle }
     }
 
     /// Gets a reference to the inner AnyObject.
     pub fn inner(&self) -> Retained<NSObject> {
-        self.obj.lock().clone()
+        self.obj.lock().expect("Failed to lock mutex").clone()
     }
 }
 
@@ -544,7 +543,7 @@ impl Clone for ThreadSafeAnyObject {
 /// A thread-safe wrapper around NSDictionary<NSString, NSObject>
 #[derive(Debug)]
 pub struct ThreadSafeNSDictionary {
-    inner: Arc<ParkingLotMutex<NSDictionary<NSString, NSObject>>>,
+    inner: Arc<Mutex<NSDictionary<NSString, NSObject>>>,
     raw_dict: *mut c_void,
 }
 
@@ -555,32 +554,61 @@ impl ThreadSafeNSDictionary {
 
         // Since NSDictionary::new() returns a Retained<NSDictionary>,
         // we need to extract the NSDictionary from it
-        let dict = unsafe { copy_nsdictionary(&empty_dict) };
-
-        Self { inner: Arc::new(ParkingLotMutex::new(dict)), raw_dict: std::ptr::null_mut() }
+        let dict = copy_nsdictionary(&empty_dict);
+        Self { inner: Arc::new(Mutex::new(dict)), raw_dict: std::ptr::null_mut() }
     }
 
-    pub fn with_raw_dict(dict: NSDictionary<NSString, NSObject>, raw_dict: *mut c_void) -> Self {
-        Self { inner: Arc::new(ParkingLotMutex::new(dict)), raw_dict }
-    }
-
-    pub fn from_ptr(dict_ptr: *mut NSDictionary<NSString, NSObject>) -> Self {
-        let dict = unsafe {
-            if dict_ptr.is_null() {
-                // Since NSDictionary::new() returns a Retained<NSDictionary>,
-                // we need to extract the NSDictionary from it
-                let empty_dict = NSDictionary::new();
-                copy_nsdictionary(&empty_dict)
-            } else {
-                copy_nsdictionary(&*dict_ptr)
+    /// Creates a new ThreadSafeNSDictionary from a raw pointer.
+    /// 
+    /// # Safety
+    /// 
+    /// The caller must ensure that:
+    /// - The pointer is valid and properly aligned
+    /// - The pointer points to a valid NSDictionary<NSString, NSObject>
+    /// - The dictionary is not mutated while this ThreadSafeNSDictionary exists
+    pub unsafe fn from_ptr(dict_ptr: *mut NSDictionary<NSString, NSObject>) -> Self {
+        let dict = if dict_ptr.is_null() {
+            // Since NSDictionary::new() returns a Retained<NSDictionary>,
+            // we need to extract the NSDictionary from it
+            let empty_dict = NSDictionary::new();
+            copy_nsdictionary(&empty_dict)
+        } else {
+            unsafe {
+                let dict = &*dict_ptr;
+                std::ptr::read(dict)
             }
         };
-        Self { inner: Arc::new(ParkingLotMutex::new(dict)), raw_dict: dict_ptr as *mut c_void }
+        Self { inner: Arc::new(Mutex::new(dict)), raw_dict: dict_ptr as *mut c_void }
+    }
+
+    /// Creates a new ThreadSafeNSDictionary from a dictionary and its raw pointer.
+    /// 
+    /// # Safety
+    /// 
+    /// The caller must ensure that:
+    /// - The dictionary is valid and matches the pointer
+    /// - The pointer is either null or points to the same dictionary
+    /// - The dictionary is not mutated while this ThreadSafeNSDictionary exists
+    pub unsafe fn with_raw_dict(dict: NSDictionary<NSString, NSObject>, dict_ptr: *mut c_void) -> Self {
+        if dict_ptr.is_null() {
+            // Create an empty dictionary using from_retained_objects with empty arrays
+            let retained = NSDictionary::from_retained_objects::<NSString>(&[], &[]);
+            let empty_dict = copy_nsdictionary(&retained);
+            ThreadSafeNSDictionary {
+                inner: Arc::new(Mutex::new(empty_dict)),
+                raw_dict: std::ptr::null_mut()
+            }
+        } else {
+            ThreadSafeNSDictionary {
+                inner: Arc::new(Mutex::new(dict)),
+                raw_dict: dict_ptr
+            }
+        }
     }
 
     pub fn get_ref(&self) -> NSDictionary<NSString, NSObject> {
-        let guard = self.inner.lock();
-        unsafe { copy_nsdictionary(&guard) }
+        let retained = self.inner.lock().expect("Failed to lock mutex");
+        copy_nsdictionary(&retained)
     }
 
     pub fn get_string(&self, key: &str) -> Option<String> {
@@ -606,21 +634,12 @@ impl ThreadSafeNSDictionary {
         let dict = self.get_ref();
         let key_str = NSString::from_str(key);
         unsafe {
-            let obj: *const NSObject = msg_send![&*dict, objectForKey:&*key_str];
-            if obj.is_null() {
-                return None;
-            }
-
-            let is_dict: bool = msg_send![obj, isKindOfClass: class!(NSDictionary)];
-            if is_dict {
-                let dict_ptr = obj as *const NSDictionary<NSString, NSObject>;
-
-                // Create a copy of the dictionary to own it
-                let owned_dict = copy_nsdictionary(&*dict_ptr);
-
-                Some(ThreadSafeNSDictionary::with_raw_dict(owned_dict, obj as *mut c_void))
-            } else {
+            let dict_ptr: *const NSObject = msg_send![&dict, objectForKey:std::convert::AsRef::<NSString>::as_ref(&key_str)];
+            if dict_ptr.is_null() {
                 None
+            } else {
+                let dict = copy_nsdictionary(&*(dict_ptr as *const NSDictionary<NSString, NSObject>));
+                Some(ThreadSafeNSDictionary::with_raw_dict(dict, dict_ptr as *mut c_void))
             }
         }
     }
@@ -632,10 +651,8 @@ unsafe impl Sync for ThreadSafeNSDictionary {}
 
 impl Clone for ThreadSafeNSDictionary {
     fn clone(&self) -> Self {
-        let guard = self.inner.lock();
-        let copied_dict = unsafe { copy_nsdictionary(&guard) };
-
-        Self { inner: Arc::new(ParkingLotMutex::new(copied_dict)), raw_dict: self.raw_dict }
+        let dict = self.get_ref();
+        Self { inner: Arc::new(Mutex::new(dict)), raw_dict: self.raw_dict }
     }
 }
 
@@ -654,14 +671,17 @@ impl crate::utils::dictionary_access::DictionaryAccess for ThreadSafeNSDictionar
 }
 
 /// Helper function to copy an NSDictionary
-unsafe fn copy_nsdictionary(dict: &NSDictionary<NSString, NSObject>) -> NSDictionary<NSString, NSObject> {
-    let copied_ptr: *mut NSObject = msg_send![dict, copy];
+fn copy_nsdictionary(dict: &NSDictionary<NSString, NSObject>) -> NSDictionary<NSString, NSObject> {
+    let copied_ptr: *mut NSObject = unsafe { msg_send![dict, copy] };
     let copied_dict_ptr = copied_ptr as *mut NSDictionary<NSString, NSObject>;
     if copied_dict_ptr.is_null() {
         panic!("Failed to copy dictionary");
     }
-    // Use ptr::read to avoid moving out of raw pointer
-    std::ptr::read(copied_dict_ptr)
+    let dict = unsafe {
+        let dict = &*copied_dict_ptr;
+        std::ptr::read(dict)
+    };
+    dict
 }
 
 // Helper function for safe numeric conversions
@@ -681,5 +701,5 @@ impl Clone for Box<dyn IOKit> {
 
 // Removed manual implementation of Debug for dyn IOKit
 
-pub const kIOMasterPortDefault: mach_port_t = 0; // Define this constant if not already defined
-pub const IOMASTER_PORT_DEFAULT: mach_port_t = kIOMasterPortDefault;
+pub const K_IOMASTER_PORT_DEFAULT: mach_port_t = 0; // Define this constant if not already defined
+pub const IOMASTER_PORT_DEFAULT: mach_port_t = K_IOMASTER_PORT_DEFAULT;
