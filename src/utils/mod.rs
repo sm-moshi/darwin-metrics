@@ -28,6 +28,10 @@ pub mod test_utils;
 #[cfg(test)]
 mod property_utils_tests;
 
+pub mod safe_dictionary;
+
+pub use safe_dictionary::SafeDictionary;
+
 use std::{
     ffi::{c_char, CStr},
     os::raw::c_double,
@@ -232,7 +236,9 @@ where
     let result = std::panic::catch_unwind(AssertUnwindSafe(f));
     match result {
         Ok(value) => value,
-        Err(_) => Err(Error::System("Panic occurred during Objective-C operation".to_string())),
+        Err(_) => Err(Error::System {
+            message: "Panic occurred during Objective-C operation".to_string(),
+        }),
     }
 }
 
@@ -285,7 +291,10 @@ pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<V
 /// Retrieves the name of an Objective-C device.
 pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
     if device.is_null() {
-        return Err(Error::NotAvailable { resource: "device".to_string(), reason: "No device available".to_string() });
+        return Err(Error::NotAvailable {
+            resource: "device".to_string(),
+            reason: "No device available".to_string(),
+        });
     }
 
     autorelease_pool(|| {
@@ -296,7 +305,7 @@ pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
             if name_obj.is_null() {
                 return Err(Error::NotAvailable {
                     resource: "device".to_string(),
-                    reason: "Could not get device name".to_string(),
+                    reason: "Device not found".to_string(),
                 });
             }
 
@@ -304,7 +313,7 @@ pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
             if utf8_string.is_null() {
                 return Err(Error::NotAvailable {
                     resource: "device".to_string(),
-                    reason: "Could not convert name to string".to_string(),
+                    reason: "Device not found".to_string(),
                 });
             }
 

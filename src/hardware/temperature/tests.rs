@@ -1,5 +1,6 @@
 use super::*;
-use crate::hardware::iokit::{FanInfo, GpuStats, ThermalInfo, ThreadSafeAnyObject, ThreadSafeNSDictionary};
+use crate::hardware::iokit::{FanInfo, GpuStats, ThermalInfo};
+use crate::utils::safe_dictionary::SafeDictionary;
 use crate::Error;
 use crate::GpuMetrics; // Import GpuMetrics
 use objc2::rc::Retained;
@@ -18,8 +19,8 @@ fn create_test_object() -> Retained<NSObject> {
 // Custom mock implementation of IOKit that implements Clone
 #[derive(Clone)]
 struct MockIOKitClone {
-    thermal_info: Arc<dyn Fn(ThreadSafeAnyObject) -> Result<ThermalInfo, Error> + Send + Sync>,
-    fan_info: Arc<dyn Fn(ThreadSafeAnyObject) -> Result<Vec<FanInfo>, Error> + Send + Sync>,
+    thermal_info: Arc<dyn Fn() -> Result<ThermalInfo, Error> + Send + Sync>,
+    fan_info: Arc<dyn Fn() -> Result<Vec<FanInfo>, Error> + Send + Sync>,
 }
 
 impl std::fmt::Debug for MockIOKitClone {
@@ -31,11 +32,20 @@ impl std::fmt::Debug for MockIOKitClone {
 impl MockIOKitClone {
     fn new() -> Self {
         Self {
-            thermal_info: Arc::new(|_| Ok(ThermalInfo::new(ThreadSafeNSDictionary::empty()))),
-            fan_info: Arc::new(|_| {
+            thermal_info: Arc::new(|| Ok(ThermalInfo {
+                cpu_temp: 45.0,
+                gpu_temp: Some(40.0),
+                fan_speed: vec![1500.0, 1600.0],
+                heatsink_temp: Some(35.0),
+                ambient_temp: Some(25.0),
+                battery_temp: Some(32.0),
+                is_throttling: false,
+                cpu_power: Some(15.0),
+            })),
+            fan_info: Arc::new(|| {
                 Ok(vec![
-                    FanInfo { speed_rpm: 2000, min_speed: 1000, max_speed: 4000, percentage: 33.3 },
-                    FanInfo { speed_rpm: 2500, min_speed: 1200, max_speed: 5000, percentage: 40.0 },
+                    FanInfo { speed_rpm: 2000.0, min_speed: 1000.0, max_speed: 4000.0, percentage: 33.3 },
+                    FanInfo { speed_rpm: 2500.0, min_speed: 1200.0, max_speed: 5000.0, percentage: 40.0 },
                 ])
             }),
         }
@@ -43,36 +53,36 @@ impl MockIOKitClone {
 
     fn with_thermal_info<F>(self, f: F) -> Self
     where
-        F: Fn(ThreadSafeAnyObject) -> Result<ThermalInfo, Error> + Send + Sync + 'static,
+        F: Fn() -> Result<ThermalInfo, Error> + Send + Sync + 'static,
     {
         Self { thermal_info: Arc::new(f), fan_info: self.fan_info }
     }
 
     fn with_fan_info<F>(self, f: F) -> Self
     where
-        F: Fn(ThreadSafeAnyObject) -> Result<Vec<FanInfo>, Error> + Send + Sync + 'static,
+        F: Fn() -> Result<Vec<FanInfo>, Error> + Send + Sync + 'static,
     {
         Self { thermal_info: self.thermal_info, fan_info: Arc::new(f) }
     }
 }
 
 impl IOKit for MockIOKitClone {
-    fn io_service_matching(&self, _name: &str) -> Result<ThreadSafeNSDictionary, Error> {
-        Ok(ThreadSafeNSDictionary::empty())
+    fn io_service_matching(&self, _name: &str) -> Result<SafeDictionary, Error> {
+        Ok(SafeDictionary::new())
     }
 
     fn io_service_get_matching_service(
         &self,
-        _matching: &ThreadSafeNSDictionary,
-    ) -> Result<ThreadSafeAnyObject, Error> {
-        Ok(ThreadSafeAnyObject::new(create_test_object()))
+        _matching: &SafeDictionary,
+    ) -> Result<SafeDictionary, Error> {
+        Ok(SafeDictionary::new())
     }
 
     fn io_registry_entry_create_cf_properties(
         &self,
-        _entry: &ThreadSafeAnyObject,
-    ) -> Result<ThreadSafeNSDictionary, Error> {
-        Ok(ThreadSafeNSDictionary::empty())
+        _entry: &SafeDictionary,
+    ) -> Result<SafeDictionary, Error> {
+        Ok(SafeDictionary::new())
     }
 
     fn io_connect_call_method(
@@ -99,16 +109,16 @@ impl IOKit for MockIOKitClone {
         }
     }
 
-    fn get_service_properties(&self, _service: &ThreadSafeAnyObject) -> Result<ThreadSafeNSDictionary, Error> {
-        Ok(ThreadSafeNSDictionary::empty())
+    fn get_service_properties(&self, _service: &SafeDictionary) -> Result<SafeDictionary, Error> {
+        Ok(SafeDictionary::new())
     }
 
-    fn get_service_matching(&self, _name: &str) -> Result<Option<ThreadSafeAnyObject>, Error> {
+    fn get_service_matching(&self, _name: &str) -> Result<Option<SafeDictionary>, Error> {
         Ok(None)
     }
 
     fn get_cpu_temperature(&self) -> Result<f64, Error> {
-        Ok((*self.thermal_info)(ThreadSafeAnyObject::new(create_test_object()))?.cpu_temp)
+        Ok((*self.thermal_info)()?.cpu_temp)
     }
 
     fn get_gpu_stats(&self) -> Result<GpuStats, Error> {
@@ -116,21 +126,21 @@ impl IOKit for MockIOKitClone {
     }
 
     fn get_fan_info(&self, fan_index: u32) -> Result<FanInfo, Error> {
-        let fans = (*self.fan_info)(ThreadSafeAnyObject::new(create_test_object()))?;
+        let fans = (*self.fan_info)()?;
         fans.get(fan_index as usize)
             .cloned()
-            .ok_or_else(|| Error::iokit_error(-1, format!("Fan index out of bounds: {}", fan_index)))
+            .ok_or_else(|| Error::IOKitError(0, format!("Fan index out of bounds: {}", fan_index)))
     }
 
     fn get_thermal_info(&self) -> Result<ThermalInfo, Error> {
-        (*self.thermal_info)(ThreadSafeAnyObject::new(create_test_object()))
+        (*self.thermal_info)()
     }
 
     fn get_all_fans(&self) -> Result<Vec<FanInfo>, Error> {
-        (*self.fan_info)(ThreadSafeAnyObject::new(create_test_object()))
+        (*self.fan_info)()
     }
 
-    fn check_thermal_throttling(&self) -> Result<bool, Error> {
+    fn check_thermal_throttling(&self, _plane: &str) -> Result<bool, Error> {
         Ok(false)
     }
 
@@ -142,24 +152,36 @@ impl IOKit for MockIOKitClone {
         Ok(Some(35.0))
     }
 
-    fn get_battery_info(&self) -> Result<ThreadSafeNSDictionary, Error> {
-        Ok(ThreadSafeNSDictionary::empty())
+    fn get_battery_info(&self) -> Result<SafeDictionary, Error> {
+        Ok(SafeDictionary::new())
     }
 
-    fn get_cpu_info(&self) -> Result<ThreadSafeNSDictionary, Error> {
-        Ok(ThreadSafeNSDictionary::empty())
+    fn get_cpu_info(&self) -> Result<SafeDictionary, Error> {
+        Ok(SafeDictionary::new())
     }
 
     fn io_registry_entry_get_parent_entry(
         &self,
-        _entry: &ThreadSafeAnyObject,
+        _entry: &SafeDictionary,
         _plane: &str,
-    ) -> Result<ThreadSafeAnyObject, Error> {
-        Ok(ThreadSafeAnyObject::new(create_test_object()))
+    ) -> Result<SafeDictionary, Error> {
+        Ok(SafeDictionary::new())
     }
 
     fn clone_box(&self) -> Box<dyn IOKit> {
         Box::new(self.clone())
+    }
+
+    fn get_physical_cores(&self) -> Result<usize, Error> {
+        Ok(4)
+    }
+
+    fn get_logical_cores(&self) -> Result<usize, Error> {
+        Ok(8)
+    }
+
+    fn get_core_usage(&self) -> Result<Vec<f64>, Error> {
+        Ok(vec![0.5, 0.6, 0.7, 0.8])
     }
 }
 

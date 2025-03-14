@@ -302,38 +302,49 @@ impl PartialEq for BatteryInfo {
 }
 
 #[cfg(test)]
-/// Struct to hold battery values
-pub struct BatteryValues {
-    pub battery_is_present: bool,
-    pub battery_is_charging: bool,
-    pub battery_cycle_count: u32,
-    pub battery_percentage: f64,
-    pub battery_voltage: f64,
-    pub battery_current: f64,
-    pub battery_current_capacity: f64,
-}
+mod tests {
+    use super::*;
+    use crate::hardware::iokit::mock::MockIOKit;
 
-#[cfg(test)]
-impl Battery {
-    /// Creates a new Battery instance with the specified values
-    pub fn with_values(values: BatteryValues) -> Result<Self> {
-        let iokit = Box::new(MockIOKit {
-            battery_is_present: values.battery_is_present,
-            battery_is_charging: values.battery_is_charging,
-            battery_cycle_count: values.battery_cycle_count,
-            battery_health_percentage: values.battery_percentage,
-            battery_temperature: values.battery_voltage,
-            battery_time_remaining: Duration::from_secs(0),
-            battery_power_draw: values.battery_current,
-            battery_design_capacity: values.battery_current_capacity,
-            battery_current_capacity: values.battery_current_capacity,
-            // Default values for CPU-related fields
-            physical_cores: 4,
-            logical_cores: 8,
-            core_usage: vec![0.0; 4],
-            cpu_temperature: 45.0,
-        });
+    pub struct BatteryValues {
+        pub is_present: bool,
+        pub is_charging: bool,
+        pub cycle_count: i64,
+        pub percentage: f64,
+        pub temperature: f64,
+        pub design_capacity: f64,
+        pub current_capacity: f64,
+    }
 
-        Self::new(iokit)
+    impl From<BatteryInfo> for MockIOKit {
+        fn from(info: BatteryInfo) -> Self {
+            MockIOKit::new().expect("Failed to create MockIOKit").with_battery_info(
+                info.present,
+                info.is_charging,
+                info.cycle_count,
+                info.percentage as f64,
+                info.temperature,
+                0, // time remaining not available in BatteryInfo
+                info.design_capacity as f64,
+                info.current_capacity as f64,
+            )
+        }
+    }
+
+    impl Battery {
+        pub fn with_values(values: BatteryValues) -> Result<Self> {
+            let mock_iokit = MockIOKit::new().expect("Failed to create MockIOKit").with_battery_info(
+                values.is_present,
+                values.is_charging,
+                values.cycle_count,
+                values.percentage,
+                values.temperature,
+                0, // time remaining not used in tests
+                values.design_capacity,
+                values.current_capacity,
+            );
+
+            Self::new(Box::new(mock_iokit))
+        }
     }
 }

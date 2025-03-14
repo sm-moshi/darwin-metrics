@@ -132,15 +132,15 @@ pub type MachPortT = u32;
 /// Process state constants
 pub mod process_state {
     /// Process being created by fork
-    pub const SIDL: u8 = 1;
+    pub const P_SIDL: u8 = 1;
     /// Running
-    pub const SRUN: u8 = 2;
+    pub const P_SRUN: u8 = 2;
     /// Sleeping on an address
-    pub const SSLEEP: u8 = 3;
+    pub const P_SSLEEP: u8 = 3;
     /// Process debugging or suspension
-    pub const SSTOP: u8 = 4;
+    pub const P_SSTOP: u8 = 4;
     /// Awaiting collection by parent
-    pub const SZOMB: u8 = 5;
+    pub const P_SZOMB: u8 = 5;
 }
 
 /// Filesystem statistics structure
@@ -364,23 +364,23 @@ pub struct if_data64 {
 /// Network reachability flags
 pub mod reachability_flags {
     /// Connection is transient
-    pub const kSCNetworkReachabilityFlagsTransientConnection: u32 = 1 << 0;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_TRANSIENT_CONNECTION: u32 = 1 << 0;
     /// Target is reachable
-    pub const kSCNetworkReachabilityFlagsReachable: u32 = 1 << 1;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_REACHABLE: u32 = 1 << 1;
     /// Connection is required
-    pub const kSCNetworkReachabilityFlagsConnectionRequired: u32 = 1 << 2;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_CONNECTION_REQUIRED: u32 = 1 << 2;
     /// Connection needed when there is traffic
-    pub const kSCNetworkReachabilityFlagsConnectionOnTraffic: u32 = 1 << 3;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_CONNECTION_ON_TRAFFIC: u32 = 1 << 3;
     /// User intervention is required
-    pub const kSCNetworkReachabilityFlagsInterventionRequired: u32 = 1 << 4;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_INTERVENTION_REQUIRED: u32 = 1 << 4;
     /// Connection needed on demand
-    pub const kSCNetworkReachabilityFlagsConnectionOnDemand: u32 = 1 << 5;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_CONNECTION_ON_DEMAND: u32 = 1 << 5;
     /// Target is a local address
-    pub const kSCNetworkReachabilityFlagsIsLocalAddress: u32 = 1 << 16;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_IS_LOCAL_ADDRESS: u32 = 1 << 16;
     /// Connection is direct
-    pub const kSCNetworkReachabilityFlagsIsDirect: u32 = 1 << 17;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_IS_DIRECT: u32 = 1 << 17;
     /// Connection is through cellular network
-    pub const kSCNetworkReachabilityFlagsIsWWAN: u32 = 1 << 18;
+    pub const K_SC_NETWORK_REACHABILITY_FLAGS_IS_WWAN: u32 = 1 << 18;
 }
 
 extern "C" {
@@ -953,4 +953,29 @@ extern "C" {
     pub fn statfs(path: *const c_char, buf: *mut Statfs) -> c_int;
     /// Get statistics about all mounted filesystems
     pub fn getfsstat(buf: *mut Statfs, bufsize: c_int, flags: c_int) -> c_int;
+}
+
+//------------------------------------------------------------------------------
+// IOKit constants and types
+//------------------------------------------------------------------------------
+
+/// Default master port for IOKit
+pub const kIOMasterPortDefault: MachPortT = 0;
+
+/// IOKit service matching dictionary keys
+pub mod io_service_keys {
+    /// Key for matching service class
+    pub const kIOProviderClassKey: &str = "IOProviderClass";
+    /// Key for matching service name
+    pub const kIONameMatchKey: &str = "IONameMatch";
+}
+
+/// IOKit return codes
+pub mod io_return {
+    /// Operation completed successfully
+    pub const kIOReturnSuccess: i32 = 0;
+    /// General error
+    pub const kIOReturnError: i32 = 0x2bc;
+    /// Operation timed out
+    pub const kIOReturnTimeout: i32 = 0x2d0;
 }

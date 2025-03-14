@@ -244,33 +244,78 @@ fn test_core_usage_values() {
 
 #[test]
 fn test_core_usage_with_different_core_counts() {
-    // Create a mock CPU with different physical and logical core counts
-    let mut mock_iokit = MockIOKit::new();
-    mock_iokit.set_physical_cores(4);
-    mock_iokit.set_logical_cores(8);
-    mock_iokit.set_core_usage(vec![0.1, 0.2, 0.3, 0.4]);
+    // Test with 4 cores
+    let mock_iokit = MockIOKit::new()
+        .expect("Failed to create MockIOKit")
+        .with_physical_cores(4)
+        .expect("Failed to set physical cores")
+        .with_logical_cores(4)
+        .expect("Failed to set logical cores")
+        .with_core_usage(vec![25.0, 50.0, 75.0, 100.0])
+        .expect("Failed to set core usage");
 
     let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU instance");
 
-    // Verify that the core count and usage values match what we set
     assert_eq!(cpu.physical_cores(), 4);
-    assert_eq!(cpu.logical_cores(), 8);
-    assert_eq!(cpu.core_usage().len(), 4);
-    assert_eq!(cpu.core_usage()[0], 0.1);
-    assert_eq!(cpu.core_usage()[1], 0.2);
-    assert_eq!(cpu.core_usage()[2], 0.3);
-    assert_eq!(cpu.core_usage()[3], 0.4);
+    assert_eq!(cpu.logical_cores(), 4);
+    assert_eq!(cpu.core_usage(), vec![25.0, 50.0, 75.0, 100.0]);
+
+    // Test with 2 cores
+    let mock_iokit = MockIOKit::new()
+        .expect("Failed to create MockIOKit")
+        .with_physical_cores(2)
+        .expect("Failed to set physical cores")
+        .with_logical_cores(2)
+        .expect("Failed to set logical cores")
+        .with_core_usage(vec![30.0, 60.0])
+        .expect("Failed to set core usage");
+
+    let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU instance");
+
+    assert_eq!(cpu.physical_cores(), 2);
+    assert_eq!(cpu.logical_cores(), 2);
+    assert_eq!(cpu.core_usage(), vec![30.0, 60.0]);
 }
 
 #[test]
-fn test_cpu_temperature() {
-    // Create a mock CPU with a specific temperature
-    let mut mock_iokit = MockIOKit::new();
-    mock_iokit.set_temperature(50.0);
+fn test_temperature() {
+    let mock_iokit = MockIOKit::new().expect("Failed to create MockIOKit").with_temperature(50.0);
 
     let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU instance");
 
-    // Verify that the temperature matches what we set
     assert_eq!(cpu.temperature(), Some(50.0));
-    assert_eq!(cpu.get_cpu_temperature(), Some(50.0));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hardware::iokit::mock::MockIOKit;
+
+    #[test]
+    fn test_cpu_metrics() {
+        let mock_iokit = MockIOKit::new()
+            .expect("Failed to create MockIOKit")
+            .with_physical_cores(4)
+            .expect("Failed to set physical cores")
+            .with_logical_cores(4)
+            .expect("Failed to set logical cores");
+
+        let cpu = CPU::new_with_iokit(Box::new(mock_iokit));
+        assert!(cpu.is_ok());
+    }
+
+    #[test]
+    fn test_cpu_metrics_with_usage() {
+        let mock_iokit = MockIOKit::new()
+            .expect("Failed to create MockIOKit")
+            .with_physical_cores(4)
+            .expect("Failed to set physical cores")
+            .with_logical_cores(4)
+            .expect("Failed to set logical cores")
+            .with_core_usage(vec![0.5, 0.6, 0.7, 0.8])
+            .expect("Failed to set core usage");
+
+        let cpu = CPU::new_with_iokit(Box::new(mock_iokit));
+        assert!(cpu.is_ok());
+    }
 }

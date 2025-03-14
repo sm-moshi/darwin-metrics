@@ -170,6 +170,17 @@ fn test_fan_info_edge_cases() {
     assert_eq!(result.percentage, 0.0);
 }
 
+#[test]
+fn test_fan_info() {
+    let iokit = IOKitImpl::default();
+    let result = iokit.get_fan_info(0);
+    assert!(result.is_ok());
+    
+    let info = result.unwrap();
+    assert_eq!(info.speed_rpm, 2000);
+    assert!(info.percentage >= 0.0 && info.percentage <= 100.0);
+}
+
 #[cfg(feature = "skip-ffi-crashes")]
 mod additional_safe_tests {
     use super::*;

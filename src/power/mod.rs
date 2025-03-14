@@ -30,8 +30,8 @@ pub enum PowerError {
 impl From<Error> for PowerError {
     fn from(err: Error) -> Self {
         match err {
-            Error::InvalidData(_, _) => PowerError::InvalidData,
-            Error::ServiceNotFound(msg) => PowerError::ServiceError(msg),
+            Error::InvalidData { message: _, details: _ } => PowerError::InvalidData,
+            Error::ServiceNotFound { message } => PowerError::ServiceError(message),
             _ => PowerError::SystemCallFailed,
         }
     }
@@ -87,7 +87,7 @@ pub struct Power {
 
 impl Default for Power {
     fn default() -> Self {
-        Self { iokit: Box::new(IOKitImpl) }
+        Self { iokit: Box::new(IOKitImpl::default()) }
     }
 }
 
@@ -172,7 +172,7 @@ impl Power {
 
 impl Clone for Power {
     fn clone(&self) -> Self {
-        Self { iokit: Box::new(IOKitImpl) }
+        Self { iokit: Box::new(IOKitImpl::default()) }
     }
 }
 

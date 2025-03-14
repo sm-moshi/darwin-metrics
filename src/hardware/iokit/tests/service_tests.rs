@@ -132,7 +132,7 @@ fn test_get_service() {
 #[test]
 #[cfg_attr(not(feature = "skip-ffi-crashes"), ignore)]
 fn test_impl_get_service_safety() {
-    let iokit = IOKitImpl;
+    let iokit = IOKitImpl::default();
     let result = iokit.get_service("TestService");
     assert!(result.is_err());
     match result {
@@ -146,28 +146,28 @@ fn test_impl_get_service_safety() {
 
 #[test]
 fn test_io_service_matching_invalid_chars() {
-    let iokit = IOKitImpl;
+    let iokit = IOKitImpl::default();
     let result = iokit.io_service_matching("Test\0Service");
     assert!(!result.is_null());
 }
 
 #[test]
 fn test_io_service_matching_empty_string() {
-    let iokit = IOKitImpl;
+    let iokit = IOKitImpl::default();
     let result = iokit.io_service_matching("");
     assert!(!result.is_null());
 }
 
 #[test]
 fn test_io_service_matching_special_chars() {
-    let iokit = IOKitImpl;
+    let iokit = IOKitImpl::default();
     let result = iokit.io_service_matching("Test!@#$%^&*()");
     assert!(!result.is_null());
 }
 
 #[test]
 fn test_io_registry_entry_create_cf_properties_null() {
-    let iokit = IOKitImpl;
+    let iokit = IOKitImpl::default();
     let obj = create_test_object();
     let result = iokit.io_registry_entry_create_cf_properties(&obj);
     assert!(result.is_err());
@@ -175,7 +175,7 @@ fn test_io_registry_entry_create_cf_properties_null() {
 
 #[test]
 fn test_io_registry_entry_get_parent_null() {
-    let iokit = IOKitImpl;
+    let iokit = IOKitImpl::default();
     let obj = create_test_object();
     let result = iokit.io_registry_entry_get_parent(&obj);
     assert!(result.is_none());
@@ -183,7 +183,7 @@ fn test_io_registry_entry_get_parent_null() {
 
 #[test]
 fn test_get_service_empty_name() {
-    let iokit = IOKitImpl;
+    let iokit = IOKitImpl::default();
     let result = iokit.get_service("");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Service access disabled"));
@@ -191,7 +191,7 @@ fn test_get_service_empty_name() {
 
 #[test]
 fn test_get_service_special_chars() {
-    let iokit = IOKitImpl;
+    let iokit = IOKitImpl::default();
     let result = iokit.get_service("Test!@#$%^&*()");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Service access disabled"));

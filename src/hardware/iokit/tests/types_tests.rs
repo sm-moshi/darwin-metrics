@@ -141,14 +141,20 @@ fn test_thermal_info_debug() {
 }
 
 #[test]
-fn test_iokit_impl_default() {
-    let iokit = IOKitImpl;
+fn test_iokit_debug() {
+    let iokit = IOKitImpl::default();
+    assert!(!format!("{:?}", iokit).is_empty());
+}
+
+#[test]
+fn test_iokit_clone() {
+    let iokit = IOKitImpl::default();
     assert!(matches!(iokit, IOKitImpl));
 }
 
 #[test]
-fn test_iokit_impl_debug() {
-    let iokit = IOKitImpl;
+fn test_iokit_debug_format() {
+    let iokit = IOKitImpl::default();
     let debug_str = format!("{:?}", iokit);
     assert!(debug_str.contains("IOKitImpl"));
 } 

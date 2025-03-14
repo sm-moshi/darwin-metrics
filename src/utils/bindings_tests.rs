@@ -66,23 +66,23 @@ test_constants!(test_if_flags_constants, {
 });
 
 test_constants!(test_proc_state_constants, {
-    process_state::SIDL => 1,
-    process_state::SRUN => 2,
-    process_state::SSLEEP => 3,
-    process_state::SSTOP => 4,
-    process_state::SZOMB => 5,
+    process_state::P_SIDL => 1,
+    process_state::P_SRUN => 2,
+    process_state::P_SSLEEP => 3,
+    process_state::P_SSTOP => 4,
+    process_state::P_SZOMB => 5,
 });
 
 test_constants!(test_reachability_flags_constants, {
-    reachability_flags::kSCNetworkReachabilityFlagsTransientConnection => 1 << 0,
-    reachability_flags::kSCNetworkReachabilityFlagsReachable => 1 << 1,
-    reachability_flags::kSCNetworkReachabilityFlagsConnectionRequired => 1 << 2,
-    reachability_flags::kSCNetworkReachabilityFlagsConnectionOnTraffic => 1 << 3,
-    reachability_flags::kSCNetworkReachabilityFlagsInterventionRequired => 1 << 4,
-    reachability_flags::kSCNetworkReachabilityFlagsConnectionOnDemand => 1 << 5,
-    reachability_flags::kSCNetworkReachabilityFlagsIsLocalAddress => 1 << 16,
-    reachability_flags::kSCNetworkReachabilityFlagsIsDirect => 1 << 17,
-    reachability_flags::kSCNetworkReachabilityFlagsIsWWAN => 1 << 18,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_TRANSIENT_CONNECTION => 1 << 0,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_REACHABLE => 1 << 1,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_CONNECTION_REQUIRED => 1 << 2,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_CONNECTION_ON_TRAFFIC => 1 << 3,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_INTERVENTION_REQUIRED => 1 << 4,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_CONNECTION_ON_DEMAND => 1 << 5,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_IS_LOCAL_ADDRESS => 1 << 16,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_IS_DIRECT => 1 << 17,
+    reachability_flags::K_SC_NETWORK_REACHABILITY_FLAGS_IS_WWAN => 1 << 18,
 });
 
 #[test]

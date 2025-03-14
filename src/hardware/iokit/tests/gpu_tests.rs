@@ -65,6 +65,12 @@ fn test_gpu_stats_default() {
     assert_eq!(stats.name, "");
 }
 
+#[test]
+fn test_gpu_stats() {
+    let iokit = IOKitImpl::default();
+    // ... rest of test ...
+}
+
 // This test is disabled by default because it can cause segfaults
 #[test]
 #[cfg(not(feature = "skip-ffi-crashes"))]

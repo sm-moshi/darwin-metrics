@@ -6,6 +6,8 @@ use std::{
 use crate::{
     hardware::iokit::{IOKit, IOKitImpl},
     //utils::dictionary_access::DictionaryAccess,
+    error::Error,
+    utils::safe_dictionary::SafeDictionary,
 };
 
 /// Represents the location of a temperature sensor in the system
@@ -53,6 +55,10 @@ pub struct TemperatureConfig {
     pub throttling_threshold: f64,
     /// Whether to automatically refresh sensor data on read
     pub auto_refresh: bool,
+    pub update_interval: u64,
+    pub enable_gpu: bool,
+    pub enable_cpu: bool,
+    pub enable_battery: bool,
 }
 
 impl Default for TemperatureConfig {
@@ -61,6 +67,10 @@ impl Default for TemperatureConfig {
             poll_interval_ms: 1000,     // 1 second default polling interval
             throttling_threshold: 80.0, // 80°C default throttling threshold
             auto_refresh: true,
+            update_interval: 1000,
+            enable_gpu: true,
+            enable_cpu: true,
+            enable_battery: true,
         }
     }
 }
@@ -93,7 +103,7 @@ impl Temperature<IOKitImpl> {
             is_throttling: false,
             cpu_power: None,
             config: TemperatureConfig::default(),
-            io_kit: IOKitImpl,
+            io_kit: IOKitImpl::default(),
             last_refresh: Instant::now() - Duration::from_secs(60), // Force refresh on first access
         }
     }
@@ -106,9 +116,46 @@ impl Temperature<IOKitImpl> {
             is_throttling: false,
             cpu_power: None,
             config,
-            io_kit: IOKitImpl,
+            io_kit: IOKitImpl::default(),
             last_refresh: Instant::now() - Duration::from_secs(60), // Force refresh on first access
         }
+    }
+
+    pub fn update(&mut self) -> Result<(), Error> {
+        if let Ok(thermal_info) = self.io_kit.get_thermal_info() {
+            // Update CPU temperature
+            self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
+            
+            // Update GPU temperature if available
+            if let Some(temp) = thermal_info.gpu_temp {
+                self.sensors.insert("GPU".to_string(), temp);
+            }
+            
+            // Update heatsink temperature if available
+            if let Some(temp) = thermal_info.heatsink_temp {
+                self.sensors.insert("Heatsink".to_string(), temp);
+            }
+            
+            // Update ambient temperature if available
+            if let Some(temp) = thermal_info.ambient_temp {
+                self.sensors.insert("Ambient".to_string(), temp);
+            }
+            
+            // Update battery temperature if available
+            if let Some(temp) = thermal_info.battery_temp {
+                self.sensors.insert("Battery".to_string(), temp);
+            }
+        }
+
+        if let Ok(throttling) = self.io_kit.check_thermal_throttling("IOService") {
+            self.is_throttling = throttling;
+        }
+
+        Ok(())
+    }
+
+    pub fn get_sensors(&self) -> &HashMap<String, f64> {
+        &self.sensors
     }
 }
 
@@ -361,7 +408,7 @@ impl<T: IOKit + Clone + 'static> Temperature<T> {
         }
 
         // First try to use the actual throttling indicator from SMC
-        if let Ok(throttling) = self.io_kit.check_thermal_throttling() {
+        if let Ok(throttling) = self.io_kit.check_thermal_throttling("IOService") {
             return Ok(throttling);
         }
 

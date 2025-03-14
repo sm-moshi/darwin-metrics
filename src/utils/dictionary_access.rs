@@ -1,18 +1,24 @@
-use objc2_foundation::{NSDictionary, NSObject, NSString};
+use crate::utils::SafeDictionary;
+use objc2::rc::Retained;
+use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
+use std::ops::Deref;
 
 use crate::utils::mock_dictionary::MockDictionary;
 use crate::utils::property_utils::{PropertyAccessor, PropertyUtils};
 
-/// A trait that abstracts dictionary access operations
+/// Trait for accessing dictionary values in a type-safe way
 pub trait DictionaryAccess {
-    /// Get a string value from the dictionary
+    /// Get a string value for the given key
     fn get_string(&self, key: &str) -> Option<String>;
 
-    /// Get a number value from the dictionary
+    /// Get a number value for the given key
     fn get_number(&self, key: &str) -> Option<f64>;
 
-    /// Get a boolean value from the dictionary
+    /// Get a boolean value for the given key
     fn get_bool(&self, key: &str) -> Option<bool>;
+
+    /// Get a dictionary value for the given key
+    fn get_dictionary(&self, key: &str) -> Option<SafeDictionary>;
 }
 
 /// Implementation for MockDictionary
@@ -28,20 +34,71 @@ impl DictionaryAccess for MockDictionary {
     fn get_bool(&self, key: &str) -> Option<bool> {
         self.get_bool(key)
     }
+
+    fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
+        None
+    }
 }
 
 /// Implementation for NSDictionary using PropertyUtils
 impl DictionaryAccess for NSDictionary<NSString, NSObject> {
     fn get_string(&self, key: &str) -> Option<String> {
-        <PropertyAccessor as PropertyUtils>::get_string_property(self, key)
+        let key = NSString::from_str(key);
+        let value = unsafe { self.valueForKey(&key) }?;
+        if let Ok(string) = value.downcast::<NSString>() {
+            Some(string.to_string())
+        } else {
+            None
+        }
     }
 
     fn get_number(&self, key: &str) -> Option<f64> {
-        <PropertyAccessor as PropertyUtils>::get_number_property(self, key)
+        let key = NSString::from_str(key);
+        let value = unsafe { self.valueForKey(&key) }?;
+        if let Ok(number) = value.downcast::<NSNumber>() {
+            Some(number.as_f64())
+        } else {
+            None
+        }
     }
 
     fn get_bool(&self, key: &str) -> Option<bool> {
-        <PropertyAccessor as PropertyUtils>::get_bool_property(self, key)
+        let key = NSString::from_str(key);
+        let value = unsafe { self.valueForKey(&key) }?;
+        if let Ok(number) = value.downcast::<NSNumber>() {
+            Some(number.as_bool())
+        } else {
+            None
+        }
+    }
+
+    fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
+        let key = NSString::from_str(key);
+        let value = unsafe { self.valueForKey(&key) }?;
+        if let Ok(dict) = value.downcast::<NSDictionary>() {
+            Some(SafeDictionary::from(dict))
+        } else {
+            None
+        }
+    }
+}
+
+/// Implementation for Retained NSDictionary
+impl DictionaryAccess for Retained<NSDictionary<NSString, NSObject>> {
+    fn get_string(&self, key: &str) -> Option<String> {
+        self.deref().get_string(key)
+    }
+
+    fn get_number(&self, key: &str) -> Option<f64> {
+        self.deref().get_number(key)
+    }
+
+    fn get_bool(&self, key: &str) -> Option<bool> {
+        self.deref().get_bool(key)
+    }
+
+    fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
+        self.deref().get_dictionary(key)
     }
 }
 
@@ -69,6 +126,11 @@ impl<T: DictionaryAccess> DictionaryAccessor<T> {
     /// Get a boolean value from the dictionary
     pub fn get_bool(&self, key: &str) -> Option<bool> {
         self.dictionary.get_bool(key)
+    }
+
+    /// Get a dictionary value from the dictionary
+    pub fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
+        self.dictionary.get_dictionary(key)
     }
 }
 

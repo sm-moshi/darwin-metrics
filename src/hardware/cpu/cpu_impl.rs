@@ -82,7 +82,7 @@ impl CPU {
             model_name: String::new(),
             temperature: None,
             power: None,
-            iokit: Box::new(IOKitImpl),
+            iokit: Box::new(IOKitImpl::default()),
             frequency_monitor: FrequencyMonitor::new(),
             frequency_metrics: None,
         };
@@ -103,34 +103,10 @@ impl CPU {
     ///
     /// Returns an error if any of the system calls or IOKit operations fail.
     pub fn update(&mut self) -> Result<()> {
-        let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
-
-        // Create an AnyObject from the raw pointer
-        let obj = unsafe {
-            let ptr = service_ref as *const _ as *mut AnyObject;
-            &*ptr
-        };
-
-        // Get core counts
-        self.physical_cores = unsafe { msg_send![obj, numberOfCores] };
-        self.logical_cores = unsafe { msg_send![obj, numberOfProcessorCores] };
-
-        // Get frequency information using a clear, prioritized approach
-        self.update_frequency_information()?;
-
-        // Update core usage information
-        self.core_usage = self.fetch_core_usage()?;
-
-        // Get model name using sysctlbyname for more reliability
-        self.model_name = self.get_cpu_model_name_sysctl()?;
-
-        // Get temperature information
-        self.temperature = self.iokit.get_cpu_temperature().ok();
-
-        // Get power information
-        self.power = self.iokit.get_cpu_power().ok();
-
+        self.temperature = self.iokit.get_cpu_temperature("IOService").ok();
+        if let Ok(usage) = self.iokit.get_core_usage() {
+            self.core_usage = usage;
+        }
         Ok(())
     }
 
@@ -223,8 +199,16 @@ impl CPU {
 
         // Get usage for each core
         for i in 0..self.logical_cores {
-            let usage: f64 = unsafe { msg_send![obj, getCoreUsage: i] };
-            usages.push(usage);
+            // Ensure we don't try to get usage for cores that don't exist
+            if i < self.physical_cores {
+                let usage: f64 = unsafe { msg_send![obj, getCoreUsage: i] };
+                usages.push(usage);
+            } else {
+                // For logical cores beyond physical cores, use the corresponding physical core's usage
+                let physical_core_index = i % self.physical_cores;
+                let usage: f64 = unsafe { msg_send![obj, getCoreUsage: physical_core_index] };
+                usages.push(usage);
+            }
         }
 
         Ok(usages)
@@ -372,7 +356,7 @@ impl CPU {
 
     #[cfg(test)]
     pub fn new_with_mock() -> Result<Self> {
-        let mock = MockIOKit::new();
+        let mock = MockIOKit::new().expect("Failed to create MockIOKit");
         Ok(Self {
             physical_cores: 8,
             logical_cores: 16,
@@ -452,5 +436,87 @@ impl CpuMetrics for CPU {
     /// * `f64` - Current CPU frequency in MHz
     fn get_cpu_frequency(&self) -> f64 {
         self.frequency_mhz
+    }
+}
+
+impl Default for CPU {
+    fn default() -> Self {
+        Self {
+            physical_cores: 0,
+            logical_cores: 0,
+            frequency_mhz: 0.0,
+            core_usage: Vec::new(),
+            model_name: String::new(),
+            temperature: None,
+            power: None,
+            iokit: Box::new(IOKitImpl::default()),
+            frequency_monitor: FrequencyMonitor::new(),
+            frequency_metrics: None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hardware::iokit::mock::MockIOKit;
+
+    #[test]
+    fn test_cpu_metrics() {
+        let mock_iokit = MockIOKit::new()
+            .expect("Failed to create MockIOKit")
+            .with_physical_cores(4)
+            .expect("Failed to set physical cores")
+            .with_logical_cores(8)
+            .expect("Failed to set logical cores");
+
+        let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU");
+
+        assert_eq!(cpu.physical_cores(), 4);
+        assert_eq!(cpu.logical_cores(), 8);
+    }
+
+    #[test]
+    fn test_cpu_metrics_with_usage() {
+        let mock_iokit = MockIOKit::new()
+            .expect("Failed to create MockIOKit")
+            .with_physical_cores(4)
+            .expect("Failed to set physical cores")
+            .with_logical_cores(8)
+            .expect("Failed to set logical cores")
+            .with_core_usage(vec![0.5, 0.6, 0.7, 0.8])
+            .expect("Failed to set core usage");
+
+        let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU");
+
+        let core_usage = cpu.core_usage();
+
+        assert_eq!(core_usage.len(), 4);
+        assert_eq!(core_usage[0], 0.5);
+        assert_eq!(core_usage[1], 0.6);
+        assert_eq!(core_usage[2], 0.7);
+        assert_eq!(core_usage[3], 0.8);
+    }
+
+    #[test]
+    fn test_core_usage_with_different_core_counts() {
+        let mock_iokit = MockIOKit::new()
+            .expect("Failed to create MockIOKit")
+            .with_physical_cores(2)
+            .expect("Failed to set physical cores")
+            .with_logical_cores(4)
+            .expect("Failed to set logical cores")
+            .with_core_usage(vec![0.3, 0.4])
+            .expect("Failed to set core usage");
+
+        let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU");
+
+        let core_usage = cpu.core_usage();
+
+        assert_eq!(core_usage.len(), 2);
+        assert_eq!(core_usage[0], 0.3);
+        assert_eq!(core_usage[1], 0.4);
+        assert_eq!(cpu.physical_cores(), 2);
+        assert_eq!(cpu.logical_cores(), 4);
     }
 }

@@ -17,6 +17,7 @@ use crate::{
 
 #[test]
 fn test_smc_key_from_chars() {
+    let iokit = IOKitImpl::default();
     let key = [b'T' as c_char, b'C' as c_char, b'0' as c_char, b'P' as c_char];
     let result = smc_key_from_chars(key);
     let expected = (b'T' as u32) << 24 | (b'C' as u32) << 16 | (b'0' as u32) << 8 | (b'P' as u32);

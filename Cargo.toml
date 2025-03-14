@@ -26,7 +26,7 @@ name       = "darwin_metrics"
 crate-type = ["rlib", "cdylib", "staticlib"]
 
 [build-dependencies]
-cc = "1.2.16"
+cc = "=1.2.16"
 
 [dependencies]
 # Core FFI and system interfaces
@@ -67,7 +67,7 @@ anyhow      = "=1.0.97"
 
 [dev-dependencies]
 version-sync = "=0.9.5"
-tempfile     = "=3.18.0"
+tempfile     = "=3.19.0"
 
 [features]
 default  = []

@@ -73,29 +73,33 @@ mod tests {
 
     #[test]
     fn test_mock_iokit() {
-        let mock = MockIOKit::new();
+        let mock = MockIOKit::new()
+            .expect("Failed to create MockIOKit")
+            .with_physical_cores(4)
+            .expect("Failed to set physical cores")
+            .with_logical_cores(8)
+            .expect("Failed to set logical cores");
 
         // Test thermal info
-        let thermal_info = mock.get_thermal_info().unwrap();
-        assert!(thermal_info.get_number("cpu_temp").is_none());
-        assert!(thermal_info.get_number("gpu_temp").is_none());
+        let thermal_info = mock.get_thermal_info().expect("Failed to get thermal info");
+        assert_eq!(thermal_info.cpu_temp, 0.0);
+        assert_eq!(thermal_info.gpu_temp, 0.0);
+        assert_eq!(thermal_info.battery_temp, 0.0);
 
         // Test CPU info
-        let cpu_info = mock.get_cpu_info().unwrap();
+        let cpu_info = mock.get_cpu_info().expect("Failed to get CPU info");
         assert!(cpu_info.get_number("physical_cores").is_none());
         assert!(cpu_info.get_number("logical_cores").is_none());
 
         // Test battery info
-        let battery_info = mock.get_battery_info().unwrap();
-        assert!(battery_info.get_bool("is_present").is_none());
-        assert!(battery_info.get_number("cycle_count").is_none());
-
-        // Test fan info
-        let fans = mock.get_all_fans().unwrap();
-        assert!(fans.is_empty());
+        let battery_info = mock.get_battery_info().expect("Failed to get battery info");
+        assert!(battery_info.get_bool("battery_is_present").is_none());
+        assert!(battery_info.get_bool("battery_is_charging").is_none());
 
         // Test GPU stats
-        let gpu_stats = mock.get_gpu_stats().unwrap();
-        assert!(gpu_stats.get_number("utilization").is_none());
+        let gpu_stats = mock.get_gpu_stats().expect("Failed to get GPU stats");
+        assert_eq!(gpu_stats.utilization, 50.0);
+        assert_eq!(gpu_stats.memory_used, 1024 * 1024 * 1024);
+        assert_eq!(gpu_stats.memory_total, 4 * 1024 * 1024 * 1024);
     }
 }

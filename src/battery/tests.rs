@@ -1,6 +1,7 @@
 #[cfg(test)]
 use super::*;
 use crate::hardware::iokit::{FanInfo, GpuStats, ThermalInfo};
+use crate::utils::safe_dictionary::SafeDictionary;
 use crate::utils::test_utils::{create_test_dictionary, create_test_object};
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
@@ -32,17 +33,16 @@ impl Default for MockIOKit {
 }
 
 impl IOKit for MockIOKit {
-    fn io_service_matching(&self, _name: &str) -> Result<ThreadSafeNSDictionary> {
-        Ok(ThreadSafeNSDictionary::empty())
+    fn io_service_matching(&self, _name: &str) -> Result<SafeDictionary> {
+        Ok(SafeDictionary::new())
     }
 
-    fn io_service_get_matching_service(&self, _matching: &ThreadSafeNSDictionary) -> Result<ThreadSafeNSDictionary> {
-        Ok(ThreadSafeNSDictionary::empty())
+    fn io_service_get_matching_service(&self, _matching: &SafeDictionary) -> Result<SafeDictionary> {
+        Ok(SafeDictionary::new())
     }
 
-    fn io_registry_entry_create_cf_properties(&self, _service: &ThreadSafeNSDictionary) -> Result<ThreadSafeNSDictionary> {
-        let dict = NSDictionary::new();
-        Ok(ThreadSafeNSDictionary::new(dict))
+    fn io_registry_entry_create_cf_properties(&self, _service: &SafeDictionary) -> Result<SafeDictionary> {
+        Ok(SafeDictionary::new())
     }
 
     fn get_gpu_stats(&self) -> Result<GpuStats> {
@@ -68,13 +68,13 @@ impl IOKit for MockIOKit {
     fn get_thermal_info(&self) -> Result<ThermalInfo> {
         Ok(ThermalInfo {
             cpu_temp: 45.0,
-            gpu_temp: 40.0,
+            gpu_temp: Some(40.0),
             fan_speed: vec![1500.0, 1600.0],
-            heatsink_temp: 35.0,
-            ambient_temp: 25.0,
-            battery_temp: 32.0,
+            heatsink_temp: Some(35.0),
+            ambient_temp: Some(25.0),
+            battery_temp: Some(32.0),
             is_throttling: false,
-            cpu_power: 15.0,
+            cpu_power: Some(15.0),
         })
     }
 

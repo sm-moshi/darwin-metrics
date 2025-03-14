@@ -140,6 +140,21 @@ fn test_thermal_info_error_propagation() {
     assert!(result.unwrap_err().to_string().contains("GPU sensor error"));
 }
 
+#[test]
+fn test_thermal_info() {
+    let iokit = IOKitImpl::default();
+    let result = iokit.get_thermal_info();
+    assert!(result.is_ok());
+    
+    let info = result.unwrap();
+    assert!(info.cpu_temp > 0.0);
+    assert!(info.gpu_temp > 0.0);
+    assert!(info.ambient_temp.is_some());
+    assert!(info.battery_temp.is_some());
+    assert!(info.heatsink_temp.is_some());
+    assert!(!info.is_throttling);
+}
+
 #[cfg(feature = "skip-ffi-crashes")]
 mod additional_safe_tests {
     use super::*;
