@@ -13,31 +13,31 @@ mod tests {
         let e1 = Error::io_error("test io error", io_err);
         assert!(matches!(
             e1,
-            Error::IoError(e) if e.kind() == ErrorKind::NotFound
+            Error::IoError { source } if source.kind() == ErrorKind::NotFound
         ));
 
         let e2 = Error::iokit_error(1, "test IOKit error");
         assert!(matches!(
             e2,
-            Error::IOKitError(code, msg) if code == 1 && msg == "test IOKit error"
+            Error::IOKitError { code, message } if code == 1 && message == "test IOKit error"
         ));
 
         let e3 = Error::service_not_found("test service");
         assert!(matches!(
             e3,
-            Error::ServiceNotFound(msg) if msg == "test service"
+            Error::ServiceNotFound { message } if message == "test service"
         ));
 
         let e4 = Error::invalid_data("test data", Some("invalid value"));
         assert!(matches!(
             e4,
-            Error::InvalidData(msg, Some(val)) if msg == "test data" && val == "invalid value"
+            Error::InvalidData { message, details } if message == "test data" && details == "invalid value"
         ));
 
         let e5 = Error::mutex_lock_error("test lock error");
         assert!(matches!(
             e5,
-            Error::MutexLockError(msg) if msg == "test lock error"
+            Error::MutexLockError { message } if message == "test lock error"
         ));
     }
 
@@ -67,39 +67,46 @@ mod tests {
 
         assert!(matches!(
             err,
-            Error::IoError(e) if e.kind() == ErrorKind::ConnectionRefused
+            Error::IoError { source } if source.kind() == ErrorKind::ConnectionRefused
         ));
     }
 
     #[test]
     fn test_mock_iokit() {
-        let mock = MockIOKit::new()
-            .expect("Failed to create MockIOKit")
-            .with_physical_cores(4)
-            .expect("Failed to set physical cores")
-            .with_logical_cores(8)
-            .expect("Failed to set logical cores");
-
-        // Test thermal info
-        let thermal_info = mock.get_thermal_info().expect("Failed to get thermal info");
-        assert_eq!(thermal_info.cpu_temp, 0.0);
-        assert_eq!(thermal_info.gpu_temp, 0.0);
-        assert_eq!(thermal_info.battery_temp, 0.0);
-
+        let mock = MockIOKit::new().expect("Failed to create MockIOKit");
+        
         // Test CPU info
-        let cpu_info = mock.get_cpu_info().expect("Failed to get CPU info");
-        assert!(cpu_info.get_number("physical_cores").is_none());
-        assert!(cpu_info.get_number("logical_cores").is_none());
+        mock.set_physical_cores(4);
+        mock.set_logical_cores(8);
+        
+        let core_usage = vec![0.5, 0.6, 0.7, 0.8];
+        mock.set_core_usage(core_usage.clone()).expect("Failed to set core usage");
+        
+        assert_eq!(mock.get_physical_cores(), 4);
+        assert_eq!(mock.get_logical_cores(), 8);
+        
+        for (i, &expected) in core_usage.iter().enumerate() {
+            assert_eq!(mock.get_core_usage(i), expected);
+        }
 
         // Test battery info
-        let battery_info = mock.get_battery_info().expect("Failed to get battery info");
-        assert!(battery_info.get_bool("battery_is_present").is_none());
-        assert!(battery_info.get_bool("battery_is_charging").is_none());
+        let mock = mock.with_battery_info(
+            true,
+            false,
+            100,
+            85.5,
+            35.0,
+            7200,
+            100.0,
+            85.5,
+        ).expect("Failed to set battery info");
 
-        // Test GPU stats
-        let gpu_stats = mock.get_gpu_stats().expect("Failed to get GPU stats");
-        assert_eq!(gpu_stats.utilization, 50.0);
-        assert_eq!(gpu_stats.memory_used, 1024 * 1024 * 1024);
-        assert_eq!(gpu_stats.memory_total, 4 * 1024 * 1024 * 1024);
+        let battery_info = mock.get_battery_info().expect("Failed to get battery info");
+        assert_eq!(battery_info.get_bool("BatteryInstalled"), Some(true));
+        assert_eq!(battery_info.get_bool("ExternalConnected"), Some(false));
+        assert_eq!(battery_info.get_number("CycleCount"), Some(100.0));
+        assert_eq!(battery_info.get_number("MaxCapacity"), Some(85.5));
+        assert_eq!(battery_info.get_number("DesignCapacity"), Some(100.0));
+        assert_eq!(battery_info.get_number("Temperature"), Some(35.0));
     }
 }

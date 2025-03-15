@@ -49,6 +49,7 @@ pub struct BatteryInfo {
     pub power_draw: f64,
     pub design_capacity: i64,
     pub current_capacity: i64,
+    pub time_remaining: Option<Duration>,
 }
 
 #[derive(Debug)]
@@ -114,6 +115,7 @@ impl Battery {
             props.get_number("InstantAmperage").unwrap_or(0.0) * props.get_number("Voltage").unwrap_or(0.0) / 1000.0;
         let design_capacity = props.get_number("DesignCapacity").unwrap_or(0.0) as i64;
         let current_capacity = props.get_number("MaxCapacity").unwrap_or(0.0) as i64;
+        let time_remaining = self.get_time_remaining()?;
 
         Ok(BatteryInfo {
             present,
@@ -125,6 +127,7 @@ impl Battery {
             power_draw,
             design_capacity,
             current_capacity,
+            time_remaining,
         })
     }
 
@@ -259,6 +262,7 @@ impl BatteryInfo {
             power_draw: 0.0,
             design_capacity: 0,
             current_capacity: params.current_capacity,
+            time_remaining: None,
         }
     }
 
@@ -298,53 +302,9 @@ impl PartialEq for BatteryInfo {
             && self.design_capacity == other.design_capacity
             && self.current_capacity == other.current_capacity
             && self.temperature == other.temperature
+            && self.time_remaining == other.time_remaining
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::hardware::iokit::mock::MockIOKit;
-
-    pub struct BatteryValues {
-        pub is_present: bool,
-        pub is_charging: bool,
-        pub cycle_count: i64,
-        pub percentage: f64,
-        pub temperature: f64,
-        pub design_capacity: f64,
-        pub current_capacity: f64,
-    }
-
-    impl From<BatteryInfo> for MockIOKit {
-        fn from(info: BatteryInfo) -> Self {
-            MockIOKit::new().expect("Failed to create MockIOKit").with_battery_info(
-                info.present,
-                info.is_charging,
-                info.cycle_count,
-                info.percentage as f64,
-                info.temperature,
-                0, // time remaining not available in BatteryInfo
-                info.design_capacity as f64,
-                info.current_capacity as f64,
-            )
-        }
-    }
-
-    impl Battery {
-        pub fn with_values(values: BatteryValues) -> Result<Self> {
-            let mock_iokit = MockIOKit::new().expect("Failed to create MockIOKit").with_battery_info(
-                values.is_present,
-                values.is_charging,
-                values.cycle_count,
-                values.percentage,
-                values.temperature,
-                0, // time remaining not used in tests
-                values.design_capacity,
-                values.current_capacity,
-            );
-
-            Self::new(Box::new(mock_iokit))
-        }
-    }
-}
+mod tests;

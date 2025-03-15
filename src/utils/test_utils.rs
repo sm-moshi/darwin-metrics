@@ -92,6 +92,32 @@ impl ToNSObject for i64 {
     }
 }
 
+// Implement for f64 values
+impl ToNSObject for f64 {
+    fn to_ns_object(&self) -> *mut NSObject {
+        unsafe {
+            let number: *mut objc2_foundation::NSNumber = objc2::msg_send![
+                objc2::class!(NSNumber),
+                numberWithDouble: *self
+            ];
+            number as *mut NSObject
+        }
+    }
+}
+
+// Implement for bool values
+impl ToNSObject for bool {
+    fn to_ns_object(&self) -> *mut NSObject {
+        unsafe {
+            let number: *mut objc2_foundation::NSNumber = objc2::msg_send![
+                objc2::class!(NSNumber),
+                numberWithBool: *self
+            ];
+            number as *mut NSObject
+        }
+    }
+}
+
 // Allow passing references to objects
 impl<T: ToNSObject> ToNSObject for &T {
     fn to_ns_object(&self) -> *mut NSObject {

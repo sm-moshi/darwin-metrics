@@ -4,7 +4,6 @@ use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
 use std::ops::Deref;
 
 use crate::utils::mock_dictionary::MockDictionary;
-use crate::utils::property_utils::{PropertyAccessor, PropertyUtils};
 
 /// Trait for accessing dictionary values in a type-safe way
 pub trait DictionaryAccess {
@@ -35,7 +34,7 @@ impl DictionaryAccess for MockDictionary {
         self.get_bool(key)
     }
 
-    fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
+    fn get_dictionary(&self, _key: &str) -> Option<SafeDictionary> {
         None
     }
 }
@@ -75,11 +74,11 @@ impl DictionaryAccess for NSDictionary<NSString, NSObject> {
     fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
         let key = NSString::from_str(key);
         let value = unsafe { self.valueForKey(&key) }?;
-        if let Ok(dict) = value.downcast::<NSDictionary>() {
-            Some(SafeDictionary::from(dict))
-        } else {
-            None
-        }
+        value.downcast::<NSDictionary>().ok().map(|dict| {
+            let ptr = Retained::<NSDictionary>::as_ptr(&dict);
+            let typed_dict = unsafe { Retained::from_raw(ptr as *mut NSDictionary<NSString, NSObject>) };
+            SafeDictionary::from(typed_dict.expect("Failed to convert dictionary"))
+        })
     }
 }
 

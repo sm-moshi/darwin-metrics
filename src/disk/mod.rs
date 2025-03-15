@@ -842,7 +842,7 @@ impl DiskInfo {
             read_ops,
             write_ops,
             mount_points,
-            partitions,
+            partitions, 
         }
     }
 }

@@ -13,7 +13,7 @@ fn test_debug_implementations() {
     };
     let thermal_info = ThermalInfo {
         cpu_temp: 42.0,
-        gpu_temp: 45.0,
+        gpu_temp: Some(45.0),
         heatsink_temp: Some(40.0),
         ambient_temp: Some(25.0),
         battery_temp: Some(35.0),
@@ -45,7 +45,7 @@ fn test_clone_implementations() {
     };
     let thermal_info = ThermalInfo {
         cpu_temp: 42.0,
-        gpu_temp: 45.0,
+        gpu_temp: Some(45.0),
         heatsink_temp: Some(40.0),
         ambient_temp: Some(25.0),
         battery_temp: Some(35.0),
@@ -98,7 +98,7 @@ fn test_fan_info_clone() {
 fn test_thermal_info_clone() {
     let info = ThermalInfo {
         cpu_temp: 45.0,
-        gpu_temp: 55.0,
+        gpu_temp: Some(55.0),
         heatsink_temp: Some(40.0),
         ambient_temp: Some(25.0),
         battery_temp: Some(35.0),
@@ -121,7 +121,7 @@ fn test_thermal_info_clone() {
 fn test_thermal_info_debug() {
     let info = ThermalInfo {
         cpu_temp: 45.0,
-        gpu_temp: 55.0,
+        gpu_temp: Some(55.0),
         heatsink_temp: Some(40.0),
         ambient_temp: Some(25.0),
         battery_temp: Some(35.0),
@@ -132,7 +132,7 @@ fn test_thermal_info_debug() {
     let debug_str = format!("{:?}", info);
 
     assert!(debug_str.contains("cpu_temp: 45.0"));
-    assert!(debug_str.contains("gpu_temp: 55.0"));
+    assert!(debug_str.contains("gpu_temp: Some(55.0)"));
     assert!(debug_str.contains("heatsink_temp: Some(40.0)"));
     assert!(debug_str.contains("ambient_temp: Some(25.0)"));
     assert!(debug_str.contains("battery_temp: Some(35.0)"));

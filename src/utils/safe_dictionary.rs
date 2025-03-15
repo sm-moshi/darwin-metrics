@@ -1,4 +1,4 @@
-use objc2::{rc::Retained, runtime::NSObject, Message};
+use objc2::{msg_send, rc::Retained, runtime::NSObject, Message};
 use objc2_foundation::{NSDictionary, NSNumber, NSString};
 use std::fmt::Debug;
 use std::sync::Mutex;
@@ -7,22 +7,18 @@ use std::sync::Mutex;
 /// for accessing dictionary values.
 #[derive(Debug)]
 pub struct SafeDictionary {
-    inner: Mutex<Retained<NSDictionary>>,
+    inner: Mutex<Retained<NSDictionary<NSString, NSObject>>>,
 }
 
 impl SafeDictionary {
     /// Creates a new empty SafeDictionary
     pub fn new() -> Self {
-        Self {
-            inner: Mutex::new(NSDictionary::new()),
-        }
+        Self { inner: Mutex::new(NSDictionary::new()) }
     }
 
     /// Creates a SafeDictionary from an existing NSDictionary
-    pub fn from(dict: Retained<NSDictionary>) -> Self {
-        Self {
-            inner: Mutex::new(dict),
-        }
+    pub fn from(dict: Retained<NSDictionary<NSString, NSObject>>) -> Self {
+        Self { inner: Mutex::new(dict) }
     }
 
     /// Creates a SafeDictionary from a raw pointer
@@ -30,7 +26,7 @@ impl SafeDictionary {
     /// # Safety
     /// This function is unsafe because it takes ownership of a raw pointer
     pub unsafe fn from_ptr(ptr: *mut NSObject) -> Self {
-        let dict = Retained::from_raw(ptr as *mut NSDictionary)
+        let dict = Retained::from_raw(ptr as *mut NSDictionary<NSString, NSObject>)
             .expect("Failed to create NSDictionary from raw pointer");
         Self::from(dict)
     }
@@ -76,19 +72,17 @@ impl SafeDictionary {
         let dict = self.inner.lock().ok()?;
         let key = NSString::from_str(key);
         let value = unsafe { dict.valueForKey(&key) }?;
-        if let Ok(dict) = value.downcast::<NSDictionary>() {
-            Some(SafeDictionary::from(dict))
-        } else {
-            None
-        }
+        value.downcast::<NSDictionary>().ok().map(|dict| {
+            let ptr = Retained::<NSDictionary>::as_ptr(&dict);
+            let typed_dict = unsafe { Retained::from_raw(ptr as *mut NSDictionary<NSString, NSObject>) };
+            SafeDictionary::from(typed_dict.expect("Failed to convert dictionary"))
+        })
     }
 
     /// Clones the SafeDictionary, creating a new reference to the same underlying dictionary
     pub fn clone(&self) -> Self {
         if let Ok(dict) = self.inner.lock() {
-            Self {
-                inner: Mutex::new(dict.retain()),
-            }
+            Self { inner: Mutex::new(dict.retain()) }
         } else {
             Self::new()
         }
@@ -100,7 +94,7 @@ impl SafeDictionary {
     /// This function is unsafe because it returns a raw pointer that must be properly managed
     pub unsafe fn as_ptr(&self) -> *const NSObject {
         if let Ok(dict) = self.inner.lock() {
-            Retained::<NSDictionary>::as_ptr(&dict) as *const NSObject
+            Retained::<NSDictionary<NSString, NSObject>>::as_ptr(&dict) as *const NSObject
         } else {
             std::ptr::null()
         }
@@ -108,9 +102,42 @@ impl SafeDictionary {
 
     pub fn as_mut_ptr(&mut self) -> *mut NSObject {
         if let Ok(dict) = self.inner.lock() {
-            Retained::<NSDictionary>::as_ptr(&dict) as *mut NSObject
+            Retained::<NSDictionary<NSString, NSObject>>::as_ptr(&dict) as *mut NSObject
         } else {
             std::ptr::null_mut()
+        }
+    }
+
+    /// Sets a boolean value for the given key
+    pub fn set_bool(&mut self, key: &str, value: bool) {
+        if let Ok(dict) = self.inner.lock() {
+            let key = NSString::from_str(key);
+            let value = NSNumber::new_bool(value);
+            unsafe {
+                let _: () = msg_send![&*dict, setValue: &*value, forKey: &*key];
+            }
+        }
+    }
+
+    /// Sets an integer value for the given key
+    pub fn set_i64(&mut self, key: &str, value: i64) {
+        if let Ok(dict) = self.inner.lock() {
+            let key = NSString::from_str(key);
+            let value = NSNumber::new_i64(value);
+            unsafe {
+                let _: () = msg_send![&*dict, setValue: &*value, forKey: &*key];
+            }
+        }
+    }
+
+    /// Sets a floating point value for the given key
+    pub fn set_f64(&mut self, key: &str, value: f64) {
+        if let Ok(dict) = self.inner.lock() {
+            let key = NSString::from_str(key);
+            let value = NSNumber::new_f64(value);
+            unsafe {
+                let _: () = msg_send![&*dict, setValue: &*value, forKey: &*key];
+            }
         }
     }
 }

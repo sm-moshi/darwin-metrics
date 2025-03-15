@@ -236,9 +236,7 @@ where
     let result = std::panic::catch_unwind(AssertUnwindSafe(f));
     match result {
         Ok(value) => value,
-        Err(_) => Err(Error::System {
-            message: "Panic occurred during Objective-C operation".to_string(),
-        }),
+        Err(_) => Err(Error::System { message: "Panic occurred during Objective-C operation".to_string() }),
     }
 }
 
@@ -291,10 +289,7 @@ pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<V
 /// Retrieves the name of an Objective-C device.
 pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
     if device.is_null() {
-        return Err(Error::NotAvailable {
-            resource: "device".to_string(),
-            reason: "No device available".to_string(),
-        });
+        return Err(Error::NotAvailable { resource: "device".to_string(), reason: "No device available".to_string() });
     }
 
     autorelease_pool(|| {
@@ -414,7 +409,7 @@ mod tests {
         let result = objc_safe_exec(|| Err::<i32, Error>(Error::system("test error")));
         assert!(result.is_err());
         match result {
-            Err(Error::System(msg)) => assert!(msg.contains("test error")),
+            Err(Error::System { message }) => assert!(message.contains("test error")),
             _ => panic!("Unexpected error type"),
         }
 

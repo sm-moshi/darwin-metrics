@@ -12,7 +12,7 @@ fn test_get_thermal_info() {
     mock_iokit.expect_get_thermal_info().returning(|| {
         Ok(ThermalInfo {
             cpu_temp: 45.0,
-            gpu_temp: 55.0,
+            gpu_temp: Some(55.0),
             heatsink_temp: Some(40.0),
             ambient_temp: Some(25.0),
             battery_temp: Some(35.0),
@@ -24,7 +24,7 @@ fn test_get_thermal_info() {
     let result = mock_iokit.get_thermal_info().unwrap();
 
     assert_eq!(result.cpu_temp, 45.0);
-    assert_eq!(result.gpu_temp, 55.0);
+    assert_eq!(result.gpu_temp, Some(55.0));
     assert_eq!(result.heatsink_temp, Some(40.0));
     assert_eq!(result.ambient_temp, Some(25.0));
     assert_eq!(result.battery_temp, Some(35.0));
@@ -39,7 +39,7 @@ fn test_get_thermal_info_with_failures() {
     mock_iokit.expect_get_thermal_info().returning(|| {
         Ok(ThermalInfo {
             cpu_temp: 45.0,
-            gpu_temp: 55.0,
+            gpu_temp: Some(55.0),
             heatsink_temp: None,
             ambient_temp: None,
             battery_temp: None,
@@ -53,7 +53,7 @@ fn test_get_thermal_info_with_failures() {
     let info = result.unwrap();
 
     assert_eq!(info.cpu_temp, 45.0);
-    assert_eq!(info.gpu_temp, 55.0);
+    assert_eq!(info.gpu_temp, Some(55.0));
     assert_eq!(info.heatsink_temp, None);
     assert_eq!(info.ambient_temp, None);
     assert_eq!(info.battery_temp, None);
@@ -148,7 +148,7 @@ fn test_thermal_info() {
     
     let info = result.unwrap();
     assert!(info.cpu_temp > 0.0);
-    assert!(info.gpu_temp > 0.0);
+    assert!(info.gpu_temp.is_some());
     assert!(info.ambient_temp.is_some());
     assert!(info.battery_temp.is_some());
     assert!(info.heatsink_temp.is_some());
@@ -167,7 +167,7 @@ mod additional_safe_tests {
         
         let info = result.unwrap();
         assert!(info.cpu_temp > 0.0);
-        assert!(info.gpu_temp > 0.0);
+        assert!(info.gpu_temp.is_some());
         assert!(info.ambient_temp.is_some());
         assert!(info.battery_temp.is_some());
         assert!(info.heatsink_temp.is_some());

@@ -4,10 +4,9 @@ use std::{
 };
 
 use crate::{
-    hardware::iokit::{IOKit, IOKitImpl},
     //utils::dictionary_access::DictionaryAccess,
     error::Error,
-    utils::safe_dictionary::SafeDictionary,
+    hardware::iokit::{IOKit, IOKitImpl},
 };
 
 /// Represents the location of a temperature sensor in the system
@@ -125,22 +124,22 @@ impl Temperature<IOKitImpl> {
         if let Ok(thermal_info) = self.io_kit.get_thermal_info() {
             // Update CPU temperature
             self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
-            
+
             // Update GPU temperature if available
             if let Some(temp) = thermal_info.gpu_temp {
                 self.sensors.insert("GPU".to_string(), temp);
             }
-            
+
             // Update heatsink temperature if available
             if let Some(temp) = thermal_info.heatsink_temp {
                 self.sensors.insert("Heatsink".to_string(), temp);
             }
-            
+
             // Update ambient temperature if available
             if let Some(temp) = thermal_info.ambient_temp {
                 self.sensors.insert("Ambient".to_string(), temp);
             }
-            
+
             // Update battery temperature if available
             if let Some(temp) = thermal_info.battery_temp {
                 self.sensors.insert("Battery".to_string(), temp);

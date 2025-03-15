@@ -151,11 +151,11 @@ mod tests {
         // Test conversion from ArchitectureError to Error
         let arch_error = ArchitectureError::SystemCallFailed;
         let error: Error = arch_error.into();
-        assert!(matches!(error, Error::System(_)));
+        assert!(matches!(error, Error::System { message: _ }));
 
         let arch_error = ArchitectureError::InvalidStringEncoding;
         let error: Error = arch_error.into();
-        assert!(matches!(error, Error::System(_)));
+        assert!(matches!(error, Error::System { message: _ }));
     }
 
     #[test]

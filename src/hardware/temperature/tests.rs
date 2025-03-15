@@ -1,8 +1,8 @@
 use super::*;
-use crate::hardware::iokit::{FanInfo, GpuStats, ThermalInfo};
+use crate::hardware::iokit::{FanInfo, GpuStats, ThermalInfo, ThreadSafeAnyObject};
 use crate::utils::safe_dictionary::SafeDictionary;
 use crate::Error;
-use crate::GpuMetrics; // Import GpuMetrics
+use crate::GpuMetrics;
 use objc2::rc::Retained;
 use objc2_foundation::{NSDictionary, NSObject, NSString};
 use std::sync::Arc;
@@ -31,21 +31,24 @@ impl std::fmt::Debug for MockIOKitClone {
 
 impl MockIOKitClone {
     fn new() -> Self {
+        let entries = [
+            ("CPU_0_DIE_TEMP", 45.0),
+            ("GPU_0_DIE_TEMP", 40.0),
+            ("FAN_0_SPEED", 1500.0),
+            ("HS_0_TEMP", 35.0),
+            ("AMBIENT_TEMP", 25.0),
+            ("THERMAL_THROTTLING", 0.0),
+            ("BATTERY_TEMP", 32.0),
+        ];
+        let dict = crate::utils::test_utils::create_test_dictionary_with_entries(&entries);
+        let thermal_info = Arc::new(ThermalInfo::new(SafeDictionary::from(dict.into())));
+
         Self {
-            thermal_info: Arc::new(|| Ok(ThermalInfo {
-                cpu_temp: 45.0,
-                gpu_temp: Some(40.0),
-                fan_speed: vec![1500.0, 1600.0],
-                heatsink_temp: Some(35.0),
-                ambient_temp: Some(25.0),
-                battery_temp: Some(32.0),
-                is_throttling: false,
-                cpu_power: Some(15.0),
-            })),
+            thermal_info: Arc::new(move || Ok((*thermal_info).clone())),
             fan_info: Arc::new(|| {
                 Ok(vec![
-                    FanInfo { speed_rpm: 2000.0, min_speed: 1000.0, max_speed: 4000.0, percentage: 33.3 },
-                    FanInfo { speed_rpm: 2500.0, min_speed: 1200.0, max_speed: 5000.0, percentage: 40.0 },
+                    FanInfo { speed_rpm: 2000, min_speed: 1000, max_speed: 4000, percentage: 33.3 },
+                    FanInfo { speed_rpm: 2500, min_speed: 1200, max_speed: 5000, percentage: 40.0 },
                 ])
             }),
         }
@@ -71,17 +74,11 @@ impl IOKit for MockIOKitClone {
         Ok(SafeDictionary::new())
     }
 
-    fn io_service_get_matching_service(
-        &self,
-        _matching: &SafeDictionary,
-    ) -> Result<SafeDictionary, Error> {
-        Ok(SafeDictionary::new())
+    fn io_service_get_matching_service(&self, _matching: &SafeDictionary) -> Result<ThreadSafeAnyObject, Error> {
+        Ok(ThreadSafeAnyObject::new(NSObject::new()))
     }
 
-    fn io_registry_entry_create_cf_properties(
-        &self,
-        _entry: &SafeDictionary,
-    ) -> Result<SafeDictionary, Error> {
+    fn io_registry_entry_create_cf_properties(&self, _entry: &ThreadSafeAnyObject) -> Result<SafeDictionary, Error> {
         Ok(SafeDictionary::new())
     }
 
@@ -89,36 +86,26 @@ impl IOKit for MockIOKitClone {
         &self,
         _connection: u32,
         _selector: u32,
-        _input: &[u8],
-        _input_cnt: u32,
-        _output: &mut [u8],
-        _output_cnt: &mut u32,
+        _input: &[u64],
+        _output: &mut [u64],
     ) -> Result<(), Error> {
         Ok(())
     }
 
-    fn get_number_property(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
-        match key {
-            "CurrentCapacity" => Some(85.0),
-            "CycleCount" => Some(100.0),
-            "Temperature" => Some(35.0),
-            "Voltage" => Some(12.0),
-            "Amperage" => Some(1.5),
-            "DesignCapacity" => Some(100.0),
-            _ => None,
-        }
+    fn get_number_property(&self, _dict: &SafeDictionary, _key: &str) -> Result<f64, Error> {
+        Ok(0.0)
     }
 
-    fn get_service_properties(&self, _service: &SafeDictionary) -> Result<SafeDictionary, Error> {
+    fn get_service_properties(&self, _service: &ThreadSafeAnyObject) -> Result<SafeDictionary, Error> {
         Ok(SafeDictionary::new())
     }
 
-    fn get_service_matching(&self, _name: &str) -> Result<Option<SafeDictionary>, Error> {
+    fn get_service_matching(&self, _name: &str) -> Result<Option<ThreadSafeAnyObject>, Error> {
         Ok(None)
     }
 
-    fn get_cpu_temperature(&self) -> Result<f64, Error> {
-        Ok((*self.thermal_info)()?.cpu_temp)
+    fn get_cpu_temperature(&self, _plane: &str) -> Result<f64, Error> {
+        Ok(0.0)
     }
 
     fn get_gpu_stats(&self) -> Result<GpuStats, Error> {
@@ -129,7 +116,7 @@ impl IOKit for MockIOKitClone {
         let fans = (*self.fan_info)()?;
         fans.get(fan_index as usize)
             .cloned()
-            .ok_or_else(|| Error::IOKitError(0, format!("Fan index out of bounds: {}", fan_index)))
+            .ok_or_else(|| Error::IOKitError { code: 0, message: format!("Fan index out of bounds: {}", fan_index) })
     }
 
     fn get_thermal_info(&self) -> Result<ThermalInfo, Error> {
@@ -149,7 +136,7 @@ impl IOKit for MockIOKitClone {
     }
 
     fn get_battery_temperature(&self) -> Result<Option<f64>, Error> {
-        Ok(Some(35.0))
+        Ok(Some(0.0))
     }
 
     fn get_battery_info(&self) -> Result<SafeDictionary, Error> {
@@ -160,12 +147,8 @@ impl IOKit for MockIOKitClone {
         Ok(SafeDictionary::new())
     }
 
-    fn io_registry_entry_get_parent_entry(
-        &self,
-        _entry: &SafeDictionary,
-        _plane: &str,
-    ) -> Result<SafeDictionary, Error> {
-        Ok(SafeDictionary::new())
+    fn io_registry_entry_get_parent_entry(&self, _entry: &ThreadSafeAnyObject) -> Result<ThreadSafeAnyObject, Error> {
+        Ok(ThreadSafeAnyObject::new(NSObject::new()))
     }
 
     fn clone_box(&self) -> Box<dyn IOKit> {
@@ -200,6 +183,35 @@ fn display_memory_info(metrics: &GpuMetrics) {
     }
     println!("GPU Name: {}", metrics.name);
     println!("Characteristics: {:?}", metrics.characteristics);
+}
+
+#[test]
+fn test_thermal_info() {
+    let entries = [
+        ("CPU_0_DIE_TEMP", 45.0),
+        ("GPU_0_DIE_TEMP", 55.0),
+        ("FAN_0_SPEED", 2000.0),
+        ("HS_0_TEMP", 50.0),
+        ("AMBIENT_TEMP", 25.0),
+        ("THERMAL_THROTTLING", 0.0),
+        ("BATTERY_TEMP", 35.0),
+    ];
+    let dict = crate::utils::test_utils::create_test_dictionary_with_entries(&entries);
+    let thermal_info = Arc::new(ThermalInfo::new(SafeDictionary::from(dict)));
+
+    let expected_cpu_temp = 45.0;
+    let expected_gpu_temp = 35.0;
+    let expected_fan_speed = 2000;
+    let expected_ambient_temp = 25.0;
+    let expected_battery_temp = 30.0;
+    let expected_heatsink_temp = 40.0;
+
+    assert_eq!(thermal_info.cpu_temp, expected_cpu_temp);
+    assert_eq!(thermal_info.gpu_temp, Some(expected_gpu_temp));
+    assert_eq!(thermal_info.fan_speed, expected_fan_speed);
+    assert_eq!(thermal_info.ambient_temp, Some(expected_ambient_temp));
+    assert_eq!(thermal_info.battery_temp, Some(expected_battery_temp));
+    assert_eq!(thermal_info.heatsink_temp, Some(expected_heatsink_temp));
 }
 
 // Rest of the code remains the same

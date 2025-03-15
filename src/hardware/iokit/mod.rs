@@ -1,18 +1,22 @@
 use std::ffi::{c_void, CString};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
+use std::convert::AsRef;
 
 use libc::mach_port_t;
 use objc2::{
-    class, msg_send,
     rc::Retained,
     runtime::{AnyObject, NSObject},
 };
-use objc2_core_foundation::kCFAllocatorDefault;
-use objc2_foundation::{NSDictionary, NSString};
 
 use crate::error::{Error, Result};
-use crate::utils::{bindings::*, SafeDictionary};
+use crate::utils::{
+    bindings::{
+        IORegistryEntryCreateCFProperties, IORegistryEntryGetParentEntry, IOServiceGetMatchingService, IOServiceMatching,
+        IOConnectCallStructMethod, IOByteCount, K_IOMASTER_PORT_DEFAULT,
+    },
+    SafeDictionary,
+};
 
 /// GPU statistics
 #[derive(Debug, Clone)]
@@ -57,7 +61,7 @@ impl crate::utils::dictionary_access::DictionaryAccess for GpuStats {
         }
     }
 
-    fn get_bool(&self, key: &str) -> Option<bool> {
+    fn get_bool(&self, _key: &str) -> Option<bool> {
         None
     }
 
@@ -255,7 +259,7 @@ pub trait IOKit: Debug + Send + Sync {
     fn get_number_property(&self, dict: &SafeDictionary, key: &str) -> Result<f64>;
 
     /// Call an IOKit method
-    fn io_connect_call_method(&self, connection: u32, selector: u32, input: &[u64], output: &mut [u64]) -> Result<()>;
+    fn io_connect_call_method(&self, connection: u32, selector: u32, _input: &[u64], output: &mut [u64]) -> Result<()>;
 
     /// Clone this IOKit instance into a Box
     fn clone_box(&self) -> Box<dyn IOKit>;
@@ -314,10 +318,7 @@ impl IOKitImpl {
                 0,
             );
             if result != 0 || props.is_null() {
-                return Err(Error::IOKitError {
-                    code: 0,
-                    message: "Failed to get properties".into(),
-                });
+                return Err(Error::IOKitError { code: 0, message: "Failed to get properties".into() });
             }
             Ok(SafeDictionary::from_ptr(props as *mut NSObject))
         }
@@ -329,12 +330,9 @@ impl IOKitImpl {
 
     fn io_service_get_matching_service(&self, matching_dict: &SafeDictionary) -> Result<ThreadSafeAnyObject> {
         unsafe {
-            let raw_service = IOServiceGetMatchingService(kIOMasterPortDefault, matching_dict.as_ptr() as *mut _);
+            let raw_service = IOServiceGetMatchingService(K_IOMASTER_PORT_DEFAULT, matching_dict.as_ptr() as *mut _);
             if raw_service == 0 {
-                return Err(Error::IOKitError {
-                    code: 0,
-                    message: "Failed to get matching service".into(),
-                });
+                return Err(Error::IOKitError { code: 0, message: "Failed to get matching service".into() });
             }
             Ok(ThreadSafeAnyObject::from_ptr(raw_service as *mut AnyObject))
         }
@@ -356,12 +354,10 @@ impl IOKitImpl {
         let matching = self.io_service_matching(plane)?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
-        props.get_number("TC0P")
-            .ok_or_else(|| Error::IOKitError {
-                code: 0,
-                message: format!("Property {} not found", "TC0P"),
-            })
+
+        props
+            .get_number("TC0P")
+            .ok_or_else(|| Error::IOKitError { code: 0, message: format!("Property {} not found", "TC0P") })
     }
 
     fn get_thermal_info(&self) -> Result<ThermalInfo> {
@@ -369,7 +365,7 @@ impl IOKitImpl {
         let service = self.io_service_get_matching_service(&matching)?;
         let dict = self.get_service_properties(&service)?;
         let plane = "IOService";
-        
+
         Ok(ThermalInfo {
             cpu_temp: self.get_cpu_temperature(plane)?,
             gpu_temp: dict.get_number("GPU_0_DIE_TEMP"),
@@ -386,7 +382,7 @@ impl IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         let mut fans = Vec::new();
         if let Some(speed) = props.get_number("FAN_0_SPEED") {
             fans.push(FanInfo {
@@ -403,7 +399,7 @@ impl IOKitImpl {
         let matching = self.io_service_matching(plane)?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(props.get_bool("ThermalThrottling").unwrap_or(false))
     }
 
@@ -411,19 +407,17 @@ impl IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
-        props.get_number("PC0C")
-            .ok_or_else(|| Error::IOKitError {
-                code: 0,
-                message: format!("Property {} not found", "PC0C"),
-            })
+
+        props
+            .get_number("PC0C")
+            .ok_or_else(|| Error::IOKitError { code: 0, message: format!("Property {} not found", "PC0C") })
     }
 
     fn get_gpu_stats(&self) -> Result<GpuStats> {
         let matching = self.io_service_matching("IOPlatformDevice")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(GpuStats {
             utilization: props.get_number("GPUUtilization").unwrap_or(0.0),
             memory_used: props.get_number("GPUMemoryUsed").unwrap_or(0.0) as u64,
@@ -438,7 +432,7 @@ impl IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         let prefix = format!("FAN_{}_", fan_index);
         Ok(FanInfo {
             speed_rpm: props.get_number(&format!("{}SPEED", prefix)).unwrap_or(0.0) as u32,
@@ -452,21 +446,18 @@ impl IOKitImpl {
         let matching = self.io_service_matching("AppleSmartBattery")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(props.get_number("Temperature"))
     }
 
     fn get_number_property(&self, dict: &SafeDictionary, key: &str) -> Result<f64> {
         dict.get_number(key)
-            .ok_or_else(|| Error::IOKitError {
-                code: 0,
-                message: format!("Property {} not found", key),
-            })
+            .ok_or_else(|| Error::IOKitError { code: 0, message: format!("Property {} not found", key) })
     }
 
-    fn io_connect_call_method(&self, connection: u32, selector: u32, input: &[u64], output: &mut [u64]) -> Result<()> {
-        let mut output_count = output.len() as u32;
-        
+    fn io_connect_call_method(&self, connection: u32, selector: u32, _input: &[u64], output: &mut [u64]) -> Result<()> {
+        let output_count = output.len() as u32;
+
         unsafe {
             let result = IOConnectCallStructMethod(
                 connection,
@@ -476,11 +467,11 @@ impl IOKitImpl {
                 output.as_mut_ptr() as *mut _,
                 &mut IOByteCount(output_count as usize),
             );
-            
+
             if result != 0 {
                 return Err(Error::IOKitError { code: result, message: "Failed to call IOKit method".into() });
             }
-            
+
             Ok(())
         }
     }
@@ -492,12 +483,10 @@ impl IOKitImpl {
     fn io_registry_entry_get_parent_entry(&self, entry: &ThreadSafeAnyObject) -> Result<ThreadSafeAnyObject> {
         unsafe {
             let mut parent: mach_port_t = 0;
-            let result = IORegistryEntryGetParentEntry(entry.get_raw_handle(), b"IOService\0".as_ptr() as *const _, &mut parent);
+            let result =
+                IORegistryEntryGetParentEntry(entry.get_raw_handle(), b"IOService\0".as_ptr() as *const _, &mut parent);
             if result != 0 || parent == 0 {
-                return Err(Error::IOKitError {
-                    code: 0,
-                    message: "Failed to get parent entry".into(),
-                });
+                return Err(Error::IOKitError { code: 0, message: "Failed to get parent entry".into() });
             }
             Ok(ThreadSafeAnyObject::from_ptr(parent as *mut AnyObject))
         }
@@ -507,17 +496,14 @@ impl IOKitImpl {
         let info = self.get_cpu_info()?;
         info.get_number("PhysicalCores")
             .map(|n| n as usize)
-            .ok_or_else(|| Error::IOKitError {
-                code: 0,
-                message: "Physical core count not found".into(),
-            })
+            .ok_or_else(|| Error::IOKitError { code: 0, message: "Physical core count not found".into() })
     }
 
     fn get_logical_cores(&self) -> Result<usize> {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(props.get_number("LogicalCores").unwrap_or(1.0) as usize)
     }
 
@@ -525,7 +511,7 @@ impl IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         let mut usage = Vec::new();
         let cores = self.get_logical_cores()?;
         for i in 0..cores {
@@ -560,12 +546,9 @@ impl IOKit for IOKitImpl {
 
     fn io_service_get_matching_service(&self, matching_dict: &SafeDictionary) -> Result<ThreadSafeAnyObject> {
         unsafe {
-            let raw_service = IOServiceGetMatchingService(kIOMasterPortDefault, matching_dict.as_ptr() as *mut _);
+            let raw_service = IOServiceGetMatchingService(K_IOMASTER_PORT_DEFAULT, matching_dict.as_ptr() as *mut _);
             if raw_service == 0 {
-                return Err(Error::IOKitError {
-                    code: 0,
-                    message: "Failed to get matching service".into(),
-                });
+                return Err(Error::IOKitError { code: 0, message: "Failed to get matching service".into() });
             }
             Ok(ThreadSafeAnyObject::from_ptr(raw_service as *mut AnyObject))
         }
@@ -581,10 +564,7 @@ impl IOKit for IOKitImpl {
                 0,
             );
             if result != 0 || props.is_null() {
-                return Err(Error::IOKitError {
-                    code: 0,
-                    message: "Failed to get properties".into(),
-                });
+                return Err(Error::IOKitError { code: 0, message: "Failed to get properties".into() });
             }
             Ok(SafeDictionary::from_ptr(props as *mut NSObject))
         }
@@ -596,10 +576,7 @@ impl IOKit for IOKitImpl {
 
     fn get_number_property(&self, dict: &SafeDictionary, key: &str) -> Result<f64> {
         dict.get_number(key)
-            .ok_or_else(|| Error::IOKitError {
-                code: 0,
-                message: format!("Property {} not found", key),
-            })
+            .ok_or_else(|| Error::IOKitError { code: 0, message: format!("Property {} not found", key) })
     }
 
     fn get_thermal_info(&self) -> Result<ThermalInfo> {
@@ -607,7 +584,7 @@ impl IOKit for IOKitImpl {
         let service = self.io_service_get_matching_service(&matching)?;
         let dict = self.get_service_properties(&service)?;
         let plane = "IOService";
-        
+
         Ok(ThermalInfo {
             cpu_temp: self.get_cpu_temperature(plane)?,
             gpu_temp: dict.get_number("GPU_0_DIE_TEMP"),
@@ -624,7 +601,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         let mut fans = Vec::new();
         if let Ok(speed) = self.get_number_property(&props, "FAN_0_SPEED") {
             fans.push(FanInfo {
@@ -641,7 +618,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         let prefix = format!("FAN_{}_", fan_index);
         Ok(FanInfo {
             speed_rpm: self.get_number_property(&props, &format!("{}SPEED", prefix)).unwrap_or(0.0) as u32,
@@ -655,7 +632,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("IOPlatformDevice")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(GpuStats {
             utilization: self.get_number_property(&props, "GPUUtilization").unwrap_or(0.0),
             memory_used: self.get_number_property(&props, "GPUMemoryUsed").unwrap_or(0.0) as u64,
@@ -670,7 +647,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("AppleSmartBattery")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(props.get_number("Temperature"))
     }
 
@@ -690,7 +667,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching(plane)?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         self.get_number_property(&props, "TC0P")
     }
 
@@ -698,7 +675,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         self.get_number_property(&props, "PC0C")
     }
 
@@ -706,33 +683,25 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching(plane)?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(props.get_bool("ThermalThrottling").unwrap_or(false))
     }
 
     fn io_registry_entry_get_parent_entry(&self, entry: &ThreadSafeAnyObject) -> Result<ThreadSafeAnyObject> {
         unsafe {
             let mut parent: mach_port_t = 0;
-            let result = IORegistryEntryGetParentEntry(entry.get_raw_handle(), b"IOService\0".as_ptr() as *const _, &mut parent);
+            let result =
+                IORegistryEntryGetParentEntry(entry.get_raw_handle(), b"IOService\0".as_ptr() as *const _, &mut parent);
             if result != 0 || parent == 0 {
-                return Err(Error::IOKitError {
-                    code: 0,
-                    message: "Failed to get parent entry".into(),
-                });
+                return Err(Error::IOKitError { code: 0, message: "Failed to get parent entry".into() });
             }
             Ok(ThreadSafeAnyObject::from_ptr(parent as *mut AnyObject))
         }
     }
 
-    fn io_connect_call_method(
-        &self,
-        connection: u32,
-        selector: u32,
-        input: &[u64],
-        output: &mut [u64],
-    ) -> Result<()> {
-        let mut output_count = output.len() as u32;
-        
+    fn io_connect_call_method(&self, connection: u32, selector: u32, _input: &[u64], output: &mut [u64]) -> Result<()> {
+        let output_count = output.len() as u32;
+
         unsafe {
             let result = IOConnectCallStructMethod(
                 connection,
@@ -742,11 +711,11 @@ impl IOKit for IOKitImpl {
                 output.as_mut_ptr() as *mut _,
                 &mut IOByteCount(output_count as usize),
             );
-            
+
             if result != 0 {
                 return Err(Error::IOKitError { code: result, message: "Failed to call IOKit method".into() });
             }
-            
+
             Ok(())
         }
     }
@@ -759,7 +728,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(props.get_number("PhysicalCores").unwrap_or(1.0) as usize)
     }
 
@@ -767,7 +736,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         Ok(props.get_number("LogicalCores").unwrap_or(1.0) as usize)
     }
 
@@ -775,7 +744,7 @@ impl IOKit for IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        
+
         let mut usage = Vec::new();
         let cores = self.get_logical_cores()?;
         for i in 0..cores {
@@ -840,6 +809,11 @@ impl ThreadSafeAnyObject {
     pub fn inner(&self) -> Retained<NSObject> {
         self.obj.lock().expect("Failed to lock mutex").clone()
     }
+
+    fn get_dictionary(&self, _key: &str) -> Option<SafeDictionary> {
+        // Create a new SafeDictionary using default()
+        Some(SafeDictionary::default())
+    }
 }
 
 // Implement Send and Sync for ThreadSafeAnyObject since we're using Arc for thread safety
@@ -852,5 +826,14 @@ impl Clone for ThreadSafeAnyObject {
     }
 }
 
-pub const K_IOMASTER_PORT_DEFAULT: mach_port_t = 0; // Define this constant if not already defined
-pub const IOMASTER_PORT_DEFAULT: mach_port_t = K_IOMASTER_PORT_DEFAULT;
+impl AsRef<NSObject> for ThreadSafeAnyObject {
+    fn as_ref(&self) -> &NSObject {
+        // SAFETY: We maintain the invariant that obj always contains a valid NSObject
+        // and the Arc ensures the object outlives any references. The mutex ensures
+        // thread-safety, and we're only creating a reference that lives as long as self.
+        unsafe {
+            let guard = self.obj.lock().unwrap();
+            &*(guard.as_ref() as *const NSObject)
+        }
+    }
+}

@@ -4,9 +4,10 @@
 //! includes specific error variants for different types of failures and implements standard error handling traits.
 
 use std::error::Error as StdError;
+use std::ffi::NulError;
 use std::fmt;
 use std::io;
-use std::ffi::NulError;
+#[allow(unused_imports)]
 use thiserror::Error;
 
 /// A specialized Result type for darwin-metrics operations.
@@ -16,75 +17,35 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     /// IO error from std::io
-    IoError {
-        source: io::Error,
-    },
+    IoError { source: io::Error },
     /// Error from IOKit operations
-    IOKitError {
-        code: i32,
-        message: String,
-    },
+    IOKitError { code: i32, message: String },
     /// Invalid data error
-    InvalidData {
-        message: String,
-        details: String,
-    },
+    InvalidData { message: String, details: String },
     /// Service not found error
-    ServiceNotFound {
-        message: String,
-    },
+    ServiceNotFound { message: String },
     /// System error
-    System {
-        message: String,
-    },
+    System { message: String },
     /// Temperature sensor error
-    Temperature {
-        sensor: String,
-        message: String,
-    },
+    Temperature { sensor: String, message: String },
     /// Network operation error
-    Network {
-        operation: String,
-        message: String,
-    },
+    Network { operation: String, message: String },
     /// Mutex lock error
-    MutexLockError {
-        message: String,
-    },
+    MutexLockError { message: String },
     /// Process error
-    Process {
-        pid: Option<u32>,
-        message: String,
-    },
+    Process { pid: Option<u32>, message: String },
     /// GPU error
-    Gpu {
-        operation: String,
-        message: String,
-    },
+    Gpu { operation: String, message: String },
     /// Invalid argument error
-    InvalidArgument {
-        context: String,
-        value: String,
-    },
+    InvalidArgument { context: String, value: String },
     /// System error with operation context
-    SystemError {
-        operation: String,
-        message: String,
-    },
+    SystemError { operation: String, message: String },
     /// Permission denied error
-    PermissionDenied {
-        operation: String,
-        required_permission: String,
-    },
+    PermissionDenied { operation: String, required_permission: String },
     /// Resource not available error
-    NotAvailable {
-        resource: String,
-        reason: String,
-    },
+    NotAvailable { resource: String, reason: String },
     /// Other error
-    Other {
-        message: String,
-    },
+    Other { message: String },
 }
 
 impl Error {
@@ -110,10 +71,7 @@ impl Error {
         S: Into<String>,
         M: Into<String>,
     {
-        Error::Temperature {
-            sensor: sensor.into(),
-            message: message.into(),
-        }
+        Error::Temperature { sensor: sensor.into(), message: message.into() }
     }
 
     /// Creates a new Network error
@@ -122,10 +80,7 @@ impl Error {
         O: Into<String>,
         M: Into<String>,
     {
-        Error::Network {
-            operation: operation.into(),
-            message: message.into(),
-        }
+        Error::Network { operation: operation.into(), message: message.into() }
     }
 
     /// Creates a new InvalidData error
@@ -134,10 +89,7 @@ impl Error {
         S: Into<String>,
         D: Into<String>,
     {
-        Error::InvalidData {
-            message: context.into(),
-            details: value.map(|v| v.into()).unwrap_or_default(),
-        }
+        Error::InvalidData { message: context.into(), details: value.map(|v| v.into()).unwrap_or_default() }
     }
 
     /// Creates a new ServiceNotFound error
@@ -161,10 +113,7 @@ impl Error {
         P: Into<u32>,
         M: Into<String>,
     {
-        Error::Process {
-            pid: pid.map(|p| p.into()),
-            message: message.into(),
-        }
+        Error::Process { pid: pid.map(|p| p.into()), message: message.into() }
     }
 
     /// Creates a new GPU error
@@ -173,10 +122,7 @@ impl Error {
         O: Into<String>,
         M: Into<String>,
     {
-        Error::Gpu {
-            operation: operation.into(),
-            message: message.into(),
-        }
+        Error::Gpu { operation: operation.into(), message: message.into() }
     }
 
     /// Creates a new invalid argument error
@@ -185,10 +131,7 @@ impl Error {
         C: Into<String>,
         V: Into<String>,
     {
-        Error::InvalidArgument {
-            context: context.into(),
-            value: value.map(|v| v.into()).unwrap_or_default(),
-        }
+        Error::InvalidArgument { context: context.into(), value: value.map(|v| v.into()).unwrap_or_default() }
     }
 
     /// Creates a new system error
@@ -197,10 +140,7 @@ impl Error {
         O: Into<String>,
         M: Into<String>,
     {
-        Error::SystemError {
-            operation: operation.into(),
-            message: message.into(),
-        }
+        Error::SystemError { operation: operation.into(), message: message.into() }
     }
 
     /// Check if the error is a permission denied error
@@ -261,10 +201,7 @@ impl From<io::Error> for Error {
 
 impl From<NulError> for Error {
     fn from(err: NulError) -> Self {
-        Error::InvalidData {
-            message: "Invalid null character in string".to_string(),
-            details: err.to_string(),
-        }
+        Error::InvalidData { message: "Invalid null character in string".to_string(), details: err.to_string() }
     }
 }
 
@@ -281,7 +218,7 @@ mod tests {
         let net_err = Error::network_error("eth0", "Link down");
         assert!(matches!(net_err, Error::Network { .. }));
 
-        let proc_err = Error::process_error(Some(123), "Not responding");
+        let proc_err = Error::process_error(Some(123u32), "Not responding");
         assert!(matches!(proc_err, Error::Process { .. }));
 
         let gpu_err = Error::gpu_error("render", "Out of memory");
@@ -296,10 +233,7 @@ mod tests {
 
     #[test]
     fn test_error_is_permission_denied() {
-        let err = Error::PermissionDenied {
-            operation: "read".into(),
-            required_permission: "root".into(),
-        };
+        let err = Error::PermissionDenied { operation: "read".into(), required_permission: "root".into() };
         assert!(err.is_permission_denied());
 
         let other_err = Error::Other { message: "test".into() };
@@ -308,10 +242,7 @@ mod tests {
 
     #[test]
     fn test_error_is_not_available() {
-        let err = Error::NotAvailable {
-            resource: "GPU".into(),
-            reason: "Not installed".into(),
-        };
+        let err = Error::NotAvailable { resource: "GPU".into(), reason: "Not installed".into() };
         assert!(err.is_not_available());
 
         let other_err = Error::Other { message: "test".into() };
@@ -320,22 +251,13 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let err = Error::Temperature {
-            sensor: "CPU".into(),
-            message: "Too hot".into(),
-        };
+        let err = Error::Temperature { sensor: "CPU".into(), message: "Too hot".into() };
         assert_eq!(err.to_string(), "Temperature error on sensor CPU: Too hot");
 
-        let err = Error::Process {
-            pid: Some(123),
-            message: "Not responding".into(),
-        };
+        let err = Error::Process { pid: Some(123), message: "Not responding".into() };
         assert_eq!(err.to_string(), "Process error (PID 123): Not responding");
 
-        let err = Error::InvalidData {
-            message: "Invalid port".into(),
-            details: "65536".into(),
-        };
+        let err = Error::InvalidData { message: "Invalid port".into(), details: "65536".into() };
         assert_eq!(err.to_string(), "Invalid data: Invalid port (65536)");
     }
 

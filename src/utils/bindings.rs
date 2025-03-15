@@ -8,6 +8,7 @@ use std::{
     ffi::c_void as ffi_c_void,
     os::raw::{c_char, c_int, c_uint, c_void},
 };
+use libc::mach_port_t;
 
 //------------------------------------------------------------------------------
 // sysctl FFI bindings for macOS
@@ -960,22 +961,24 @@ extern "C" {
 //------------------------------------------------------------------------------
 
 /// Default master port for IOKit
-pub const kIOMasterPortDefault: MachPortT = 0;
+pub const K_IOMASTER_PORT_DEFAULT: mach_port_t = 0;
+/// Default master port for IOKit (alternative name)
+pub const IOMASTER_PORT_DEFAULT: mach_port_t = K_IOMASTER_PORT_DEFAULT;
 
 /// IOKit service matching dictionary keys
 pub mod io_service_keys {
     /// Key for matching service class
-    pub const kIOProviderClassKey: &str = "IOProviderClass";
+    pub const K_IOPROVIDER_CLASS_KEY: &str = "IOProviderClass";
     /// Key for matching service name
-    pub const kIONameMatchKey: &str = "IONameMatch";
+    pub const K_IONAME_MATCH_KEY: &str = "IONameMatch";
 }
 
 /// IOKit return codes
 pub mod io_return {
     /// Operation completed successfully
-    pub const kIOReturnSuccess: i32 = 0;
+    pub const K_IORETURN_SUCCESS: i32 = 0;
     /// General error
-    pub const kIOReturnError: i32 = 0x2bc;
+    pub const K_IORETURN_ERROR: i32 = 0x2bc;
     /// Operation timed out
-    pub const kIOReturnTimeout: i32 = 0x2d0;
+    pub const K_IORETURN_TIMEOUT: i32 = 0x2d0;
 }

@@ -1,98 +1,133 @@
 //! This module is only used to make the automock-generated MockIOKit available to tests in other modules.
 
-use std::ffi::c_void;
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::time::Duration;
-
+use std::sync::Arc;
 use objc2::{
-    msg_send,
+    class,
+    declare::ClassBuilder,
+    runtime::{AnyClass, AnyObject, Sel},
+    ClassType, msg_send, sel,
     rc::Retained,
-    runtime::{AnyClass, AnyObject, NSObject},
-    ClassType,
 };
-use objc2_foundation::{NSArray, NSDictionary, NSNumber, NSString};
+use objc2_foundation::{NSArray, NSNumber, NSObject, NSString};
 
-use crate::error::Error;
 use crate::{
-    battery::BatteryInfo,
-    error::Result,
-    hardware::iokit::{FanInfo, GpuStats, IOKit, ThermalInfo, ThreadSafeAnyObject},
-    utils::SafeDictionary,
+    error::{Error, Result},
+    hardware::iokit::{
+            DictionaryAccess, FanInfo, GpuStats, IOKit, NSObject as _, ThreadSafeAnyObject,
+            ThermalInfo,
+        },
+    utils::safe_dictionary::SafeDictionary,
 };
 
-#[derive(Debug, Clone)]
-pub struct MockIOKit {
-    obj: ThreadSafeAnyObject,
-    physical_cores: usize,
-    logical_cores: usize,
-    core_usage: Vec<f64>,
-    temperature: f64,
-    battery_is_present: bool,
-    battery_is_charging: bool,
-    battery_time_remaining: Duration,
-    battery_percentage: f64,
-    battery_temperature: f64,
-    battery_cycle_count: i64,
-    battery_design_capacity: f64,
-    battery_current_capacity: f64,
-    thermal_info: ThermalInfo,
-    gpu_stats: GpuStats,
+use std::fmt::Debug;
+use std::ffi::CString;
+
+// Type aliases for method implementations with proper HRTBs
+type PhysicalCoresImpl = for<'a> extern "C" fn(&'a NSObject, Sel, usize);
+type LogicalCoresImpl = for<'a> extern "C" fn(&'a NSObject, Sel, usize);
+type CoreUsageImpl = for<'a, 'b> extern "C" fn(&'a NSObject, Sel, &'b NSArray<NSNumber>);
+type NumberOfCoresImpl = for<'a> extern "C" fn(&'a NSObject, Sel) -> usize;
+type GetCoreUsageImpl = for<'a> extern "C" fn(&'a NSObject, Sel, usize) -> f64;
+
+// Method implementations
+extern "C" fn set_physical_cores_impl<'a>(this: &'a NSObject, _cmd: Sel, cores: usize) {
+    let value = NSNumber::new_i64(cores as i64);
+    let key = NSString::from_str("physical_cores");
+    unsafe {
+        let _: () = msg_send![this, setObject: &*value, forKey: &*key];
+    }
 }
 
-impl Default for MockIOKit {
-    fn default() -> Self {
-        Self::new().expect("Failed to create MockIOKit")
+extern "C" fn set_logical_cores_impl<'a>(this: &'a NSObject, _cmd: Sel, cores: usize) {
+    let value = NSNumber::new_i64(cores as i64);
+    let key = NSString::from_str("logical_cores");
+    unsafe {
+        let _: () = msg_send![this, setObject: &*value, forKey: &*key];
     }
+}
+
+extern "C" fn set_core_usage_impl<'a, 'b>(this: &'a NSObject, _cmd: Sel, usage: &'b NSArray<NSNumber>) {
+    let key = NSString::from_str("core_usage");
+    unsafe {
+        let _: () = msg_send![this, setObject: usage, forKey: &*key];
+    }
+}
+
+extern "C" fn number_of_cores_impl<'a>(this: &'a NSObject, _cmd: Sel) -> usize {
+    let key = NSString::from_str("physical_cores");
+    unsafe {
+        let value: Option<&NSNumber> = msg_send![this, objectForKey: &*key];
+        value.map_or(0, |num| {
+            let val: i64 = msg_send![num, integerValue];
+            val as usize
+        })
+    }
+}
+
+extern "C" fn number_of_processor_cores_impl<'a>(this: &'a NSObject, _cmd: Sel) -> usize {
+    let key = NSString::from_str("logical_cores");
+    unsafe {
+        let value: Option<&NSNumber> = msg_send![this, objectForKey: &*key];
+        value.map_or(0, |num| {
+            let val: i64 = msg_send![num, integerValue];
+            val as usize
+        })
+    }
+}
+
+extern "C" fn get_core_usage_impl<'a>(this: &'a NSObject, _cmd: Sel, core: usize) -> f64 {
+    let key = NSString::from_str("core_usage");
+    unsafe {
+        let usage_array: Option<&NSArray<NSNumber>> = msg_send![this, objectForKey: &*key];
+        if let Some(array) = usage_array {
+            let count: usize = msg_send![array, count];
+            if core < count {
+                let value: Option<&NSNumber> = msg_send![array, objectAtIndex: core];
+                if let Some(num) = value {
+                    return msg_send![num, doubleValue];
+                }
+            }
+        }
+        0.0
+    }
+}
+
+#[derive(Debug)]
+pub struct MockIOKit {
+    obj: ThreadSafeAnyObject,
 }
 
 impl MockIOKit {
     pub fn new() -> Result<Self> {
-        unsafe {
-            let obj: *mut NSObject = msg_send![NSObject::class(), new];
-            let retained = Retained::from_raw(obj).expect("Failed to create NSObject");
-            Ok(Self {
-                obj: ThreadSafeAnyObject::with_raw_handle(retained, obj as _),
-                battery_time_remaining: Duration::from_secs(0),
-                physical_cores: 0,
-                logical_cores: 0,
-                core_usage: vec![],
-                temperature: 0.0,
-                battery_is_present: true,
-                battery_is_charging: false,
-                battery_cycle_count: 0,
-                battery_percentage: 100.0,
-                battery_temperature: 0.0,
-                battery_design_capacity: 100.0,
-                battery_current_capacity: 80.0,
-                thermal_info: ThermalInfo::default(),
-                gpu_stats: GpuStats::default(),
-            })
-        }
+        let instance = Self::create_instance()?;
+        Ok(Self {
+            obj: ThreadSafeAnyObject::new(instance),
+        })
     }
 
-    pub fn with_physical_cores(mut self, cores: usize) -> Result<Self> {
-        self.physical_cores = cores;
+    pub fn with_physical_cores(self, cores: usize) -> Result<Self> {
+        self.set_physical_cores(cores);
         Ok(self)
     }
 
-    pub fn with_logical_cores(mut self, cores: usize) -> Result<Self> {
-        self.logical_cores = cores;
+    pub fn with_logical_cores(self, cores: usize) -> Result<Self> {
+        self.set_logical_cores(cores);
         Ok(self)
     }
 
-    pub fn with_core_usage(mut self, usage: Vec<f64>) -> Result<Self> {
-        self.core_usage = usage;
+    pub fn with_core_usage(self, usage: Vec<f64>) -> Result<Self> {
+        self.set_core_usage(usage);
         Ok(self)
     }
 
-    pub fn with_temperature(mut self, temp: f64) -> Self {
-        self.temperature = temp;
-        self
+    pub fn with_temperature(self, temp: f64) -> Result<Self> {
+        let mut info = self.get_thermal_info()?;
+        info.cpu_temp = temp;
+        Ok(self)
     }
 
     pub fn with_battery_info(
-        mut self,
+        self,
         is_present: bool,
         is_charging: bool,
         cycle_count: i64,
@@ -101,79 +136,162 @@ impl MockIOKit {
         time_remaining: i64,
         design_capacity: f64,
         current_capacity: f64,
-    ) -> Self {
-        self.battery_is_present = is_present;
-        self.battery_is_charging = is_charging;
-        self.battery_cycle_count = cycle_count;
-        self.battery_percentage = percentage;
-        self.battery_temperature = temperature;
-        self.battery_time_remaining = Duration::from_secs(time_remaining as u64);
-        self.battery_design_capacity = design_capacity;
-        self.battery_current_capacity = current_capacity;
-        self
-    }
-
-    pub fn with_time_remaining(mut self, time_remaining: i64) -> Result<Self> {
-        self.battery_time_remaining = Duration::from_secs(time_remaining as u64);
+    ) -> Result<Self> {
+        let mut dict = SafeDictionary::new();
+        dict.set_bool("present", is_present);
+        dict.set_bool("is_charging", is_charging);
+        dict.set_i64("cycle_count", cycle_count);
+        dict.set_f64("percentage", percentage);
+        dict.set_f64("temperature", temperature);
+        dict.set_i64("time_remaining", time_remaining);
+        dict.set_f64("design_capacity", design_capacity);
+        dict.set_f64("current_capacity", current_capacity);
         Ok(self)
     }
 
-    pub fn with_thermal_info(mut self, info: ThermalInfo) -> Result<Self> {
-        self.thermal_info = info;
-        Ok(self)
+    fn create_instance() -> Result<Retained<NSObject>> {
+        let class_name = CString::new("MockIOKit").map_err(|e| Error::io_error("Failed to create class name", e.into()))?;
+        let mut builder = ClassBuilder::new(&class_name, NSObject::class())
+            .ok_or_else(|| Error::iokit_error(0, "Failed to create class builder"))?;
+
+        unsafe {
+            builder.add_method(
+                sel!(setPhysicalCores:),
+                set_physical_cores_impl as extern "C" fn(&NSObject, Sel, usize),
+            );
+
+            builder.add_method(
+                sel!(setLogicalCores:),
+                set_logical_cores_impl as extern "C" fn(&NSObject, Sel, usize),
+            );
+
+            builder.add_method(
+                sel!(setCoreUsage:),
+                set_core_usage_impl as extern "C" fn(&NSObject, Sel, &NSArray<NSNumber>),
+            );
+
+            builder.add_method(
+                sel!(numberOfCores),
+                number_of_cores_impl as extern "C" fn(&NSObject, Sel) -> usize,
+            );
+
+            builder.add_method(
+                sel!(numberOfProcessorCores),
+                number_of_processor_cores_impl as extern "C" fn(&NSObject, Sel) -> usize,
+            );
+
+            builder.add_method(
+                sel!(getCoreUsage:),
+                get_core_usage_impl as extern "C" fn(&NSObject, Sel, usize) -> f64,
+            );
+
+            let class = builder.register();
+            let instance: Retained<NSObject> = msg_send![class, new];
+            Ok(instance)
+        }
     }
 
-    pub fn with_gpu_stats(mut self, stats: GpuStats) -> Result<Self> {
-        self.gpu_stats = stats;
-        Ok(self)
+    pub fn set_physical_cores(&self, cores: usize) {
+        unsafe {
+            let _: () = msg_send![&*self.obj.obj.lock().unwrap(), setPhysicalCores: cores];
+        }
     }
 
-    /// Creates an empty NSDictionary for testing
-    fn create_empty_dictionary() -> SafeDictionary {
-        SafeDictionary::new()
+    pub fn set_logical_cores(&self, cores: usize) {
+        unsafe {
+            let _: () = msg_send![&*self.obj.obj.lock().unwrap(), setLogicalCores: cores];
+        }
+    }
+
+    pub fn set_core_usage(&self, usage: Vec<f64>) -> Result<()> {
+        let numbers: Vec<Retained<NSNumber>> = usage.iter().map(|&u| NSNumber::new_f64(u)).collect();
+        let refs: Vec<&NSNumber> = numbers.iter().map(|n| n.as_ref()).collect();
+        let array = NSArray::<NSNumber>::from_slice(&refs);
+        unsafe {
+            let _: () = msg_send![&*self.obj.obj.lock().unwrap(), setCoreUsage: &*array];
+            Ok(())
+        }
+    }
+
+    pub fn get_physical_cores(&self) -> usize {
+        unsafe {
+            let result: usize = msg_send![&*self.obj.obj.lock().unwrap(), numberOfCores];
+            result
+        }
+    }
+
+    pub fn get_logical_cores(&self) -> usize {
+        unsafe {
+            let result: usize = msg_send![&*self.obj.obj.lock().unwrap(), numberOfProcessorCores];
+            result
+        }
+    }
+
+    pub fn get_core_usage(&self, core: usize) -> f64 {
+        unsafe {
+            let result: f64 = msg_send![&*self.obj.obj.lock().unwrap(), getCoreUsage: core];
+            result
+        }
     }
 }
 
 impl DictionaryAccess for MockIOKit {
-    fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
+    fn get_dictionary(&self, _key: &str) -> Option<SafeDictionary> {
         None // Mock implementation
     }
 }
 
 impl IOKit for MockIOKit {
-    fn io_service_matching(&self, name: &str) -> Result<SafeDictionary> {
+    fn io_service_matching(&self, _name: &str) -> Result<SafeDictionary> {
         Ok(SafeDictionary::new())
     }
 
-    fn io_service_get_matching_service(&self, matching_dict: &SafeDictionary) -> Result<ThreadSafeAnyObject> {
-        Ok(ThreadSafeAnyObject::default())
+    fn io_service_get_matching_service(&self, _matching_dict: &SafeDictionary) -> Result<ThreadSafeAnyObject> {
+        Ok(ThreadSafeAnyObject::new(NSObject::new()))
     }
 
-    fn io_registry_entry_create_cf_properties(&self, entry: &ThreadSafeAnyObject) -> Result<SafeDictionary> {
+    fn io_registry_entry_create_cf_properties(&self, _entry: &ThreadSafeAnyObject) -> Result<SafeDictionary> {
         Ok(SafeDictionary::new())
     }
 
-    fn get_service_properties(&self, service: &ThreadSafeAnyObject) -> Result<SafeDictionary> {
+    fn get_service_properties(&self, _service: &ThreadSafeAnyObject) -> Result<SafeDictionary> {
         Ok(SafeDictionary::new())
     }
 
     fn get_battery_info(&self) -> Result<SafeDictionary> {
-        Ok(SafeDictionary::new())
+        let mut dict = SafeDictionary::new();
+        dict.set_bool("present", false);
+        dict.set_bool("is_charging", false);
+        dict.set_i64("cycle_count", 0);
+        dict.set_f64("percentage", 0.0);
+        dict.set_f64("temperature", 0.0);
+        dict.set_f64("design_capacity", 0.0);
+        dict.set_f64("current_capacity", 0.0);
+        Ok(dict)
     }
 
     fn get_cpu_info(&self) -> Result<SafeDictionary> {
         Ok(SafeDictionary::new())
     }
 
-    fn get_thermal_info(&self) -> Result<SafeDictionary> {
-        Ok(SafeDictionary::new())
+    fn get_thermal_info(&self) -> Result<ThermalInfo> {
+        Ok(ThermalInfo {
+            cpu_temp: 0.0,
+            gpu_temp: Some(0.0),
+            fan_speed: 0,
+            heatsink_temp: Some(0.0),
+            ambient_temp: Some(0.0),
+            battery_temp: Some(0.0),
+            thermal_throttling: false,
+            dict: SafeDictionary::new(),
+        })
     }
 
-    fn get_all_fans(&self) -> Result<Vec<SafeDictionary>> {
-        Ok(vec![SafeDictionary::new()])
+    fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
+        Ok(vec![])
     }
 
-    fn check_thermal_throttling(&self) -> Result<bool> {
+    fn check_thermal_throttling(&self, _plane: &str) -> Result<bool> {
         Ok(false)
     }
 
@@ -182,22 +300,35 @@ impl IOKit for MockIOKit {
     }
 
     fn get_gpu_stats(&self) -> Result<GpuStats> {
-        Ok(GpuStats::default())
+        Ok(GpuStats {
+            utilization: 0.0,
+            memory_used: 0,
+            memory_total: 0,
+            perf_cap: 0.0,
+            perf_threshold: 0.0,
+            name: String::new(),
+        })
     }
 
-    fn get_fan_info(&self, _fan_index: u32) -> Result<SafeDictionary> {
-        Ok(SafeDictionary::new())
+    fn get_fan_info(&self, _fan_index: u32) -> Result<FanInfo> {
+        Ok(FanInfo { speed_rpm: 0, min_speed: 0, max_speed: 0, percentage: 0.0 })
     }
 
-    fn get_battery_temperature(&self) -> Result<f64> {
-        Ok(0.0)
+    fn get_battery_temperature(&self) -> Result<Option<f64>> {
+        Ok(None)
     }
 
     fn get_number_property(&self, _dict: &SafeDictionary, _key: &str) -> Result<f64> {
         Ok(0.0)
     }
 
-    fn io_connect_call_method(&self, _connection: u32, _selector: u32, _input: &[u64], _output: &mut [u64]) -> Result<()> {
+    fn io_connect_call_method(
+        &self,
+        _connection: u32,
+        _selector: u32,
+        _input: &[u64],
+        _output: &mut [u64],
+    ) -> Result<()> {
         Ok(())
     }
 
@@ -206,27 +337,32 @@ impl IOKit for MockIOKit {
     }
 
     fn io_registry_entry_get_parent_entry(&self, _entry: &ThreadSafeAnyObject) -> Result<ThreadSafeAnyObject> {
-        Ok(ThreadSafeAnyObject::default())
+        Ok(ThreadSafeAnyObject::new(NSObject::new()))
     }
 
-    fn get_physical_cores(&self) -> Result<usize> {
-        Ok(1)
-    }
-
-    fn get_logical_cores(&self) -> Result<usize> {
-        Ok(1)
-    }
-
-    fn get_core_usage(&self) -> Result<Vec<f64>> {
-        Ok(vec![0.0])
-    }
-
-    fn get_cpu_temperature(&self) -> Result<f64> {
+    fn get_cpu_temperature(&self, _plane: &str) -> Result<f64> {
         Ok(0.0)
     }
 
-    fn get_service_matching(&self, name: &str) -> Result<Option<ThreadSafeAnyObject>> {
-        Ok(None)
+    fn get_service_matching(&self, _name: &str) -> Result<Option<ThreadSafeAnyObject>> {
+        Ok(Some(self.obj.clone()))
+    }
+
+    fn get_physical_cores(&self) -> Result<usize> {
+        Ok(self.get_physical_cores())
+    }
+
+    fn get_logical_cores(&self) -> Result<usize> {
+        Ok(self.get_logical_cores())
+    }
+
+    fn get_core_usage(&self) -> Result<Vec<f64>> {
+        let physical_cores = self.get_physical_cores();
+        let mut usage = Vec::with_capacity(physical_cores);
+        for i in 0..physical_cores {
+            usage.push(self.get_core_usage(i));
+        }
+        Ok(usage)
     }
 }
 
@@ -234,20 +370,6 @@ impl Clone for MockIOKit {
     fn clone(&self) -> Self {
         Self {
             obj: self.obj.clone(),
-            physical_cores: self.physical_cores,
-            logical_cores: self.logical_cores,
-            core_usage: self.core_usage.clone(),
-            temperature: self.temperature,
-            battery_is_present: self.battery_is_present,
-            battery_is_charging: self.battery_is_charging,
-            battery_time_remaining: self.battery_time_remaining,
-            battery_percentage: self.battery_percentage,
-            battery_temperature: self.battery_temperature,
-            battery_cycle_count: self.battery_cycle_count,
-            battery_design_capacity: self.battery_design_capacity,
-            battery_current_capacity: self.battery_current_capacity,
-            thermal_info: self.thermal_info.clone(),
-            gpu_stats: self.gpu_stats.clone(),
         }
     }
 }
@@ -255,61 +377,6 @@ impl Clone for MockIOKit {
 fn create_test_object() -> Retained<NSObject> {
     let obj = NSObject::new();
     obj
-}
-
-// Mock method implementations
-#[cfg(test)]
-mod test_methods {
-    use super::*;
-
-    #[no_mangle]
-    unsafe extern "C" fn setPhysicalCores(this: *mut AnyObject, cores: usize) {
-        let value = NSNumber::new_i64(cores as i64);
-        let key = NSString::from_str("physical_cores");
-        msg_send![this, setAssociatedObject: &*value, forKey: &*key]
-    }
-
-    #[no_mangle]
-    unsafe extern "C" fn setLogicalCores(this: *mut AnyObject, cores: usize) {
-        let value = NSNumber::new_i64(cores as i64);
-        let key = NSString::from_str("logical_cores");
-        msg_send![this, setAssociatedObject: &*value, forKey: &*key]
-    }
-
-    #[no_mangle]
-    unsafe extern "C" fn setCoreUsage(this: *mut AnyObject, usage: *const NSArray<NSNumber>) {
-        let key = NSString::from_str("core_usage");
-        msg_send![this, setAssociatedObject: usage, forKey: &*key]
-    }
-
-    #[no_mangle]
-    unsafe extern "C" fn numberOfCores(this: *mut AnyObject) -> usize {
-        let key = NSString::from_str("physical_cores");
-        let value: *mut NSNumber = msg_send![this, associatedObjectForKey: &*key];
-        let num: i64 = msg_send![value, integerValue];
-        num as usize
-    }
-
-    #[no_mangle]
-    unsafe extern "C" fn numberOfProcessorCores(this: *mut AnyObject) -> usize {
-        let key = NSString::from_str("logical_cores");
-        let value: *mut NSNumber = msg_send![this, associatedObjectForKey: &*key];
-        let num: i64 = msg_send![value, integerValue];
-        num as usize
-    }
-
-    #[no_mangle]
-    unsafe extern "C" fn getCoreUsage(this: *mut AnyObject, core: usize) -> f64 {
-        let key = NSString::from_str("core_usage");
-        let usage_array: *mut NSArray<NSNumber> = msg_send![this, associatedObjectForKey: &*key];
-        let count: usize = msg_send![usage_array, count];
-        if core < count {
-            let value: *mut NSNumber = msg_send![usage_array, objectAtIndex: core];
-            msg_send![value, doubleValue]
-        } else {
-            0.0
-        }
-    }
 }
 
 unsafe impl Send for MockIOKit {}

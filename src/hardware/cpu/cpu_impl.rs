@@ -103,10 +103,24 @@ impl CPU {
     ///
     /// Returns an error if any of the system calls or IOKit operations fail.
     pub fn update(&mut self) -> Result<()> {
-        self.temperature = self.iokit.get_cpu_temperature("IOService").ok();
-        if let Ok(usage) = self.iokit.get_core_usage() {
-            self.core_usage = usage;
+        // Update physical and logical core counts
+        self.physical_cores = self.iokit.get_physical_cores()? as u32;
+        self.logical_cores = self.iokit.get_logical_cores()? as u32;
+
+        // Update core usage
+        let physical_core_usage = self.iokit.get_core_usage()?;
+        self.core_usage = Vec::with_capacity(self.logical_cores as usize);
+
+        // For each logical core, use the corresponding physical core's usage
+        for i in 0..self.logical_cores {
+            let physical_core_index = (i % self.physical_cores) as usize;
+            let usage = physical_core_usage.get(physical_core_index).copied().unwrap_or(0.0);
+            self.core_usage.push(usage);
         }
+
+        // Update frequency information
+        self.update_frequency_information()?;
+
         Ok(())
     }
 
@@ -156,11 +170,11 @@ impl CPU {
     /// * `Result<f64>` - CPU frequency in MHz or an error
     fn get_frequency_from_iokit(&self) -> Result<f64> {
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        let _service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
 
         // Create an AnyObject from the raw pointer
         let obj = unsafe {
-            let ptr = service_ref as *const _ as *mut AnyObject;
+            let ptr = _service_ref as *const _ as *mut AnyObject;
             &*ptr
         };
         let frequency: f64 = unsafe { msg_send![obj, currentProcessorClockSpeed] };
@@ -186,29 +200,17 @@ impl CPU {
     fn fetch_core_usage(&self) -> Result<Vec<f64>> {
         // Get a single service instance to use for all cores
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
-
-        // Create an AnyObject from the raw pointer
-        let obj = unsafe {
-            let ptr = service_ref as *const _ as *mut AnyObject;
-            &*ptr
-        };
+        let _service_ref = service.ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
 
         // Pre-allocate the vector with the correct capacity
         let mut usages = Vec::with_capacity(self.logical_cores as usize);
 
         // Get usage for each core
         for i in 0..self.logical_cores {
-            // Ensure we don't try to get usage for cores that don't exist
-            if i < self.physical_cores {
-                let usage: f64 = unsafe { msg_send![obj, getCoreUsage: i] };
-                usages.push(usage);
-            } else {
-                // For logical cores beyond physical cores, use the corresponding physical core's usage
-                let physical_core_index = i % self.physical_cores;
-                let usage: f64 = unsafe { msg_send![obj, getCoreUsage: physical_core_index] };
-                usages.push(usage);
-            }
+            // For logical cores beyond physical cores, use the corresponding physical core's usage
+            let physical_core_index = i % self.physical_cores;
+            let usage = self.iokit.get_core_usage()?.get(physical_core_index as usize).copied().unwrap_or(0.0);
+            usages.push(usage);
         }
 
         Ok(usages)
@@ -468,12 +470,21 @@ mod tests {
             .with_physical_cores(4)
             .expect("Failed to set physical cores")
             .with_logical_cores(8)
-            .expect("Failed to set logical cores");
+            .expect("Failed to set logical cores")
+            .with_core_usage(vec![0.3, 0.4, 0.5, 0.6])
+            .expect("Failed to set core usage");
 
         let cpu = CPU::new_with_iokit(Box::new(mock_iokit)).expect("Failed to create CPU");
 
         assert_eq!(cpu.physical_cores(), 4);
         assert_eq!(cpu.logical_cores(), 8);
+
+        let core_usage = cpu.core_usage();
+        assert_eq!(core_usage.len(), 8);
+        for i in 0..4 {
+            assert_eq!(core_usage[i], vec![0.3, 0.4, 0.5, 0.6][i]);
+            assert_eq!(core_usage[i + 4], vec![0.3, 0.4, 0.5, 0.6][i]);
+        }
     }
 
     #[test]
@@ -513,9 +524,13 @@ mod tests {
 
         let core_usage = cpu.core_usage();
 
-        assert_eq!(core_usage.len(), 2);
+        // Since we have 4 logical cores but 2 physical cores,
+        // we expect the usage pattern to repeat: [0.3, 0.4, 0.3, 0.4]
+        assert_eq!(core_usage.len(), 4);
         assert_eq!(core_usage[0], 0.3);
         assert_eq!(core_usage[1], 0.4);
+        assert_eq!(core_usage[2], 0.3);
+        assert_eq!(core_usage[3], 0.4);
         assert_eq!(cpu.physical_cores(), 2);
         assert_eq!(cpu.logical_cores(), 4);
     }
