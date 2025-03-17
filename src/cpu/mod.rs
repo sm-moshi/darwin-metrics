@@ -1,14 +1,20 @@
 mod constants;
-mod cpu_impl;
 mod monitors;
 mod types;
+mod cpu_impl;
 
+// Re-export all types and monitors
 pub use monitors::*;
 pub use types::*;
+pub use cpu_impl::*;
 
-// Re-export core types and monitors
-pub use crate::core::metrics::hardware::{HardwareMonitor, TemperatureMonitor, UtilizationMonitor};
+// Re-export constants
+pub use constants::*;
 
+// Re-export core traits from the traits module
+pub use crate::traits::{CpuMonitor, HardwareMonitor, TemperatureMonitor, UtilizationMonitor};
+
+// Import IOKit from the hardware module
 use crate::hardware::iokit::IOKit;
 use crate::{
     core::metrics::Metric,
@@ -37,16 +43,17 @@ pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
 /// CPU monitor implementation
 ///
 /// This struct provides access to CPU monitoring capabilities through separate monitor instances
-/// for temperature and utilization metrics.
+/// for temperature, utilization, and frequency metrics.
 ///
 /// # Example
 ///
 /// ```rust
-/// use darwin_metrics::hardware::{CPU, IOKitImpl};
+/// use darwin_metrics::cpu::{CPU};
+/// use darwin_metrics::hardware::iokit::IOKitImpl;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let iokit = Box::new(IOKitImpl::new());
+///     let iokit = Box::new(IOKitImpl::new()?);
 ///     let cpu = CPU::new(iokit);
 ///     
 ///     // Get temperature monitor
@@ -62,6 +69,7 @@ pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
 ///     Ok(())
 /// }
 /// ```
+#[derive(Debug)]
 pub struct CPU {
     iokit: Box<dyn IOKit>,
 }
@@ -76,16 +84,30 @@ impl CPU {
     ///
     /// Returns a monitor that implements both `HardwareMonitor` and `TemperatureMonitor` traits,
     /// providing access to CPU temperature readings.
-    pub fn temperature_monitor(&self) -> CPUTemperatureMonitor {
-        CPUTemperatureMonitor { cpu: self }
+    pub fn temperature_monitor(&self) -> CpuTemperatureMonitor {
+        CpuTemperatureMonitor::new(self.clone(), "cpu0".to_string())
     }
 
     /// Get a monitor for CPU utilization metrics
     ///
     /// Returns a monitor that implements both `HardwareMonitor` and `UtilizationMonitor` traits,
     /// providing access to CPU usage readings.
-    pub fn utilization_monitor(&self) -> CPUUtilizationMonitor {
-        CPUUtilizationMonitor { cpu: self }
+    pub fn utilization_monitor(&self) -> CpuUtilizationMonitor {
+        CpuUtilizationMonitor::new(self.clone(), "cpu0".to_string())
+    }
+
+    /// Get a monitor for CPU frequency metrics
+    ///
+    /// Returns a monitor that provides access to CPU frequency readings.
+    pub fn frequency_monitor(&self) -> CpuFrequencyMonitor {
+        CpuFrequencyMonitor::new(self.clone(), "cpu0".to_string())
+    }
+    
+    /// Clone method that creates a new CPU instance with a cloned IOKit box
+    pub fn clone(&self) -> Self {
+        Self {
+            iokit: self.iokit.clone_box(),
+        }
     }
 
     /// Get the number of CPU cores
@@ -98,21 +120,13 @@ impl CPU {
 
     /// Get CPU usage metrics
     async fn get_cpu_usage(&self) -> Result<Vec<f64>> {
-        // This is a placeholder implementation
-        // In a real implementation, you would get the actual CPU usage
-        //! TODO: Implement this
-        let cores = self.core_count().await?;
-        let mut usage = Vec::with_capacity(cores as usize);
-        for _ in 0..cores {
-            usage.push(0.0); // Placeholder value
-        }
+        let usage = self.iokit.get_core_usage()?;
         Ok(usage)
     }
 
     /// Get CPU utilization metrics
     pub async fn utilization(&self) -> Result<Vec<f64>> {
-        let usage = self.get_cpu_usage().await?;
-        Ok(usage)
+        self.get_cpu_usage().await
     }
 
     /// Calculate average CPU utilization across all cores
@@ -130,79 +144,50 @@ impl CPU {
         let avg = self.average_utilization().await?;
         Ok(Metric::new(Percentage::new(avg).unwrap_or(Percentage::new(0.0).unwrap())))
     }
-}
-
-/// CPU temperature monitor
-///
-/// Provides access to CPU temperature metrics through the `HardwareMonitor` and `TemperatureMonitor` traits.
-/// Temperature readings are obtained from the system's IOKit interface.
-pub struct CPUTemperatureMonitor<'a> {
-    cpu: &'a CPU,
-}
-
-#[async_trait]
-impl HardwareMonitor for CPUTemperatureMonitor<'_> {
-    type MetricType = Temperature;
-
-    async fn name(&self) -> Result<String> {
-        Ok("CPU Temperature Monitor".to_string())
+    
+    /// Get CPU temperature
+    pub fn temperature(&self) -> Option<f64> {
+        self.iokit.get_cpu_temperature("IOService").ok()
     }
-
-    async fn hardware_type(&self) -> Result<String> {
-        Ok("CPU".to_string())
+    
+    /// Get CPU frequency in MHz
+    pub fn frequency_mhz(&self) -> f64 {
+        // Placeholder implementation
+        2000.0
     }
-
-    async fn device_id(&self) -> Result<String> {
-        Ok("cpu0".to_string())
+    
+    /// Get minimum CPU frequency in MHz
+    pub fn min_frequency_mhz(&self) -> Option<f64> {
+        // Placeholder implementation
+        Some(1000.0)
     }
-
-    async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
-        let temp = self.cpu.iokit.get_cpu_temperature("IOService")?;
-        Ok(Metric::new(Temperature(temp)))
+    
+    /// Get maximum CPU frequency in MHz
+    pub fn max_frequency_mhz(&self) -> Option<f64> {
+        // Placeholder implementation
+        Some(3000.0)
     }
-}
-
-#[async_trait]
-impl TemperatureMonitor for CPUTemperatureMonitor<'_> {}
-
-/// CPU utilization monitor
-///
-/// Provides access to CPU utilization metrics through the `HardwareMonitor` and `UtilizationMonitor` traits.
-/// Utilization readings are obtained from the system's IOKit interface.
-pub struct CPUUtilizationMonitor<'a> {
-    cpu: &'a CPU,
-}
-
-#[async_trait]
-impl HardwareMonitor for CPUUtilizationMonitor<'_> {
-    type MetricType = Percentage;
-
-    async fn name(&self) -> Result<String> {
-        Ok("CPU Utilization Monitor".to_string())
+    
+    /// Get available CPU frequency steps in MHz
+    pub fn available_frequencies(&self) -> Option<&[f64]> {
+        // Placeholder implementation
+        None
     }
-
-    async fn hardware_type(&self) -> Result<String> {
-        Ok("CPU".to_string())
+    
+    /// Get all CPU metrics in a single call
+    pub fn metrics(&self) -> Result<CpuMetricsData> {
+        let usage = self.iokit.get_core_usage()?
+            .iter()
+            .sum::<f64>() / 
+            self.iokit.get_core_usage()?.len() as f64;
+        
+        let temperature = self.temperature();
+        let frequency = self.frequency_mhz();
+        
+        Ok(CpuMetricsData {
+            usage,
+            temperature,
+            frequency,
+        })
     }
-
-    async fn device_id(&self) -> Result<String> {
-        Ok("cpu0".to_string())
-    }
-
-    async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
-        let usage = self.cpu.iokit.get_core_usage()?;
-
-        // Calculate average utilization if it's a vector
-        let avg_usage = if usage.is_empty() {
-            0.0
-        } else {
-            let sum: f64 = usage.iter().sum();
-            sum / usage.len() as f64
-        };
-
-        Ok(Metric::new(Percentage::new(avg_usage).unwrap_or(Percentage::new(0.0).unwrap())))
-    }
-}
-
-#[async_trait]
-impl UtilizationMonitor for CPUUtilizationMonitor<'_> {}
+} 

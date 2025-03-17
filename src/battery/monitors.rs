@@ -4,7 +4,7 @@ use crate::{
         Metric,
     },
     error::Result,
-    hardware::battery::types::BatteryCapacity,
+    battery::types::BatteryCapacity,
     power::PowerState,
 };
 use async_trait::async_trait;
@@ -134,8 +134,12 @@ impl BatteryHealthMonitorTrait for BatteryHealthMonitor {
 //=============================================================================
 
 use crate::{
-    core::metrics::hardware::PowerMonitorTrait,
-    hardware::battery::types::BatteryPower,
+    core::metrics::{
+        hardware::PowerMonitorTrait,
+        Metric,
+    },
+    error::Result,
+    battery::types::BatteryPower,
 };
 
 /// Monitor for battery power consumption
@@ -232,7 +236,7 @@ impl crate::core::metrics::hardware::HardwareMonitor for BatteryTemperatureMonit
     }
 
     async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
-        let temp = Temperature::from_celsius(35.0);
+        let temp = Temperature::new_celsius(35.0);
         Ok(Metric::new(temp))
     }
 }

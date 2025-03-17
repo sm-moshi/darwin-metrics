@@ -20,7 +20,7 @@ pub mod prelude {
     pub use crate::hardware::gpu::GpuMetrics;
 
     // Re-export hardware-specific types
-    pub use crate::hardware::battery::{
+    pub use crate::battery::{
         monitors::BatteryCapacityMonitor, monitors::BatteryHealthMonitor, monitors::BatteryPowerMonitor,
         monitors::BatteryTemperatureMonitor, types::BatteryInfo,
     };

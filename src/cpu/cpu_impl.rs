@@ -3,13 +3,15 @@ use objc2::msg_send;
 use objc2::runtime::AnyObject;
 use std::{ffi::CString, ptr};
 
-use super::{CpuMetrics, CpuMetricsData, FrequencyMetrics, FrequencyMonitor};
+use super::{CpuMetrics, CpuMetricsData};
+use crate::core::metrics::Metric;
+use crate::core::types::Temperature;
+use crate::hardware::iokit::IOKit;
+use crate::utils::ffi;
+use crate::{Error, Result};
+use crate::{FrequencyMetrics, FrequencyMonitor};
 #[cfg(test)]
 use crate::utils::tests::test_utils::MockIOKit;
-use crate::{
-    error::{Error, Result},
-    hardware::iokit::{IOKit, IOKitImpl},
-};
 
 #[derive(Debug)]
 pub struct CPU {
@@ -26,8 +28,8 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new() -> Result<Self> {
-        let mut cpu = Self {
+    pub fn new(iokit: Box<dyn IOKit>) -> Self {
+        Self {
             physical_cores: 0,
             logical_cores: 0,
             frequency_mhz: 0.0,
@@ -35,12 +37,10 @@ impl CPU {
             model_name: String::new(),
             temperature: None,
             power: None,
-            iokit: Box::new(IOKitImpl::default()),
+            iokit,
             frequency_monitor: FrequencyMonitor::new(),
             frequency_metrics: None,
-        };
-        cpu.update()?;
-        Ok(cpu)
+        }
     }
 
     pub fn update(&mut self) -> Result<()> {
@@ -177,6 +177,22 @@ impl CPU {
         })
     }
 
+    /// Clone method that creates a new CPU instance with a cloned IOKit box
+    pub fn clone(&self) -> Self {
+        Self {
+            physical_cores: self.physical_cores,
+            logical_cores: self.logical_cores,
+            frequency_mhz: self.frequency_mhz,
+            core_usage: self.core_usage.clone(),
+            model_name: self.model_name.clone(),
+            temperature: self.temperature,
+            power: self.power,
+            iokit: self.iokit.clone_box(),
+            frequency_monitor: FrequencyMonitor::new(),
+            frequency_metrics: self.frequency_metrics.clone(),
+        }
+    }
+
     #[cfg(test)]
     pub fn new_with_mock() -> Result<Self> {
         let mock = MockIOKit::new().expect("Failed to create MockIOKit");
@@ -198,24 +214,6 @@ impl CPU {
             }),
         })
     }
-
-    #[cfg(test)]
-    pub fn new_with_iokit(iokit: Box<dyn IOKit>) -> Result<Self> {
-        let mut cpu = Self {
-            physical_cores: 0,
-            logical_cores: 0,
-            frequency_mhz: 0.0,
-            core_usage: Vec::new(),
-            model_name: String::new(),
-            temperature: None,
-            power: None,
-            iokit,
-            frequency_monitor: FrequencyMonitor::new(),
-            frequency_metrics: None,
-        };
-        cpu.update()?;
-        Ok(cpu)
-    }
 }
 
 impl CpuMetrics for CPU {
@@ -235,21 +233,4 @@ impl CpuMetrics for CPU {
     fn get_cpu_frequency(&self) -> f64 {
         self.frequency_mhz
     }
-}
-
-impl Default for CPU {
-    fn default() -> Self {
-        Self::new().unwrap_or_else(|_| Self {
-            physical_cores: 0,
-            logical_cores: 0,
-            frequency_mhz: 0.0,
-            core_usage: Vec::new(),
-            model_name: String::new(),
-            temperature: None,
-            power: None,
-            iokit: Box::new(IOKitImpl::default()),
-            frequency_monitor: FrequencyMonitor::new(),
-            frequency_metrics: None,
-        })
-    }
-}
+} 

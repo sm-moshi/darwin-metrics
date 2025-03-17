@@ -112,7 +112,7 @@ impl IOKit for SimpleMockIOKit {
         unimplemented!("Not needed for thermal tests")
     }
 
-    fn get_battery_info(&self) -> darwin_metrics::error::Result<darwin_metrics::hardware::battery::BatteryInfo> {
+    fn get_battery_info(&self) -> darwin_metrics::error::Result<darwin_metrics::battery::types::BatteryInfo> {
         unimplemented!("Not needed for thermal tests")
     }
 

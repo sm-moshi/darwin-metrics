@@ -79,6 +79,9 @@ pub mod utils;
 /// Core functionality for metrics and monitoring
 pub mod core;
 
+/// CPU monitoring functionality
+pub mod cpu;
+
 #[cfg_attr(any(test, feature = "mock"), doc = "Hardware monitoring functionality exposed for testing")]
 #[cfg_attr(not(any(test, feature = "mock")), doc = "Hardware monitoring functionality")]
 pub mod hardware;
@@ -110,8 +113,6 @@ pub use error::{Error, Result};
 // Re-export hardware monitoring types
 pub use hardware::{
     battery::Battery,
-    // CPU monitoring
-    cpu::{CpuTemperatureMonitor, CpuUtilizationMonitor, CPU},
     // Disk monitoring
     disk::{Disk, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor},
     // GPU monitoring
@@ -123,6 +124,9 @@ pub use hardware::{
     // Temperature monitoring
     temperature::{Fan, ThermalMetrics},
 };
+
+// Re-export CPU monitoring types
+pub use cpu::{CpuTemperatureMonitor, CpuUtilizationMonitor, CpuFrequencyMonitor, FrequencyMonitor, FrequencyMetrics, CPU};
 
 // Re-export system monitoring types
 
@@ -148,9 +152,9 @@ pub fn new_battery() -> Result<Battery> {
 }
 
 /// Creates a new CPU instance
-pub fn new_cpu() -> Result<CPU> {
+pub fn new_cpu() -> Result<cpu::CPU> {
     let iokit = Box::new(IOKitImpl::new()?);
-    Ok(CPU::new(iokit))
+    Ok(cpu::CPU::new(iokit))
 }
 
 /// Creates a new GPU instance
@@ -194,11 +198,13 @@ mod tests {
 // Re-export types for convenience
 pub use crate::{
     core::{
-        metrics::{
-            hardware::{CpuMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor},
-            Metric,
-        },
+        metrics::Metric,
         types::{Percentage, Temperature},
+    },
+    // Use traits module instead of core::metrics::hardware
+    traits::{
+        CpuMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
+        TemperatureMonitor, UtilizationMonitor,
     },
     hardware::disk::{DiskHealth, DiskMount, DiskPerformance},
     hardware::gpu::{GpuMemory, GpuUtilization},
