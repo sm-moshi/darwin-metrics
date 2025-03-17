@@ -1,5 +1,5 @@
-#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.1.6")]
-//#![deny(missing_docs)]
+#![doc(html_root_url = "https://docs.rs/darwin-metrics/0.2.0-alpha.1")]
+#![cfg_attr(not(any(test, feature = "testing")), warn(missing_docs))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! A library for monitoring system metrics on macOS/Darwin systems.
@@ -68,72 +68,140 @@
 //! All types in this crate are thread-safe and can be shared across threads using standard synchronization primitives.
 //! Many types implement `Send` and `Sync` where appropriate.
 
-pub mod battery;
-pub mod disk;
+#[cfg_attr(any(test, feature = "mock"), doc = "Error handling module exposed for testing")]
+#[cfg_attr(not(any(test, feature = "mock")), doc = "Error handling module")]
 pub mod error;
-pub mod hardware;
-pub mod network;
-pub mod power;
-pub mod process;
-pub mod system;
+
+#[cfg_attr(any(test, feature = "mock"), doc = "Utility functions and helpers exposed for testing")]
+#[cfg_attr(not(any(test, feature = "mock")), doc = "Utility functions and helpers")]
 pub mod utils;
 
-pub use battery::Battery;
+/// Core functionality for metrics and monitoring
+pub mod core;
+
+#[cfg_attr(any(test, feature = "mock"), doc = "Hardware monitoring functionality exposed for testing")]
+#[cfg_attr(not(any(test, feature = "mock")), doc = "Hardware monitoring functionality")]
+pub mod hardware;
+
+/// Network related metrics and monitoring
+pub mod network;
+
+/// Power related metrics and monitoring
+pub mod power;
+
+/// Process related metrics and monitoring
+pub mod process;
+
+/// Resource monitoring and management
+pub mod resource;
+
+/// System information functionality
+pub mod system;
+
+/// Traits for hardware monitoring
+pub mod traits;
+
+// Re-export core functionality through the prelude
+pub use core::prelude::*;
+
+// Re-export error types
 pub use error::{Error, Result};
+
+// Re-export hardware monitoring types
 pub use hardware::{
-    cpu::CPU,
-    gpu::Gpu,
-    iokit::{IOKit, IOKitImpl},
-    memory::Memory,
-    temperature::Temperature,
+    battery::Battery,
+    // CPU monitoring
+    cpu::{CpuTemperatureMonitor, CpuUtilizationMonitor, CPU},
+    // Disk monitoring
+    disk::{Disk, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor},
+    // GPU monitoring
+    gpu::{Gpu, GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor},
+    // IOKit
+    iokit::IOKitImpl,
+    // Memory monitoring
+    memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor},
+    // Temperature monitoring
+    temperature::{Fan, ThermalMetrics},
 };
 
-// Re-export primary modules for direct access
-#[doc(inline)]
-pub use disk::{Disk, DiskConfig, DiskType};
+// Re-export system monitoring types
 
-#[doc(inline)]
-pub use hardware::cpu::FrequencyMetrics;
+// Re-export network monitoring types
+pub use network::{NetworkInfo, NetworkInterface, NetworkMonitor};
 
-#[doc(inline)]
-pub use hardware::gpu::GpuMetrics;
+// Re-export power monitoring types
+pub use power::{PowerInfo, PowerState};
 
-#[doc(inline)]
-pub use hardware::memory::{PageStates, PressureLevel, SwapUsage};
+// Re-export process monitoring types
+pub use process::{
+    ProcessInfo,
+    // Use the correct path for ProcessIOMonitor
+};
 
-#[doc(inline)]
-pub use hardware::temperature::{Fan, ThermalMetrics};
+// Re-export resource monitoring types
+pub use resource::{Cache, ResourceManager, ResourceMonitor, ResourceMonitoring, ResourcePool, ResourceUpdate};
 
-#[doc(inline)]
-pub use network::{Interface as NetworkInterface, TrafficData as NetworkTraffic};
-
-#[doc(inline)]
-pub use process::{Process, ProcessInfo};
-
-/// Creates a new instance of the Battery monitor.
+/// Creates a new Battery instance
 pub fn new_battery() -> Result<Battery> {
-    Battery::new(Box::new(IOKitImpl::new()))
+    let iokit = Box::new(IOKitImpl::new()?);
+    Battery::new(iokit)
 }
 
-/// Creates a new instance of the CPU monitor.
+/// Creates a new CPU instance
 pub fn new_cpu() -> Result<CPU> {
-    CPU::new()
+    let iokit = Box::new(IOKitImpl::new()?);
+    Ok(CPU::new(iokit))
 }
 
-/// Creates a new instance of the GPU monitor.
+/// Creates a new GPU instance
 pub fn new_gpu() -> Result<Gpu> {
     Gpu::new()
 }
 
-/// Creates a new instance of the Memory monitor.
+/// Creates a new Memory instance
 pub fn new_memory() -> Result<Memory> {
     Memory::new()
 }
 
-/// Creates a new instance of the Temperature monitor.
-pub fn new_temperature() -> Result<Temperature<IOKitImpl>> {
-    Ok(Temperature::new())
+/// Creates a new Temperature instance
+pub fn new_temperature() -> Result<hardware::temperature::Temperature> {
+    hardware::temperature::Temperature::new()
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_monitors() -> Result<()> {
+        let _battery = new_battery()?;
+        let _cpu = new_cpu()?;
+        let _gpu = new_gpu()?;
+        let _memory = new_memory()?;
+        let _temperature = new_temperature()?;
+        Ok(())
+    }
+
+    use crate::utils::ffi::SmcKey;
+
+    #[test]
+    fn test_smc_key_from_chars() {
+        let key = SmcKey::from_chars(['T', 'A', '0', 'P']);
+        assert_eq!(key.to_string(), "TA0P");
+    }
+}
+
+// Re-export types for convenience
+pub use crate::{
+    core::{
+        metrics::{
+            hardware::{CpuMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor},
+            Metric,
+        },
+        types::{Percentage, Temperature},
+    },
+    hardware::disk::{DiskHealth, DiskMount, DiskPerformance},
+    hardware::gpu::{GpuMemory, GpuUtilization},
+    network::Interface,
+    process::Process,
+};

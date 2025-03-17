@@ -1,36 +1,42 @@
-/// Utility functions and modules for the darwin-metrics crate.
-///
-/// This module contains various utilities used throughout the crate, including:
-///
-/// - `bindings`: FFI bindings for macOS system APIs (sysctl, IOKit, etc.)
-/// - `property_utils`: Utilities for working with property lists and dictionaries
-/// - `test_utils`: Utilities for testing
-/// - `mock_dictionary`: A pure Rust mock dictionary for testing
-/// - `dictionary_access`: A trait for abstracting dictionary access operations
-/// FFI bindings for macOS system APIs
-pub mod bindings;
+//! Utility functions and modules for the darwin-metrics crate.
+//!
+//! This module provides various utilities used throughout the crate:
+//!
+//! - Core functionality for dictionary access and property manipulation
+//! - FFI bindings and safe abstractions for macOS system APIs
+//! - Conversion traits and implementations for FFI types
+//! - Testing utilities and mocks
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use darwin_metrics::utils::{autorelease_pool, DictionaryAccess};
+//!
+//! // Use autorelease pool for safe Objective-C memory management
+//! let result = autorelease_pool(|| {
+//!     // Your Objective-C interop code here
+//!     Ok(())
+//! });
+//! ```
 
-#[cfg(test)]
-mod bindings_tests;
+/// Core utility functions and data structures
+pub mod core;
+/// FFI bindings and utilities for interacting with macOS system APIs
+pub mod ffi;
 
-/// Dictionary access utilities for working with macOS dictionaries
-pub mod dictionary_access;
+// Re-export bindings module
+pub use ffi::bindings;
 
-/// Mock dictionary implementation for testing
-pub mod mock_dictionary;
+// Test utilities - make public for both test and mock feature flags
+#[cfg(any(test, feature = "testing", feature = "mock"))]
+pub mod tests;
 
-/// Property access utilities for working with macOS properties
-pub mod property_utils;
+// Re-export core utilities
+pub use core::dictionary::SafeDictionary;
 
-/// Test utilities for mocking and testing macOS functionality
-pub mod test_utils;
+// Selectively re-export FFI types and functions
 
-#[cfg(test)]
-mod property_utils_tests;
-
-pub mod safe_dictionary;
-
-pub use safe_dictionary::SafeDictionary;
+// Re-export sysctl constants
 
 use std::{
     ffi::{c_char, CStr},
@@ -39,12 +45,7 @@ use std::{
     slice,
 };
 
-use objc2::{
-    msg_send,
-    rc::{autoreleasepool, Retained},
-    runtime::AnyObject,
-};
-use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
+use objc2::{msg_send, rc::autoreleasepool, runtime::AnyObject};
 
 use crate::error::{Error, Result};
 
@@ -159,67 +160,6 @@ impl UnsafeConversion<Vec<f64>> for F64SliceConversion<'_> {
     }
 }
 
-/// Utility trait for accessing properties from macOS dictionaries
-///
-/// This trait provides methods for safely accessing string, number, and boolean properties from NSDictionary objects,
-/// handling type conversions and null values.
-pub trait PropertyUtils {
-    /// Get a string property from a dictionary
-    ///
-    /// # Arguments
-    /// * `dict` - The dictionary to get the property from
-    /// * `key` - The key to look up in the dictionary
-    ///
-    /// # Returns
-    /// * `Option<String>` - The string value if found and valid, None otherwise
-    fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String>;
-
-    /// Get a number property from a dictionary
-    ///
-    /// # Arguments
-    /// * `dict` - The dictionary to get the property from
-    /// * `key` - The key to look up in the dictionary
-    ///
-    /// # Returns
-    /// * `Option<f64>` - The number value if found and valid, None otherwise
-    fn get_number_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64>;
-
-    /// Get a boolean property from a dictionary
-    ///
-    /// # Arguments
-    /// * `dict` - The dictionary to get the property from
-    /// * `key` - The key to look up in the dictionary
-    ///
-    /// # Returns
-    /// * `Option<bool>` - The boolean value if found and valid, None otherwise
-    fn get_bool_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool>;
-}
-
-/// Property access implementation for macOS dictionaries
-#[derive(Debug)]
-pub struct PropertyAccessor;
-
-impl PropertyUtils for PropertyAccessor {
-    fn get_string_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
-        let ns_key = NSString::from_str(key);
-        unsafe { dict.valueForKey(&ns_key) }.and_then(|obj| obj.downcast::<NSString>().ok()).map(|s| s.to_string())
-    }
-
-    fn get_number_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
-        let ns_key = NSString::from_str(key);
-        unsafe { dict.valueForKey(&ns_key) }
-            .and_then(|obj| obj.downcast::<NSNumber>().ok())
-            .map(|n: Retained<NSNumber>| n.as_f64())
-    }
-
-    fn get_bool_property(dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool> {
-        let ns_key = NSString::from_str(key);
-        unsafe { dict.valueForKey(&ns_key) }
-            .and_then(|obj| obj.downcast::<NSNumber>().ok())
-            .map(|n: Retained<NSNumber>| n.as_bool())
-    }
-}
-
 /// Executes a closure safely within an Objective-C autorelease pool.
 pub fn autorelease_pool<T, F>(f: F) -> T
 where
@@ -316,317 +256,4 @@ pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
             Ok(c_str.to_string_lossy().into_owned())
         })
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::utils::{
-        dictionary_access::DictionaryAccessor,
-        mock_dictionary::{MockDictionary, MockValue},
-    };
-    use std::ffi::CString;
-
-    #[test]
-    fn test_c_str_to_string() {
-        let test_str = "test string";
-        let c_string = CString::new(test_str).unwrap();
-        let ptr = c_string.as_ptr();
-
-        unsafe {
-            let result = c_str_to_string(ptr);
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), test_str);
-
-            // Test null pointer
-            let result = c_str_to_string(std::ptr::null());
-            assert!(result.is_none());
-        }
-    }
-
-    #[test]
-    fn test_raw_str_to_string() {
-        let test_str = "test string";
-        let c_string = CString::new(test_str).unwrap();
-        let ptr = c_string.as_ptr();
-        let len = test_str.len();
-
-        unsafe {
-            let result = raw_str_to_string(ptr, len);
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), test_str);
-
-            // Test null pointer
-            let result = raw_str_to_string(std::ptr::null(), len);
-            assert!(result.is_none());
-
-            // Test zero length
-            let result = raw_str_to_string(ptr, 0);
-            assert!(result.is_none());
-        }
-    }
-
-    #[test]
-    fn test_raw_f64_slice_to_vec() {
-        let test_data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let ptr = test_data.as_ptr();
-        let len = test_data.len();
-
-        unsafe {
-            let result = raw_f64_slice_to_vec(ptr, len);
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), test_data);
-
-            // Test null pointer
-            let result = raw_f64_slice_to_vec(std::ptr::null(), len);
-            assert!(result.is_none());
-
-            // Test zero length
-            let result = raw_f64_slice_to_vec(ptr, 0);
-            assert!(result.is_none());
-        }
-    }
-
-    #[test]
-    fn test_autorelease_pool() {
-        // Simple test to ensure the function works
-        let value = autorelease_pool(|| 42);
-        assert_eq!(value, 42);
-
-        // Test with a string
-        let str_value = autorelease_pool(|| "test string".to_string());
-        assert_eq!(str_value, "test string");
-    }
-
-    #[test]
-    fn test_objc_safe_exec() {
-        // Test successful execution
-        let result = objc_safe_exec(|| Ok::<_, Error>(42));
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
-
-        // Test with an error
-        let result = objc_safe_exec(|| Err::<i32, Error>(Error::system("test error")));
-        assert!(result.is_err());
-        match result {
-            Err(Error::System { message }) => assert!(message.contains("test error")),
-            _ => panic!("Unexpected error type"),
-        }
-
-        // We can't easily test the panic case without actually panicking
-    }
-
-    #[test]
-    fn test_get_name_null_device() {
-        let result = get_name(std::ptr::null_mut());
-        assert!(result.is_err());
-        match result {
-            Err(Error::NotAvailable { resource: _, reason }) => {
-                assert!(reason.contains("No device available"))
-            },
-            _ => panic!("Unexpected error type"),
-        }
-    }
-
-    #[test]
-    fn test_property_accessor() {
-        // Test the struct can be created
-        let _accessor = PropertyAccessor;
-        // Simple sanity check - no need to test actual property access since we'd need a real Objective-C dictionary
-    }
-
-    #[test]
-    fn test_dictionary_access_string_property() {
-        let mock_dict = MockDictionary::with_entries(&[
-            ("test_key", MockValue::String("test_value".to_string())),
-            ("empty_key", MockValue::String("".to_string())),
-        ]);
-        let accessor = DictionaryAccessor::new(mock_dict);
-
-        let result = accessor.get_string("test_key");
-        assert_eq!(result, Some("test_value".to_string()));
-
-        let empty_result = accessor.get_string("empty_key");
-        assert_eq!(empty_result, Some("".to_string()));
-
-        let missing_result = accessor.get_string("nonexistent_key");
-        assert_eq!(missing_result, None);
-    }
-
-    #[test]
-    fn test_dictionary_access_number_property() {
-        let mock_dict = MockDictionary::with_entries(&[
-            ("int_key", MockValue::Number(42.0)),
-            ("float_key", MockValue::Number(std::f64::consts::PI)),
-            ("zero_key", MockValue::Number(0.0)),
-        ]);
-        let accessor = DictionaryAccessor::new(mock_dict);
-
-        let int_result = accessor.get_number("int_key");
-        assert_eq!(int_result, Some(42.0));
-
-        let float_result = accessor.get_number("float_key");
-        assert_eq!(float_result, Some(std::f64::consts::PI));
-
-        let zero_result = accessor.get_number("zero_key");
-        assert_eq!(zero_result, Some(0.0));
-
-        let missing_result = accessor.get_number("nonexistent_key");
-        assert_eq!(missing_result, None);
-    }
-
-    #[test]
-    fn test_dictionary_access_bool_property() {
-        let mock_dict = MockDictionary::with_entries(&[
-            ("true_key", MockValue::Boolean(true)),
-            ("false_key", MockValue::Boolean(false)),
-        ]);
-        let accessor = DictionaryAccessor::new(mock_dict);
-
-        let true_result = accessor.get_bool("true_key");
-        assert_eq!(true_result, Some(true));
-
-        let false_result = accessor.get_bool("false_key");
-        assert_eq!(false_result, Some(false));
-
-        let missing_result = accessor.get_bool("nonexistent_key");
-        assert_eq!(missing_result, None);
-    }
-
-    #[test]
-    fn test_dictionary_access_mixed_types() {
-        let mock_dict = MockDictionary::with_entries(&[
-            ("string_key", MockValue::String("string_value".to_string())),
-            ("number_key", MockValue::Number(42.0)),
-            ("bool_key", MockValue::Boolean(true)),
-        ]);
-        let accessor = DictionaryAccessor::new(mock_dict);
-
-        // Test getting string as number
-        let string_as_number = accessor.get_number("string_key");
-        assert_eq!(string_as_number, None);
-
-        // Test getting number as string
-        let number_as_string = accessor.get_string("number_key");
-        assert_eq!(number_as_string, None);
-
-        // Test getting bool as string
-        let bool_as_string = accessor.get_string("bool_key");
-        assert_eq!(bool_as_string, None);
-    }
-
-    #[test]
-    fn test_objc_safe_exec_panic() {
-        let result = objc_safe_exec(|| {
-            panic!("Test panic");
-            #[allow(unreachable_code)]
-            Ok::<_, Error>(())
-        });
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Panic occurred during Objective-C operation"));
-    }
-
-    #[test]
-    fn test_objc_safe_exec_error_propagation() {
-        let custom_error = Error::system("Custom error message");
-        let result: Result<()> = objc_safe_exec(|| Err(custom_error));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Custom error message"));
-    }
-
-    #[test]
-    fn test_objc_safe_exec_nested() {
-        let result = objc_safe_exec(|| objc_safe_exec(|| Ok::<_, Error>(42)));
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
-    }
-
-    #[test]
-    fn test_objc_safe_exec_with_autorelease_pool() {
-        let result = objc_safe_exec(|| autorelease_pool(|| Ok::<_, Error>("test string".to_string())));
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "test string");
-    }
-
-    #[test]
-    fn test_c_str_to_string_non_utf8() {
-        let invalid_utf8: Vec<u8> = vec![0xFF, 0xFF, 0x00]; // Invalid UTF-8 sequence
-        let c_string = unsafe { CStr::from_bytes_with_nul_unchecked(&invalid_utf8) };
-        let ptr = c_string.as_ptr();
-
-        unsafe {
-            let result = c_str_to_string(ptr);
-            assert!(result.is_none());
-        }
-    }
-
-    #[test]
-    fn test_raw_str_to_string_non_utf8() {
-        let invalid_utf8: Vec<u8> = vec![0xFF, 0xFF]; // Invalid UTF-8 sequence
-        let ptr = invalid_utf8.as_ptr() as *const c_char;
-        let len = invalid_utf8.len();
-
-        unsafe {
-            let result = raw_str_to_string(ptr, len);
-            assert!(result.is_none());
-        }
-    }
-
-    #[test]
-    fn test_raw_str_to_string_empty() {
-        let empty_str = "";
-        let ptr = empty_str.as_ptr() as *const c_char;
-
-        unsafe {
-            let result = raw_str_to_string(ptr, 0);
-            assert!(result.is_none());
-        }
-    }
-
-    #[test]
-    fn test_raw_str_to_string_with_null() {
-        let test_str = "test\0string";
-        let ptr = test_str.as_ptr() as *const c_char;
-        let len = test_str.len();
-
-        unsafe {
-            let result = raw_str_to_string(ptr, len);
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), "test\0string");
-        }
-    }
-
-    #[test]
-    fn test_raw_f64_slice_to_vec_large() {
-        let test_data: Vec<f64> = (0..1000).map(|i| i as f64).collect();
-        let ptr = test_data.as_ptr();
-        let len = test_data.len();
-
-        unsafe {
-            let result = raw_f64_slice_to_vec(ptr, len);
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), test_data);
-        }
-    }
-
-    #[test]
-    fn test_raw_f64_slice_to_vec_special_values() {
-        let test_data: Vec<f64> = vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN, f64::MIN, f64::MAX, 0.0, -0.0];
-        let ptr = test_data.as_ptr();
-        let len = test_data.len();
-
-        unsafe {
-            let result = raw_f64_slice_to_vec(ptr, len);
-            assert!(result.is_some());
-            let result_vec = result.unwrap();
-
-            assert!(result_vec[0].is_infinite() && result_vec[0].is_sign_positive());
-            assert!(result_vec[1].is_infinite() && result_vec[1].is_sign_negative());
-            assert!(result_vec[2].is_nan());
-            assert_eq!(result_vec[3], f64::MIN);
-            assert_eq!(result_vec[4], f64::MAX);
-            assert_eq!(result_vec[5], 0.0);
-            assert_eq!(result_vec[6], -0.0);
-        }
-    }
 }

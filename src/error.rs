@@ -9,6 +9,7 @@ use std::fmt;
 use std::io;
 #[allow(unused_imports)]
 use thiserror::Error;
+use tokio::task::JoinError;
 
 /// A specialized Result type for darwin-metrics operations.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -17,35 +18,113 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     /// IO error from std::io
-    IoError { source: io::Error },
+    IoError {
+        /// The source IO error
+        source: io::Error,
+    },
     /// Error from IOKit operations
-    IOKitError { code: i32, message: String },
+    IOKitError {
+        /// The error code returned by IOKit
+        code: i32,
+        /// The operation that failed
+        operation: String,
+    },
     /// Invalid data error
-    InvalidData { message: String, details: String },
+    InvalidData {
+        /// The error message
+        message: String,
+        /// Additional details about the error
+        details: String,
+    },
     /// Service not found error
-    ServiceNotFound { message: String },
+    ServiceNotFound {
+        /// The error message
+        message: String,
+    },
     /// System error
-    System { message: String },
+    System {
+        /// The error message
+        message: String,
+    },
     /// Temperature sensor error
-    Temperature { sensor: String, message: String },
+    Temperature {
+        /// The sensor that caused the error
+        sensor: String,
+        /// The error message
+        message: String,
+    },
     /// Network operation error
-    Network { operation: String, message: String },
+    Network {
+        /// The network operation that failed
+        operation: String,
+        /// The error message
+        message: String,
+    },
     /// Mutex lock error
-    MutexLockError { message: String },
+    MutexLockError {
+        /// The error message
+        message: String,
+    },
     /// Process error
-    Process { pid: Option<u32>, message: String },
+    Process {
+        /// The process ID, if available
+        pid: Option<u32>,
+        /// The error message
+        message: String,
+    },
     /// GPU error
-    Gpu { operation: String, message: String },
+    Gpu {
+        /// The GPU operation that failed
+        operation: String,
+        /// The error message
+        message: String,
+    },
     /// Invalid argument error
-    InvalidArgument { context: String, value: String },
+    InvalidArgument {
+        /// The context in which the argument was invalid
+        context: String,
+        /// The invalid value
+        value: String,
+    },
     /// System error with operation context
-    SystemError { operation: String, message: String },
+    SystemError {
+        /// The system operation that failed
+        operation: String,
+        /// The error message
+        message: String,
+    },
     /// Permission denied error
-    PermissionDenied { operation: String, required_permission: String },
+    PermissionDenied {
+        /// The operation that required permission
+        operation: String,
+        /// The permission that was required
+        required_permission: String,
+    },
     /// Resource not available error
-    NotAvailable { resource: String, reason: String },
+    NotAvailable {
+        /// The resource that was not available
+        resource: String,
+        /// The reason the resource was not available
+        reason: String,
+    },
     /// Other error
-    Other { message: String },
+    Other {
+        /// The error message
+        message: String,
+    },
+    /// Lock error
+    LockError,
+    /// Channel error
+    ChannelError,
+    /// Resource limit exceeded error
+    ResourceLimitExceeded,
+    /// Invalid monitor type error
+    InvalidMonitorType(String),
+    /// Not implemented error
+    NotImplemented {
+        /// The feature that is not implemented
+        feature: String,
+    },
 }
 
 impl Error {
@@ -62,7 +141,7 @@ impl Error {
     where
         S: Into<String>,
     {
-        Error::IOKitError { code, message: operation.into() }
+        Error::IOKitError { code, operation: operation.into() }
     }
 
     /// Creates a new Temperature error
@@ -152,13 +231,21 @@ impl Error {
     pub fn is_not_available(&self) -> bool {
         matches!(self, Error::NotAvailable { .. })
     }
+
+    /// Creates a new Not Implemented error
+    pub fn not_implemented<S>(feature: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Error::NotImplemented { feature: feature.into() }
+    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::IoError { source } => write!(f, "IO error: {}", source),
-            Error::IOKitError { code, message } => write!(f, "IOKit error {}: {}", code, message),
+            Error::IOKitError { code, operation } => write!(f, "IOKit error {}: {}", code, operation),
             Error::InvalidData { message, details } => write!(f, "Invalid data: {} ({})", message, details),
             Error::ServiceNotFound { message } => write!(f, "Service not found: {}", message),
             Error::System { message } => write!(f, "System error: {}", message),
@@ -180,6 +267,11 @@ impl fmt::Display for Error {
             },
             Error::NotAvailable { resource, reason } => write!(f, "{} not available: {}", resource, reason),
             Error::Other { message } => write!(f, "{}", message),
+            Error::LockError => write!(f, "Lock error"),
+            Error::ChannelError => write!(f, "Channel error"),
+            Error::ResourceLimitExceeded => write!(f, "Resource limit exceeded"),
+            Error::InvalidMonitorType(type_name) => write!(f, "Invalid monitor type: {}", type_name),
+            Error::NotImplemented { feature } => write!(f, "Not implemented: {}", feature),
         }
     }
 }
@@ -202,6 +294,12 @@ impl From<io::Error> for Error {
 impl From<NulError> for Error {
     fn from(err: NulError) -> Self {
         Error::InvalidData { message: "Invalid null character in string".to_string(), details: err.to_string() }
+    }
+}
+
+impl From<JoinError> for Error {
+    fn from(err: JoinError) -> Self {
+        Error::System { message: format!("Task join error: {}", err) }
     }
 }
 

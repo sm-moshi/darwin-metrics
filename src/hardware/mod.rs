@@ -1,39 +1,74 @@
-/// GPU monitoring functionality
+/// Hardware monitoring functionality for macOS systems
 ///
-/// This module provides tools for monitoring GPU status and performance on macOS systems. It includes support for:
+/// This module provides a unified interface for monitoring various hardware components through
+/// macOS's IOKit framework. It includes comprehensive monitoring capabilities for:
 ///
-/// - GPU utilization
-/// - Memory usage
-/// - Temperature monitoring
-/// - Performance metrics
-pub mod gpu;
+/// - CPU metrics (frequency, temperature, usage)
+/// - GPU metrics (utilization, memory, temperature)
+/// - Memory metrics (usage, pressure, swap)
+/// - Battery metrics (charge, health, temperature)
+/// - Thermal metrics (temperatures, fan control)
+/// - Power metrics (consumption, state, management)
+/// - Disk metrics (I/O, utilization, health, mount status)
+///
+/// The implementation is based on IOKit, which provides low-level access to hardware monitoring
+/// and control capabilities on macOS systems.
+///
+/// # Example
+///
+/// ```rust
+/// use darwin_metrics::hardware::{IOKitImpl, CpuMonitor, GpuMonitor, ThermalMonitor};
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let monitor = IOKitImpl::new()?;
+///
+///     // Monitor CPU
+///     let cpu_freq = monitor.frequency().await?;
+///     println!("CPU Frequency: {:.2} GHz", cpu_freq / 1000.0);
+///
+///     // Monitor GPU
+///     let gpu_util = monitor.utilization().await?;
+///     println!("GPU Utilization: {:.1}%", gpu_util);
+///
+///     // Monitor temperatures
+///     if let Some(temp) = monitor.cpu_temperature().await? {
+///         println!("CPU Temperature: {:.1}°C", temp);
+///     }
+///
+///     Ok(())
+/// }
+/// ```
 
-/// IOKit interface functionality
-///
-/// This module provides a low-level interface to macOS's IOKit framework, which is used for hardware monitoring and
-/// control. It includes:
-///
-/// - Service discovery
-/// - Property access
-/// - Hardware monitoring
-/// - Device control
+// IOKit module for hardware interaction
+#[cfg(any(test, feature = "testing"))]
+/// IOKit module for hardware interaction with macOS system APIs
 pub mod iokit;
+#[cfg(not(any(test, feature = "testing")))]
+pub(crate) mod iokit;
 
+// Hardware component modules
+/// Battery monitoring functionality
+pub mod battery;
+/// CPU monitoring functionality
+pub mod cpu;
+/// Disk monitoring functionality
+pub mod disk;
+/// GPU monitoring functionality
+pub mod gpu;
+/// Memory monitoring functionality
+pub mod memory;
 /// Temperature monitoring functionality
-///
-/// This module provides tools for monitoring system temperatures on macOS systems. It includes support for:
-///
-/// - CPU temperature
-/// - GPU temperature
-/// - Battery temperature
-/// - Ambient temperature
-/// - Fan control based on temperature
 pub mod temperature;
 
-pub mod cpu;
-pub mod memory;
+// Import core traits and types from prelude
 
-pub use cpu::CPU;
-pub use gpu::Gpu;
-pub use iokit::IOKit;
-pub use memory::Memory;
+// Re-export hardware types
+
+// Re-export core traits for hardware monitoring
+
+// Re-export common types
+
+// Prelude module for convenient imports
+/// Prelude module for convenient imports of hardware monitoring types
+pub mod prelude {}

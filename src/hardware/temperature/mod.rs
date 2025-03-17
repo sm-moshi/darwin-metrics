@@ -1,465 +1,143 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+//! Temperature monitoring module
+//!
+//! This module provides comprehensive temperature monitoring capabilities for macOS systems.
+//! It tracks temperatures for various components including CPU, GPU, battery, and ambient sensors,
+//! as well as fan speeds and thermal throttling status.
+//!
+//! # Features
+//!
+//! - CPU, GPU, and battery temperature monitoring
+//! - Ambient temperature sensing
+//! - Fan speed monitoring and control
+//! - Thermal throttling detection
+//! - Configurable temperature thresholds
+//!
+//! # Examples
+//!
+//! Basic temperature monitoring:
+//!
+//! ```no_run
+//! use darwin_metrics::hardware::temperature::{Temperature, TemperatureMonitor};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let temp = Temperature::new()?;
+//!     let cpu_monitor = temp.cpu_monitor();
+//!     let gpu_monitor = temp.gpu_monitor();
+//!
+//!     println!("CPU Temperature: {:.1}°C", cpu_monitor.temperature().await?);
+//!     println!("GPU Temperature: {:.1}°C", gpu_monitor.temperature().await?);
+//!     
+//!     Ok(())
+//! }
+//! ```
 
-use crate::{
-    //utils::dictionary_access::DictionaryAccess,
-    error::Error,
-    hardware::iokit::{IOKit, IOKitImpl},
-};
+/// Temperature monitoring constants
+pub mod constants;
 
-/// Represents the location of a temperature sensor in the system
-#[derive(Debug, Clone, PartialEq)]
-pub enum SensorLocation {
-    /// CPU temperature sensor
-    Cpu,
-    /// GPU temperature sensor
-    Gpu,
-    /// System memory temperature sensor
-    Memory,
-    /// Storage/SSD temperature sensor
-    Storage,
-    /// Battery temperature sensor
-    Battery,
-    /// Heatsink temperature sensor
-    Heatsink,
-    /// Ambient (inside case) temperature sensor
-    Ambient,
-    /// Other temperature sensor with a custom name
-    Other(String),
-}
+mod monitors;
+mod types;
 
-/// Fan information including speed, min/max values, and utilization percentage
+pub use monitors::*;
+pub use types::*;
+
+use crate::error::Result;
+use crate::hardware::iokit::{IOKit, IOKitImpl};
+use std::sync::Arc;
+
 #[derive(Debug, Clone)]
-pub struct Fan {
-    /// Fan identifier (e.g., "CPU Fan", "System Fan")
-    pub name: String,
-    /// Current fan speed in RPM
-    pub speed_rpm: u32,
-    /// Minimum fan speed in RPM
-    pub min_speed: u32,
-    /// Maximum fan speed in RPM
-    pub max_speed: u32,
-    /// Current fan utilization as a percentage (0-100%)
-    pub percentage: f64,
+pub struct Temperature {
+    iokit: Arc<Box<dyn IOKit>>,
+    config: TemperatureConfig,
 }
 
-/// Configuration for temperature monitoring
-#[derive(Debug, Clone)]
-pub struct TemperatureConfig {
-    /// How often to poll temperature sensors (in milliseconds)
-    pub poll_interval_ms: u64,
-    /// Throttling detection threshold in degrees Celsius
-    pub throttling_threshold: f64,
-    /// Whether to automatically refresh sensor data on read
-    pub auto_refresh: bool,
-    pub update_interval: u64,
-    pub enable_gpu: bool,
-    pub enable_cpu: bool,
-    pub enable_battery: bool,
-}
-
-impl Default for TemperatureConfig {
-    fn default() -> Self {
-        Self {
-            poll_interval_ms: 1000,     // 1 second default polling interval
-            throttling_threshold: 80.0, // 80°C default throttling threshold
-            auto_refresh: true,
-            update_interval: 1000,
-            enable_gpu: true,
-            enable_cpu: true,
-            enable_battery: true,
-        }
-    }
-}
-
-/// Temperature monitoring for CPU, GPU, and other thermal sensors
-#[derive(Debug)]
-pub struct Temperature<T: IOKit + Clone + 'static = IOKitImpl> {
-    /// Temperature sensor readings (in Celsius)
-    sensors: HashMap<String, f64>,
-    /// Fan information
-    fans: Vec<Fan>,
-    /// Whether the system is currently thermal throttling
-    pub is_throttling: bool,
-    /// CPU power consumption in watts
-    cpu_power: Option<f64>,
-    /// Configuration for temperature monitoring
-    pub config: TemperatureConfig,
-    /// The IOKit implementation for hardware access
-    io_kit: T,
-    /// When sensors were last refreshed
-    last_refresh: Instant,
-}
-
-impl Temperature<IOKitImpl> {
-    /// Create a new Temperature instance with default configuration
-    pub fn new() -> Self {
-        Self {
-            sensors: HashMap::new(),
-            fans: Vec::new(),
-            is_throttling: false,
-            cpu_power: None,
-            config: TemperatureConfig::default(),
-            io_kit: IOKitImpl::default(),
-            last_refresh: Instant::now() - Duration::from_secs(60), // Force refresh on first access
-        }
+impl Temperature {
+    /// Creates a new Temperature instance with default configuration
+    pub fn new() -> Result<Self> {
+        let iokit_impl = IOKitImpl::new()?;
+        Ok(Self { iokit: Arc::new(Box::new(iokit_impl)), config: TemperatureConfig::default() })
     }
 
-    /// Create a new Temperature instance with custom configuration
-    pub fn with_config(config: TemperatureConfig) -> Self {
-        Self {
-            sensors: HashMap::new(),
-            fans: Vec::new(),
-            is_throttling: false,
-            cpu_power: None,
-            config,
-            io_kit: IOKitImpl::default(),
-            last_refresh: Instant::now() - Duration::from_secs(60), // Force refresh on first access
-        }
+    /// Creates a new Temperature instance with custom configuration
+    pub fn with_config(config: TemperatureConfig) -> Result<Self> {
+        let iokit_impl = IOKitImpl::new()?;
+        Ok(Self { iokit: Arc::new(Box::new(iokit_impl)), config })
     }
 
-    pub fn update(&mut self) -> Result<(), Error> {
-        if let Ok(thermal_info) = self.io_kit.get_thermal_info() {
-            // Update CPU temperature
-            self.sensors.insert("CPU".to_string(), thermal_info.cpu_temp);
-
-            // Update GPU temperature if available
-            if let Some(temp) = thermal_info.gpu_temp {
-                self.sensors.insert("GPU".to_string(), temp);
-            }
-
-            // Update heatsink temperature if available
-            if let Some(temp) = thermal_info.heatsink_temp {
-                self.sensors.insert("Heatsink".to_string(), temp);
-            }
-
-            // Update ambient temperature if available
-            if let Some(temp) = thermal_info.ambient_temp {
-                self.sensors.insert("Ambient".to_string(), temp);
-            }
-
-            // Update battery temperature if available
-            if let Some(temp) = thermal_info.battery_temp {
-                self.sensors.insert("Battery".to_string(), temp);
-            }
-        }
-
-        if let Ok(throttling) = self.io_kit.check_thermal_throttling("IOService") {
-            self.is_throttling = throttling;
-        }
-
-        Ok(())
+    /// Get a monitor for CPU temperature
+    pub fn cpu_monitor(&self) -> CpuTemperatureMonitor {
+        CpuTemperatureMonitor::new(Arc::clone(&self.iokit))
     }
 
-    pub fn get_sensors(&self) -> &HashMap<String, f64> {
-        &self.sensors
-    }
-}
-
-impl<T: IOKit + Clone + 'static> Temperature<T> {
-    /// Create a new Temperature instance with a custom IOKit implementation and configuration
-    pub fn with_iokit(io_kit: T, config: TemperatureConfig) -> Self {
-        Self {
-            sensors: HashMap::new(),
-            fans: Vec::new(),
-            is_throttling: false,
-            cpu_power: None,
-            config,
-            io_kit,
-            last_refresh: Instant::now() - Duration::from_secs(60), // Force refresh on first access
-        }
+    /// Get a monitor for GPU temperature
+    pub fn gpu_monitor(&self) -> GpuTemperatureMonitor {
+        GpuTemperatureMonitor::new(Arc::clone(&self.iokit))
     }
 
-    /// Check if sensor data should be refreshed based on poll interval
-    fn should_refresh(&self) -> bool {
-        self.last_refresh.elapsed().as_millis() as u64 > self.config.poll_interval_ms
+    /// Get a monitor for ambient temperature
+    pub fn ambient_monitor(&self) -> AmbientTemperatureMonitor {
+        AmbientTemperatureMonitor::new(Arc::clone(&self.iokit))
     }
 
-    /// Refresh all temperature and fan readings
-    pub fn refresh(&mut self) -> Result<(), crate::error::Error> {
-        #[cfg(feature = "skip-ffi-crashes")]
-        {
-            // For coverage runs, use consistent mock data to match our tests These values should match those used in
-            // the test_get_thermal_metrics test
-            self.sensors.insert("CPU".to_string(), 42.5);
-            self.sensors.insert("GPU".to_string(), 55.0);
-            self.sensors.insert("Heatsink".to_string(), 45.0);
-            self.sensors.insert("Ambient".to_string(), 32.0);
-            self.sensors.insert("Battery".to_string(), 38.0);
+    /// Get a monitor for battery temperature
+    pub fn battery_monitor(&self) -> BatteryTemperatureMonitor {
+        BatteryTemperatureMonitor::new(Arc::clone(&self.iokit))
+    }
 
-            // Set throttling to false
-            self.is_throttling = false;
+    /// Get a monitor for a specific fan
+    pub fn fan_monitor(&self, index: usize) -> FanMonitor {
+        FanMonitor::new(Arc::clone(&self.iokit), index)
+    }
 
-            // Set CPU power
-            self.cpu_power = Some(28.5);
+    /// Get the current configuration
+    pub fn config(&self) -> &TemperatureConfig {
+        &self.config
+    }
 
-            // Add a mock fan
-            self.fans.clear();
-            self.fans.push(Fan {
-                name: "Fan 0".to_string(),
-                speed_rpm: 2000,
-                min_speed: 1000,
-                max_speed: 4000,
-                percentage: 33.3,
+    /// Update the configuration
+    pub fn set_config(&mut self, config: TemperatureConfig) {
+        self.config = config;
+    }
+
+    /// Get comprehensive thermal metrics
+    pub async fn get_thermal_metrics(&self) -> Result<ThermalMetrics> {
+        let cpu_temp = self.cpu_monitor().temperature().await.ok();
+        let gpu_temp = self.gpu_monitor().temperature().await.ok();
+        let ambient_temp = self.ambient_monitor().temperature().await.ok();
+        let battery_temp = self.battery_monitor().temperature().await.ok();
+
+        let mut fans = Vec::new();
+        let fan_info = self.iokit.get_all_fans()?;
+        for (i, info) in fan_info.iter().enumerate() {
+            fans.push(Fan {
+                name: format!("Fan {}", i),
+                speed_rpm: info.speed_rpm,
+                min_speed: info.min_speed,
+                max_speed: info.max_speed,
+                percentage: if info.max_speed > info.min_speed {
+                    ((info.speed_rpm - info.min_speed) as f64 / (info.max_speed - info.min_speed) as f64) * 100.0
+                } else {
+                    0.0
+                },
             });
-
-            // Update refresh timestamp
-            self.last_refresh = Instant::now();
-
-            return Ok(());
         }
-
-        #[cfg(not(feature = "skip-ffi-crashes"))]
-        {
-            // Get comprehensive thermal information
-            let thermal_info = self.io_kit.get_thermal_info()?;
-
-            // Update sensors with basic temperature readings
-            self.sensors.insert("CPU".to_string(), thermal_info.get_number("cpu_temp").unwrap_or(0.0));
-            self.sensors.insert("GPU".to_string(), thermal_info.get_number("gpu_temp").unwrap_or(0.0));
-
-            // Add optional sensors if available
-            if let Some(temp) = thermal_info.get_number("heatsink_temp") {
-                self.sensors.insert("Heatsink".to_string(), temp);
-            }
-
-            if let Some(temp) = thermal_info.get_number("ambient_temp") {
-                self.sensors.insert("Ambient".to_string(), temp);
-            }
-
-            if let Some(temp) = thermal_info.get_number("battery_temp") {
-                self.sensors.insert("Battery".to_string(), temp);
-            }
-
-            // Update throttling status
-            self.is_throttling = thermal_info.get_bool("is_throttling").unwrap_or(false);
-
-            // Update CPU power if available
-            self.cpu_power = thermal_info.get_number("cpu_power");
-
-            // Get fan information
-            let fan_infos = self.io_kit.get_all_fans()?;
-            self.fans.clear();
-
-            // Create Fan objects from the raw IOKitFanInfo structures
-            for (i, fan_info) in fan_infos.iter().enumerate() {
-                self.fans.push(Fan {
-                    name: format!("Fan {}", i),
-                    speed_rpm: fan_info.speed_rpm,
-                    min_speed: fan_info.min_speed,
-                    max_speed: fan_info.max_speed,
-                    percentage: fan_info.percentage,
-                });
-            }
-
-            // Update refresh timestamp
-            self.last_refresh = Instant::now();
-            return Ok(());
-        }
-
-        // This code should never be reached due to exclusive cfg attributes
-        #[allow(unreachable_code)]
-        Ok(())
-    }
-
-    /// Get CPU temperature
-    pub fn cpu_temperature(&mut self) -> Result<f64, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        self.sensors
-            .get("CPU")
-            .cloned()
-            .ok_or_else(|| crate::Error::temperature_error("CPU", "CPU temperature sensor not available"))
-    }
-
-    /// Get GPU temperature (if available)
-    pub fn gpu_temperature(&mut self) -> Result<f64, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        self.sensors
-            .get("GPU")
-            .cloned()
-            .ok_or_else(|| crate::Error::temperature_error("GPU", "GPU temperature sensor not available"))
-    }
-
-    /// Get heatsink temperature (if available)
-    pub fn heatsink_temperature(&mut self) -> Result<f64, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        self.sensors
-            .get("Heatsink")
-            .cloned()
-            .ok_or_else(|| crate::Error::temperature_error("Heatsink", "Heatsink temperature sensor not available"))
-    }
-
-    /// Get ambient temperature (if available)
-    pub fn ambient_temperature(&mut self) -> Result<f64, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        self.sensors
-            .get("Ambient")
-            .cloned()
-            .ok_or_else(|| crate::Error::temperature_error("Ambient", "Ambient temperature sensor not available"))
-    }
-
-    /// Get battery temperature (if available)
-    pub fn battery_temperature(&mut self) -> Result<f64, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        self.sensors
-            .get("Battery")
-            .cloned()
-            .ok_or_else(|| crate::Error::temperature_error("Battery", "Battery temperature sensor not available"))
-    }
-
-    /// Get a list of all available temperature sensors
-    pub fn list_sensors(&mut self) -> Result<Vec<(String, SensorLocation)>, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        let mut result = Vec::new();
-        for name in self.sensors.keys() {
-            let location = match name.as_str() {
-                "CPU" => SensorLocation::Cpu,
-                "GPU" => SensorLocation::Gpu,
-                "Heatsink" => SensorLocation::Heatsink,
-                "Ambient" => SensorLocation::Ambient,
-                "Battery" => SensorLocation::Battery,
-                "Memory" => SensorLocation::Memory,
-                "Storage" => SensorLocation::Storage,
-                _ => SensorLocation::Other(name.to_string()),
-            };
-
-            result.push((name.clone(), location));
-        }
-
-        Ok(result)
-    }
-
-    /// Get temperature for a specific sensor by name
-    pub fn get_sensor_temperature(&mut self, name: &str) -> Result<f64, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        self.sensors
-            .get(name)
-            .cloned()
-            .ok_or_else(|| crate::Error::temperature_error(name, format!("Sensor {} not found", name)))
-    }
-
-    /// Get the number of fans in the system
-    pub fn fan_count(&mut self) -> Result<usize, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        Ok(self.fans.len())
-    }
-
-    /// Get all fans in the system
-    pub fn get_fans(&mut self) -> Result<&Vec<Fan>, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        Ok(&self.fans)
-    }
-
-    /// Get a specific fan by index
-    pub fn get_fan(&mut self, index: usize) -> Result<&Fan, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        self.fans
-            .get(index)
-            .ok_or_else(|| crate::Error::temperature_error("Fan", format!("Fan with index {} not found", index)))
-    }
-
-    /// Get the CPU power consumption in watts (if available)
-    pub fn cpu_power(&mut self) -> Result<f64, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        self.cpu_power
-            .ok_or_else(|| crate::Error::temperature_error("CPU Power", "CPU power information not available"))
-    }
-
-    /// Determine if the system is experiencing thermal throttling
-    pub fn is_throttling(&mut self) -> Result<bool, crate::error::Error> {
-        if self.config.auto_refresh && self.should_refresh() {
-            self.refresh()?;
-        }
-
-        // First try to use the actual throttling indicator from SMC
-        if let Ok(throttling) = self.io_kit.check_thermal_throttling("IOService") {
-            return Ok(throttling);
-        }
-
-        // Fall back to temperature-based heuristic
-        let cpu_temp = self.cpu_temperature()?;
-        Ok(cpu_temp > self.config.throttling_threshold)
-    }
-
-    /// Get all thermal metrics in a single call
-    pub fn get_thermal_metrics(&mut self) -> Result<ThermalMetrics, crate::error::Error> {
-        // Always refresh for this comprehensive call
-        self.refresh()?;
 
         Ok(ThermalMetrics {
-            cpu_temperature: self.sensors.get("CPU").cloned(),
-            gpu_temperature: self.sensors.get("GPU").cloned(),
-            heatsink_temperature: self.sensors.get("Heatsink").cloned(),
-            ambient_temperature: self.sensors.get("Ambient").cloned(),
-            battery_temperature: self.sensors.get("Battery").cloned(),
-            is_throttling: self.is_throttling,
-            cpu_power: self.cpu_power,
-            fans: self.fans.clone(),
+            cpu_temperature: cpu_temp,
+            gpu_temperature: gpu_temp,
+            heatsink_temperature: None, // Not implemented yet
+            ambient_temperature: ambient_temp,
+            battery_temperature: battery_temp,
+            is_throttling: self.iokit.check_thermal_throttling("IOService")?,
+            cpu_power: None, // Not implemented yet
+            fans,
+            last_refresh: std::time::Instant::now(),
         })
     }
 }
 
-/// Comprehensive collection of thermal metrics
-#[derive(Debug, Clone)]
-pub struct ThermalMetrics {
-    /// CPU temperature in degrees Celsius
-    pub cpu_temperature: Option<f64>,
-    /// GPU temperature in degrees Celsius
-    pub gpu_temperature: Option<f64>,
-    /// Heatsink temperature in degrees Celsius
-    pub heatsink_temperature: Option<f64>,
-    /// Ambient (inside case) temperature in degrees Celsius
-    pub ambient_temperature: Option<f64>,
-    /// Battery temperature in degrees Celsius
-    pub battery_temperature: Option<f64>,
-    /// Whether the system is currently thermal throttling
-    pub is_throttling: bool,
-    /// CPU power consumption in watts
-    pub cpu_power: Option<f64>,
-    /// Information about all fans in the system
-    pub fans: Vec<Fan>,
-}
-
-impl Default for Temperature<IOKitImpl> {
+impl Default for Temperature {
     fn default() -> Self {
-        Self::new()
+        Self::new().expect("Failed to create Temperature instance")
     }
 }
-
-#[cfg(test)]
-mod tests;

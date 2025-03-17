@@ -101,8 +101,53 @@ pub mod interface;
 /// - Traffic analysis
 pub mod traffic;
 
-pub use interface::{Interface, InterfaceType, NetworkManager};
-pub use traffic::TrafficData;
+pub use interface::{Interface, InterfaceType};
+
+/// Represents network interface information
+#[derive(Debug, Clone)]
+pub struct NetworkInfo {
+    /// Name of the network interface
+    pub name: String,
+    /// Type of the network interface
+    pub interface_type: InterfaceType,
+    /// Whether the interface is active
+    pub is_active: bool,
+    /// MAC address of the interface
+    pub mac_address: Option<String>,
+    /// IP addresses associated with the interface
+    pub ip_addresses: Vec<String>,
+}
+
+impl Default for NetworkInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NetworkInfo {
+    /// Create a new empty NetworkInfo
+    pub fn new() -> Self {
+        Self {
+            name: String::new(),
+            interface_type: InterfaceType::Other,
+            is_active: false,
+            mac_address: None,
+            ip_addresses: Vec::new(),
+        }
+    }
+}
+
+/// Alias for Interface to maintain backward compatibility
+pub type NetworkInterface = Interface;
+
+/// Monitor for network metrics
+pub trait NetworkMonitor: NetworkMetrics {
+    /// Get information about the network interface
+    fn get_info(&self) -> NetworkInfo;
+
+    /// Update network metrics
+    fn update(&mut self) -> Result<(), crate::error::Error>;
+}
 
 /// Trait defining the standard interface for accessing network metrics.
 ///

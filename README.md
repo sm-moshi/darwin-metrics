@@ -97,10 +97,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-darwin-metrics = "0.1.6"  # Development version
+darwin-metrics = "0.2.0-alpha.1"  # Development version
 
 # Or for latest development features:
-# darwin-metrics = { git = "https://github.com/sm-moshi/darwin-metrics", branch = "0.2.x" }
+# darwin-metrics = { git = "https://github.com/sm-moshi/darwin-metrics", branch = "develop" }
 ```
 
 ### 🔧 Requirements
@@ -261,5 +261,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
     Foundation](https://developer.apple.com/documentation/corefoundation), and
     [Metal](https://developer.apple.com/documentation/metal) documentation
 - [objc2](https://github.com/mattn/objc2) crate by Mads Marquart
+- [metal](https://github.com/gfx-rs/metal-rs) crate by Rust Graphics Mages
+- [tokio](https://tokio.rs) crate by Tokio
 - The Rust and Swift communities
 - Contributors to the core dependencies

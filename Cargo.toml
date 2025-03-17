@@ -1,85 +1,94 @@
 [package]
-name = "darwin-metrics"
-version = "0.1.6"
-edition = "2021"
-description = "A Rust library for collecting system metrics on macOS"
-authors = ["Stuart Meya <sm0sh1@pm.me>"]
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/sm-moshi/darwin-metrics"
-homepage = "https://github.com/sm-moshi/darwin-metrics"
+name          = "darwin-metrics"
+version       = "0.2.0-alpha.1"
+edition       = "2021"
+description   = "A Rust library for collecting system metrics on macOS"
+authors       = ["Stuart Meya <sm0sh1@pm.me>"]
+license       = "MIT OR Apache-2.0"
+repository    = "https://github.com/sm-moshi/darwin-metrics"
+homepage      = "https://github.com/sm-moshi/darwin-metrics"
 documentation = "https://docs.rs/darwin-metrics"
-keywords = ["macos", "metrics", "monitoring", "system", "hardware"]
-categories = ["os::macos-apis", "hardware-support", "api-bindings"]
-readme = "README.md"
-links = "darwin_metrics"
-exclude = [
-  ".github/",
-  "coverage/",
-  "target/",
-  "CLAUDE.md",
-  "**/.DS_Store",
-  ".DS_Store",
-]
+keywords      = ["macos", "metrics", "monitoring", "system", "hardware"]
+categories    = ["os::macos-apis", "hardware-support", "api-bindings"]
+readme        = "README.md"
+links         = "darwin_metrics"
+exclude       = [".github/", "coverage/", "target/", "**/.DS_Store", ".DS_Store"]
 
 [lib]
 name       = "darwin_metrics"
 crate-type = ["rlib", "cdylib", "staticlib"]
 
-[build-dependencies]
-cc = "=1.2.16"
+[[test]]
+name              = "integration_tests"
+path              = "tests/integration/mod.rs"
+required-features = ["testing"]
+
+[[test]]
+name              = "unit_tests"
+path              = "tests/unit/mod.rs"
+required-features = ["testing"]
 
 [dependencies]
 # Core FFI and system interfaces
-libc = "=0.2.171"
-mach2 = "=0.4.2"
-objc2 = { version = "=0.6.0", features = [
+libc = "^0.2.171"
+metal = "^0.31.0"
+objc2 = { version = "^0.6.0", features = [
   "alloc",
   "objc2-proc-macros",
   "std",
   "exception",
   "catch-all",
 ] }
-objc2-foundation = "=0.3.0"
-objc2-core-foundation = "=0.3.0"
-objc2-core-graphics = "=0.3.0"
-thiserror = "=2.0.12"
-bitflags = "=2.9.0"
-scopeguard = "=1.2.0"
-libproc = "=0.14.10"
+objc2-foundation = "^0.3.0"
+objc2-core-foundation = "^0.3.0"
+thiserror = "^2.0.12"
+bitflags = "^2.9.0"
+scopeguard = "^1.2.0"
+libproc = "^0.14.10"
+tokio = { version = "^1.44.1", features = [
+  "rt-multi-thread",
+  "time",
+  "sync",
+  "macros",
+  "fs",
+] }
+num_cpus = "^1.16.0"
 
 # Optional dependencies
-serde = { version = "=1.0.219", features = ["derive"], optional = true }
-
-# Error handling and logging
-tracing            = { version = "=0.1.41", features = ["attributes"] }
-tracing-subscriber = { version = "=0.3.19", features = ["env-filter"] }
-serde_json         = "=1.0.140"
-
-# Testing
-mockall = "=0.13.1"
+serde = { version = "^1.0.219", features = ["derive"], optional = true }
 
 # Additional dependencies
-parking_lot = "=0.12.3"
-log         = "=0.4.26"
-once_cell   = "=1.21.1"
-derivative  = "=2.2.0"
-anyhow      = "=1.0.97"
+parking_lot = "^0.12.3"
+log         = "^0.4.26"
+once_cell   = "^1.21.1"
+async-trait = "^0.1.88"
 
 [dev-dependencies]
-version-sync = "=0.9.5"
-tempfile     = "=3.19.0"
+version-sync = "^0.9.5"
+tempfile     = "^3.19.0"
+lazy_static  = "^1.5.0"
+mockall      = "^0.13.1"
 
 [features]
-default  = []
-serde    = ["dep:serde"]
-unstable = []
-mock     = []
-
+default = []
 # Core features
-process_monitoring = []
+serde = ["dep:serde"]
 
-# Testing features
-unstable-tests   = []
+# Monitoring features
+monitoring-all = [
+  "process-monitoring",
+  "resource-monitoring",
+  "power-monitoring",
+]
+process-monitoring = []
+resource-monitoring = []
+power-monitoring = []
+
+# Development features
+unstable         = []
+mock             = []
+testing          = ["mock"]     # Testing includes mock
+unstable-tests   = ["unstable"]
 skip-ffi-crashes = []
 
 [package.metadata]
@@ -96,3 +105,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [badges]
 maintenance = { status = "actively-developed" }
+
+[profile.release]
+opt-level     = 2       # Balance between performance and size
+lto           = "thin"  # Link-time optimization with reasonable compile times
+codegen-units = 1       # Better optimization but slower compile
+strip         = true    # Remove debug symbols
+panic         = "abort" # Simpler panic handling for smaller binaries

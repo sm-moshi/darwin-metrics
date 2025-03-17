@@ -14,7 +14,6 @@ rustflags = [
     "-Wclippy::pedantic",
     "-Aclippy::module_name_repetitions",
     "-Aclippy::too_many_lines",
-    "-Aclippy::non_snake_case",
     # Add more lint configurations as needed
 ]
 
@@ -28,3 +27,9 @@ strip         = "symbols"
 [profile.dev]
 opt-level = 0
 debug     = true
+
+[build]
+rustflags = ["--cfg", "feature=\"testing\""]
+
+[target.'cfg(test)']
+rustflags = ["--cfg", "feature=\"testing\""]

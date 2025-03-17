@@ -7,11 +7,15 @@ use std::{
 };
 
 use crate::{
+    core::metrics::hardware::{
+        NetworkBandwidthMonitor, NetworkErrorMonitor, NetworkInterfaceMonitor, NetworkPacketMonitor,
+    },
     error::{Error, Result},
-    network::{traffic::TrafficTracker, NetworkMetrics},
+    network::traffic::TrafficTracker,
     utils::bindings::{
         address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in, sockaddr_in6,
     },
+    utils::ffi::bindings::get_network_stats_native,
 };
 
 /// Macro to define flag-checking methods for network interface flags.
@@ -323,71 +327,139 @@ impl Interface {
     pub fn send_error_rate(&self) -> f64 {
         self.traffic.send_error_rate()
     }
-}
 
-// Define flag-checking methods using the macro
-define_flag_methods! {
-/// Gets whether this is a loopback interface.
-is_loopback => if_flags::IFF_LOOPBACK,
+    /// Returns a monitor for interface state
+    pub fn interface_monitor(&self) -> InterfaceStateMonitor {
+        InterfaceStateMonitor { interface: self.clone() }
+    }
 
-/// Gets whether this interface supports broadcast.
-supports_broadcast => if_flags::IFF_BROADCAST,
+    /// Returns a monitor for bandwidth metrics
+    pub fn bandwidth_monitor(&self) -> InterfaceBandwidthMonitor {
+        InterfaceBandwidthMonitor { interface: self.clone() }
+    }
 
-/// Gets whether this interface supports multicast.
-supports_multicast => if_flags::IFF_MULTICAST,
+    /// Returns a monitor for packet metrics
+    pub fn packet_monitor(&self) -> InterfacePacketMonitor {
+        InterfacePacketMonitor { interface: self.clone() }
+    }
 
-/// Gets whether this is a point-to-point interface.
-is_point_to_point => if_flags::IFF_POINTOPOINT,
-}
-
-impl Interface {
-    /// Gets whether this is a wireless interface.
-    pub fn is_wireless(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_WIRELESS)
-            || self.interface_type == InterfaceType::WiFi
-            || self.name.starts_with("wl")
+    /// Returns a monitor for error metrics
+    pub fn error_monitor(&self) -> InterfaceErrorMonitor {
+        InterfaceErrorMonitor { interface: self.clone() }
     }
 }
 
-impl NetworkMetrics for Interface {
-    fn bytes_received(&self) -> u64 {
-        self.traffic.bytes_received()
+/// Monitor for network interface state
+pub struct InterfaceStateMonitor {
+    interface: Interface,
+}
+
+/// Monitor for network bandwidth metrics
+pub struct InterfaceBandwidthMonitor {
+    interface: Interface,
+}
+
+/// Monitor for network packet metrics
+pub struct InterfacePacketMonitor {
+    interface: Interface,
+}
+
+/// Monitor for network error metrics
+pub struct InterfaceErrorMonitor {
+    interface: Interface,
+}
+
+#[async_trait::async_trait]
+impl NetworkInterfaceMonitor for InterfaceStateMonitor {
+    async fn is_active(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_UP) && self.interface.is_flag_set(if_flags::IFF_RUNNING))
     }
 
-    fn bytes_sent(&self) -> u64 {
-        self.traffic.bytes_sent()
+    async fn supports_broadcast(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_BROADCAST))
     }
 
-    fn packets_received(&self) -> u64 {
-        self.traffic.packets_received()
+    async fn supports_multicast(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_MULTICAST))
     }
 
-    fn packets_sent(&self) -> u64 {
-        self.traffic.packets_sent()
+    async fn is_loopback(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_LOOPBACK))
     }
 
-    fn receive_errors(&self) -> u64 {
-        self.traffic.receive_errors()
+    async fn is_wireless(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_WIRELESS)
+            || self.interface.interface_type == InterfaceType::WiFi
+            || self.interface.name.starts_with("wl"))
     }
 
-    fn send_errors(&self) -> u64 {
-        self.traffic.send_errors()
+    async fn interface_type(&self) -> Result<String> {
+        Ok(self.interface.interface_type.to_string())
     }
 
-    fn collisions(&self) -> u64 {
-        self.traffic.collisions()
+    async fn mac_address(&self) -> Result<Option<String>> {
+        Ok(self.interface.mac_address.clone())
+    }
+}
+
+#[async_trait::async_trait]
+impl NetworkBandwidthMonitor for InterfaceBandwidthMonitor {
+    async fn bytes_received(&self) -> Result<u64> {
+        Ok(self.interface.traffic.bytes_received())
     }
 
-    fn download_speed(&self) -> f64 {
-        self.traffic.download_speed()
+    async fn bytes_sent(&self) -> Result<u64> {
+        Ok(self.interface.traffic.bytes_sent())
     }
 
-    fn upload_speed(&self) -> f64 {
-        self.traffic.upload_speed()
+    async fn download_speed(&self) -> Result<f64> {
+        Ok(self.interface.traffic.download_speed())
     }
 
-    fn is_active(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_UP) && self.is_flag_set(if_flags::IFF_RUNNING)
+    async fn upload_speed(&self) -> Result<f64> {
+        Ok(self.interface.traffic.upload_speed())
+    }
+}
+
+#[async_trait::async_trait]
+impl NetworkPacketMonitor for InterfacePacketMonitor {
+    async fn packets_received(&self) -> Result<u64> {
+        Ok(self.interface.traffic.packets_received())
+    }
+
+    async fn packets_sent(&self) -> Result<u64> {
+        Ok(self.interface.traffic.packets_sent())
+    }
+
+    async fn packet_receive_rate(&self) -> Result<f64> {
+        Ok(self.interface.traffic.packet_receive_rate())
+    }
+
+    async fn packet_send_rate(&self) -> Result<f64> {
+        Ok(self.interface.traffic.packet_send_rate())
+    }
+}
+
+#[async_trait::async_trait]
+impl NetworkErrorMonitor for InterfaceErrorMonitor {
+    async fn receive_errors(&self) -> Result<u64> {
+        Ok(self.interface.traffic.receive_errors())
+    }
+
+    async fn send_errors(&self) -> Result<u64> {
+        Ok(self.interface.traffic.send_errors())
+    }
+
+    async fn collisions(&self) -> Result<u64> {
+        Ok(self.interface.traffic.collisions())
+    }
+
+    async fn receive_error_rate(&self) -> Result<f64> {
+        Ok(self.interface.traffic.receive_error_rate())
+    }
+
+    async fn send_error_rate(&self) -> Result<f64> {
+        Ok(self.interface.traffic.send_error_rate())
     }
 }
 
@@ -474,12 +546,12 @@ impl NetworkManager {
 
     /// Gets the total download speed across all interfaces.
     pub fn total_download_speed(&self) -> f64 {
-        self.interfaces.values().map(|i| i.download_speed()).sum()
+        self.interfaces.values().map(|i| i.traffic.download_speed()).sum()
     }
 
     /// Gets the total upload speed across all interfaces.
     pub fn total_upload_speed(&self) -> f64 {
-        self.interfaces.values().map(|i| i.upload_speed()).sum()
+        self.interfaces.values().map(|i| i.traffic.upload_speed()).sum()
     }
 
     /// Gets network interfaces using the getifaddrs() system call.
@@ -696,8 +768,6 @@ impl NetworkManager {
     /// This is the preferred method that directly accesses kernel network statistics rather than relying on
     /// command-line tools.
     fn update_traffic_stats_native(&self) -> Option<TrafficStatsMap> {
-        use crate::utils::bindings::get_network_stats_native;
-
         // Get list of interface names
         let mut ifap: *mut ifaddrs = ptr::null_mut();
         let mut result = HashMap::new();
