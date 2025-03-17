@@ -61,6 +61,7 @@ pub(crate) mod iokit;
 )]
 // pub mod cpu;
 /// Disk monitoring functionality
+#[deprecated(since = "0.2.0-alpha.1", note = "Use the `darwin_metrics::disk` module instead")]
 pub mod disk;
 /// GPU monitoring functionality
 #[deprecated(

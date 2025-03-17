@@ -110,6 +110,9 @@ pub mod traits;
 /// Battery monitoring module
 pub mod battery;
 
+/// Disk monitoring module
+pub mod disk;
+
 // Re-export core functionality through the prelude
 pub use core::prelude::*;
 
@@ -176,6 +179,16 @@ pub fn new_memory() -> Result<Memory> {
 /// Creates a new Temperature instance
 pub fn new_temperature() -> Result<hardware::temperature::Temperature> {
     hardware::temperature::Temperature::new()
+}
+
+/// Get information about the root disk
+pub fn get_disk_info() -> Result<disk::Disk> {
+    disk::get_info()
+}
+
+/// Get information about all mounted disks
+pub fn get_all_disks() -> Result<Vec<disk::Disk>> {
+    disk::get_all_disks()
 }
 
 #[cfg(test)]
