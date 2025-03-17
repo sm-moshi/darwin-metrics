@@ -82,6 +82,9 @@ pub mod core;
 /// CPU monitoring functionality
 pub mod cpu;
 
+/// GPU monitoring module
+pub mod gpu;
+
 #[cfg_attr(any(test, feature = "mock"), doc = "Hardware monitoring functionality exposed for testing")]
 #[cfg_attr(not(any(test, feature = "mock")), doc = "Hardware monitoring functionality")]
 pub mod hardware;
@@ -103,6 +106,9 @@ pub mod system;
 
 /// Traits for hardware monitoring
 pub mod traits;
+
+/// Battery monitoring module
+pub mod battery;
 
 // Re-export core functionality through the prelude
 pub use core::prelude::*;

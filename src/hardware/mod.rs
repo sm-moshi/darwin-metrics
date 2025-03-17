@@ -49,13 +49,25 @@ pub(crate) mod iokit;
 
 // Hardware component modules
 /// Battery monitoring functionality
-pub mod battery;
+#[deprecated(
+    since = "0.2.0-alpha.1",
+    note = "Use darwin_metrics::battery instead. This will be removed in a future version."
+)]
+// pub mod battery;
 /// CPU monitoring functionality
-pub mod cpu;
+#[deprecated(
+    since = "0.2.0-alpha.1",
+    note = "Use darwin_metrics::cpu instead. This will be removed in a future version."
+)]
+// pub mod cpu;
 /// Disk monitoring functionality
 pub mod disk;
 /// GPU monitoring functionality
-pub mod gpu;
+#[deprecated(
+    since = "0.2.0-alpha.1",
+    note = "Use darwin_metrics::gpu instead. This will be removed in a future version."
+)]
+// pub mod gpu;
 /// Memory monitoring functionality
 pub mod memory;
 /// Temperature monitoring functionality

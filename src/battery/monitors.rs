@@ -171,7 +171,7 @@ impl PowerMonitorTrait for BatteryPowerMonitor {
     }
 
     async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
-        let power = BatteryPower { watts: 15.0, state: PowerState::Battery };
+        let power = BatteryPower { watts: 15.0 };
         Ok(Metric::new(power))
     }
 

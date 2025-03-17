@@ -17,7 +17,7 @@ pub mod prelude {
 
     // Import these from their respective modules
     pub use crate::hardware::disk::{DiskConfig, DiskType};
-    pub use crate::hardware::gpu::GpuMetrics;
+    pub use crate::gpu::GpuMetrics;
 
     // Re-export hardware-specific types
     pub use crate::battery::{
