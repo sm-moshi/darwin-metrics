@@ -48,39 +48,12 @@ pub mod iokit;
 pub(crate) mod iokit;
 
 // Hardware component modules
-/// Battery monitoring functionality
-#[deprecated(
-    since = "0.2.0-alpha.1",
-    note = "Use darwin_metrics::battery instead. This will be removed in a future version."
-)]
-// pub mod battery;
-/// CPU monitoring functionality
-#[deprecated(
-    since = "0.2.0-alpha.1",
-    note = "Use darwin_metrics::cpu instead. This will be removed in a future version."
-)]
-// pub mod cpu;
-/// Disk monitoring functionality
-#[deprecated(since = "0.2.0-alpha.1", note = "Use the `darwin_metrics::disk` module instead")]
-pub mod disk;
-/// GPU monitoring functionality
-#[deprecated(
-    since = "0.2.0-alpha.1",
-    note = "Use darwin_metrics::gpu instead. This will be removed in a future version."
-)]
-// pub mod gpu;
+// NOTE: These modules have been moved to the root level
+
 /// Memory monitoring functionality
 pub mod memory;
 /// Temperature monitoring functionality
 pub mod temperature;
-
-// Import core traits and types from prelude
-
-// Re-export hardware types
-
-// Re-export core traits for hardware monitoring
-
-// Re-export common types
 
 // Prelude module for convenient imports
 /// Prelude module for convenient imports of hardware monitoring types

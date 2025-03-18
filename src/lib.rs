@@ -122,10 +122,6 @@ pub use error::{Error, Result};
 // Re-export hardware monitoring types
 pub use hardware::{
     battery::Battery,
-    // Disk monitoring
-    disk::{Disk, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor},
-    // GPU monitoring
-    gpu::{Gpu, GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor},
     // IOKit
     iokit::IOKitImpl,
     // Memory monitoring
@@ -133,6 +129,12 @@ pub use hardware::{
     // Temperature monitoring
     temperature::{Fan, ThermalMetrics},
 };
+
+// Re-export disk monitoring types
+pub use disk::{Disk, DiskType, DiskConfig, DiskIO, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
+
+// Re-export GPU monitoring types
+pub use gpu::{Gpu, GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor};
 
 // Re-export CPU monitoring types
 pub use cpu::{CpuTemperatureMonitor, CpuUtilizationMonitor, CpuFrequencyMonitor, FrequencyMonitor, FrequencyMetrics, CPU};
@@ -225,8 +227,12 @@ pub use crate::{
         CpuMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
         TemperatureMonitor, UtilizationMonitor,
     },
-    hardware::disk::{DiskHealth, DiskMount, DiskPerformance},
-    hardware::gpu::{GpuMemory, GpuUtilization},
+    disk::{DiskHealth, DiskMount, DiskPerformance},
+    gpu::{GpuMemory, GpuUtilization},
     network::Interface,
     process::Process,
 };
+
+pub mod prelude {
+    pub use crate::disk::{Disk, DiskType, DiskConfig, DiskIO, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
+}

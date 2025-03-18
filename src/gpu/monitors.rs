@@ -11,12 +11,10 @@ use objc2::{msg_send, runtime::AnyObject};
 use async_trait::async_trait;
 
 use crate::{
-    core::metrics::Metric,
-    traits::{HardwareMonitor, UtilizationMonitor},
-    core::types::{Percentage, ByteSize},
+    core::{metrics::Metric, types::{Percentage, ByteSize}},
     error::{Error, Result},
-    hardware::gpu::types::GpuUtilization,
-    gpu::types::{GpuCharacteristics, GpuMemory},
+    gpu::types::{GpuUtilization, GpuCharacteristics, GpuMemory},
+    traits::{HardwareMonitor, UtilizationMonitor},
     utils::bindings::{IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT}
 };
 

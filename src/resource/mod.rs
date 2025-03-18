@@ -104,11 +104,17 @@ use std::{
 };
 
 use crate::{
-    hardware::disk::Disk,
-    hardware::{memory::Memory, memory::MemoryInfo, temperature::Temperature},
-    network::NetworkInfo,
+    core::types::Temperature,
+    disk::Disk,
+    hardware::{
+        iokit::IOKitImpl,
+        memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor},
+        temperature::ThermalMetrics,
+    },
+    network::{Interface, NetworkInfo},
     power::PowerInfo,
     process::Process,
+    system::{System, SystemInfo},
     Error, Result,
 };
 use async_trait::async_trait;
@@ -877,19 +883,20 @@ pub struct ResourceUpdate {
 }
 
 impl ResourceMonitor {
-    /// Creates a new ResourceMonitor with the specified update interval
+    /// Creates a new `ResourceMonitor` with the specified update interval
     ///
-    /// This method initializes a new resource monitor and starts a background task
-    /// that collects system metrics at the specified interval.
+    /// This method initializes a resource monitor that will collect system metrics
+    /// at the specified interval. The monitor runs as a background task and makes
+    /// updates available through the `next_update` method.
     ///
     /// # Arguments
     ///
-    /// * `update_interval` - The interval between updates
+    /// * `update_interval` - The interval at which to collect resource metrics
     ///
     /// # Returns
     ///
     /// * `Ok(ResourceMonitor)` - A new resource monitor instance
-    /// * `Err` - If the monitor could not be created
+    /// * `Err` - If initialization failed
     ///
     /// # Examples
     ///
@@ -899,8 +906,8 @@ impl ResourceMonitor {
     ///
     /// #[tokio::main]
     /// async fn main() -> darwin_metrics::Result<()> {
-    ///     // Create a monitor with 5-second update interval
-    ///     let monitor = ResourceMonitor::new(Duration::from_secs(5)).await?;
+    ///     let monitor = ResourceMonitor::new(Duration::from_secs(1)).await?;
+    ///     // Use the monitor...
     ///     Ok(())
     /// }
     /// ```
@@ -940,21 +947,18 @@ impl ResourceMonitor {
                     let memory = MemoryInfo::default(); // Placeholder until we have a proper conversion
 
                     let temperature = match tokio::task::spawn_blocking(|| {
-                        Temperature::new().unwrap_or_else(|_| {
-                            eprintln!("Failed to get temperature info");
-                            Temperature::default()
-                        })
+                        crate::core::types::Temperature::default()
                     })
                     .await
                     {
                         Ok(temp) => temp,
                         Err(_) => {
                             eprintln!("Failed to collect temperature info");
-                            Temperature::default()
+                            crate::core::types::Temperature::default()
                         },
                     };
 
-                    let network = NetworkInfo::new();
+                    let network = NetworkInfo::default();
                     let disk = Disk::with_details(
                         String::from("/dev/placeholder"),
                         String::from("/"),
@@ -962,8 +966,8 @@ impl ResourceMonitor {
                         0,
                         0,
                         0,
-                        crate::hardware::disk::DiskConfig {
-                            disk_type: crate::hardware::disk::DiskType::Unknown,
+                        crate::disk::DiskConfig {
+                            disk_type: crate::disk::DiskType::Unknown,
                             name: String::from("Placeholder"),
                             is_boot_volume: false,
                         },
@@ -1019,7 +1023,7 @@ impl ResourceMonitor {
     ///
     /// #[tokio::main]
     /// async fn main() -> darwin_metrics::Result<()> {
-    ///     let monitor = ResourceMonitor::new(Duration::from_secs(1)).await?;
+    ///     let mut monitor = ResourceMonitor::new(Duration::from_secs(1)).await?;
     ///
     ///     // Get the next update
     ///     match monitor.next_update().await {

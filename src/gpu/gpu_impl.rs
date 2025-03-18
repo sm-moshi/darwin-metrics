@@ -5,9 +5,13 @@ use std::time::SystemTime;
 use crate::{
     core::{
         metrics::{hardware::HardwareMonitor, Metric},
-        types::{ByteSize, Percentage},
+        types::{ByteSize, Percentage, Temperature},
     },
-    error::Result,
+    error::{Error, Result},
+    gpu::{
+        GpuCharacteristics, GpuInfo, GpuMetrics, GpuState,
+        types::{GpuMemoryMetrics, GpuUtilization},
+    },
     hardware::gpu::{
         monitors::{
             characteristics::GpuCharacteristicsMonitor, memory::GpuMemoryMonitor, temperature::GpuTemperatureMonitor,
@@ -15,6 +19,7 @@ use crate::{
         },
         types::{GpuCharacteristics, GpuMemory, GpuMetrics, GpuUtilization},
     },
+    utils::{ffi, io::get_proc_path},
 };
 
 /// GPU monitoring functionality
