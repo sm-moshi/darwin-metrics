@@ -1,6 +1,8 @@
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+use std::time::Duration;
+
 /// Represents a percentage value between 0.0 and 100.0
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -57,6 +59,12 @@ impl Temperature {
     }
 }
 
+impl Default for Temperature {
+    fn default() -> Self {
+        Self(0.0)
+    }
+}
+
 /// Represents a size in bytes
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -88,4 +96,74 @@ impl ByteSize {
     pub fn from_bytes(bytes: u64) -> Self {
         Self::new(bytes)
     }
+}
+
+/// Format options for byte sizes
+pub enum ByteSizeFormat {
+    /// Show bytes
+    Bytes,
+    /// Show kilobytes
+    Kilobytes,
+    /// Show megabytes
+    Megabytes,
+    /// Show gigabytes
+    Gigabytes,
+    /// Automatically select the best unit
+    Auto,
+}
+
+/// Format options for percentages
+pub enum PercentageFormat {
+    /// Show as decimal (0.0-1.0)
+    Decimal,
+    /// Show as percentage with symbol (0-100%)
+    WithSymbol,
+    /// Show as percentage without symbol (0-100)
+    WithoutSymbol,
+}
+
+/// Represents disk I/O metrics
+#[derive(Debug, Clone)]
+pub struct DiskIO {
+    /// Number of read operations
+    pub reads: u64,
+    /// Number of write operations
+    pub writes: u64,
+    /// Total bytes read
+    pub read_bytes: ByteSize,
+    /// Total bytes written
+    pub write_bytes: ByteSize,
+    /// Total time spent on read operations
+    pub read_time: Duration,
+    /// Total time spent on write operations
+    pub write_time: Duration,
+}
+
+/// Represents disk health information
+#[derive(Debug, Clone)]
+pub struct DiskHealth {
+    /// Whether SMART status is OK
+    pub smart_status: bool,
+    /// List of detected issues
+    pub issues: Vec<String>,
+}
+
+/// Represents disk space information
+#[derive(Debug, Clone, Copy)]
+pub struct DiskSpace {
+    /// Total disk space
+    pub total: ByteSize,
+    /// Used disk space
+    pub used: ByteSize,
+    /// Available disk space
+    pub available: ByteSize,
+}
+
+/// Represents data transfer rates
+#[derive(Debug, Clone, Copy)]
+pub struct Transfer {
+    /// Read transfer rate
+    pub read: ByteSize,
+    /// Write transfer rate
+    pub write: ByteSize,
 }

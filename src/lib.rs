@@ -113,6 +113,9 @@ pub mod battery;
 /// Disk monitoring module
 pub mod disk;
 
+/// Memory monitoring module
+pub mod memory;
+
 // Re-export core functionality through the prelude
 pub use core::prelude::*;
 
@@ -124,14 +127,22 @@ pub use hardware::{
     battery::Battery,
     // IOKit
     iokit::IOKitImpl,
-    // Memory monitoring
-    memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor},
     // Temperature monitoring
     temperature::{Fan, ThermalMetrics},
 };
 
-// Re-export disk monitoring types
-pub use disk::{Disk, DiskType, DiskConfig, DiskIO, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
+// Re-export memory monitoring types
+pub use memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor, PageStates, PressureLevel, SwapUsage};
+
+// Re-export disk module types
+pub use crate::disk::{Disk, DiskType, DiskConfig};
+pub use crate::core::types::{DiskIO, DiskHealth, DiskSpace};
+
+// Re-export disk module traits
+pub use crate::traits::hardware::{
+    DiskHealthMonitor, DiskMountMonitor, DiskIOMonitor,
+    DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor
+};
 
 // Re-export GPU monitoring types
 pub use gpu::{Gpu, GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor};
@@ -235,4 +246,19 @@ pub use crate::{
 
 pub mod prelude {
     pub use crate::disk::{Disk, DiskType, DiskConfig, DiskIO, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
+}
+
+// Re-export types from disk module
+pub use crate::disk::{Disk, DiskType, DiskConfig};
+pub use crate::core::types::{DiskIO, DiskHealth, DiskSpace};
+pub use crate::traits::{DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
+
+pub mod ffi {
+    // Re-export FFI types for C interop
+    pub use crate::utils::ffi::*;
+    
+    // Re-export hardware structs for FFI
+    pub use crate::hardware::iokit::ffi::*;
+    pub use crate::core::types::{ByteSize, Percentage, Temperature};
+    pub use crate::disk::{DiskHealth, DiskMount, DiskPerformance};
 }

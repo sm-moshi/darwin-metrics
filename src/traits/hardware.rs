@@ -1,5 +1,5 @@
 use crate::core::metrics::Metric;
-use crate::core::types::{Percentage, Temperature};
+use crate::core::types::{ByteSize, DiskIO, Percentage, Temperature, Transfer};
 use crate::error::Result;
 use crate::{
     hardware::temperature::{Fan, ThermalMetrics},
@@ -598,4 +598,35 @@ pub trait ThermalMonitor {
 
     /// Get thermal metrics for all components
     async fn get_thermal_metrics(&self) -> Result<ThermalMetrics>;
+}
+
+/// Trait for monitoring disk IO metrics
+#[async_trait]
+pub trait DiskIOMonitor: HardwareMonitor {
+    /// Get current disk I/O metrics
+    async fn get_io(&self) -> Result<DiskIO>;
+    /// Get current transfer rate in bytes per second
+    async fn get_transfer_rate(&self) -> Result<Transfer>;
+}
+
+/// Trait for monitoring disk storage metrics
+#[async_trait]
+pub trait DiskStorageMonitor: StorageMonitor {
+    /// Get total disk space
+    async fn total_space(&self) -> Result<ByteSize>;
+    /// Get used disk space
+    async fn used_space(&self) -> Result<ByteSize>;
+    /// Get available disk space
+    async fn available_space(&self) -> Result<ByteSize>;
+    /// Get disk usage percentage
+    async fn usage_percentage(&self) -> Result<Percentage>;
+}
+
+/// Trait for monitoring disk utilization
+#[async_trait]
+pub trait DiskUtilizationMonitor: UtilizationMonitor {
+    /// Get read utilization percentage
+    async fn get_read_utilization(&self) -> Result<Percentage>;
+    /// Get write utilization percentage
+    async fn get_write_utilization(&self) -> Result<Percentage>;
 } 

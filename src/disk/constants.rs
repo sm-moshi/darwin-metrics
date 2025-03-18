@@ -22,6 +22,9 @@ pub const MNT_CPROTECT: u32 = 0x00000080;
 /// Default update interval in milliseconds
 pub const DEFAULT_UPDATE_INTERVAL_MS: u64 = 1000;
 
+/// Default disk update interval
+pub const DISK_UPDATE_INTERVAL: std::time::Duration = std::time::Duration::from_millis(DEFAULT_UPDATE_INTERVAL_MS);
+
 /// Default buffer sizes
 pub const DEFAULT_BUFFER_SIZE: usize = 4096;
 pub const MAX_DEVICE_NAME_LEN: usize = 128;

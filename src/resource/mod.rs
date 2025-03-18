@@ -108,9 +108,9 @@ use crate::{
     disk::Disk,
     hardware::{
         iokit::IOKitImpl,
-        memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor},
         temperature::ThermalMetrics,
     },
+    memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor},
     network::{Interface, NetworkInfo},
     power::PowerInfo,
     process::Process,
@@ -928,7 +928,7 @@ impl ResourceMonitor {
                 let now = Instant::now();
                 if now.duration_since(last_update) >= update_interval {
                     // Use tokio::spawn_blocking for potentially blocking FFI operations
-                    let memory_info = match tokio::task::spawn_blocking(|| {
+                    let _memory_info = match tokio::task::spawn_blocking(|| {
                         Memory::new().unwrap_or_else(|_| {
                             eprintln!("Failed to get memory info");
                             Memory::default()
@@ -947,14 +947,14 @@ impl ResourceMonitor {
                     let memory = MemoryInfo::default(); // Placeholder until we have a proper conversion
 
                     let temperature = match tokio::task::spawn_blocking(|| {
-                        crate::core::types::Temperature::default()
+                        crate::core::types::Temperature::new(0.0)
                     })
                     .await
                     {
                         Ok(temp) => temp,
                         Err(_) => {
                             eprintln!("Failed to collect temperature info");
-                            crate::core::types::Temperature::default()
+                            crate::core::types::Temperature::new(0.0)
                         },
                     };
 

@@ -29,33 +29,33 @@ impl Disk {
         DiskStorageMonitor::get_all_disks()
     }
 
-    /// Creates a storage monitor for this disk
-    pub fn storage_monitor(&self) -> DiskStorageMonitor {
-        DiskStorageMonitor::new(self.clone())
+    /// Creates a disk health monitor for this disk
+    pub fn health_monitor(&self) -> DiskHealthMonitorImpl {
+        DiskHealthMonitorImpl::new(self.clone())
     }
 
-    /// Creates an I/O monitor for this disk
-    pub fn io_monitor(&self) -> DiskIOMonitor {
-        DiskIOMonitor::new(self.clone())
+    /// Creates a disk I/O monitor for this disk
+    pub fn io_monitor(&self) -> DiskIOMonitorImpl {
+        DiskIOMonitorImpl::new(self.clone())
     }
 
-    /// Creates a utilization monitor for this disk
-    pub fn utilization_monitor(&self) -> DiskUtilizationMonitor {
-        DiskUtilizationMonitor::new(self.clone())
+    /// Creates a disk mount monitor for this disk
+    pub fn mount_monitor(&self) -> DiskMountMonitorImpl {
+        DiskMountMonitorImpl::new(self.clone())
     }
 
-    /// Creates a performance monitor for this disk
-    pub fn performance_monitor(&self) -> impl DiskPerformanceMonitor {
-        crate::hardware::disk::monitors::DiskPerformanceMonitor::new(self.clone())
+    /// Creates a disk performance monitor for this disk
+    pub fn performance_monitor(&self) -> DiskPerformanceMonitorImpl {
+        DiskPerformanceMonitorImpl::new(self.clone())
     }
 
-    /// Creates a health monitor for this disk
-    pub fn health_monitor(&self) -> impl DiskHealthMonitor {
-        crate::hardware::disk::monitors::DiskHealthMonitor::new(self.device.clone())
+    /// Creates a disk storage monitor for this disk
+    pub fn storage_monitor(&self) -> DiskStorageMonitorImpl {
+        DiskStorageMonitorImpl::new(self.clone())
     }
 
-    /// Creates a mount monitor for this disk
-    pub fn mount_monitor(&self) -> impl DiskMountMonitor {
-        crate::hardware::disk::monitors::DiskMountMonitor::new(self.device.clone())
+    /// Creates a disk utilization monitor for this disk
+    pub fn utilization_monitor(&self) -> DiskUtilizationMonitorImpl {
+        DiskUtilizationMonitorImpl::new(self.clone())
     }
 }

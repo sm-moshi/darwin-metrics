@@ -1,26 +1,28 @@
-//! Disk monitoring module
-//!
-//! This module provides disk metrics and monitoring for macOS systems.
-//!
-//! It includes functionality for gathering disk information, monitoring
-//! disk performance, and tracking storage usage.
+//! This module provides disk metrics for macOS.
+//! 
+//! It includes monitors for disk IO, mount points, storage, utilization, and health.
 
-// Re-export disk types and constants
-pub mod constants;
-pub mod types;
+mod constants;
+mod types;
+pub use constants::*;
+pub use types::*;
+
 mod disk_impl;
+pub use disk_impl::*;
 
-// Re-export monitors
-pub mod monitors;
+// Consolidated monitors
+mod monitors;
 pub use monitors::*;
 
-// Re-export types
-pub use types::*;
+// Re-exports for disk-specific traits
+pub use crate::traits::hardware::{
+    DiskHealthMonitor, DiskMountMonitor, DiskIOMonitor, 
+    DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor
+};
 
 // Re-export core traits from the traits module
 pub use crate::traits::{
-    ByteMetricsMonitor, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor,
-    HardwareMonitor, StorageMonitor, UtilizationMonitor,
+    ByteMetricsMonitor, HardwareMonitor, StorageMonitor, UtilizationMonitor,
 };
 
 // Import IOKit for disk monitoring
@@ -37,7 +39,7 @@ pub fn get_info() -> Result<Disk> {
     
     #[cfg(not(any(test, feature = "testing")))]
     {
-        crate::disk::monitors::DiskStorageMonitor::get_root_info()
+        crate::traits::hardware::DiskStorageMonitor::get_root_info()
     }
 }
 
@@ -52,6 +54,6 @@ pub fn get_all_disks() -> Result<Vec<Disk>> {
     
     #[cfg(not(any(test, feature = "testing")))]
     {
-        crate::disk::monitors::DiskStorageMonitor::get_all_disks()
+        crate::traits::hardware::DiskStorageMonitor::get_all_disks()
     }
 } 
