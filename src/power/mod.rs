@@ -162,13 +162,32 @@ pub enum PowerError {
     /// A service-related error occurred
     #[error("Service error: {0}")]
     ServiceError(String),
+
+    /// An I/O error occurred
+    #[error("I/O error")]
+    IOError,
+
+    /// A system error occurred
+    #[error("System error")]
+    SystemError,
+
+    /// An invalid argument was provided
+    #[error("Invalid argument")]
+    InvalidArgument,
+
+    /// An unsupported operation was attempted
+    #[error("Unsupported operation")]
+    UnsupportedOperation,
 }
 
 impl From<Error> for PowerError {
     fn from(err: Error) -> Self {
         match err {
-            Error::InvalidData { message, details } => PowerError::InvalidData,
-            Error::ServiceNotFound { message } => PowerError::ServiceError(message),
+            Error::IoError { source: _ } => PowerError::IOError,
+            Error::SystemError { operation: _, message: _ } => PowerError::SystemError,
+            Error::InvalidData { message: _, details: _ } => PowerError::InvalidData,
+            Error::InvalidArgument { context: _, value: _ } => PowerError::InvalidArgument,
+            Error::NotImplemented { feature: _ } => PowerError::UnsupportedOperation,
             _ => PowerError::SystemCallFailed,
         }
     }
@@ -253,7 +272,7 @@ pub enum PowerState {
 /// * `gpu` - GPU power consumption in watts (if available)
 /// * `dram` - Memory subsystem power consumption in watts (if available)
 /// * `neural_engine` - Neural Engine power consumption in watts (Apple Silicon only)
-/// * `power_state` - Current power state (Battery, AC, Charging, Unknown)
+/// * `power_state` - Current power state
 /// * `battery_percentage` - Battery percentage if applicable
 /// * `power_impact` - Power impact scoring (higher means more power drain)
 #[derive(Debug, Clone)]

@@ -187,10 +187,13 @@ pub use resource::{Cache, ResourceManager, ResourceMonitor, ResourceMonitoring, 
 
 // Re-export trait types
 pub use traits::{
-    ByteMetricsMonitor, CpuMonitor, DiskHealthMonitor, DiskIOMonitor, DiskMountMonitor, DiskPerformanceMonitor,
-    DiskStorageMonitor, DiskUtilizationMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
+    ByteMetricsMonitor, CpuMonitor, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor,
+    GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
     RateMonitor, StorageMonitor, TemperatureMonitor, UtilizationMonitor,
 };
+
+// Also re-export disk-specific traits via prelude
+pub use crate::traits::hardware::{DiskIOMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
 
 // ===== Sync API Helpers =====
 

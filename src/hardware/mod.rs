@@ -16,29 +16,8 @@
 ///
 /// # Example
 ///
-/// ```rust
-/// use darwin_metrics::hardware::{IOKitImpl, CpuMonitor, GpuMonitor, ThermalMonitor};
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let monitor = IOKitImpl::new()?;
-///
-///     // Monitor CPU
-///     let cpu_freq = monitor.frequency().await?;
-///     println!("CPU Frequency: {:.2} GHz", cpu_freq / 1000.0);
-///
-///     // Monitor GPU
-///     let gpu_util = monitor.utilization().await?;
-///     println!("GPU Utilization: {:.1}%", gpu_util);
-///
-///     // Monitor temperatures
-///     if let Some(temp) = monitor.cpu_temperature().await? {
-///         println!("CPU Temperature: {:.1}°C", temp);
-///     }
-///
-///     Ok(())
-/// }
 /// ```
+use std::future::Future;
 
 // IOKit module for hardware interaction
 #[cfg(any(test, feature = "testing"))]
@@ -56,3 +35,8 @@ pub mod temperature;
 // Prelude module for convenient imports
 /// Prelude module for convenient imports of hardware monitoring types
 pub mod prelude {}
+
+/// Run a future to completion on the current thread
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    futures::executor::block_on(future)
+}

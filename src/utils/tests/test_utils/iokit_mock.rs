@@ -197,7 +197,7 @@ impl MockIOKit {
 
 impl IOKit for MockIOKit {
     fn get_service_matching(&self, _name: &str) -> Result<Option<ThreadSafeAnyObject>> {
-        Ok(Some(ThreadSafeAnyObject::new(NSObject::new())))
+        Ok(Some(ThreadSafeAnyObject::new(1)))
     }
 
     fn io_service_matching(&self, _name: &str) -> Result<SafeDictionary> {
@@ -205,7 +205,7 @@ impl IOKit for MockIOKit {
     }
 
     fn io_service_get_matching_service(&self, _matching_dict: &SafeDictionary) -> Result<ThreadSafeAnyObject> {
-        Err(Error::NotAvailable { resource: "IOService".to_string(), reason: "Mock implementation".to_string() })
+        Ok(ThreadSafeAnyObject::new(1))
     }
 
     fn io_registry_entry_create_cf_properties(&self, _entry: &ThreadSafeAnyObject) -> Result<SafeDictionary> {
@@ -316,10 +316,7 @@ impl IOKit for MockIOKit {
     }
 
     fn io_registry_entry_get_parent_entry(&self, _entry: &ThreadSafeAnyObject) -> Result<ThreadSafeAnyObject> {
-        Err(Error::NotAvailable {
-            resource: "Registry entry parent".to_string(),
-            reason: "Mock implementation".to_string(),
-        })
+        Ok(ThreadSafeAnyObject::new(1))
     }
 
     fn get_service_properties(&self, _service: &ThreadSafeAnyObject) -> Result<SafeDictionary> {

@@ -1,5 +1,21 @@
 // Only define these implementations when testing to avoid duplicate definitions
 #[cfg(any(test, feature = "testing"))]
+use crate::error::Result;
+#[cfg(any(test, feature = "testing"))]
+use crate::disk::{
+    monitors::{
+        DiskHealthMonitorImpl, DiskIOMonitorImpl, DiskMountMonitorImpl,
+        DiskPerformanceMonitorImpl, DiskStorageMonitorImpl, DiskUtilizationMonitorImpl,
+    },
+    types::{Disk, DiskType},
+};
+#[cfg(any(test, feature = "testing"))]
+use std::time::Instant;
+#[cfg(any(test, feature = "testing"))]
+use tokio;
+
+// Only define these implementations when testing to avoid duplicate definitions
+#[cfg(any(test, feature = "testing"))]
 impl Disk {
     /// Creates a new Disk instance with the given parameters
     pub fn new(device: String, mount_point: String, fs_type: String, total: u64, available: u64, used: u64) -> Self {
@@ -21,12 +37,22 @@ impl Disk {
 
     /// Gets information about the current system disk
     pub fn get_info() -> Result<Self> {
-        DiskStorageMonitor::get_root_info()
+        // Create a temporary monitor and call its methods directly
+        let monitor = DiskStorageMonitorImpl::new_root()?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        runtime.block_on(monitor.get_disk_info())
     }
 
     /// Gets all mounted disks on the system
     pub fn get_all() -> Result<Vec<Self>> {
-        DiskStorageMonitor::get_all_disks()
+        // Create a temporary monitor and call its methods directly
+        let monitor = DiskStorageMonitorImpl::new_root()?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        runtime.block_on(monitor.get_all_disks())
     }
 
     /// Creates a disk health monitor for this disk

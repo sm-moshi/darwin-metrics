@@ -358,9 +358,9 @@ pub unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
     // "hw.cpufrequency_min" gives min frequency, "hw.cpufrequency_max" gives max
 
     // Convert Hz to MHz
-    let current_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency")? / 1_000_000.0;
-    let min_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency_min")? / 1_000_000.0;
-    let max_frequency = fetch_sysctl_frequency_by_name("hw.cpufrequency_max")? / 1_000_000.0;
+    let current_frequency = unsafe { fetch_sysctl_frequency_by_name("hw.cpufrequency")? } / 1_000_000.0;
+    let min_frequency = unsafe { fetch_sysctl_frequency_by_name("hw.cpufrequency_min")? } / 1_000_000.0;
+    let max_frequency = unsafe { fetch_sysctl_frequency_by_name("hw.cpufrequency_max")? } / 1_000_000.0;
 
     // For available frequencies, we use min/max and interpolate since macOS doesn't provide a direct way to get all
     // steps
@@ -376,7 +376,12 @@ pub unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
         ];
     }
 
-    Ok(CpuInfo { current_frequency, min_frequency, max_frequency, available_frequencies })
+    Ok(CpuInfo {
+        current_frequency,
+        min_frequency,
+        max_frequency,
+        available_frequencies,
+    })
 }
 
 /// Fetches a frequency value from sysctl by name.
@@ -400,17 +405,23 @@ pub unsafe fn fetch_sysctl_frequency_by_name(name: &str) -> Result<f64> {
     let mut freq: u64 = 0;
     let mut size = std::mem::size_of::<u64>();
 
-    let result = libc::sysctlbyname(
-        c_name.as_ptr(),
-        &mut freq as *mut _ as *mut libc::c_void,
-        &mut size,
-        std::ptr::null_mut(),
-        0,
-    );
+    let result = unsafe {
+        libc::sysctlbyname(
+            c_name.as_ptr(),
+            &mut freq as *mut _ as *mut libc::c_void,
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
 
-    if result != 0 {
-        return Err(Error::system(format!("Failed to fetch CPU frequency via sysctlbyname: {}", name)));
+    if result == 0 {
+        Ok(freq as f64)
+    } else {
+        Err(Error::system(format!(
+            "Failed to get frequency from sysctl for {}: {}",
+            name,
+            std::io::Error::last_os_error()
+        )))
     }
-
-    Ok(freq as f64)
 }

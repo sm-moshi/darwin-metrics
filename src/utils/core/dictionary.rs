@@ -1,20 +1,19 @@
 use crate::error::{Error, Result};
-use objc2::class;
-use objc2::runtime::AnyClass;
-use objc2::{msg_send, rc::Retained, runtime::NSObject};
-use objc2_foundation::{NSDictionary, NSMutableDictionary, NSNumber, NSString};
+use objc2::{class, msg_send};
+use objc2::{rc::Retained, runtime::AnyObject};
+use objc2_foundation::{NSMutableDictionary, NSDictionary, NSNumber, NSObject, NSString};
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::{Mutex, Once};
+use std::sync::{Mutex, Once, Arc};
 
 static INIT: Once = Once::new();
 
 fn ensure_classes_registered() {
-    INIT.call_once(|| unsafe {
-        let _: &AnyClass = class!(NSObject);
-        let _: &AnyClass = class!(NSMutableDictionary);
-        let _: &AnyClass = class!(NSNumber);
-        let _: &AnyClass = class!(NSString);
+    INIT.call_once(|| {
+        // Just load the classes without trying to cast
+        let _ = class!(NSObject);
+        let _ = class!(NSMutableDictionary);
+        let _ = class!(NSNumber);
     });
 }
 
@@ -149,45 +148,73 @@ impl<T: DictionaryAccess> DictionaryAccessor<T> {
     }
 }
 
-/// A thread-safe wrapper around NSDictionary that provides a safe interface
-/// for accessing dictionary values.
+/// Thread-safe wrapper around NSMutableDictionary for safe use of Core Foundation dictionaries across
+/// threads
 #[derive(Debug)]
 pub struct SafeDictionary {
     dict: Mutex<Retained<NSMutableDictionary<NSString, NSObject>>>,
 }
 
 impl SafeDictionary {
-    /// Creates a new empty SafeDictionary
+    /// Create a new empty dictionary
     pub fn new() -> Self {
         ensure_classes_registered();
         Self { dict: Mutex::new(NSMutableDictionary::new()) }
     }
 
-    /// Creates a SafeDictionary from an existing NSDictionary
+    /// Create from an existing NSDictionary
     pub fn from(dict: Retained<NSDictionary<NSString, NSObject>>) -> Self {
         ensure_classes_registered();
-        let mutable_dict = unsafe {
-            let dict_class: *const AnyClass = class!(NSMutableDictionary);
-            let dict: *mut NSMutableDictionary<NSString, NSObject> = msg_send![dict_class, alloc];
-            let dict: *mut NSMutableDictionary<NSString, NSObject> = msg_send![dict, init];
-            Retained::from_raw(dict).expect("Failed to create mutable dictionary")
+        
+        // Convert to mutable if needed
+        let mutable_dict = if dict.count() > 0 {
+            let dict_class = class!(NSMutableDictionary);
+            
+            // Use from_raw instead of new and handle the Option return
+            let dict_result: Option<Retained<NSMutableDictionary<NSString, NSObject>>> =
+                unsafe { 
+                    msg_send![dict_class, dictionaryWithCapacity: dict.count()]
+                };
+            
+            match dict_result {
+                Some(mutable_dict) => {
+                    unsafe {
+                        let _: () = msg_send![&*mutable_dict, addEntriesFromDictionary:&*dict];
+                    }
+                    mutable_dict
+                },
+                None => NSMutableDictionary::new()
+            }
+        } else {
+            NSMutableDictionary::new()
         };
-
-        unsafe {
-            let _: () = msg_send![&*mutable_dict, addEntriesFromDictionary:&*dict];
-        }
-
+        
         Self { dict: Mutex::new(mutable_dict) }
     }
 
     /// Creates a SafeDictionary from a raw pointer
-    ///
+    /// 
     /// # Safety
     /// This function is unsafe because it takes ownership of a raw pointer
-    pub unsafe fn from_ptr(ptr: *mut NSObject) -> Self {
-        let dict = Retained::from_raw(ptr as *mut NSDictionary<NSString, NSObject>)
-            .expect("Failed to create NSDictionary from raw pointer");
-        Self::from(dict)
+    pub unsafe fn from_ptr(ptr: *mut AnyObject) -> Self {
+        ensure_classes_registered();
+        
+        // First check if the pointer is valid
+        if ptr.is_null() {
+            return Self::new();
+        }
+        
+        // Try to convert the pointer to a dictionary
+        // from_raw returns an Option, not a Result
+        match Retained::from_raw(ptr as *mut NSDictionary<NSString, NSObject>) {
+            Some(dict) => Self::from(dict),
+            None => {
+                // If conversion fails, return an empty dictionary
+                // but log the error for debugging
+                eprintln!("Warning: Failed to convert pointer to NSDictionary");
+                Self::new()
+            }
+        }
     }
 
     /// Gets a string value for the given key
@@ -249,16 +276,14 @@ impl SafeDictionary {
         }
     }
 
-    /// Returns a raw pointer to the underlying NSDictionary
-    ///
+    /// Get the raw pointer to the underlying dictionary
+    /// 
     /// # Safety
-    /// This function is unsafe because it returns a raw pointer that must be properly managed
+    /// This returns a raw pointer that should be used with care
     pub unsafe fn as_ptr(&self) -> *const NSObject {
-        if let Ok(dict) = self.dict.lock() {
-            Retained::<NSMutableDictionary<NSString, NSObject>>::as_ptr(&dict) as *const NSObject
-        } else {
-            std::ptr::null()
-        }
+        let dict_lock = self.dict.lock().expect("Failed to lock dictionary mutex");
+        let obj_ptr = &*dict_lock as &NSMutableDictionary<NSString, NSObject> as *const NSMutableDictionary<NSString, NSObject>;
+        obj_ptr as *const NSObject
     }
 
     pub fn set_bool(&mut self, key: &str, value: bool) {

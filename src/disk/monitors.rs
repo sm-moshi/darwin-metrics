@@ -6,6 +6,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use log::trace;
 use tokio::time::sleep;
 
 use crate::{
@@ -555,9 +556,9 @@ impl DiskStorageMonitor for DiskStorageMonitorImpl {
     }
 
     async fn usage_percentage(&self) -> Result<Percentage> {
-        let space = self.get_space_info().await?;
-        let percentage = space.used.as_bytes() as f64 / space.total.as_bytes() as f64 * 100.0;
-        Ok(Percentage::from_f64(percentage))
+        let used = self.disk.used as f64;
+        let total = self.disk.total as f64;
+        Ok(Percentage::from_f64(used / total * 100.0))
     }
 }
 

@@ -115,7 +115,7 @@ pub struct timeval {
 
 // sysctl function for system information
 #[link(name = "System", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     /// Get or set system information
     pub fn sysctl(
         name: *const c_int,
@@ -397,7 +397,7 @@ pub mod reachability_flags {
     pub const K_SC_NETWORK_REACHABILITY_FLAGS_IS_WWAN: u32 = 1 << 18;
 }
 
-extern "C" {
+unsafe extern "C" {
     /// Get network interface addresses
     pub fn getifaddrs(ifap: *mut *mut ifaddrs) -> c_int;
     /// Free network interface addresses
@@ -451,7 +451,7 @@ extern "C" {
 pub type MTLDeviceRef = *mut c_void;
 
 #[link(name = "Metal", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     /// Creates and returns the default system Metal device Used to access GPU information including name and
     /// capabilities
     pub fn MTLCreateSystemDefaultDevice() -> MTLDeviceRef;
@@ -464,7 +464,7 @@ extern "C" {
 /// Constants for proc_pidinfo
 pub const PROC_PIDTASKINFO: c_int = 4;
 
-extern "C" {
+unsafe extern "C" {
     /// Get system load averages for the past 1, 5, and 15 minutes
     pub fn getloadavg(loads: *mut f64, nelem: c_int) -> c_int;
 
@@ -905,7 +905,7 @@ impl Default for SMCKeyData_t {
 // Mach host functions
 //------------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     /// Kernel page size
     pub static vm_kernel_page_size: u32;
 
@@ -926,7 +926,7 @@ extern "C" {
 //------------------------------------------------------------------------------
 
 #[link(name = "IOKit", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     /// Get matching service from IOKit registry
     pub fn IOServiceGetMatchingService(masterPort: u32, matchingDictionary: *mut ffi_c_void) -> u32;
     /// Create matching dictionary for IOKit service
@@ -962,7 +962,7 @@ extern "C" {
 pub const MNT_NOWAIT: c_int = 2;
 
 #[link(name = "System", kind = "framework")]
-extern "C" {
+unsafe extern "C" {
     /// Get statistics about a mounted filesystem
     pub fn statfs(path: *const c_char, buf: *mut Statfs) -> c_int;
     /// Get statistics about all mounted filesystems
