@@ -629,4 +629,4 @@ pub trait DiskUtilizationMonitor: UtilizationMonitor {
     async fn get_read_utilization(&self) -> Result<Percentage>;
     /// Get write utilization percentage
     async fn get_write_utilization(&self) -> Result<Percentage>;
-} 
+}

@@ -1,5 +1,5 @@
 use super::super::TEST_MUTEX;
-use crate::hardware::gpu::{Gpu, GpuCharacteristicsMonitor, HardwareMonitor};
+use crate::gpu::{Gpu, GpuCharacteristicsMonitor, HardwareMonitor};
 
 #[tokio::test]
 async fn test_characteristics_monitor_creation() {

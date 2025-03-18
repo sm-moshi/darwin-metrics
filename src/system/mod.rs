@@ -2,8 +2,8 @@ use std::{ffi::c_void, time::Duration};
 use thiserror::Error;
 
 use crate::{
-    core::metrics::hardware::{SystemInfoMonitor, SystemLoadMonitor, SystemResourceMonitor, SystemUptimeMonitor},
     error::{Error, Result},
+    traits::{SystemInfoMonitor, SystemLoadMonitor, SystemResourceMonitor, SystemUptimeMonitor},
     utils::bindings::{
         kinfo_proc, sysctl,
         sysctl_constants::{

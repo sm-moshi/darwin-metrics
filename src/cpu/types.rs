@@ -141,4 +141,4 @@ pub struct UtilizationInfo {
     pub per_core: Vec<Percentage>,
     /// System load average (1, 5, 15 minutes)
     pub load_average: [f64; 3],
-} 
+}

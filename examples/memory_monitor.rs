@@ -1,4 +1,4 @@
-use darwin_metrics::hardware::memory::{Memory, PressureLevel};
+use darwin_metrics::memory::{Memory, PressureLevel};
 use std::error::Error;
 use std::thread;
 use std::time::Duration;

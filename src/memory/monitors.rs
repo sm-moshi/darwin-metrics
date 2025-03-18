@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        metrics::Metric,
-        types::Percentage,
-    },
+    core::{metrics::Metric, types::Percentage},
     error::{Error, Result},
     hardware::iokit::IOKit,
     memory::{
@@ -14,8 +11,8 @@ use crate::{
 };
 
 use async_trait::async_trait;
-use std::{ptr, sync::Arc};
 use std::time::Instant;
+use std::{ptr, sync::Arc};
 
 //
 // Base Memory Monitor
@@ -108,9 +105,9 @@ impl BaseMemoryMonitor {
     pub async fn calculate_pressure(&self, page_states: &PageStates, swap: &SwapUsage) -> Result<f64> {
         // Implementation would use a formula combining page states and swap activity
         // This is a simplified placeholder
-        let free_percentage = page_states.free as f64 / 
-            (page_states.active + page_states.inactive + page_states.wired + page_states.free) as f64;
-        
+        let free_percentage = page_states.free as f64
+            / (page_states.active + page_states.inactive + page_states.wired + page_states.free) as f64;
+
         let pressure = (1.0 - free_percentage) * 0.7 + swap.pressure * 0.3;
         Ok(pressure.min(1.0).max(0.0))
     }
@@ -132,8 +129,6 @@ impl MemoryUsageMonitor {
         Self { base: BaseMemoryMonitor::new(iokit) }
     }
 }
-
-use crate::traits::hardware::MemoryMonitor;
 
 #[async_trait]
 impl HardwareMonitor for MemoryUsageMonitor {
@@ -188,7 +183,7 @@ impl MemoryMonitor for MemoryUsageMonitor {
 
     async fn pressure_level(&self) -> Result<PressureLevel> {
         let percentage = self.pressure_percentage().await?;
-        
+
         // Use standard thresholds for determining pressure level
         if percentage >= 85.0 {
             Ok(PressureLevel::Critical)
@@ -308,7 +303,7 @@ impl MemoryMonitor for MemoryPressureMonitor {
 
     async fn pressure_level(&self) -> Result<PressureLevel> {
         let percentage = self.pressure_percentage().await?;
-        
+
         if percentage >= self.critical_threshold {
             Ok(PressureLevel::Critical)
         } else if percentage >= self.warning_threshold {
@@ -367,11 +362,7 @@ impl HardwareMonitor for SwapMonitor {
 
     async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
         let info = self.swap_usage().await?;
-        let percentage = if info.total > 0 {
-            (info.used as f64 / info.total as f64) * 100.0
-        } else {
-            0.0
-        };
+        let percentage = if info.total > 0 { (info.used as f64 / info.total as f64) * 100.0 } else { 0.0 };
         Ok(Metric::new(Percentage::from_f64(percentage)))
     }
 }
@@ -395,11 +386,7 @@ impl traits::MemoryMonitor for SwapMonitor {
 
     async fn usage_percentage(&self) -> Result<f64> {
         let swap = self.base.swap_usage().await?;
-        let percentage = if swap.total > 0 {
-            (swap.used as f64 / swap.total as f64) * 100.0
-        } else {
-            0.0
-        };
+        let percentage = if swap.total > 0 { (swap.used as f64 / swap.total as f64) * 100.0 } else { 0.0 };
         Ok(percentage)
     }
 }
@@ -412,7 +399,7 @@ impl MemoryMonitor for SwapMonitor {
 
     async fn pressure_level(&self) -> Result<PressureLevel> {
         let swap = self.base.swap_usage().await?;
-        
+
         // Determine pressure level based on swap usage
         if swap.pressure >= 0.85 {
             Ok(PressureLevel::Critical)
@@ -435,4 +422,4 @@ impl MemoryMonitor for SwapMonitor {
     async fn swap_usage(&self) -> Result<SwapUsage> {
         self.base.swap_usage().await
     }
-} 
+}

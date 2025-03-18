@@ -1,3 +1,4 @@
+use crate::memory::{Memory, MemoryMonitor};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
@@ -11,7 +12,6 @@ pub mod monitors;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hardware::memory::{Memory, MemoryMonitor};
 
     #[test]
     fn test_memory_creation() {

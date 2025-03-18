@@ -1,5 +1,5 @@
-use crate::traits;
 use crate::error::{Error, Result};
+use crate::traits;
 
 /// Types for GPU metrics
 pub mod types;
@@ -8,22 +8,22 @@ pub mod types;
 mod gpu_impl;
 
 /// GPU monitoring functionality
-mod monitors;
+pub mod monitors;
 
 /// Type alias for GPU monitor trait re-exports
 // Re-export types from the monitors module
 pub use monitors::{GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor};
 
 /// GPU monitoring and metrics module
-/// 
+///
 /// This module provides GPU metrics and monitoring for macOS systems.
-/// 
+///
 /// It includes functionality for gathering GPU information, monitoring
 /// GPU temperature, and reporting utilization.
 pub use gpu_impl::*;
 
 // Re-export types from the types module
-pub use types::{GpuCharacteristics, GpuState, GpuInfo, GpuMetrics, GpuMemory, GpuUtilization};
+pub use types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, GpuUtilization};
 
 /// GPU constants
 pub mod constants;

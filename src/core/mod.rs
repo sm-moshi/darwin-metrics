@@ -16,12 +16,7 @@ pub mod prelude {
     // Re-export core types
 
     // Import these from their respective modules
-    pub use crate::{
-        core::{
-            types::{ByteMetrics, RateMetrics},
-        },
-        disk::{DiskConfig, DiskType},
-    };
+    pub use crate::disk::{ByteMetrics, DiskConfig, DiskType};
     pub use crate::gpu::GpuMetrics;
 
     // Re-export hardware-specific types

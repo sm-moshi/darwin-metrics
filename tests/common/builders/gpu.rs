@@ -1,4 +1,4 @@
-use darwin_metrics::hardware::gpu::Gpu;
+use darwin_metrics::gpu::Gpu;
 
 /// Creates a test GPU instance
 pub fn create_test_gpu() -> Gpu {

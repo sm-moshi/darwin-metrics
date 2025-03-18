@@ -1,4 +1,4 @@
-use darwin_metrics::hardware::gpu::{
+use darwin_metrics::gpu::{
     Gpu, GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor, HardwareMonitor,
     MemoryMonitor, TemperatureMonitor, UtilizationMonitor,
 };

@@ -60,8 +60,5 @@ impl<T> MetricSeries<T> {
 
 // Re-export hardware monitoring traits through the prelude only
 // Deprecated - use traits module directly instead
-#[deprecated(
-    since = "0.2.0",
-    note = "Use `darwin_metrics::traits` instead."
-)]
+#[deprecated(since = "0.2.0", note = "Use `darwin_metrics::traits` instead.")]
 pub(crate) use hardware::{HardwareMonitor, TemperatureMonitor, UtilizationMonitor};

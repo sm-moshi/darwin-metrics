@@ -1,10 +1,16 @@
 use crate::{
-    core::metrics::{
-        hardware::{BatteryCapacityMonitorTrait, PowerStateMonitor},
-        Metric,
+    battery::types::{BatteryCapacity, BatteryPower},
+    core::{
+        metrics::{
+            hardware::{
+                BatteryCapacityMonitorTrait, BatteryHealthMonitor as BatteryHealthMonitorTrait, HardwareMonitor,
+                PowerMonitorTrait, PowerStateMonitor, TemperatureMonitor,
+            },
+            Metric,
+        },
+        types::Temperature,
     },
     error::Result,
-    battery::types::BatteryCapacity,
     power::PowerState,
 };
 use async_trait::async_trait;
@@ -94,8 +100,6 @@ impl PowerStateMonitor for BatteryCapacityMonitor {
 // Battery Health Monitor
 //=============================================================================
 
-use crate::core::metrics::hardware::BatteryHealthMonitor as BatteryHealthMonitorTrait;
-
 /// Monitor for battery health metrics
 pub struct BatteryHealthMonitor {
     device_id: String,
@@ -132,15 +136,6 @@ impl BatteryHealthMonitorTrait for BatteryHealthMonitor {
 //=============================================================================
 // Battery Power Monitor
 //=============================================================================
-
-use crate::{
-    core::metrics::{
-        hardware::PowerMonitorTrait,
-        Metric,
-    },
-    error::Result,
-    battery::types::BatteryPower,
-};
 
 /// Monitor for battery power consumption
 pub struct BatteryPowerMonitor {
@@ -200,13 +195,6 @@ impl PowerMonitorTrait for BatteryPowerMonitor {
 // Battery Temperature Monitor
 //=============================================================================
 
-use crate::{
-    core::metrics::hardware::TemperatureMonitor,
-    core::metrics::Metric,
-    core::types::Temperature,
-    error::Result,
-};
-
 /// Monitor for battery temperature
 pub struct BatteryTemperatureMonitor {
     device_id: String,
@@ -220,7 +208,7 @@ impl BatteryTemperatureMonitor {
 }
 
 #[async_trait]
-impl crate::core::metrics::hardware::HardwareMonitor for BatteryTemperatureMonitor {
+impl HardwareMonitor for BatteryTemperatureMonitor {
     type MetricType = Temperature;
 
     async fn name(&self) -> Result<String> {
@@ -242,4 +230,4 @@ impl crate::core::metrics::hardware::HardwareMonitor for BatteryTemperatureMonit
 }
 
 #[async_trait]
-impl TemperatureMonitor for BatteryTemperatureMonitor {} 
+impl TemperatureMonitor for BatteryTemperatureMonitor {}

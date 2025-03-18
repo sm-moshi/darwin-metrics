@@ -8,7 +8,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use darwin_metrics::core::metrics::Process;
-use darwin_metrics::hardware::memory::types::MemoryInfo;
+use darwin_metrics::memory::types::MemoryInfo;
 use darwin_metrics::core::types::ProcessIOStats;
 use darwin_metrics::error::{Error, Result};
 

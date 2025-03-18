@@ -1,21 +1,24 @@
 use std::ffi::CString;
-use std::ptr;
-use tokio::task;
-use std::ptr::null_mut as null_ptr;
-use std::os::raw::c_void;
 use std::mem;
+use std::os::raw::c_void;
+use std::ptr;
+use std::ptr::null_mut as null_ptr;
+use tokio::task;
 
+use async_trait::async_trait;
 use metal::Device as MTLDevice;
 use objc2::rc::autoreleasepool;
 use objc2::{msg_send, runtime::AnyObject};
-use async_trait::async_trait;
 
 use crate::{
-    core::{metrics::Metric, types::{Percentage, ByteSize}},
+    core::{
+        metrics::Metric,
+        types::{ByteSize, Percentage},
+    },
     error::{Error, Result},
-    gpu::types::{GpuUtilization, GpuCharacteristics, GpuMemory},
+    gpu::types::{GpuCharacteristics, GpuMemory, GpuUtilization},
     traits::{HardwareMonitor, UtilizationMonitor},
-    utils::bindings::{IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT}
+    utils::bindings::{IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT},
 };
 
 //------------------------------------------------------------------------------
@@ -425,7 +428,7 @@ impl GpuUtilizationMonitor {
             let random_value = 50.0;
             random_value
         } else {
-            // If we don't have a Metal device, use a default value 
+            // If we don't have a Metal device, use a default value
             50.0
         };
 

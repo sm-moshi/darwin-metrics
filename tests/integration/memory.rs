@@ -1,4 +1,4 @@
-use darwin_metrics::hardware::memory::{Memory, MemoryMonitor, PressureLevel};
+use darwin_metrics::memory::{Memory, MemoryMonitor, PressureLevel};
 use std::time::Duration;
 
 #[tokio::test]

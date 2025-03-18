@@ -104,17 +104,14 @@ use std::{
 };
 
 use crate::{
-    core::types::Temperature,
+    core::types::{Percentage, Temperature},
     disk::Disk,
-    hardware::{
-        iokit::IOKitImpl,
-        temperature::ThermalMetrics,
-    },
+    hardware::{iokit::IOKitImpl, temperature::ThermalMetrics},
     memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor},
     network::{Interface, NetworkInfo},
     power::PowerInfo,
     process::Process,
-    system::{System, SystemInfo},
+    system::System,
     Error, Result,
 };
 use async_trait::async_trait;
@@ -946,17 +943,14 @@ impl ResourceMonitor {
                     // Convert Memory to MemoryInfo
                     let memory = MemoryInfo::default(); // Placeholder until we have a proper conversion
 
-                    let temperature = match tokio::task::spawn_blocking(|| {
-                        crate::core::types::Temperature::new(0.0)
-                    })
-                    .await
-                    {
-                        Ok(temp) => temp,
-                        Err(_) => {
-                            eprintln!("Failed to collect temperature info");
-                            crate::core::types::Temperature::new(0.0)
-                        },
-                    };
+                    let temperature =
+                        match tokio::task::spawn_blocking(|| crate::core::types::Temperature::new(0.0)).await {
+                            Ok(temp) => temp,
+                            Err(_) => {
+                                eprintln!("Failed to collect temperature info");
+                                crate::core::types::Temperature::new(0.0)
+                            },
+                        };
 
                     let network = NetworkInfo::default();
                     let disk = Disk::with_details(

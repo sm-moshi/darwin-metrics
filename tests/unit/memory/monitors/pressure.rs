@@ -1,5 +1,5 @@
 use super::super::TEST_MUTEX;
-use crate::hardware::memory::{Memory, MemoryMonitor, PressureLevel};
+use crate::memory::{Memory, MemoryMonitor, PressureLevel};
 
 #[tokio::test]
 async fn test_pressure_monitor_creation() {

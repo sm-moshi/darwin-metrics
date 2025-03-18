@@ -2,13 +2,16 @@
 #![cfg_attr(not(any(test, feature = "testing")), warn(missing_docs))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+//! # darwin-metrics
+//!
 //! A library for monitoring system metrics on macOS/Darwin systems.
 //!
 //! This crate provides a high-level interface for accessing various system metrics including CPU, GPU, memory, battery,
 //! and thermal information.
 //!
-//! This library provides a comprehensive set of tools for monitoring various system metrics on macOS systems. It
-//! includes support for:
+//! ## Features
+//!
+//! This library provides a comprehensive set of tools for monitoring various system metrics on macOS systems:
 //!
 //! - Battery monitoring
 //! - Disk usage and I/O statistics
@@ -21,7 +24,13 @@
 //! The library uses native macOS APIs through IOKit and other system frameworks to provide accurate and efficient
 //! monitoring capabilities.
 //!
-//! # Examples
+//! ## Async Support
+//!
+//! Many functions in this crate provide both synchronous and asynchronous versions. The synchronous versions
+//! (in the crate root) create a Tokio runtime under the hood. If you're already in an async context, use the
+//! async versions directly from their respective modules.
+//!
+//! ## Examples
 //!
 //! ```rust
 //! use darwin_metrics::hardware::iokit::IOKitImpl;
@@ -42,18 +51,18 @@
 //! }
 //! ```
 //!
-//! # Features
+//! ## Feature Flags
 //!
 //! - `serde`: Enables serialization/deserialization support for metric types
 //! - `async`: Enables async versions of metric collection methods
 //! - `unstable`: Enables experimental features that may change in future versions
 //!
-//! # Safety and Platform Compatibility
+//! ## Safety and Platform Compatibility
 //!
 //! This crate uses macOS-specific APIs through FFI and is only compatible with macOS systems. All FFI calls are wrapped
 //! in safe abstractions, with thorough error handling and resource cleanup.
 //!
-//! # Error Handling
+//! ## Error Handling
 //!
 //! Operations that can fail return a `Result<T, Error>` where `Error` is this crate's error type. The error type
 //! provides detailed information about what went wrong, including:
@@ -63,68 +72,73 @@
 //! - Permission errors
 //! - Resource unavailability
 //!
-//! # Thread Safety
+//! ## Thread Safety
 //!
 //! All types in this crate are thread-safe and can be shared across threads using standard synchronization primitives.
 //! Many types implement `Send` and `Sync` where appropriate.
 
+use std::sync::Arc;
+
+// ===== Module Declarations =====
+
+/// Error handling module.
 #[cfg_attr(any(test, feature = "mock"), doc = "Error handling module exposed for testing")]
 #[cfg_attr(not(any(test, feature = "mock")), doc = "Error handling module")]
 pub mod error;
 
+/// Utility functions and helpers.
 #[cfg_attr(any(test, feature = "mock"), doc = "Utility functions and helpers exposed for testing")]
 #[cfg_attr(not(any(test, feature = "mock")), doc = "Utility functions and helpers")]
 pub mod utils;
 
-/// Core functionality for metrics and monitoring
+/// Core functionality for metrics and monitoring.
 pub mod core;
 
-/// CPU monitoring functionality
+/// CPU monitoring functionality.
 pub mod cpu;
 
-/// GPU monitoring module
+/// GPU monitoring module.
 pub mod gpu;
 
+/// Hardware monitoring functionality.
 #[cfg_attr(any(test, feature = "mock"), doc = "Hardware monitoring functionality exposed for testing")]
 #[cfg_attr(not(any(test, feature = "mock")), doc = "Hardware monitoring functionality")]
 pub mod hardware;
 
-/// Network related metrics and monitoring
+/// Network related metrics and monitoring.
 pub mod network;
 
-/// Power related metrics and monitoring
+/// Power related metrics and monitoring.
 pub mod power;
 
-/// Process related metrics and monitoring
+/// Process related metrics and monitoring.
 pub mod process;
 
-/// Resource monitoring and management
+/// Resource monitoring and management.
 pub mod resource;
 
-/// System information functionality
+/// System information functionality.
 pub mod system;
 
-/// Traits for hardware monitoring
+/// Traits for hardware monitoring.
 pub mod traits;
 
-/// Battery monitoring module
+/// Battery monitoring module.
 pub mod battery;
 
-/// Disk monitoring module
+/// Disk monitoring module.
 pub mod disk;
 
-/// Memory monitoring module
+/// Memory monitoring module.
 pub mod memory;
 
-// Re-export core functionality through the prelude
-pub use core::prelude::*;
+// ===== Re-exports =====
 
 // Re-export error types
 pub use error::{Error, Result};
 
 // Re-export hardware monitoring types
 pub use hardware::{
-    battery::Battery,
     // IOKit
     iokit::IOKitImpl,
     // Temperature monitoring
@@ -132,77 +146,138 @@ pub use hardware::{
 };
 
 // Re-export memory monitoring types
-pub use memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor, PageStates, PressureLevel, SwapUsage};
-
-// Re-export disk module types
-pub use crate::disk::{Disk, DiskType, DiskConfig};
-pub use crate::core::types::{DiskIO, DiskHealth, DiskSpace};
-
-// Re-export disk module traits
-pub use crate::traits::hardware::{
-    DiskHealthMonitor, DiskMountMonitor, DiskIOMonitor,
-    DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor
+pub use memory::{
+    Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, PageStates, PressureLevel, SwapMonitor, SwapUsage,
 };
 
+// Re-export battery module
+pub use battery::Battery;
+
+// Re-export core types
+pub use core::{
+    metrics::Metric,
+    types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Temperature, Transfer},
+};
+
+// Re-export disk module types
+pub use disk::{Disk, DiskConfig, DiskMount, DiskPerformance, DiskType};
+
 // Re-export GPU monitoring types
-pub use gpu::{Gpu, GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor};
+pub use gpu::{
+    Gpu, GpuCharacteristicsMonitor, GpuMemory, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilization,
+    GpuUtilizationMonitor,
+};
 
 // Re-export CPU monitoring types
-pub use cpu::{CpuTemperatureMonitor, CpuUtilizationMonitor, CpuFrequencyMonitor, FrequencyMonitor, FrequencyMetrics, CPU};
-
-// Re-export system monitoring types
+pub use cpu::{
+    CpuFrequencyMonitor, CpuTemperatureMonitor, CpuUtilizationMonitor, FrequencyMetrics, FrequencyMonitor, CPU,
+};
 
 // Re-export network monitoring types
-pub use network::{NetworkInfo, NetworkInterface, NetworkMonitor};
+pub use network::{Interface, NetworkInfo, NetworkInterface, NetworkMonitor};
 
 // Re-export power monitoring types
 pub use power::{PowerInfo, PowerState};
 
 // Re-export process monitoring types
-pub use process::{
-    ProcessInfo,
-    // Use the correct path for ProcessIOMonitor
-};
+pub use process::{Process, ProcessInfo};
 
 // Re-export resource monitoring types
 pub use resource::{Cache, ResourceManager, ResourceMonitor, ResourceMonitoring, ResourcePool, ResourceUpdate};
 
-/// Creates a new Battery instance
+// Re-export trait types
+pub use traits::{
+    ByteMetricsMonitor, CpuMonitor, DiskHealthMonitor, DiskIOMonitor, DiskMountMonitor, DiskPerformanceMonitor,
+    DiskStorageMonitor, DiskUtilizationMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
+    RateMonitor, StorageMonitor, TemperatureMonitor, UtilizationMonitor,
+};
+
+// ===== Sync API Helpers =====
+
+/// Creates a new Battery instance.
 pub fn new_battery() -> Result<Battery> {
-    let iokit = Box::new(IOKitImpl::new()?);
-    Battery::new(iokit)
+    let iokit = Arc::new(IOKitImpl::new()?);
+    Ok(Battery::new(iokit))
 }
 
-/// Creates a new CPU instance
+/// Creates a new CPU instance.
 pub fn new_cpu() -> Result<cpu::CPU> {
     let iokit = Box::new(IOKitImpl::new()?);
     Ok(cpu::CPU::new(iokit))
 }
 
-/// Creates a new GPU instance
+/// Creates a new GPU instance.
 pub fn new_gpu() -> Result<Gpu> {
     Gpu::new()
 }
 
-/// Creates a new Memory instance
+/// Creates a new Memory instance.
 pub fn new_memory() -> Result<Memory> {
     Memory::new()
 }
 
-/// Creates a new Temperature instance
+/// Creates a new Temperature instance.
 pub fn new_temperature() -> Result<hardware::temperature::Temperature> {
     hardware::temperature::Temperature::new()
 }
 
-/// Get information about the root disk
-pub fn get_disk_info() -> Result<disk::Disk> {
-    disk::get_info()
+/// Get information about the root filesystem (/).
+///
+/// This function creates a new tokio runtime to execute the async operation.
+/// If you're already in an async context, use [`disk::get_root_disk()`] directly.
+pub fn get_root_disk() -> Result<disk::Disk> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(disk::get_root_disk())
 }
 
-/// Get information about all mounted disks
+/// Get information about all mounted disks.
+///
+/// This function creates a new tokio runtime to execute the async operation.
+/// If you're already in an async context, use [`disk::get_all_disks()`] directly.
 pub fn get_all_disks() -> Result<Vec<disk::Disk>> {
-    disk::get_all_disks()
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(disk::get_all_disks())
 }
+
+// ===== Prelude Module =====
+
+/// Commonly used types and traits re-exported for convenience.
+///
+/// This module follows the pattern of the standard library's prelude,
+/// providing the most commonly used components for convenient importing.
+pub mod prelude {
+    // Core types
+    pub use crate::core::metrics::Metric;
+    pub use crate::core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Temperature, Transfer};
+
+    // Hardware components
+    pub use crate::battery::Battery;
+    pub use crate::cpu::CPU;
+    pub use crate::disk::{
+        Disk, DiskConfig, DiskHealthMonitor, DiskIOMonitor, DiskMount, DiskMountMonitor, DiskPerformance,
+        DiskPerformanceMonitor, DiskStorageMonitor, DiskType, DiskUtilizationMonitor,
+    };
+    pub use crate::gpu::{Gpu, GpuMemory, GpuUtilization};
+    pub use crate::memory::{Memory, MemoryInfo, PageStates, PressureLevel, SwapUsage};
+    pub use crate::network::{Interface, NetworkInfo, NetworkInterface};
+
+    // Common monitoring traits
+    pub use crate::traits::{
+        ByteMetricsMonitor, CpuMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
+        RateMonitor, StorageMonitor, TemperatureMonitor, UtilizationMonitor,
+    };
+
+    // Result and Error types
+    pub use crate::error::{Error, Result};
+}
+
+/// FFI bindings and C-compatible interfaces.
+pub mod ffi {
+    // Re-export FFI types for C interop
+    pub use crate::utils::ffi::*;
+}
+
+// ===== Tests =====
 
 #[cfg(test)]
 mod tests {
@@ -225,40 +300,4 @@ mod tests {
         let key = SmcKey::from_chars(['T', 'A', '0', 'P']);
         assert_eq!(key.to_string(), "TA0P");
     }
-}
-
-// Re-export types for convenience
-pub use crate::{
-    core::{
-        metrics::Metric,
-        types::{Percentage, Temperature},
-    },
-    // Use traits module instead of core::metrics::hardware
-    traits::{
-        CpuMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
-        TemperatureMonitor, UtilizationMonitor,
-    },
-    disk::{DiskHealth, DiskMount, DiskPerformance},
-    gpu::{GpuMemory, GpuUtilization},
-    network::Interface,
-    process::Process,
-};
-
-pub mod prelude {
-    pub use crate::disk::{Disk, DiskType, DiskConfig, DiskIO, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
-}
-
-// Re-export types from disk module
-pub use crate::disk::{Disk, DiskType, DiskConfig};
-pub use crate::core::types::{DiskIO, DiskHealth, DiskSpace};
-pub use crate::traits::{DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
-
-pub mod ffi {
-    // Re-export FFI types for C interop
-    pub use crate::utils::ffi::*;
-    
-    // Re-export hardware structs for FFI
-    pub use crate::hardware::iokit::ffi::*;
-    pub use crate::core::types::{ByteSize, Percentage, Temperature};
-    pub use crate::disk::{DiskHealth, DiskMount, DiskPerformance};
 }

@@ -1,14 +1,14 @@
 use crate::{
     core::metrics::Metric,
     core::types::{Percentage, Temperature},
-    cpu::{CPU, CpuUtilization},
+    cpu::{CpuUtilization, CPU},
     error::{Error, Result},
     traits::{CpuMonitor, HardwareMonitor, TemperatureMonitor, UtilizationMonitor},
 };
 use async_trait::async_trait;
-use std::time::{Instant, SystemTime};
 use libc;
 use std::ffi::CString;
+use std::time::{Instant, SystemTime};
 
 //=============================================================================
 // CPU Temperature Monitor
@@ -73,13 +73,9 @@ pub struct CpuUtilizationMonitor {
 impl CpuUtilizationMonitor {
     /// Creates a new CpuUtilizationMonitor with the provided CPU and device ID
     pub fn new(cpu: CPU, device_id: String) -> Self {
-        Self {
-            cpu,
-            device_id,
-            last_utilization: None,
-        }
+        Self { cpu, device_id, last_utilization: None }
     }
-    
+
     /// Get detailed CPU utilization information
     pub async fn utilization_info(&self) -> Result<CpuUtilization> {
         // This is a placeholder implementation
@@ -126,7 +122,7 @@ impl UtilizationMonitor for CpuUtilizationMonitor {
 }
 
 //=============================================================================
-// FrequencyMetrics and FrequencyMonitor 
+// FrequencyMetrics and FrequencyMonitor
 //=============================================================================
 
 /// Frequency metrics structure containing current, min, max, and available frequencies
@@ -146,7 +142,7 @@ pub struct FrequencyMetrics {
 }
 
 /// Low-level monitor for CPU frequency that directly accesses system information
-/// 
+///
 /// This monitor uses syscalls to fetch frequency information directly from the OS
 #[derive(Debug)]
 pub struct FrequencyMonitor;
@@ -200,27 +196,27 @@ impl CpuFrequencyMonitor {
     pub fn new(cpu: CPU, device_id: String) -> Self {
         Self { cpu, device_id }
     }
-    
+
     /// Gets the current CPU frequency in MHz
     pub fn current_frequency(&self) -> f64 {
         self.cpu.frequency_mhz()
     }
-    
+
     /// Gets the minimum CPU frequency in MHz
     pub fn min_frequency(&self) -> Option<f64> {
         self.cpu.min_frequency_mhz()
     }
-    
+
     /// Gets the maximum CPU frequency in MHz
     pub fn max_frequency(&self) -> Option<f64> {
         self.cpu.max_frequency_mhz()
     }
-    
+
     /// Gets the available CPU frequency steps in MHz
     pub fn available_frequencies(&self) -> Option<&[f64]> {
         self.cpu.available_frequencies()
     }
-    
+
     /// Retrieves the current CPU frequency metrics.
     ///
     /// This method queries the system for detailed frequency information, including current, minimum, and maximum
@@ -237,30 +233,17 @@ impl CpuFrequencyMonitor {
         let current = self.current_frequency();
         let min = self.min_frequency().unwrap_or(0.0);
         let max = self.max_frequency().unwrap_or(0.0);
-        let available = self.available_frequencies()
-            .map(|freqs| freqs.to_vec())
-            .unwrap_or_else(|| {
-                // Create a reasonable set of frequency steps
-                if min > 0.0 && max > min {
-                    let step = (max - min) / 4.0;
-                    vec![
-                        min,
-                        min + step,
-                        min + step * 2.0,
-                        min + step * 3.0,
-                        max,
-                    ]
-                } else {
-                    vec![current]
-                }
-            });
-            
-        Ok(FrequencyMetrics {
-            current,
-            min,
-            max,
-            available,
-        })
+        let available = self.available_frequencies().map(|freqs| freqs.to_vec()).unwrap_or_else(|| {
+            // Create a reasonable set of frequency steps
+            if min > 0.0 && max > min {
+                let step = (max - min) / 4.0;
+                vec![min, min + step, min + step * 2.0, min + step * 3.0, max]
+            } else {
+                vec![current]
+            }
+        });
+
+        Ok(FrequencyMetrics { current, min, max, available })
     }
 }
 
@@ -430,4 +413,4 @@ pub unsafe fn fetch_sysctl_frequency_by_name(name: &str) -> Result<f64> {
     }
 
     Ok(freq as f64)
-} 
+}

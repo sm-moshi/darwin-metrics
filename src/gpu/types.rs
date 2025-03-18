@@ -74,6 +74,12 @@ pub struct GpuUtilization {
     pub value: f64,
 }
 
+impl Default for GpuUtilization {
+    fn default() -> Self {
+        Self { value: 0.0 }
+    }
+}
+
 impl GpuUtilization {
     /// Creates a new GpuUtilization instance with the specified utilization value
     pub fn new(value: f64) -> Self {
@@ -135,14 +141,55 @@ pub struct GpuMetrics {
     pub timestamp: SystemTime,
 }
 
-impl GpuMetrics {
-    pub fn new(
-        utilization: Percentage,
-        memory_used: ByteSize,
-        memory_total: ByteSize,
-        temperature: f64,
-        power_usage: Option<f64>,
-    ) -> Self {
-        Self { utilization, memory_used, memory_total, temperature, power_usage, timestamp: SystemTime::now() }
+/// GPU state information
+#[derive(Debug, Clone)]
+pub struct GpuState {
+    /// GPU utilization metrics
+    pub utilization: GpuUtilization,
+    /// GPU memory metrics
+    pub memory: GpuMemory,
+    /// GPU temperature in Celsius
+    pub temperature: f64,
+    /// Timestamp when the state was captured
+    pub timestamp: SystemTime,
+}
+
+impl GpuState {
+    /// Create a new GPU state
+    pub fn new(utilization: GpuUtilization, memory: GpuMemory, temperature: f64, timestamp: SystemTime) -> Self {
+        Self { utilization, memory, temperature, timestamp }
+    }
+}
+
+impl Default for GpuState {
+    fn default() -> Self {
+        Self {
+            utilization: GpuUtilization::default(),
+            memory: GpuMemory::default(),
+            temperature: 0.0,
+            timestamp: SystemTime::now(),
+        }
+    }
+}
+
+/// Comprehensive GPU information including characteristics and current state
+#[derive(Debug, Clone)]
+pub struct GpuInfo {
+    /// Static GPU characteristics
+    pub characteristics: GpuCharacteristics,
+    /// Current GPU state
+    pub state: GpuState,
+}
+
+impl GpuInfo {
+    /// Create a new GPU info object
+    pub fn new(characteristics: GpuCharacteristics, state: GpuState) -> Self {
+        Self { characteristics, state }
+    }
+}
+
+impl Default for GpuInfo {
+    fn default() -> Self {
+        Self { characteristics: GpuCharacteristics::default(), state: GpuState::default() }
     }
 }

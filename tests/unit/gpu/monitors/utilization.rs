@@ -1,5 +1,5 @@
 use super::super::TEST_MUTEX;
-use crate::hardware::gpu::{Gpu, GpuUtilizationMonitor, HardwareMonitor, UtilizationMonitor};
+use crate::gpu::{Gpu, GpuUtilizationMonitor, HardwareMonitor, UtilizationMonitor};
 use std::time::Duration;
 
 #[tokio::test]
@@ -23,7 +23,7 @@ async fn test_utilization_metrics() {
     let is_high = monitor.is_high_utilization().await.unwrap();
 
     assert!(util >= 0.0 && util <= 100.0, "Utilization should be between 0-100%");
-    assert_eq!(is_high, util >= crate::hardware::gpu::constants::utilization::HIGH_UTILIZATION_THRESHOLD);
+    assert_eq!(is_high, util >= crate::gpu::constants::utilization::HIGH_UTILIZATION_THRESHOLD);
 
     println!("Utilization: {}%", util);
     println!("High Utilization: {}", is_high);

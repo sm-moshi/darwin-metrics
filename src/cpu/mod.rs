@@ -1,12 +1,12 @@
 mod constants;
+mod cpu_impl;
 mod monitors;
 mod types;
-mod cpu_impl;
 
 // Re-export all types and monitors
+pub use cpu_impl::*;
 pub use monitors::*;
 pub use types::*;
-pub use cpu_impl::*;
 
 // Re-export constants
 pub use constants::*;
@@ -102,12 +102,10 @@ impl CPU {
     pub fn frequency_monitor(&self) -> CpuFrequencyMonitor {
         CpuFrequencyMonitor::new(self.clone(), "cpu0".to_string())
     }
-    
+
     /// Clone method that creates a new CPU instance with a cloned IOKit box
     pub fn clone(&self) -> Self {
-        Self {
-            iokit: self.iokit.clone_box(),
-        }
+        Self { iokit: self.iokit.clone_box() }
     }
 
     /// Get the number of CPU cores
@@ -144,50 +142,43 @@ impl CPU {
         let avg = self.average_utilization().await?;
         Ok(Metric::new(Percentage::new(avg).unwrap_or(Percentage::new(0.0).unwrap())))
     }
-    
+
     /// Get CPU temperature
     pub fn temperature(&self) -> Option<f64> {
         self.iokit.get_cpu_temperature("IOService").ok()
     }
-    
+
     /// Get CPU frequency in MHz
     pub fn frequency_mhz(&self) -> f64 {
         // Placeholder implementation
         2000.0
     }
-    
+
     /// Get minimum CPU frequency in MHz
     pub fn min_frequency_mhz(&self) -> Option<f64> {
         // Placeholder implementation
         Some(1000.0)
     }
-    
+
     /// Get maximum CPU frequency in MHz
     pub fn max_frequency_mhz(&self) -> Option<f64> {
         // Placeholder implementation
         Some(3000.0)
     }
-    
+
     /// Get available CPU frequency steps in MHz
     pub fn available_frequencies(&self) -> Option<&[f64]> {
         // Placeholder implementation
         None
     }
-    
+
     /// Get all CPU metrics in a single call
     pub fn metrics(&self) -> Result<CpuMetricsData> {
-        let usage = self.iokit.get_core_usage()?
-            .iter()
-            .sum::<f64>() / 
-            self.iokit.get_core_usage()?.len() as f64;
-        
+        let usage = self.iokit.get_core_usage()?.iter().sum::<f64>() / self.iokit.get_core_usage()?.len() as f64;
+
         let temperature = self.temperature();
         let frequency = self.frequency_mhz();
-        
-        Ok(CpuMetricsData {
-            usage,
-            temperature,
-            frequency,
-        })
+
+        Ok(CpuMetricsData { usage, temperature, frequency })
     }
-} 
+}

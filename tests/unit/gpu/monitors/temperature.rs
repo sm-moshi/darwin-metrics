@@ -1,5 +1,5 @@
 use super::super::TEST_MUTEX;
-use crate::hardware::gpu::{Gpu, GpuTemperatureMonitor, HardwareMonitor, TemperatureMonitor};
+use crate::gpu::{Gpu, GpuTemperatureMonitor, HardwareMonitor, TemperatureMonitor};
 use std::time::Duration;
 
 #[tokio::test]

@@ -1,5 +1,5 @@
 use super::super::TEST_MUTEX;
-use crate::hardware::memory::{Memory, MemoryMonitor};
+use crate::memory::{Memory, MemoryMonitor};
 
 #[tokio::test]
 async fn test_usage_monitor_creation() {

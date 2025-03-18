@@ -8,10 +8,10 @@ use crate::core::metrics::Metric;
 use crate::core::types::Temperature;
 use crate::hardware::iokit::IOKit;
 use crate::utils::ffi;
-use crate::{Error, Result};
-use crate::{FrequencyMetrics, FrequencyMonitor};
 #[cfg(test)]
 use crate::utils::tests::test_utils::MockIOKit;
+use crate::{Error, Result};
+use crate::{FrequencyMetrics, FrequencyMonitor};
 
 #[derive(Debug)]
 pub struct CPU {
@@ -233,4 +233,4 @@ impl CpuMetrics for CPU {
     fn get_cpu_frequency(&self) -> f64 {
         self.frequency_mhz
     }
-} 
+}

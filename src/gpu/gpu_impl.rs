@@ -1,26 +1,27 @@
 use async_trait::async_trait;
 use metal::Device as MTLDevice;
+use std::path::PathBuf;
 use std::time::SystemTime;
+use tokio::task;
 
 use crate::{
     core::{
-        metrics::{hardware::HardwareMonitor, Metric},
+        metrics::Metric,
         types::{ByteSize, Percentage, Temperature},
     },
     error::{Error, Result},
     gpu::{
-        GpuCharacteristics, GpuInfo, GpuMetrics, GpuState,
-        types::{GpuMemoryMetrics, GpuUtilization},
+        monitors::{GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor},
+        types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, GpuUtilization},
     },
-    hardware::gpu::{
-        monitors::{
-            characteristics::GpuCharacteristicsMonitor, memory::GpuMemoryMonitor, temperature::GpuTemperatureMonitor,
-            utilization::GpuUtilizationMonitor,
-        },
-        types::{GpuCharacteristics, GpuMemory, GpuMetrics, GpuUtilization},
-    },
-    utils::{ffi, io::get_proc_path},
+    traits::HardwareMonitor,
+    utils::ffi,
 };
+
+// Path resolution helper
+fn get_proc_path() -> PathBuf {
+    std::env::current_exe().unwrap_or_else(|_| PathBuf::from(""))
+}
 
 /// GPU monitoring functionality
 ///
@@ -175,6 +176,143 @@ impl HardwareMonitor for Gpu {
     }
 }
 
+#[async_trait]
+impl HardwareMonitor for GpuMetrics {
+    type MetricType = GpuMetrics;
+
+    async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
+        Ok(Metric::new(self.clone()))
+    }
+
+    async fn name(&self) -> Result<String> {
+        Ok("GPU Metrics".to_string())
+    }
+
+    async fn hardware_type(&self) -> Result<String> {
+        Ok("GPU".to_string())
+    }
+
+    async fn device_id(&self) -> Result<String> {
+        Ok("gpu0".to_string())
+    }
+}
+
+impl GpuMetrics {
+    /// Create a new GPU metrics instance with default values
+    pub fn new_empty() -> Self {
+        Self {
+            utilization: Percentage::from_f64(0.0),
+            memory_used: ByteSize::from_bytes(0),
+            memory_total: ByteSize::from_bytes(0),
+            temperature: 0.0,
+            power_usage: None,
+            timestamp: SystemTime::now(),
+        }
+    }
+
+    /// Create a new GPU metrics instance with provided values
+    pub fn new(
+        utilization: Percentage,
+        memory_used: ByteSize,
+        memory_total: ByteSize,
+        temperature: f64,
+        power_usage: Option<f64>,
+    ) -> Self {
+        Self { utilization, memory_used, memory_total, temperature, power_usage, timestamp: SystemTime::now() }
+    }
+
+    /// Update metrics from monitors
+    pub async fn refresh(&mut self) -> Result<()> {
+        // Get utilization
+        let utilization_monitor = GpuUtilizationMonitor::new(None, 0);
+        let utilization = utilization_monitor.get_utilization().await?;
+
+        // Get memory info
+        let memory_monitor = GpuMemoryMonitor::new(None);
+        let memory = memory_monitor.get_memory_info().await?;
+
+        // Get temperature
+        let temperature_monitor = GpuTemperatureMonitor::new(None);
+        let temperature = temperature_monitor.get_temperature().await?;
+
+        // Update fields
+        self.utilization = Percentage::from_f64(utilization.value);
+        self.memory_used = ByteSize::from_bytes(memory.used);
+        self.memory_total = ByteSize::from_bytes(memory.total);
+        self.temperature = temperature as f64;
+        self.timestamp = SystemTime::now();
+
+        Ok(())
+    }
+}
+
 // MTLDevice is already managed by the metal crate, so we don't need to manually drop it
 unsafe impl Send for Gpu {}
 unsafe impl Sync for Gpu {}
+
+#[async_trait]
+impl HardwareMonitor for GpuInfo {
+    type MetricType = GpuInfo;
+
+    async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
+        Ok(Metric::new(self.clone()))
+    }
+
+    async fn name(&self) -> Result<String> {
+        Ok(self.characteristics.name.clone())
+    }
+
+    async fn hardware_type(&self) -> Result<String> {
+        Ok("GPU".to_string())
+    }
+
+    async fn device_id(&self) -> Result<String> {
+        Ok(self.characteristics.device_id.clone())
+    }
+}
+
+impl GpuInfo {
+    /// Create a new instance of GpuInfo with updated information
+    pub async fn create() -> Result<Self> {
+        // Get GPU characteristics
+        let characteristics_monitor = GpuCharacteristicsMonitor::new(None);
+        let characteristics = characteristics_monitor.get_characteristics().await?;
+
+        // Get utilization
+        let utilization_monitor = GpuUtilizationMonitor::new(None, 0);
+        let utilization = utilization_monitor.get_utilization().await?;
+
+        // Get memory info
+        let memory_monitor = GpuMemoryMonitor::new(None);
+        let memory = memory_monitor.get_memory_info().await?;
+
+        // Get temperature
+        let temperature_monitor = GpuTemperatureMonitor::new(None);
+        let temperature = temperature_monitor.get_temperature().await?;
+
+        // Create GPU state
+        let state = GpuState::new(utilization, memory, temperature as f64, SystemTime::now());
+
+        Ok(Self::new(characteristics, state))
+    }
+
+    /// Refresh GPU info from hardware monitors
+    pub async fn refresh(&mut self) -> Result<()> {
+        // Get utilization
+        let utilization_monitor = GpuUtilizationMonitor::new(None, 0);
+        let utilization = utilization_monitor.get_utilization().await?;
+
+        // Get memory info
+        let memory_monitor = GpuMemoryMonitor::new(None);
+        let memory = memory_monitor.get_memory_info().await?;
+
+        // Get temperature
+        let temperature_monitor = GpuTemperatureMonitor::new(None);
+        let temperature = temperature_monitor.get_temperature().await?;
+
+        // Update state
+        self.state = GpuState::new(utilization, memory, temperature as f64, SystemTime::now());
+
+        Ok(())
+    }
+}

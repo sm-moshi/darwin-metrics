@@ -1,5 +1,5 @@
-use darwin_metrics::hardware::gpu::Gpu;
-use darwin_metrics::hardware::gpu::GpuMetrics;
+use darwin_metrics::gpu::Gpu;
+use darwin_metrics::gpu::GpuMetrics;
 
 /// Demonstrates the improved GPU hardware detection in darwin-metrics
 /// This example shows detailed information about the GPU including hardware

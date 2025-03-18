@@ -17,4 +17,4 @@ pub const DEFAULT_UPDATE_INTERVAL_MS: u64 = 1000;
 pub const MIN_UPDATE_INTERVAL_MS: u64 = 100;
 
 /// Maximum time between CPU metric updates in milliseconds
-pub const MAX_UPDATE_INTERVAL_MS: u64 = 10_000; 
+pub const MAX_UPDATE_INTERVAL_MS: u64 = 10_000;

@@ -50,30 +50,8 @@ pub(crate) mod iokit;
 // Hardware component modules
 // NOTE: These modules have been moved to the root level
 
-/// Memory monitoring functionality
-/// 
-/// DEPRECATED: This module has been moved to the root level. Use `darwin_metrics::memory` instead.
-#[deprecated(since = "0.2.0-alpha.1", note = "Memory module has been moved to the root level. Use `darwin_metrics::memory` instead.")]
-pub mod memory;
-
 /// Temperature monitoring functionality
 pub mod temperature;
-
-// Battery has been moved to the root level
-#[deprecated(since = "0.2.0-alpha.1", note = "Battery module has been moved to the root level. Use `darwin_metrics::battery` instead.")]
-pub mod battery;
-
-// CPU has been moved to the root level
-#[deprecated(since = "0.2.0-alpha.1", note = "CPU module has been moved to the root level. Use `darwin_metrics::cpu` instead.")]
-pub mod cpu;
-
-// GPU has been moved to the root level
-#[deprecated(since = "0.2.0-alpha.1", note = "GPU module has been moved to the root level. Use `darwin_metrics::gpu` instead.")]
-pub mod gpu;
-
-// Disk has been moved to the root level
-#[deprecated(since = "0.2.0-alpha.1", note = "Disk module has been moved to the root level. Use `darwin_metrics::disk` instead.")]
-pub mod disk;
 
 // Prelude module for convenient imports
 /// Prelude module for convenient imports of hardware monitoring types

@@ -7,9 +7,7 @@ pub mod constants;
 pub mod types;
 
 // Re-export monitor structs for easier access
-pub use monitors::{
-    BatteryCapacityMonitor, BatteryHealthMonitor, BatteryPowerMonitor, BatteryTemperatureMonitor
-};
+pub use monitors::{BatteryCapacityMonitor, BatteryHealthMonitor, BatteryPowerMonitor, BatteryTemperatureMonitor};
 
 /// Main battery struct for managing battery state
 pub struct Battery {
@@ -20,10 +18,7 @@ pub struct Battery {
 impl Battery {
     /// Creates a new Battery instance with the provided IOKit implementation
     pub fn new(iokit: Arc<dyn IOKit>) -> Self {
-        Self {
-            iokit,
-            device_id: "main".to_string(),
-        }
+        Self { iokit, device_id: "main".to_string() }
     }
 
     /// Gets the IOKit instance used by this battery
