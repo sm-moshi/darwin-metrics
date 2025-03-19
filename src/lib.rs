@@ -79,6 +79,8 @@
 
 use std::sync::Arc;
 
+use crate::hardware::iokit::IOKitImpl;
+
 // ===== Module Declarations =====
 
 /// Error handling module.
@@ -87,7 +89,10 @@ use std::sync::Arc;
 pub mod error;
 
 /// Utility functions and helpers.
-#[cfg_attr(any(test, feature = "mock"), doc = "Utility functions and helpers exposed for testing")]
+#[cfg_attr(
+    any(test, feature = "mock"),
+    doc = "Utility functions and helpers exposed for testing"
+)]
 #[cfg_attr(not(any(test, feature = "mock")), doc = "Utility functions and helpers")]
 pub mod utils;
 
@@ -101,7 +106,10 @@ pub mod cpu;
 pub mod gpu;
 
 /// Hardware monitoring functionality.
-#[cfg_attr(any(test, feature = "mock"), doc = "Hardware monitoring functionality exposed for testing")]
+#[cfg_attr(
+    any(test, feature = "mock"),
+    doc = "Hardware monitoring functionality exposed for testing"
+)]
 #[cfg_attr(not(any(test, feature = "mock")), doc = "Hardware monitoring functionality")]
 pub mod hardware;
 
@@ -120,6 +128,9 @@ pub mod resource;
 /// System information functionality.
 pub mod system;
 
+/// Temperature monitoring functionality.
+pub mod temperature;
+
 /// Traits for hardware monitoring.
 pub mod traits;
 
@@ -135,61 +146,46 @@ pub mod memory;
 // ===== Re-exports =====
 
 // Re-export error types
-pub use error::{Error, Result};
+// Re-export core types
+pub use core::metrics::Metric;
+pub use core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Temperature, Transfer};
 
-// Re-export hardware monitoring types
-pub use hardware::{
-    // IOKit
-    iokit::IOKitImpl,
-    // Temperature monitoring
-    temperature::{Fan, ThermalMetrics},
+// Re-export battery module
+pub use battery::Battery;
+// Re-export CPU monitoring types
+pub use cpu::{
+    CPU, CpuFrequencyMonitor, CpuTemperatureMonitor, CpuUtilizationMonitor, FrequencyMetrics, FrequencyMonitor,
 };
-
+// Re-export disk module types
+pub use disk::{Disk, DiskConfig, DiskMount, DiskPerformance, DiskType};
+pub use error::{Error, Result};
+// Re-export GPU monitoring types
+pub use gpu::{Gpu, GpuMemoryMonitor, GpuUtilizationMonitor};
+// Re-export hardware monitoring types
+pub use hardware::iokit::IOKit;
 // Re-export memory monitoring types
 pub use memory::{
     Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, PageStates, PressureLevel, SwapMonitor, SwapUsage,
 };
-
-// Re-export battery module
-pub use battery::Battery;
-
-// Re-export core types
-pub use core::{
-    metrics::Metric,
-    types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Temperature, Transfer},
-};
-
-// Re-export disk module types
-pub use disk::{Disk, DiskConfig, DiskMount, DiskPerformance, DiskType};
-
-// Re-export GPU monitoring types
-pub use gpu::{
-    Gpu, GpuCharacteristicsMonitor, GpuMemory, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilization,
-    GpuUtilizationMonitor,
-};
-
-// Re-export CPU monitoring types
-pub use cpu::{
-    CpuFrequencyMonitor, CpuTemperatureMonitor, CpuUtilizationMonitor, FrequencyMetrics, FrequencyMonitor, CPU,
-};
-
 // Re-export network monitoring types
 pub use network::{Interface, NetworkInfo, NetworkInterface, NetworkMonitor};
-
 // Re-export power monitoring types
 pub use power::{PowerInfo, PowerState};
-
 // Re-export process monitoring types
 pub use process::{Process, ProcessInfo};
-
 // Re-export resource monitoring types
 pub use resource::{Cache, ResourceManager, ResourceMonitor, ResourceMonitoring, ResourcePool, ResourceUpdate};
-
+pub use temperature::TemperatureFactory as NewTemperature;
+pub use temperature::monitors::{
+    AmbientTemperatureMonitor, BatteryTemperatureMonitor, CpuTemperatureMonitor as NewCpuTemperatureMonitor,
+    GpuTemperatureMonitor,
+};
+pub use temperature::types::{Fan, ThermalMetrics};
 // Re-export trait types
 pub use traits::{
-    ByteMetricsMonitor, CpuMonitor, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor,
-    GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
-    RateMonitor, StorageMonitor, TemperatureMonitor, UtilizationMonitor,
+    ByteMetricsMonitor, CpuMonitor, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, GpuMonitor,
+    HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor, RateMonitor, StorageMonitor, TemperatureMonitor,
+    UtilizationMonitor,
 };
 
 // Also re-export disk-specific traits via prelude
@@ -219,9 +215,9 @@ pub fn new_memory() -> Result<Memory> {
     Memory::new()
 }
 
-/// Creates a new Temperature instance.
-pub fn new_temperature() -> Result<hardware::temperature::Temperature> {
-    hardware::temperature::Temperature::new()
+/// Create a new Temperature instance.
+pub fn new_temperature() -> Result<temperature::TemperatureFactory> {
+    Ok(temperature::TemperatureFactory::new()?)
 }
 
 /// Get information about the root filesystem (/).
@@ -250,28 +246,25 @@ pub fn get_all_disks() -> Result<Vec<disk::Disk>> {
 /// providing the most commonly used components for convenient importing.
 pub mod prelude {
     // Core types
-    pub use crate::core::metrics::Metric;
-    pub use crate::core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Temperature, Transfer};
-
     // Hardware components
     pub use crate::battery::Battery;
+    pub use crate::core::metrics::Metric;
+    pub use crate::core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Temperature, Transfer};
     pub use crate::cpu::CPU;
     pub use crate::disk::{
         Disk, DiskConfig, DiskHealthMonitor, DiskIOMonitor, DiskMount, DiskMountMonitor, DiskPerformance,
         DiskPerformanceMonitor, DiskStorageMonitor, DiskType, DiskUtilizationMonitor,
     };
+    // Result and Error types
+    pub use crate::error::{Error, Result};
     pub use crate::gpu::{Gpu, GpuMemory, GpuUtilization};
     pub use crate::memory::{Memory, MemoryInfo, PageStates, PressureLevel, SwapUsage};
     pub use crate::network::{Interface, NetworkInfo, NetworkInterface};
-
     // Common monitoring traits
     pub use crate::traits::{
         ByteMetricsMonitor, CpuMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,
         RateMonitor, StorageMonitor, TemperatureMonitor, UtilizationMonitor,
     };
-
-    // Result and Error types
-    pub use crate::error::{Error, Result};
 }
 
 /// FFI bindings and C-compatible interfaces.

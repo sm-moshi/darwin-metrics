@@ -1,6 +1,7 @@
-use crate::hardware::disk::DiskMonitor;
 use std::thread;
 use std::time::Duration;
+
+use crate::hardware::disk::DiskMonitor;
 
 #[test]
 fn test_disk_performance() {
@@ -35,7 +36,10 @@ fn test_get_performance_initial_call() {
 
     if let Ok(perf_map) = perf_result {
         // Verify we got data for disk0
-        assert!(perf_map.contains_key("/dev/disk0"), "Should have placeholder for /dev/disk0");
+        assert!(
+            perf_map.contains_key("/dev/disk0"),
+            "Should have placeholder for /dev/disk0"
+        );
 
         // Check the placeholder has expected values (all zeros)
         if let Some(perf) = perf_map.get("/dev/disk0") {
@@ -80,10 +84,16 @@ fn test_performance_metrics_calculation() {
         if let Some(perf) = disk0_perf {
             // Verify all metrics are within reasonable ranges
             assert!(perf.reads_per_second >= 0.0, "reads_per_second should be non-negative");
-            assert!(perf.writes_per_second >= 0.0, "writes_per_second should be non-negative");
+            assert!(
+                perf.writes_per_second >= 0.0,
+                "writes_per_second should be non-negative"
+            );
             assert!(perf.read_latency_ms >= 0.0, "read_latency_ms should be non-negative");
             assert!(perf.write_latency_ms >= 0.0, "write_latency_ms should be non-negative");
-            assert!((0.0..=100.0).contains(&perf.utilization), "utilization should be between 0 and 100");
+            assert!(
+                (0.0..=100.0).contains(&perf.utilization),
+                "utilization should be between 0 and 100"
+            );
             assert!(perf.queue_depth >= 0.0, "queue_depth should be non-negative");
         }
     }

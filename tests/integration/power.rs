@@ -1,7 +1,6 @@
-use darwin_metrics::{
-    error::Result,
-    power::{Power, PowerState},
-};
+use darwin_metrics::error::Result;
+use darwin_metrics::power::{Power, PowerState};
+use darwin_metrics::prelude::{PowerEventMonitor, PowerManagementMonitor, PowerStateMonitor};
 
 #[test]
 fn test_power_integration() -> Result<()> {
@@ -15,7 +14,10 @@ fn test_power_integration() -> Result<()> {
     assert!(consumption.cores >= 0.0, "Core power should be non-negative");
 
     // Power state should be one of the valid states
-    assert!(matches!(consumption.power_state, PowerState::AC | PowerState::Battery | PowerState::Charging));
+    assert!(matches!(
+        consumption.power_state,
+        PowerState::AC | PowerState::Battery | PowerState::Charging
+    ));
 
     // Test power throttling
     let is_throttling = power.is_power_throttling()?;

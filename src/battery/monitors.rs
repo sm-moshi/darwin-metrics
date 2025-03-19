@@ -1,20 +1,16 @@
-use crate::{
-    battery::types::{BatteryCapacity, BatteryPower},
-    core::{
-        metrics::{
-            hardware::{
-                BatteryCapacityMonitorTrait, BatteryHealthMonitor as BatteryHealthMonitorTrait, HardwareMonitor,
-                PowerMonitorTrait, PowerStateMonitor, TemperatureMonitor,
-            },
-            Metric,
-        },
-        types::Temperature,
-    },
-    error::Result,
-    power::PowerState,
-};
-use async_trait::async_trait;
 use std::time::Duration;
+
+use async_trait::async_trait;
+
+use crate::battery::types::{BatteryCapacity, BatteryPower};
+use crate::core::metrics::Metric;
+use crate::core::types::Temperature;
+use crate::error::Result;
+use crate::power::PowerState;
+use crate::traits::{
+    BatteryCapacityMonitorTrait, BatteryHealthMonitor as BatteryHealthMonitorTrait, HardwareMonitor, PowerMonitorTrait,
+    PowerStateMonitor, TemperatureMonitor,
+};
 
 //=============================================================================
 // Battery Capacity Monitor
@@ -49,7 +45,12 @@ impl BatteryCapacityMonitorTrait for BatteryCapacityMonitor {
     }
 
     async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
-        let capacity = BatteryCapacity { current: 80.0, maximum: 100.0, design: 100.0, cycle_count: 100 };
+        let capacity = BatteryCapacity {
+            current: 80.0,
+            maximum: 100.0,
+            design: 100.0,
+            cycle_count: 100,
+        };
         Ok(Metric::new(capacity))
     }
 

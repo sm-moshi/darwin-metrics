@@ -1,6 +1,7 @@
+use std::time::Duration;
+
 use super::super::TEST_MUTEX;
 use crate::gpu::{Gpu, GpuTemperatureMonitor, HardwareMonitor, TemperatureMonitor};
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_temperature_monitor_creation() {
@@ -65,7 +66,10 @@ async fn test_temperature_thresholds() {
 
     if let Some(threshold) = critical_temp {
         assert!(threshold > 0.0, "Critical threshold should be positive");
-        assert!(is_critical == (temp >= threshold), "Critical state should match temperature threshold comparison");
+        assert!(
+            is_critical == (temp >= threshold),
+            "Critical state should match temperature threshold comparison"
+        );
     }
 
     println!("Temperature: {}°C (Critical Threshold: {:?})", temp, critical_temp);
@@ -96,9 +100,15 @@ async fn test_temperature_updates() {
         }
 
         // Temperature might change slightly between readings
-        assert!((temp - prev_temp).abs() < 20.0, "Temperature should not change drastically between readings");
+        assert!(
+            (temp - prev_temp).abs() < 20.0,
+            "Temperature should not change drastically between readings"
+        );
         prev_temp = temp;
 
-        println!("Update - Core: {}°C, Memory: {:?}°C, Critical: {}", temp, mem_temp, is_critical);
+        println!(
+            "Update - Core: {}°C, Memory: {:?}°C, Critical: {}",
+            temp, mem_temp, is_critical
+        );
     }
 }

@@ -1,11 +1,19 @@
+use std::time::Duration;
+
 use super::super::TEST_MUTEX;
 use crate::hardware::disk::{ByteMetricsMonitor, Disk, DiskIOMonitor, HardwareMonitor, RateMonitor};
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_io_monitor_creation() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskIOMonitor::new(disk);
 
     assert_eq!(monitor.name(), "Disk I/O Monitor");
@@ -16,7 +24,14 @@ async fn test_io_monitor_creation() {
 #[tokio::test]
 async fn test_byte_metrics() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskIOMonitor::new(disk);
 
     let bytes_read = monitor.bytes_read().await.unwrap();
@@ -29,7 +44,14 @@ async fn test_byte_metrics() {
 #[tokio::test]
 async fn test_io_rates() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskIOMonitor::new(disk);
 
     // Initial rates should be zero or very small
@@ -52,7 +74,14 @@ async fn test_io_rates() {
 #[tokio::test]
 async fn test_io_monitor_with_nonexistent_disk() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/nonexistent"), String::from("/invalid"), String::from("invalid"), 0, 0, 0);
+    let disk = Disk::new(
+        String::from("/dev/nonexistent"),
+        String::from("/invalid"),
+        String::from("invalid"),
+        0,
+        0,
+        0,
+    );
     let monitor = DiskIOMonitor::new(disk);
 
     // Test error handling for each method
@@ -72,7 +101,14 @@ async fn test_io_monitor_with_nonexistent_disk() {
 #[tokio::test]
 async fn test_io_monitor_updates() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskIOMonitor::new(disk);
 
     // Test multiple consecutive updates

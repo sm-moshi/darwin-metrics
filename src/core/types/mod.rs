@@ -1,7 +1,7 @@
+use std::time::Duration;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-
-use std::time::Duration;
 
 /// Represents a percentage value between 0.0 and 100.0
 #[derive(Debug, Clone, Copy)]

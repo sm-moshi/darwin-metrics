@@ -5,8 +5,9 @@
 
 use std::error::Error as StdError;
 use std::ffi::NulError;
-use std::fmt;
-use std::io;
+use std::sync::Arc;
+use std::{fmt, io};
+
 #[allow(unused_imports)]
 use thiserror::Error;
 use tokio::task::JoinError;
@@ -15,12 +16,12 @@ use tokio::task::JoinError;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Represents all possible errors that can occur in darwin-metrics operations.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     /// IO error from std::io
     IoError {
         /// The source IO error
-        source: io::Error,
+        source: Arc<io::Error>,
     },
     /// Error from IOKit operations
     IOKitError {
@@ -133,7 +134,9 @@ impl Error {
     where
         C: Into<String>,
     {
-        Error::IoError { source }
+        Error::IoError {
+            source: Arc::new(source),
+        }
     }
 
     /// Creates a new IOKit error
@@ -141,7 +144,10 @@ impl Error {
     where
         S: Into<String>,
     {
-        Error::IOKitError { code, operation: operation.into() }
+        Error::IOKitError {
+            code,
+            operation: operation.into(),
+        }
     }
 
     /// Creates a new Temperature error
@@ -150,7 +156,10 @@ impl Error {
         S: Into<String>,
         M: Into<String>,
     {
-        Error::Temperature { sensor: sensor.into(), message: message.into() }
+        Error::Temperature {
+            sensor: sensor.into(),
+            message: message.into(),
+        }
     }
 
     /// Creates a new Network error
@@ -159,7 +168,10 @@ impl Error {
         O: Into<String>,
         M: Into<String>,
     {
-        Error::Network { operation: operation.into(), message: message.into() }
+        Error::Network {
+            operation: operation.into(),
+            message: message.into(),
+        }
     }
 
     /// Creates a new InvalidData error
@@ -168,7 +180,10 @@ impl Error {
         S: Into<String>,
         D: Into<String>,
     {
-        Error::InvalidData { message: context.into(), details: value.map(|v| v.into()).unwrap_or_default() }
+        Error::InvalidData {
+            message: context.into(),
+            details: value.map(|v| v.into()).unwrap_or_default(),
+        }
     }
 
     /// Creates a new ServiceNotFound error
@@ -183,7 +198,9 @@ impl Error {
 
     /// Creates a new System error
     pub fn system<S: Into<String>>(message: S) -> Self {
-        Error::System { message: message.into() }
+        Error::System {
+            message: message.into(),
+        }
     }
 
     /// Creates a new Process error
@@ -192,7 +209,10 @@ impl Error {
         P: Into<u32>,
         M: Into<String>,
     {
-        Error::Process { pid: pid.map(|p| p.into()), message: message.into() }
+        Error::Process {
+            pid: pid.map(|p| p.into()),
+            message: message.into(),
+        }
     }
 
     /// Creates a new GPU error
@@ -201,7 +221,10 @@ impl Error {
         O: Into<String>,
         M: Into<String>,
     {
-        Error::Gpu { operation: operation.into(), message: message.into() }
+        Error::Gpu {
+            operation: operation.into(),
+            message: message.into(),
+        }
     }
 
     /// Creates a new invalid argument error
@@ -210,7 +233,10 @@ impl Error {
         C: Into<String>,
         V: Into<String>,
     {
-        Error::InvalidArgument { context: context.into(), value: value.map(|v| v.into()).unwrap_or_default() }
+        Error::InvalidArgument {
+            context: context.into(),
+            value: value.map(|v| v.into()).unwrap_or_default(),
+        }
     }
 
     /// Creates a new system error
@@ -219,7 +245,10 @@ impl Error {
         O: Into<String>,
         M: Into<String>,
     {
-        Error::SystemError { operation: operation.into(), message: message.into() }
+        Error::SystemError {
+            operation: operation.into(),
+            message: message.into(),
+        }
     }
 
     /// Check if the error is a permission denied error
@@ -237,7 +266,9 @@ impl Error {
     where
         S: Into<String>,
     {
-        Error::NotImplemented { feature: feature.into() }
+        Error::NotImplemented {
+            feature: feature.into(),
+        }
     }
 }
 
@@ -262,8 +293,15 @@ impl fmt::Display for Error {
             Error::Gpu { operation, message } => write!(f, "GPU error during {}: {}", operation, message),
             Error::InvalidArgument { context, value } => write!(f, "Invalid argument for {}: {}", context, value),
             Error::SystemError { operation, message } => write!(f, "System error during {}: {}", operation, message),
-            Error::PermissionDenied { operation, required_permission } => {
-                write!(f, "Permission denied for {}: requires {}", operation, required_permission)
+            Error::PermissionDenied {
+                operation,
+                required_permission,
+            } => {
+                write!(
+                    f,
+                    "Permission denied for {}: requires {}",
+                    operation, required_permission
+                )
             },
             Error::NotAvailable { resource, reason } => write!(f, "{} not available: {}", resource, reason),
             Error::Other { message } => write!(f, "{}", message),
@@ -287,26 +325,32 @@ impl StdError for Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        Error::IoError { source: err }
+        Error::IoError { source: Arc::new(err) }
     }
 }
 
 impl From<NulError> for Error {
     fn from(err: NulError) -> Self {
-        Error::InvalidData { message: "Invalid null character in string".to_string(), details: err.to_string() }
+        Error::InvalidData {
+            message: "Invalid null character in string".to_string(),
+            details: err.to_string(),
+        }
     }
 }
 
 impl From<JoinError> for Error {
     fn from(err: JoinError) -> Self {
-        Error::System { message: format!("Task join error: {}", err) }
+        Error::System {
+            message: format!("Task join error: {}", err),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::io::{Error as IoError, ErrorKind};
+
+    use super::*;
 
     #[test]
     fn test_error_creation_methods() {
@@ -331,7 +375,10 @@ mod tests {
 
     #[test]
     fn test_error_is_permission_denied() {
-        let err = Error::PermissionDenied { operation: "read".into(), required_permission: "root".into() };
+        let err = Error::PermissionDenied {
+            operation: "read".into(),
+            required_permission: "root".into(),
+        };
         assert!(err.is_permission_denied());
 
         let other_err = Error::Other { message: "test".into() };
@@ -340,7 +387,10 @@ mod tests {
 
     #[test]
     fn test_error_is_not_available() {
-        let err = Error::NotAvailable { resource: "GPU".into(), reason: "Not installed".into() };
+        let err = Error::NotAvailable {
+            resource: "GPU".into(),
+            reason: "Not installed".into(),
+        };
         assert!(err.is_not_available());
 
         let other_err = Error::Other { message: "test".into() };
@@ -349,13 +399,22 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let err = Error::Temperature { sensor: "CPU".into(), message: "Too hot".into() };
+        let err = Error::Temperature {
+            sensor: "CPU".into(),
+            message: "Too hot".into(),
+        };
         assert_eq!(err.to_string(), "Temperature error on sensor CPU: Too hot");
 
-        let err = Error::Process { pid: Some(123), message: "Not responding".into() };
+        let err = Error::Process {
+            pid: Some(123),
+            message: "Not responding".into(),
+        };
         assert_eq!(err.to_string(), "Process error (PID 123): Not responding");
 
-        let err = Error::InvalidData { message: "Invalid port".into(), details: "65536".into() };
+        let err = Error::InvalidData {
+            message: "Invalid port".into(),
+            details: "65536".into(),
+        };
         assert_eq!(err.to_string(), "Invalid data: Invalid port (65536)");
     }
 

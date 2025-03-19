@@ -1,19 +1,15 @@
 // Standard library imports
-use std::{
-    convert::AsRef,
-    ffi::{c_char, c_void, CString},
-    fmt::Debug,
-    sync::{Arc, Mutex, Once},
-    time::Duration,
-};
+use std::convert::AsRef;
+use std::ffi::{CString, c_char, c_void};
+use std::fmt::Debug;
+use std::sync::{Arc, Mutex, Once};
+use std::time::Duration;
 
 // External crate imports
 use libc::mach_port_t;
-use objc2::{
-    class,
-    rc::Retained,
-    runtime::{AnyClass, AnyObject, NSObject},
-};
+use objc2::class;
+use objc2::rc::Retained;
+use objc2::runtime::{AnyClass, AnyObject, NSObject};
 
 // Internal crate imports
 use crate::{
@@ -22,15 +18,14 @@ use crate::{
         ThermalMonitor,
     },
     error::{Error, Result},
-    hardware::temperature::{Fan, ThermalMetrics},
     power::PowerState,
     utils::{
+        SafeDictionary,
         core::DictionaryAccess,
         ffi::{
             IOByteCount, IOConnectCallStructMethod, IORegistryEntryCreateCFProperties, IORegistryEntryGetParentEntry,
             IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT,
         },
-        SafeDictionary,
     },
 };
 
@@ -105,7 +100,12 @@ pub struct FanInfo {
 
 impl Default for FanInfo {
     fn default() -> Self {
-        Self { speed_rpm: 0, min_speed: 0, max_speed: 0, percentage: 0.0 }
+        Self {
+            speed_rpm: 0,
+            min_speed: 0,
+            max_speed: 0,
+            percentage: 0.0,
+        }
     }
 }
 
@@ -323,9 +323,9 @@ impl IOKitImpl {
     pub fn new() -> Result<Self> {
         // Create a default implementation initially
         let instance = Self::default();
-        
+
         // TODO: Establish an IORegistry connection if needed for live implementations
-        
+
         Ok(instance)
     }
 }
@@ -334,12 +334,15 @@ impl IOKit for IOKitImpl {
     fn io_service_matching(&self, service_name: &str) -> Result<SafeDictionary> {
         let c_str = CString::new(service_name)
             .map_err(|_| Error::system(format!("Failed to create C string for service name: {}", service_name)))?;
-        
+
         let dict_ptr = unsafe { crate::utils::ffi::IOServiceMatching(c_str.as_ptr() as *const c_char) };
         if dict_ptr.is_null() {
-            return Err(Error::system(format!("IOServiceMatching failed for service: {}", service_name)));
+            return Err(Error::system(format!(
+                "IOServiceMatching failed for service: {}",
+                service_name
+            )));
         }
-        
+
         Ok(unsafe { SafeDictionary::from_ptr(dict_ptr as *mut _) })
     }
 
@@ -347,40 +350,36 @@ impl IOKit for IOKitImpl {
         let dict = self.io_service_matching(name)?;
         let master_port = crate::utils::ffi::K_IOMASTER_PORT_DEFAULT; // mach_port_t
         let service = unsafe { crate::utils::ffi::IOServiceGetMatchingService(master_port, dict.as_ptr() as *mut _) };
-        
+
         if service == 0 {
             return Ok(None);
         }
-        
+
         Ok(Some(ThreadSafeAnyObject::new(service)))
     }
 
     fn io_service_get_matching_service(&self, matching: &SafeDictionary) -> Result<ThreadSafeAnyObject> {
         let master_port = crate::utils::ffi::K_IOMASTER_PORT_DEFAULT; // mach_port_t
-        let service = unsafe { crate::utils::ffi::IOServiceGetMatchingService(master_port, matching.as_ptr() as *mut _) };
-        
+        let service =
+            unsafe { crate::utils::ffi::IOServiceGetMatchingService(master_port, matching.as_ptr() as *mut _) };
+
         if service == 0 {
             return Err(Error::system("IOServiceGetMatchingService failed".to_string()));
         }
-        
+
         Ok(ThreadSafeAnyObject::new(service))
     }
 
     fn get_service_properties(&self, service: &ThreadSafeAnyObject) -> Result<SafeDictionary> {
         let mut props: *mut c_void = std::ptr::null_mut();
         let result = unsafe {
-            crate::utils::ffi::IORegistryEntryCreateCFProperties(
-                service.as_raw(),
-                &mut props,
-                std::ptr::null_mut(),
-                0,
-            )
+            crate::utils::ffi::IORegistryEntryCreateCFProperties(service.as_raw(), &mut props, std::ptr::null_mut(), 0)
         };
-        
+
         if result != 0 {
             return Err(Error::system("IORegistryEntryCreateCFProperties failed".to_string()));
         }
-        
+
         Ok(unsafe { SafeDictionary::from_ptr(props as *mut _) })
     }
 
@@ -392,7 +391,7 @@ impl IOKit for IOKitImpl {
         let dict = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&dict)?;
         let _props = self.get_service_properties(&service)?;
-        
+
         Ok(55.0) // Default reasonable value
     }
 
@@ -411,18 +410,18 @@ impl IOKit for IOKitImpl {
 
     fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
         Ok(vec![
-            FanInfo { 
-                speed_rpm: 1200, 
-                min_speed: 0, 
-                max_speed: 5000, 
-                percentage: 24.0 
+            FanInfo {
+                speed_rpm: 1200,
+                min_speed: 0,
+                max_speed: 5000,
+                percentage: 24.0,
             },
-            FanInfo { 
-                speed_rpm: 1300, 
-                min_speed: 0, 
-                max_speed: 5500, 
-                percentage: 23.6 
-            }
+            FanInfo {
+                speed_rpm: 1300,
+                min_speed: 0,
+                max_speed: 5500,
+                percentage: 23.6,
+            },
         ])
     }
 
@@ -437,11 +436,11 @@ impl IOKit for IOKitImpl {
     fn get_gpu_stats(&self) -> Result<GpuStats> {
         Ok(GpuStats {
             utilization: 0.3,
-            memory_used: 1024 * 1024 * 1024, // 1 GB
+            memory_used: 1024 * 1024 * 1024,      // 1 GB
             memory_total: 4 * 1024 * 1024 * 1024, // 4 GB
             perf_cap: 0.8,
             perf_threshold: 0.9,
-            name: "Virtual GPU".to_string()
+            name: "Virtual GPU".to_string(),
         })
     }
 
@@ -450,7 +449,7 @@ impl IOKit for IOKitImpl {
             speed_rpm: 1200,
             min_speed: 0,
             max_speed: 5000,
-            percentage: 24.0
+            percentage: 24.0,
         })
     }
 
@@ -467,10 +466,17 @@ impl IOKit for IOKitImpl {
     }
 
     fn get_number_property(&self, dict: &SafeDictionary, key: &str) -> Result<f64> {
-        dict.get_number(key).ok_or_else(|| Error::system(format!("Property {} not found", key)))
+        dict.get_number(key)
+            .ok_or_else(|| Error::system(format!("Property {} not found", key)))
     }
 
-    fn io_connect_call_method(&self, _connection: u32, _selector: u32, _input: &[u64], _output: &mut [u64]) -> Result<()> {
+    fn io_connect_call_method(
+        &self,
+        _connection: u32,
+        _selector: u32,
+        _input: &[u64],
+        _output: &mut [u64],
+    ) -> Result<()> {
         Ok(())
     }
 
@@ -481,15 +487,14 @@ impl IOKit for IOKitImpl {
     fn io_registry_entry_get_parent_entry(&self, entry: &ThreadSafeAnyObject) -> Result<ThreadSafeAnyObject> {
         let mut parent: u32 = 0;
         let plane = CString::new("IOService").unwrap();
-        
-        let result = unsafe {
-            crate::utils::ffi::IORegistryEntryGetParentEntry(entry.as_raw(), plane.as_ptr(), &mut parent)
-        };
-        
+
+        let result =
+            unsafe { crate::utils::ffi::IORegistryEntryGetParentEntry(entry.as_raw(), plane.as_ptr(), &mut parent) };
+
         if result != 0 {
             return Err(Error::system("IORegistryEntryGetParentEntry failed".to_string()));
         }
-        
+
         Ok(ThreadSafeAnyObject::new(parent))
     }
 
@@ -532,33 +537,28 @@ impl IORegistryEntry {
     pub fn new(service: u32) -> Self {
         Self { service }
     }
-    
+
     /// Get the service ID
     pub fn service(&self) -> u32 {
         self.service
     }
-    
+
     /// Convert to ThreadSafeAnyObject
     pub fn as_object(&self) -> ThreadSafeAnyObject {
         ThreadSafeAnyObject::new(self.service)
     }
-    
+
     /// Get the properties of this registry entry
     pub fn get_properties(&self) -> Result<SafeDictionary> {
         let mut props: *mut c_void = std::ptr::null_mut();
         let result = unsafe {
-            crate::utils::ffi::IORegistryEntryCreateCFProperties(
-                self.service,
-                &mut props,
-                std::ptr::null_mut(),
-                0,
-            )
+            crate::utils::ffi::IORegistryEntryCreateCFProperties(self.service, &mut props, std::ptr::null_mut(), 0)
         };
-        
+
         if result != 0 {
             return Err(Error::system("IORegistryEntryCreateCFProperties failed".to_string()));
         }
-        
+
         Ok(unsafe { SafeDictionary::from_ptr(props as *mut _) })
     }
 }
@@ -575,7 +575,7 @@ impl ThreadSafeAnyObject {
     pub fn new(handle: u32) -> Self {
         Self { handle }
     }
-    
+
     /// Get the raw handle
     pub fn as_raw(&self) -> u32 {
         self.handle
@@ -598,21 +598,27 @@ impl CpuMonitor for IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        props.get_number("CPU_Frequency").ok_or_else(|| Error::iokit_error(0, "CPU frequency not found"))
+        props
+            .get_number("CPU_Frequency")
+            .ok_or_else(|| Error::iokit_error(0, "CPU frequency not found"))
     }
 
     async fn min_frequency(&self) -> Result<f64> {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        props.get_number("CPU_Min_Frequency").ok_or_else(|| Error::iokit_error(0, "CPU min frequency not found"))
+        props
+            .get_number("CPU_Min_Frequency")
+            .ok_or_else(|| Error::iokit_error(0, "CPU min frequency not found"))
     }
 
     async fn max_frequency(&self) -> Result<f64> {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        props.get_number("CPU_Max_Frequency").ok_or_else(|| Error::iokit_error(0, "CPU max frequency not found"))
+        props
+            .get_number("CPU_Max_Frequency")
+            .ok_or_else(|| Error::iokit_error(0, "CPU max frequency not found"))
     }
 
     async fn available_frequencies(&self) -> Result<Vec<f64>> {
@@ -641,7 +647,9 @@ impl CpuMonitor for IOKitImpl {
         let matching = self.io_service_matching("AppleSMC")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        props.get_string("CPU_Model").ok_or_else(|| Error::iokit_error(0, "CPU model name not found"))
+        props
+            .get_string("CPU_Model")
+            .ok_or_else(|| Error::iokit_error(0, "CPU model name not found"))
     }
 
     async fn temperature(&self) -> Result<Option<f64>> {
@@ -744,32 +752,35 @@ impl ThermalMonitor for IOKitImpl {
         self.check_thermal_throttling("IOService")
     }
 
-    async fn get_fans(&self) -> Result<Vec<Fan>> {
+    async fn get_fans(&self) -> Result<Vec<crate::temperature::types::Fan>> {
         let fan_info = self.get_all_fans()?;
         Ok(fan_info
             .into_iter()
-            .map(|f| Fan {
+            .map(|f| crate::temperature::types::Fan {
                 name: format!("Fan {}", f.speed_rpm),
-                speed_rpm: f.speed_rpm,
-                min_speed: f.min_speed,
-                max_speed: f.max_speed,
-                percentage: f.percentage,
+                speed: f.speed_rpm as f64,
+                min_speed: f.min_speed as f64,
+                max_speed: f.max_speed as f64,
+                utilization: f.percentage,
             })
             .collect())
     }
 
-    async fn get_thermal_metrics(&self) -> Result<ThermalMetrics> {
+    async fn get_thermal_metrics(&self) -> Result<crate::temperature::types::ThermalMetrics> {
         let thermal_info = self.get_thermal_info()?;
-        Ok(ThermalMetrics {
+
+        // Convert fans
+        let fans = self.get_fans().await?;
+
+        Ok(crate::temperature::types::ThermalMetrics {
             cpu_temperature: Some(thermal_info.cpu_temp),
             gpu_temperature: thermal_info.gpu_temp,
-            heatsink_temperature: thermal_info.heatsink_temp,
+            memory_temperature: thermal_info.heatsink_temp, // Use heatsink as memory
             ambient_temperature: thermal_info.ambient_temp,
             battery_temperature: thermal_info.battery_temp,
+            ssd_temperature: None, // SSD temperature not available in old struct
             is_throttling: thermal_info.thermal_throttling,
-            cpu_power: None, // Not implemented yet
-            fans: self.get_fans().await?,
-            last_refresh: std::time::Instant::now(),
+            fans,
         })
     }
 }
@@ -879,7 +890,9 @@ impl PowerManagementMonitor for IOKitImpl {
         let matching = self.io_service_matching("IOPMrootDomain")?;
         let service = self.io_service_get_matching_service(&matching)?;
         let props = self.get_service_properties(&service)?;
-        Ok(props.get_string("PerformanceMode").unwrap_or_else(|| "Normal".to_string()))
+        Ok(props
+            .get_string("PerformanceMode")
+            .unwrap_or_else(|| "Normal".to_string()))
     }
 }
 

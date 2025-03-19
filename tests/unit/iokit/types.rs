@@ -4,7 +4,12 @@ use darwin_metrics::utils::SafeDictionary;
 #[test]
 fn test_debug_implementations() {
     let gpu_stats = GpuStats::default();
-    let fan_info = FanInfo { speed_rpm: 1000, min_speed: 500, max_speed: 2000, percentage: 50.0 };
+    let fan_info = FanInfo {
+        speed_rpm: 1000,
+        min_speed: 500,
+        max_speed: 2000,
+        percentage: 50.0,
+    };
 
     let mut thermal_info = ThermalInfo::default();
     thermal_info.cpu_temp = 42.0;
@@ -31,7 +36,12 @@ fn test_clone_implementations() {
         perf_cap: 80.0,
         perf_threshold: 90.0,
     };
-    let fan_info = FanInfo { speed_rpm: 1000, min_speed: 500, max_speed: 2000, percentage: 50.0 };
+    let fan_info = FanInfo {
+        speed_rpm: 1000,
+        min_speed: 500,
+        max_speed: 2000,
+        percentage: 50.0,
+    };
 
     let mut thermal_info = ThermalInfo::default();
     thermal_info.cpu_temp = 42.0;
@@ -74,7 +84,12 @@ fn test_gpu_stats_clone() {
 
 #[test]
 fn test_fan_info_clone() {
-    let fan = FanInfo { speed_rpm: 2000, min_speed: 500, max_speed: 5000, percentage: 40.0 };
+    let fan = FanInfo {
+        speed_rpm: 2000,
+        min_speed: 500,
+        max_speed: 5000,
+        percentage: 40.0,
+    };
     let fan_clone = fan.clone();
 
     assert_eq!(fan.speed_rpm, fan_clone.speed_rpm);

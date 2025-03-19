@@ -1,11 +1,10 @@
-use darwin_metrics::{
-    core::metrics::hardware::{
-        ProcessIOMonitor, ProcessInfoMonitor, ProcessRelationshipMonitor, ProcessResourceMonitor,
-    },
-    error::Result,
-    process::Process,
-};
 use std::time::Duration;
+
+use darwin_metrics::core::metrics::hardware::{
+    ProcessIOMonitor, ProcessInfoMonitor, ProcessRelationshipMonitor, ProcessResourceMonitor,
+};
+use darwin_metrics::error::Result;
+use darwin_metrics::process::Process;
 
 /// Helper function to format bytes in a human-readable format
 fn format_bytes(bytes: u64) -> String {
@@ -70,19 +69,37 @@ async fn main() -> Result<()> {
             let relationship_monitor = process.relationship_monitor();
 
             // Process Information
-            println!("\nProcess: {} (PID: {})", info_monitor.name().await?, info_monitor.pid().await?);
+            println!(
+                "\nProcess: {} (PID: {})",
+                info_monitor.name().await?,
+                info_monitor.pid().await?
+            );
             if let Ok(Some(ppid)) = info_monitor.parent_pid().await {
                 println!("Parent PID: {}", ppid);
             }
             println!("Start Time: {:?}", info_monitor.start_time().await?);
-            println!("System Process: {}", if info_monitor.is_system_process().await? { "Yes" } else { "No" });
+            println!(
+                "System Process: {}",
+                if info_monitor.is_system_process().await? {
+                    "Yes"
+                } else {
+                    "No"
+                }
+            );
 
             // Resource Usage
             println!("\nResource Usage:");
             println!("CPU Usage: {:.1}%", resource_monitor.cpu_usage().await?);
             println!("Memory Usage: {}", format_bytes(resource_monitor.memory_usage().await?));
             println!("Thread Count: {}", resource_monitor.thread_count().await?);
-            println!("Suspended: {}", if resource_monitor.is_suspended().await? { "Yes" } else { "No" });
+            println!(
+                "Suspended: {}",
+                if resource_monitor.is_suspended().await? {
+                    "Yes"
+                } else {
+                    "No"
+                }
+            );
 
             // I/O Operations
             println!("\nI/O Statistics:");
@@ -96,7 +113,10 @@ async fn main() -> Result<()> {
             // Process Relationships
             println!("\nProcess Relationships:");
             println!("Child Processes: {}", relationship_monitor.child_pids().await?.len());
-            println!("Sibling Processes: {}", relationship_monitor.sibling_pids().await?.len());
+            println!(
+                "Sibling Processes: {}",
+                relationship_monitor.sibling_pids().await?.len()
+            );
             println!("Tree Depth: {}", relationship_monitor.tree_depth().await?);
             println!("Process Group: {}", relationship_monitor.process_group_id().await?);
 
@@ -121,7 +141,10 @@ async fn main() -> Result<()> {
         // Thread statistics
         let total_threads: u32 = processes.iter().map(|p| p.thread_count).sum();
         println!("Total Threads: {}", total_threads);
-        println!("Average Threads per Process: {:.1}", total_threads as f64 / total_processes as f64);
+        println!(
+            "Average Threads per Process: {:.1}",
+            total_threads as f64 / total_processes as f64
+        );
     }
 
     Ok(())

@@ -3,9 +3,10 @@ mod memory;
 mod temperature;
 mod utilization;
 
-use crate::common::builders::gpu::create_test_gpu;
 use darwin_metrics::error::Result;
 use tokio::test;
+
+use crate::common::builders::gpu::create_test_gpu;
 
 #[test]
 async fn test_gpu_metrics_collection() -> Result<()> {

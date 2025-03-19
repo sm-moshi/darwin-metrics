@@ -1,5 +1,6 @@
-use crate::core::types::ByteSize;
 use std::time::{Instant, SystemTime};
+
+use crate::core::types::ByteSize;
 
 /// The type of disk storage device
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -242,6 +243,10 @@ pub struct ByteMetrics {
 
 impl ByteMetrics {
     pub fn new(bytes_read: u64, bytes_written: u64) -> Self {
-        Self { bytes_read, bytes_written, total_bytes: bytes_read + bytes_written }
+        Self {
+            bytes_read,
+            bytes_written,
+            total_bytes: bytes_read + bytes_written,
+        }
     }
 }

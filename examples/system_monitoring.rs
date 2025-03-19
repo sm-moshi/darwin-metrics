@@ -1,8 +1,11 @@
-use darwin_metrics::{
-    core::metrics::hardware::{SystemInfoMonitor, SystemLoadMonitor, SystemResourceMonitor, SystemUptimeMonitor},
-    system::System,
+use std::error::Error;
+use std::time::Duration;
+
+use darwin_metrics::core::metrics::hardware::{
+    SystemInfoMonitor, SystemLoadMonitor, SystemResourceMonitor, SystemUptimeMonitor,
 };
-use std::{error::Error, time::Duration};
+use darwin_metrics::system::System;
+use darwin_metrics::traits::SystemMonitor;
 
 /// Helper function to format bytes into human-readable strings
 fn format_bytes(bytes: u64) -> String {

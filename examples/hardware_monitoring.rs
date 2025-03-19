@@ -1,13 +1,15 @@
-use darwin_metrics::{
-    core::metrics::hardware::{CpuMonitor, GpuMonitor, MemoryMonitor, ThermalMonitor},
-    error::Result,
-    hardware::{temperature::Temperature, Gpu, Memory, CPU},
-};
-use darwin_metrics::{
-    CpuMonitor, GpuMonitor, IOKitImpl, PowerConsumptionMonitor, PowerEventMonitor, PowerManagementMonitor,
-    PowerStateMonitor, ThermalMonitor,
-};
 use std::time::Duration;
+
+use darwin_metrics::IOKitImpl;
+use darwin_metrics::core::metrics::hardware::{CpuMonitor, GpuMonitor, MemoryMonitor, ThermalMonitor};
+use darwin_metrics::core::prelude::{PowerEventMonitor, PowerManagementMonitor};
+use darwin_metrics::error::Result;
+use darwin_metrics::hardware::{CPU, Gpu, Memory};
+use darwin_metrics::temperature::Temperature;
+use darwin_metrics::traits::{
+    CpuMonitor, GpuMonitor, MemoryMonitor, PowerConsumptionMonitor, PowerEventMonitor, PowerManagementMonitor,
+    PowerStateMonitor, SystemResourceMonitor, ThermalMonitor,
+};
 use tokio::time::sleep;
 
 /// Helper function to format bytes in a human-readable format
@@ -88,7 +90,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Memory Utilization: {:.1}%", monitor.memory_utilization().await?);
         println!(
             "Hardware Acceleration: {}",
-            if monitor.supports_hardware_acceleration().await? { "Supported" } else { "Not Supported" }
+            if monitor.supports_hardware_acceleration().await? {
+                "Supported"
+            } else {
+                "Not Supported"
+            }
         );
         if let Some(bandwidth) = monitor.memory_bandwidth().await? {
             println!("Memory Bandwidth: {} GB/s", bandwidth as f64 / 1024.0 / 1024.0 / 1024.0);
@@ -111,7 +117,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(temp) = monitor.ambient_temperature().await? {
             println!("Ambient Temperature: {}", format_temperature(temp));
         }
-        println!("Thermal Throttling: {}", if monitor.is_throttling().await? { "Yes" } else { "No" });
+        println!(
+            "Thermal Throttling: {}",
+            if monitor.is_throttling().await? { "Yes" } else { "No" }
+        );
 
         let fans = monitor.get_fans().await?;
         println!("\nFan Information:");
@@ -160,7 +169,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Power Events
         println!("\nPower Events:");
-        println!("Time Since Wake: {:.1} seconds", monitor.time_since_wake().await?.as_secs_f64());
+        println!(
+            "Time Since Wake: {:.1} seconds",
+            monitor.time_since_wake().await?.as_secs_f64()
+        );
         println!("Thermal Event Count: {}", monitor.thermal_event_count().await?);
         if let Some(sleep_time) = monitor.time_until_sleep().await? {
             println!("Time Until Sleep: {:.1} seconds", sleep_time.as_secs_f64());

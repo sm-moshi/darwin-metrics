@@ -4,25 +4,20 @@ mod monitors;
 mod types;
 
 // Re-export all types and monitors
+use async_trait::async_trait;
+// Re-export constants
+pub use constants::*;
 pub use cpu_impl::*;
 pub use monitors::*;
 pub use types::*;
 
-// Re-export constants
-pub use constants::*;
-
-// Re-export core traits from the traits module
-pub use crate::traits::{CpuMonitor, HardwareMonitor, TemperatureMonitor, UtilizationMonitor};
-
+use crate::core::metrics::Metric;
+use crate::core::types::{Percentage, Temperature};
+use crate::error::Result;
 // Import IOKit from the hardware module
 use crate::hardware::iokit::IOKit;
-use crate::{
-    core::metrics::Metric,
-    core::types::{Percentage, Temperature},
-    error::Result,
-};
-
-use async_trait::async_trait;
+// Re-export core traits from the traits module
+pub use crate::traits::{CpuMonitor, HardwareMonitor, TemperatureMonitor, UtilizationMonitor};
 
 pub trait CpuMetrics {
     fn get_core_usage(&self) -> f64;
@@ -105,7 +100,9 @@ impl CPU {
 
     /// Clone method that creates a new CPU instance with a cloned IOKit box
     pub fn clone(&self) -> Self {
-        Self { iokit: self.iokit.clone_box() }
+        Self {
+            iokit: self.iokit.clone_box(),
+        }
     }
 
     /// Get the number of CPU cores
@@ -140,7 +137,9 @@ impl CPU {
     /// Get CPU utilization as a metric
     pub async fn utilization_metric(&self) -> Result<Metric<Percentage>> {
         let avg = self.average_utilization().await?;
-        Ok(Metric::new(Percentage::new(avg).unwrap_or(Percentage::new(0.0).unwrap())))
+        Ok(Metric::new(
+            Percentage::new(avg).unwrap_or(Percentage::new(0.0).unwrap()),
+        ))
     }
 
     /// Get CPU temperature
@@ -179,6 +178,10 @@ impl CPU {
         let temperature = self.temperature();
         let frequency = self.frequency_mhz();
 
-        Ok(CpuMetricsData { usage, temperature, frequency })
+        Ok(CpuMetricsData {
+            usage,
+            temperature,
+            frequency,
+        })
     }
 }

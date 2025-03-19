@@ -1,8 +1,6 @@
+use darwin_metrics::error::Error;
+use darwin_metrics::hardware::iokit::{GpuStats, IOKit, IOKitImpl, MockIOKit};
 use darwin_metrics::utils::tests::test_utils::{create_test_dictionary, create_test_object};
-use darwin_metrics::{
-    error::Error,
-    hardware::iokit::{GpuStats, IOKit, IOKitImpl, MockIOKit},
-};
 
 #[test]
 fn test_get_gpu_stats() {
@@ -33,14 +31,16 @@ fn test_get_gpu_stats() {
 fn test_gpu_stats_error_handling() {
     let mut mock = MockIOKit::new();
 
-    mock.expect_get_service_matching().returning(|_| Err(Error::iokit_error(1, "GPU service not found")));
+    mock.expect_get_service_matching()
+        .returning(|_| Err(Error::iokit_error(1, "GPU service not found")));
 
     let result = mock.get_gpu_stats();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("GPU service not found"));
 
     let mut mock = MockIOKit::new();
-    mock.expect_get_service_matching().returning(|_| Ok(create_test_object()));
+    mock.expect_get_service_matching()
+        .returning(|_| Ok(create_test_object()));
     mock.expect_io_registry_entry_create_cf_properties()
         .returning(|_| Err(Error::iokit_error(1, "Failed to read properties")));
 

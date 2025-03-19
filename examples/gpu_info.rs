@@ -1,5 +1,4 @@
-use darwin_metrics::gpu::Gpu;
-use darwin_metrics::gpu::GpuMetrics;
+use darwin_metrics::gpu::{Gpu, GpuMetrics};
 
 /// Demonstrates the improved GPU hardware detection in darwin-metrics
 /// This example shows detailed information about the GPU including hardware
@@ -44,7 +43,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Clock Speed: Unknown");
     }
 
-    println!("Hardware Raytracing: {}", if metrics.characteristics.has_raytracing { "Yes" } else { "No" });
+    println!(
+        "Hardware Raytracing: {}",
+        if metrics.characteristics.has_raytracing {
+            "Yes"
+        } else {
+            "No"
+        }
+    );
     println!();
 
     // Display memory information

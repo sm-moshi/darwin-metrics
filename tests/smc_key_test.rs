@@ -87,6 +87,8 @@ fn test_smc_key_to_chars() {
     // Test round-trip conversion
     let original_key = SmcKey::from_chars(['T', 'C', '0', 'P']);
     let chars = original_key.to_chars();
-    let new_key = SmcKey { key: [chars[0] as u8, chars[1] as u8, chars[2] as u8, chars[3] as u8] };
+    let new_key = SmcKey {
+        key: [chars[0] as u8, chars[1] as u8, chars[2] as u8, chars[3] as u8],
+    };
     assert_eq!(original_key.to_string(), new_key.to_string());
 }

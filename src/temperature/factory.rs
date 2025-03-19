@@ -1,13 +1,16 @@
+use std::sync::Arc;
+
 use crate::error::Result;
 use crate::hardware::iokit::IOKit;
 use crate::temperature::monitors::*;
 use crate::traits::TemperatureMonitor;
-use std::sync::Arc;
 
 /// Temperature Monitor Factory
 ///
 /// The factory pattern for creating different types of temperature monitors.
+#[derive(Debug, Clone)]
 pub struct TemperatureMonitorFactory {
+    /// IOKit service for accessing hardware information
     io_kit: Arc<Box<dyn IOKit>>,
 }
 
@@ -39,4 +42,4 @@ impl TemperatureMonitorFactory {
             Box::new(SsdTemperatureMonitor::new(self.io_kit.clone())),
         ]
     }
-} 
+}

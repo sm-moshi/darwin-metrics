@@ -1,9 +1,8 @@
-use crate::{
-    error::{Error, Result},
-    power::{Power, PowerConsumption, PowerError, PowerState},
-    tests::common::builders::power::TestPowerBuilder,
-};
 use std::os::raw::c_char;
+
+use crate::error::{Error, Result};
+use crate::power::{Power, PowerConsumption, PowerError, PowerState};
+use crate::tests::common::builders::power::TestPowerBuilder;
 
 // Constants from the power module
 const SMC_KEY_CPU_POWER: [c_char; 4] = [b'P' as c_char, b'C' as c_char, b'P' as c_char, b'C' as c_char];
@@ -34,7 +33,10 @@ fn test_power_consumption() -> Result<()> {
     assert!(consumption.cores > 0.0, "Core power should be positive");
     assert!(consumption.gpu.is_some(), "GPU power should be present");
     assert!(consumption.dram.is_some(), "DRAM power should be present");
-    assert!(consumption.neural_engine.is_some(), "Neural engine power should be present");
+    assert!(
+        consumption.neural_engine.is_some(),
+        "Neural engine power should be present"
+    );
     assert_eq!(consumption.power_state, PowerState::AC, "Power state should be AC");
 
     Ok(())
@@ -52,8 +54,10 @@ fn test_power_throttling() -> Result<()> {
 
 #[test]
 fn test_read_smc_power_key() -> Result<()> {
-    let power =
-        TestPowerBuilder::new().smc_key_value(SMC_KEY_CPU_POWER, 10.0).smc_key_value(SMC_KEY_GPU_POWER, 5.0).build()?;
+    let power = TestPowerBuilder::new()
+        .smc_key_value(SMC_KEY_CPU_POWER, 10.0)
+        .smc_key_value(SMC_KEY_GPU_POWER, 5.0)
+        .build()?;
 
     // Test valid keys
     let cpu_power = power.read_smc_power_key(SMC_KEY_CPU_POWER)?;
@@ -107,7 +111,10 @@ fn test_power_consumption_struct() {
 
 #[test]
 fn test_power_error_conversion() {
-    let error = Error::InvalidData { context: "test".to_string(), value: Some("test".to_string()) };
+    let error = Error::InvalidData {
+        context: "test".to_string(),
+        value: Some("test".to_string()),
+    };
     let power_error = PowerError::from(error);
     assert!(matches!(power_error, PowerError::InvalidData));
 

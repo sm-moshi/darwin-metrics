@@ -44,7 +44,10 @@ fn test_get_for_path() {
         assert!(!disk.device.is_empty(), "Device should not be empty");
         assert!(!disk.fs_type.is_empty(), "Filesystem type should not be empty");
         assert!(disk.total > 0, "Total space should be greater than zero");
-        assert!(disk.available <= disk.total, "Available space should not exceed total space");
+        assert!(
+            disk.available <= disk.total,
+            "Available space should not exceed total space"
+        );
         assert!(disk.used <= disk.total, "Used space should not exceed total space");
     }
 

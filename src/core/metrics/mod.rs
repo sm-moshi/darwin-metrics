@@ -19,7 +19,10 @@ pub struct Metric<T> {
 impl<T> Metric<T> {
     /// Creates a new metric with the current time as timestamp
     pub fn new(value: T) -> Self {
-        Self { value, timestamp: SystemTime::now() }
+        Self {
+            value,
+            timestamp: SystemTime::now(),
+        }
     }
 
     /// Creates a new metric with a specific timestamp

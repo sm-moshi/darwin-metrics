@@ -1,22 +1,17 @@
-use async_trait::async_trait;
-use metal::Device as MTLDevice;
 use std::path::PathBuf;
 use std::time::SystemTime;
+
+use async_trait::async_trait;
+use metal::Device as MTLDevice;
 use tokio::task;
 
-use crate::{
-    core::{
-        metrics::Metric,
-        types::{ByteSize, Percentage, Temperature},
-    },
-    error::{Error, Result},
-    gpu::{
-        monitors::{GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor},
-        types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, GpuUtilization},
-    },
-    traits::HardwareMonitor,
-    utils::ffi,
-};
+use crate::core::metrics::Metric;
+use crate::core::types::{ByteSize, Percentage, Temperature};
+use crate::error::{Error, Result};
+use crate::gpu::monitors::{GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor};
+use crate::gpu::types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, GpuUtilization};
+use crate::traits::HardwareMonitor;
+use crate::utils::ffi;
 
 // Path resolution helper
 fn get_proc_path() -> PathBuf {
@@ -45,6 +40,7 @@ fn get_proc_path() -> PathBuf {
 ///     Ok(())
 /// }
 /// ```
+#[derive(Debug, Clone)]
 pub struct GpuMonitors {
     pub characteristics: GpuCharacteristicsMonitor,
     pub memory: GpuMemoryMonitor,
@@ -53,6 +49,7 @@ pub struct GpuMonitors {
 }
 
 /// Represents a GPU device
+#[derive(Debug, Clone)]
 pub struct Gpu {
     metal_device: Option<MTLDevice>,
     monitors: GpuMonitors,
@@ -218,7 +215,14 @@ impl GpuMetrics {
         temperature: f64,
         power_usage: Option<f64>,
     ) -> Self {
-        Self { utilization, memory_used, memory_total, temperature, power_usage, timestamp: SystemTime::now() }
+        Self {
+            utilization,
+            memory_used,
+            memory_total,
+            temperature,
+            power_usage,
+            timestamp: SystemTime::now(),
+        }
     }
 
     /// Update metrics from monitors

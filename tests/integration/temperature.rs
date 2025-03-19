@@ -1,7 +1,8 @@
+use darwin_metrics::hardware::iokit::{FanInfo, ThermalInfo};
+use darwin_metrics::temperature::{FanMonitoring, Temperature, TemperatureMonitor};
+
 use crate::common::builders::{FanInfoBuilder, ThermalInfoBuilder};
 use crate::common::mocks::temperature::MockIOKitClone;
-use darwin_metrics::hardware::iokit::{FanInfo, ThermalInfo};
-use darwin_metrics::hardware::temperature::{FanMonitoring, Temperature, TemperatureMonitor};
 
 #[tokio::test]
 async fn test_thermal_metrics_integration() {
@@ -15,8 +16,12 @@ async fn test_thermal_metrics_integration() {
         .with_throttling(false)
         .build();
 
-    let fan_info =
-        FanInfoBuilder::new().with_speed(2000).with_min_speed(1000).with_max_speed(4000).with_percentage(33.3).build();
+    let fan_info = FanInfoBuilder::new()
+        .with_speed(2000)
+        .with_min_speed(1000)
+        .with_max_speed(4000)
+        .with_percentage(33.3)
+        .build();
 
     let mock_iokit = MockIOKitClone::new()
         .with_thermal_info(move || Ok(thermal_info.clone()))
@@ -63,7 +68,10 @@ async fn test_thermal_metrics_integration() {
     }
 
     // Verify throttling status
-    println!("Thermal Throttling: {}", if metrics.is_throttling { "Yes" } else { "No" });
+    println!(
+        "Thermal Throttling: {}",
+        if metrics.is_throttling { "Yes" } else { "No" }
+    );
 }
 
 #[tokio::test]
@@ -105,23 +113,17 @@ async fn test_temperature_monitor_integration() {
 #[tokio::test]
 async fn test_fan_monitoring_integration() {
     let temp = Temperature::new().unwrap();
-    let fan_count = temp.iokit.get_all_fans().unwrap().len();
+    let monitor = temp.fan_monitor();
 
-    for i in 0..fan_count {
-        let monitor = temp.fan_monitor(i);
+    if let Ok(speed) = monitor.speed_rpm().await {
+        let min = monitor.min_speed().await.unwrap();
+        let max = monitor.max_speed().await.unwrap();
+        let percentage = monitor.percentage().await.unwrap();
+        let name = monitor.fan_name().await.unwrap();
 
-        if let Ok(speed) = monitor.speed_rpm().await {
-            let min = monitor.min_speed().await.unwrap();
-            let max = monitor.max_speed().await.unwrap();
-            let percentage = monitor.percentage().await.unwrap();
-            let name = monitor.fan_name().await.unwrap();
+        println!("{}: {} RPM ({}%) - Range: {}-{} RPM", name, speed, percentage, min, max);
 
-            println!("{}: {} RPM ({}%) - Range: {}-{} RPM", name, speed, percentage, min, max);
-
-            assert!(speed >= min && speed <= max);
-            assert!((0.0..=100.0).contains(&percentage));
-        } else {
-            println!("Fan {} not available", i);
-        }
+        assert!(speed >= min && speed <= max);
+        assert!((0.0..=100.0).contains(&percentage));
     }
 }

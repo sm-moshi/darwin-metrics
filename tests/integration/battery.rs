@@ -1,4 +1,5 @@
-use darwin_metrics::{error::Result, hardware::battery::Battery};
+use darwin_metrics::error::Result;
+use darwin_metrics::hardware::battery::Battery;
 
 #[test]
 fn test_battery_integration() -> Result<()> {

@@ -1,7 +1,9 @@
+use std::ffi::CString;
+use std::ptr;
+
 use libc::sysctlbyname;
 use objc2::msg_send;
 use objc2::runtime::AnyObject;
-use std::{ffi::CString, ptr};
 
 use super::{CpuMetrics, CpuMetricsData};
 use crate::core::metrics::Metric;
@@ -10,8 +12,7 @@ use crate::hardware::iokit::IOKit;
 use crate::utils::ffi;
 #[cfg(test)]
 use crate::utils::tests::test_utils::MockIOKit;
-use crate::{Error, Result};
-use crate::{FrequencyMetrics, FrequencyMonitor};
+use crate::{Error, FrequencyMetrics, FrequencyMonitor, Result};
 
 #[derive(Debug)]
 pub struct CPU {
@@ -84,7 +85,9 @@ impl CPU {
 
     fn get_frequency_from_iokit(&self) -> Result<f64> {
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let _service_ref = service.as_ref().ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        let _service_ref = service
+            .as_ref()
+            .ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
 
         let obj = unsafe {
             let ptr = _service_ref as *const _ as *mut AnyObject;
@@ -92,7 +95,11 @@ impl CPU {
         };
         let frequency: f64 = unsafe { msg_send![obj, currentProcessorClockSpeed] };
 
-        Ok(if frequency > 1000.0 { frequency / 1000.0 } else { frequency })
+        Ok(if frequency > 1000.0 {
+            frequency / 1000.0
+        } else {
+            frequency
+        })
     }
 
     fn fetch_core_usage(&self) -> Result<Vec<f64>> {
@@ -103,7 +110,12 @@ impl CPU {
 
         for i in 0..self.logical_cores {
             let physical_core_index = i % self.physical_cores;
-            let usage = self.iokit.get_core_usage()?.get(physical_core_index as usize).copied().unwrap_or(0.0);
+            let usage = self
+                .iokit
+                .get_core_usage()?
+                .get(physical_core_index as usize)
+                .copied()
+                .unwrap_or(0.0);
             usages.push(usage);
         }
 
@@ -115,14 +127,23 @@ impl CPU {
         let mut size = buffer.len();
         let name = CString::new("machdep.cpu.brand_string").unwrap();
 
-        let result =
-            unsafe { sysctlbyname(name.as_ptr(), buffer.as_mut_ptr() as *mut _, &mut size, ptr::null_mut(), 0) };
+        let result = unsafe {
+            sysctlbyname(
+                name.as_ptr(),
+                buffer.as_mut_ptr() as *mut _,
+                &mut size,
+                ptr::null_mut(),
+                0,
+            )
+        };
 
         if result != 0 {
             return Err(Error::iokit_error(result, "Failed to get CPU model name"));
         }
 
-        Ok(String::from_utf8_lossy(&buffer[..size]).trim_matches(|c: char| c == '\0' || c.is_whitespace()).to_string())
+        Ok(String::from_utf8_lossy(&buffer[..size])
+            .trim_matches(|c: char| c == '\0' || c.is_whitespace())
+            .to_string())
     }
 
     pub fn physical_cores(&self) -> u32 {

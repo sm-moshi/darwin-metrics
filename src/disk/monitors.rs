@@ -1,35 +1,25 @@
-use std::{
-    ffi::{CStr, CString},
-    io,
-    mem::{size_of, MaybeUninit},
-    time::{Duration, SystemTime},
-};
+use std::ffi::{CStr, CString};
+use std::io;
+use std::mem::{MaybeUninit, size_of};
+use std::time::{Duration, SystemTime};
 
 use async_trait::async_trait;
 use log::trace;
 use tokio::time::sleep;
 
-use crate::{
-    core::{
-        metrics::Metric,
-        types::{ByteSize, ByteSizeFormat, Percentage, PercentageFormat, Transfer},
-    },
-    disk::{
-        constants::{FS_TYPE_APFS, FS_TYPE_NFS, FS_TYPE_RAMFS, FS_TYPE_SMB, FS_TYPE_TMPFS},
-        types::{ByteMetrics, Disk, DiskConfig, DiskHealth, DiskType},
-    },
-    error::{Error, Result},
-    traits::hardware::{
-        ByteMetricsMonitor, DiskHealthMonitor, DiskIOMonitor, DiskMountMonitor, DiskPerformanceMonitor,
-        DiskStorageMonitor, DiskUtilizationMonitor, HardwareMonitor, RateMonitor, StorageMonitor, UtilizationMonitor,
-    },
-    utils::bindings::{getfsstat, statfs, Statfs, MNT_NOWAIT},
-    DiskIO, DiskMount, DiskSpace,
-};
-
 use super::DISK_UPDATE_INTERVAL;
+use crate::core::metrics::Metric;
+use crate::core::types::{ByteSize, ByteSizeFormat, Percentage, PercentageFormat, Transfer};
+use crate::disk::constants::{FS_TYPE_APFS, FS_TYPE_NFS, FS_TYPE_RAMFS, FS_TYPE_SMB, FS_TYPE_TMPFS};
+use crate::disk::types::{ByteMetrics, Disk, DiskConfig, DiskHealth, DiskType};
+use crate::error::{Error, Result};
+use crate::traits::hardware::{
+    ByteMetricsMonitor, DiskHealthMonitor, DiskIOMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor,
+    DiskUtilizationMonitor, HardwareMonitor, RateMonitor, StorageMonitor, UtilizationMonitor,
+};
+use crate::utils::bindings::{MNT_NOWAIT, Statfs, getfsstat, statfs};
+use crate::{DiskIO, DiskMount, DiskSpace};
 
-//
 // Disk Health Monitor
 //
 
@@ -132,7 +122,6 @@ impl DiskHealthMonitor for DiskHealthMonitorImpl {
     }
 }
 
-//
 // Disk I/O Monitor
 //
 
@@ -150,7 +139,11 @@ pub struct DiskIOMonitorImpl {
 impl DiskIOMonitorImpl {
     /// Create a new disk I/O monitor
     pub fn new(disk: Disk) -> Self {
-        Self { disk, last_io: None, update_interval: DISK_UPDATE_INTERVAL }
+        Self {
+            disk,
+            last_io: None,
+            update_interval: DISK_UPDATE_INTERVAL,
+        }
     }
 
     /// Set the update interval
@@ -216,7 +209,10 @@ impl DiskIOMonitor for DiskIOMonitorImpl {
                         / self.update_interval.as_secs() as u64,
                 );
 
-                Ok(Transfer { read: read_rate, write: write_rate })
+                Ok(Transfer {
+                    read: read_rate,
+                    write: write_rate,
+                })
             },
             None => {
                 // First call, wait for the interval and then calculate
@@ -233,7 +229,10 @@ impl DiskIOMonitor for DiskIOMonitorImpl {
                         / self.update_interval.as_secs() as u64,
                 );
 
-                Ok(Transfer { read: read_rate, write: write_rate })
+                Ok(Transfer {
+                    read: read_rate,
+                    write: write_rate,
+                })
             },
         }
     }
@@ -275,7 +274,6 @@ impl RateMonitor<u64> for DiskIOMonitorImpl {
     }
 }
 
-//
 // Disk Mount Monitor
 //
 
@@ -355,7 +353,6 @@ impl DiskMountMonitor for DiskMountMonitorImpl {
     }
 }
 
-//
 // Disk Performance Monitor
 //
 
@@ -371,7 +368,10 @@ pub struct DiskPerformanceMonitorImpl {
 impl DiskPerformanceMonitorImpl {
     /// Create a new disk performance monitor
     pub fn new(disk: Disk) -> Self {
-        Self { io_monitor: DiskIOMonitorImpl::new(disk.clone()), disk }
+        Self {
+            io_monitor: DiskIOMonitorImpl::new(disk.clone()),
+            disk,
+        }
     }
 }
 
@@ -426,7 +426,6 @@ impl DiskPerformanceMonitor for DiskPerformanceMonitorImpl {
     }
 }
 
-//
 // Disk Storage Monitor
 //
 
@@ -446,8 +445,11 @@ impl DiskStorageMonitorImpl {
     /// Create a new disk storage monitor for the root filesystem
     pub fn new_root() -> Result<Self> {
         // TODO: Implement proper root disk detection
-        let disk_config =
-            DiskConfig { disk_type: DiskType::SSD, name: "Macintosh HD".to_string(), is_boot_volume: true };
+        let disk_config = DiskConfig {
+            disk_type: DiskType::SSD,
+            name: "Macintosh HD".to_string(),
+            is_boot_volume: true,
+        };
 
         let disk = Disk::with_details(
             "default".to_string(),
@@ -562,7 +564,6 @@ impl DiskStorageMonitor for DiskStorageMonitorImpl {
     }
 }
 
-//
 // Disk Utilization Monitor
 //
 
@@ -578,7 +579,10 @@ pub struct DiskUtilizationMonitorImpl {
 impl DiskUtilizationMonitorImpl {
     /// Create a new disk utilization monitor
     pub fn new(disk: Disk) -> Self {
-        Self { io_monitor: DiskIOMonitorImpl::new(disk.clone()), disk }
+        Self {
+            io_monitor: DiskIOMonitorImpl::new(disk.clone()),
+            disk,
+        }
     }
 }
 

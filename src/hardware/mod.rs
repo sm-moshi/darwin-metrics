@@ -30,7 +30,7 @@ pub(crate) mod iokit;
 // NOTE: These modules have been moved to the root level
 
 /// Temperature monitoring functionality
-pub mod temperature;
+// pub mod temperature;
 
 // Prelude module for convenient imports
 /// Prelude module for convenient imports of hardware monitoring types

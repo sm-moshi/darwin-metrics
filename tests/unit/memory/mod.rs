@@ -1,6 +1,8 @@
-use crate::memory::{Memory, MemoryMonitor};
-use lazy_static::lazy_static;
 use std::sync::Mutex;
+
+use lazy_static::lazy_static;
+
+use crate::memory::{Memory, MemoryMonitor};
 
 lazy_static! {
     /// Global mutex for memory tests to prevent concurrent access to system memory APIs

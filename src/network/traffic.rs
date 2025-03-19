@@ -85,7 +85,10 @@ impl TrafficTracker {
             collisions,
         );
 
-        Self { current, previous: None }
+        Self {
+            current,
+            previous: None,
+        }
     }
 
     /// Updates the traffic data and shifts current data to previous.

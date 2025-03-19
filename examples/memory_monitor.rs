@@ -1,7 +1,8 @@
-use darwin_metrics::memory::{Memory, PressureLevel};
 use std::error::Error;
 use std::thread;
 use std::time::Duration;
+
+use darwin_metrics::memory::{Memory, PressureLevel};
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Memory Monitor Example");
@@ -26,7 +27,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         "\n{:<10} | {:<12} | {:<12} | {:<12} | {:<7} | {:<12}",
         "Total", "Used", "Free", "Wired", "Usage", "Pressure"
     );
-    println!("{:-<10} | {:-<12} | {:-<12} | {:-<12} | {:-<7} | {:-<12}", "", "", "", "", "", "");
+    println!(
+        "{:-<10} | {:-<12} | {:-<12} | {:-<12} | {:-<7} | {:-<12}",
+        "", "", "", "", "", ""
+    );
 
     // Monitor memory for 10 seconds maximum (5 iterations x 2 seconds)
     for _ in 0..5 {
@@ -52,7 +56,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Show memory breakdown by page states
     println!("\nMemory Breakdown by Page States (GB):");
-    println!("{:<10} | {:<10} | {:<10} | {:<10} | {:<10}", "Active", "Inactive", "Wired", "Free", "Compressed");
+    println!(
+        "{:<10} | {:<10} | {:<10} | {:<10} | {:<10}",
+        "Active", "Inactive", "Wired", "Free", "Compressed"
+    );
     println!("{:-<10} | {:-<10} | {:-<10} | {:-<10} | {:-<10}", "", "", "", "", "");
 
     let active_gb = memory.page_states.active as f64 / 1_073_741_824.0;

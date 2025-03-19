@@ -1,11 +1,19 @@
+use std::time::Duration;
+
 use super::super::TEST_MUTEX;
 use crate::hardware::disk::{Disk, DiskHealthMonitor, DiskHealthMonitorTrait, HardwareMonitor};
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_health_monitor_creation() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskHealthMonitor::new(disk);
 
     assert_eq!(monitor.name(), "Disk Health Monitor");
@@ -16,7 +24,14 @@ async fn test_health_monitor_creation() {
 #[tokio::test]
 async fn test_health_status() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskHealthMonitor::new(disk);
 
     let is_healthy = monitor.is_healthy().await.unwrap();
@@ -29,7 +44,14 @@ async fn test_health_status() {
 #[tokio::test]
 async fn test_temperature_monitoring() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskHealthMonitor::new(disk);
 
     let temp = monitor.temperature().await.unwrap();
@@ -41,7 +63,14 @@ async fn test_temperature_monitoring() {
 async fn test_health_monitor_error_handling() {
     let _guard = TEST_MUTEX.lock().unwrap();
     // Create a monitor with an invalid disk path
-    let disk = Disk::new(String::from("/dev/nonexistent"), String::from("/invalid"), String::from("invalid"), 0, 0, 0);
+    let disk = Disk::new(
+        String::from("/dev/nonexistent"),
+        String::from("/invalid"),
+        String::from("invalid"),
+        0,
+        0,
+        0,
+    );
     let monitor = DiskHealthMonitor::new(disk);
 
     // Test error handling for each method
@@ -58,7 +87,14 @@ async fn test_health_monitor_error_handling() {
 #[tokio::test]
 async fn test_health_monitor_updates() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskHealthMonitor::new(disk);
 
     // Test multiple consecutive updates

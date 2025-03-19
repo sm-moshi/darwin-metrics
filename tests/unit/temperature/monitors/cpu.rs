@@ -1,5 +1,6 @@
-use super::super::TEST_MUTEX;
 use darwin_metrics::hardware::temperature::{Temperature, TemperatureMonitor};
+
+use super::super::TEST_MUTEX;
 
 #[tokio::test]
 async fn test_cpu_monitor_creation() {

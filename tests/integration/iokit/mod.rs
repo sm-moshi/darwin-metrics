@@ -2,15 +2,11 @@
 
 use std::os::raw::c_char;
 
-use darwin_metrics::{
-    error::{Error, Result},
-    hardware::iokit::{IOKit, IOKitImpl},
-    utils::bindings::{
-        smc_key_from_chars, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_TEMP, SMC_KEY_FAN_NUM,
-        SMC_KEY_GPU_TEMP,
-    },
+use darwin_metrics::error::{Error, Result};
+use darwin_metrics::hardware::iokit::{IOKit, IOKitImpl};
+use darwin_metrics::utils::bindings::{
+    SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_TEMP, SMC_KEY_FAN_NUM, SMC_KEY_GPU_TEMP, smc_key_from_chars,
 };
-
 use darwin_metrics::utils::ffi::SmcKey;
 
 #[test]

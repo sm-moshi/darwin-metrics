@@ -26,4 +26,16 @@ pub const MIN_VALID_TEMPERATURE: f64 = -20.0;
 pub const MAX_VALID_TEMPERATURE: f64 = 120.0;
 
 /// Critical temperature threshold for SSD in degrees Celsius
-pub const SSD_CRITICAL_TEMPERATURE: f64 = 70.0; 
+pub const SSD_CRITICAL_TEMPERATURE: f64 = 70.0;
+
+/// Critical temperature threshold for CPU in degrees Celsius
+pub const CPU_CRITICAL_TEMPERATURE: f64 = 95.0;
+
+/// Critical temperature threshold for GPU in degrees Celsius
+pub const GPU_CRITICAL_TEMPERATURE: f64 = 90.0;
+
+/// Critical temperature threshold for battery in degrees Celsius
+pub const BATTERY_CRITICAL_TEMPERATURE: f64 = 65.0;
+
+/// Critical temperature threshold for ambient sensor in degrees Celsius
+pub const AMBIENT_CRITICAL_TEMPERATURE: f64 = 45.0;

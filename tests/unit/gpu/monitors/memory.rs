@@ -1,6 +1,7 @@
+use std::time::Duration;
+
 use super::super::TEST_MUTEX;
 use crate::gpu::{Gpu, GpuMemoryMonitor, HardwareMonitor, MemoryMonitor};
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_memory_monitor_creation() {

@@ -62,7 +62,14 @@ pub struct SwapUsage {
 
 impl Default for SwapUsage {
     fn default() -> Self {
-        Self { total: 0, used: 0, free: 0, ins: 0.0, outs: 0.0, pressure: 0.0 }
+        Self {
+            total: 0,
+            used: 0,
+            free: 0,
+            ins: 0.0,
+            outs: 0.0,
+            pressure: 0.0,
+        }
     }
 }
 

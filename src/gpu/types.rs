@@ -1,5 +1,6 @@
-use crate::core::types::{ByteSize, Percentage};
 use std::time::SystemTime;
+
+use crate::core::types::{ByteSize, Percentage};
 
 /// Holds information about GPU characteristics
 #[derive(Debug, Clone, Default)]
@@ -56,14 +57,24 @@ pub struct GpuMemory {
 
 impl Default for GpuMemory {
     fn default() -> Self {
-        Self { total: 0, used: 0, free: 0, timestamp: SystemTime::now() }
+        Self {
+            total: 0,
+            used: 0,
+            free: 0,
+            timestamp: SystemTime::now(),
+        }
     }
 }
 
 impl GpuMemory {
     /// Creates a new GpuMemory instance with the specified total, used, and free memory values
     pub fn new(total: u64, used: u64, free: u64) -> Self {
-        Self { total, used, free, timestamp: SystemTime::now() }
+        Self {
+            total,
+            used,
+            free,
+            timestamp: SystemTime::now(),
+        }
     }
 }
 
@@ -99,7 +110,10 @@ pub struct GpuTemperature {
 impl GpuTemperature {
     /// Creates a new GpuTemperature instance
     pub fn new(temperature: f64) -> Self {
-        Self { temperature, timestamp: SystemTime::now() }
+        Self {
+            temperature,
+            timestamp: SystemTime::now(),
+        }
     }
 }
 
@@ -157,7 +171,12 @@ pub struct GpuState {
 impl GpuState {
     /// Create a new GPU state
     pub fn new(utilization: GpuUtilization, memory: GpuMemory, temperature: f64, timestamp: SystemTime) -> Self {
-        Self { utilization, memory, temperature, timestamp }
+        Self {
+            utilization,
+            memory,
+            temperature,
+            timestamp,
+        }
     }
 }
 
@@ -190,6 +209,9 @@ impl GpuInfo {
 
 impl Default for GpuInfo {
     fn default() -> Self {
-        Self { characteristics: GpuCharacteristics::default(), state: GpuState::default() }
+        Self {
+            characteristics: GpuCharacteristics::default(),
+            state: GpuState::default(),
+        }
     }
 }

@@ -1,6 +1,7 @@
+use std::sync::Arc;
+
 use crate::error::Result;
 use crate::hardware::iokit::IOKit;
-use std::sync::Arc;
 
 // Import modules
 pub mod constants;
@@ -18,7 +19,10 @@ pub struct Battery {
 impl Battery {
     /// Creates a new Battery instance with the provided IOKit implementation
     pub fn new(iokit: Arc<dyn IOKit>) -> Self {
-        Self { iokit, device_id: "main".to_string() }
+        Self {
+            iokit,
+            device_id: "main".to_string(),
+        }
     }
 
     /// Gets the IOKit instance used by this battery

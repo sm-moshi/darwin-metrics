@@ -4,7 +4,14 @@ use crate::hardware::disk::{Disk, DiskMountMonitor, DiskMountMonitorTrait, Hardw
 #[tokio::test]
 async fn test_mount_monitor_creation() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskMountMonitor::new(disk);
 
     assert_eq!(monitor.name(), "Disk Mount Monitor");
@@ -15,7 +22,14 @@ async fn test_mount_monitor_creation() {
 #[tokio::test]
 async fn test_mount_status() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk0"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     let monitor = DiskMountMonitor::new(disk);
 
     let is_mounted = monitor.is_mounted().await.unwrap();
@@ -34,7 +48,14 @@ async fn test_mount_status() {
 #[tokio::test]
 async fn test_mount_monitor_with_nonexistent_disk() {
     let _guard = TEST_MUTEX.lock().unwrap();
-    let disk = Disk::new(String::from("/dev/nonexistent"), String::from("/invalid"), String::from("invalid"), 0, 0, 0);
+    let disk = Disk::new(
+        String::from("/dev/nonexistent"),
+        String::from("/invalid"),
+        String::from("invalid"),
+        0,
+        0,
+        0,
+    );
     let monitor = DiskMountMonitor::new(disk);
 
     // Test error handling for each method
@@ -58,8 +79,22 @@ async fn test_mount_monitor_with_nonexistent_disk() {
 async fn test_mount_monitor_with_multiple_disks() {
     let _guard = TEST_MUTEX.lock().unwrap();
     let disks = vec![
-        Disk::new(String::from("/dev/disk0"), String::from("/"), String::from("apfs"), 1000, 200, 800),
-        Disk::new(String::from("/dev/disk1"), String::from("/home"), String::from("apfs"), 2000, 500, 1500),
+        Disk::new(
+            String::from("/dev/disk0"),
+            String::from("/"),
+            String::from("apfs"),
+            1000,
+            200,
+            800,
+        ),
+        Disk::new(
+            String::from("/dev/disk1"),
+            String::from("/home"),
+            String::from("apfs"),
+            2000,
+            500,
+            1500,
+        ),
     ];
 
     for disk in disks {

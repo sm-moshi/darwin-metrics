@@ -1,5 +1,6 @@
-use darwin_metrics::resource::{ResourceMonitor, ResourceMonitoring};
 use std::time::Duration;
+
+use darwin_metrics::resource::{ResourceMonitor, ResourceMonitoring};
 
 #[tokio::main]
 async fn main() -> darwin_metrics::Result<()> {
@@ -13,7 +14,10 @@ async fn main() -> darwin_metrics::Result<()> {
         println!("Update {}", i);
         match monitor.next_update().await {
             Ok(update) => {
-                println!("  Memory: {} bytes total, {} bytes used", update.memory.total, update.memory.used);
+                println!(
+                    "  Memory: {} bytes total, {} bytes used",
+                    update.memory.total, update.memory.used
+                );
                 println!("  CPU temperature: {}°C", update.temperature.cpu);
                 println!("  Disk space: {} bytes free", update.disk.free_space);
                 println!(

@@ -1,9 +1,8 @@
-use crate::{
-    error::Result,
-    network::{Interface, InterfaceType, NetworkMetrics},
-    utils::bindings::if_flags,
-};
 use std::net::IpAddr;
+
+use crate::error::Result;
+use crate::network::{Interface, InterfaceType, NetworkMetrics};
+use crate::utils::bindings::if_flags;
 
 // Create a mock network interface for testing
 fn create_mock_interface(name: &str, interface_type: InterfaceType, is_loopback: bool) -> Interface {

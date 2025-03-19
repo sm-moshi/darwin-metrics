@@ -33,19 +33,19 @@ pub mod tests;
 
 // Re-export core utilities
 pub use core::dictionary::SafeDictionary;
-
 // Selectively re-export FFI types and functions
 
 // Re-export sysctl constants
-
 use std::{
-    ffi::{c_char, CStr},
+    ffi::{CStr, c_char},
     os::raw::c_double,
     panic::AssertUnwindSafe,
     slice,
 };
 
-use objc2::{msg_send, rc::autoreleasepool, runtime::AnyObject};
+use objc2::msg_send;
+use objc2::rc::autoreleasepool;
+use objc2::runtime::AnyObject;
 
 use crate::error::{Error, Result};
 
@@ -81,16 +81,16 @@ impl CStringConversion<'_> {
     /// - Pointing to a null-terminated C string
     /// - Valid for the lifetime 'a
     pub unsafe fn new(ptr: *const c_char) -> Self {
-        Self { ptr, _phantom: std::marker::PhantomData }
+        Self {
+            ptr,
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
-impl UnsafeConversion<String> for CStringConversion<'_> {
+impl<'a> UnsafeConversion<String> for CStringConversion<'a> {
     unsafe fn convert(&self) -> Option<String> {
-        if self.ptr.is_null() {
-            return None;
-        }
-        CStr::from_ptr(self.ptr).to_str().ok().map(String::from)
+        unsafe { CStr::from_ptr(self.ptr).to_str().ok().map(String::from) }
     }
 }
 
@@ -114,16 +114,17 @@ impl RawStrConversion<'_> {
     /// - Pointing to valid UTF-8 data
     /// - Valid for the lifetime 'a
     pub unsafe fn new(ptr: *const c_char, len: usize) -> Self {
-        Self { ptr, len, _phantom: std::marker::PhantomData }
+        Self {
+            ptr,
+            len,
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
-impl UnsafeConversion<String> for RawStrConversion<'_> {
+impl<'a> UnsafeConversion<String> for RawStrConversion<'a> {
     unsafe fn convert(&self) -> Option<String> {
-        if self.ptr.is_null() || self.len == 0 {
-            return None;
-        }
-        let slice = slice::from_raw_parts(self.ptr as *const u8, self.len);
+        let slice = unsafe { slice::from_raw_parts(self.ptr as *const u8, self.len) };
         String::from_utf8(slice.to_vec()).ok()
     }
 }
@@ -147,16 +148,17 @@ impl F64SliceConversion<'_> {
     /// - Valid for `len * size_of::<f64>()` bytes
     /// - Valid for the lifetime 'a
     pub unsafe fn new(ptr: *const c_double, len: usize) -> Self {
-        Self { ptr, len, _phantom: std::marker::PhantomData }
+        Self {
+            ptr,
+            len,
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
-impl UnsafeConversion<Vec<f64>> for F64SliceConversion<'_> {
+impl<'a> UnsafeConversion<Vec<f64>> for F64SliceConversion<'a> {
     unsafe fn convert(&self) -> Option<Vec<f64>> {
-        if self.ptr.is_null() || self.len == 0 {
-            return None;
-        }
-        Some(slice::from_raw_parts(self.ptr, self.len).to_vec())
+        Some(unsafe { slice::from_raw_parts(self.ptr, self.len).to_vec() })
     }
 }
 
@@ -176,7 +178,9 @@ where
     let result = std::panic::catch_unwind(AssertUnwindSafe(f));
     match result {
         Ok(value) => value,
-        Err(_) => Err(Error::System { message: "Panic occurred during Objective-C operation".to_string() }),
+        Err(_) => Err(Error::System {
+            message: "Panic occurred during Objective-C operation".to_string(),
+        }),
     }
 }
 
@@ -192,7 +196,7 @@ where
 ///
 /// This function will return None if the pointer is null.
 pub unsafe fn c_str_to_string(ptr: *const c_char) -> Option<String> {
-    CStringConversion::new(ptr).convert()
+    unsafe { CStringConversion::new(ptr).convert() }
 }
 
 /// Converts a raw string pointer and length to a `String`.
@@ -208,7 +212,7 @@ pub unsafe fn c_str_to_string(ptr: *const c_char) -> Option<String> {
 ///
 /// This function will return None if the pointer is null or length is zero.
 pub unsafe fn raw_str_to_string(ptr: *const c_char, len: usize) -> Option<String> {
-    RawStrConversion::new(ptr, len).convert()
+    unsafe { RawStrConversion::new(ptr, len).convert() }
 }
 
 /// Converts a raw f64 slice pointer and length into a `Vec<f64>`.
@@ -223,13 +227,16 @@ pub unsafe fn raw_str_to_string(ptr: *const c_char, len: usize) -> Option<String
 ///
 /// This function will return None if the pointer is null or length is zero.
 pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<Vec<f64>> {
-    F64SliceConversion::new(ptr, len).convert()
+    unsafe { F64SliceConversion::new(ptr, len).convert() }
 }
 
 /// Retrieves the name of an Objective-C device.
 pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
     if device.is_null() {
-        return Err(Error::NotAvailable { resource: "device".to_string(), reason: "No device available".to_string() });
+        return Err(Error::NotAvailable {
+            resource: "device".to_string(),
+            reason: "No device available".to_string(),
+        });
     }
 
     autorelease_pool(|| {

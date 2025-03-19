@@ -1,14 +1,14 @@
-use crate::{
-    core::metrics::Metric,
-    core::types::{Percentage, Temperature},
-    cpu::{CpuUtilization, CPU},
-    error::{Error, Result},
-    traits::{CpuMonitor, HardwareMonitor, TemperatureMonitor, UtilizationMonitor},
-};
-use async_trait::async_trait;
-use libc;
 use std::ffi::CString;
 use std::time::{Instant, SystemTime};
+
+use async_trait::async_trait;
+use libc;
+
+use crate::core::metrics::Metric;
+use crate::core::types::{Percentage, Temperature};
+use crate::cpu::{CPU, CpuUtilization};
+use crate::error::{Error, Result};
+use crate::traits::{CpuMonitor, HardwareMonitor, TemperatureMonitor, UtilizationMonitor};
 
 //=============================================================================
 // CPU Temperature Monitor
@@ -73,7 +73,11 @@ pub struct CpuUtilizationMonitor {
 impl CpuUtilizationMonitor {
     /// Creates a new CpuUtilizationMonitor with the provided CPU and device ID
     pub fn new(cpu: CPU, device_id: String) -> Self {
-        Self { cpu, device_id, last_utilization: None }
+        Self {
+            cpu,
+            device_id,
+            last_utilization: None,
+        }
     }
 
     /// Get detailed CPU utilization information
@@ -233,17 +237,25 @@ impl CpuFrequencyMonitor {
         let current = self.current_frequency();
         let min = self.min_frequency().unwrap_or(0.0);
         let max = self.max_frequency().unwrap_or(0.0);
-        let available = self.available_frequencies().map(|freqs| freqs.to_vec()).unwrap_or_else(|| {
-            // Create a reasonable set of frequency steps
-            if min > 0.0 && max > min {
-                let step = (max - min) / 4.0;
-                vec![min, min + step, min + step * 2.0, min + step * 3.0, max]
-            } else {
-                vec![current]
-            }
-        });
+        let available = self
+            .available_frequencies()
+            .map(|freqs| freqs.to_vec())
+            .unwrap_or_else(|| {
+                // Create a reasonable set of frequency steps
+                if min > 0.0 && max > min {
+                    let step = (max - min) / 4.0;
+                    vec![min, min + step, min + step * 2.0, min + step * 3.0, max]
+                } else {
+                    vec![current]
+                }
+            });
 
-        Ok(FrequencyMetrics { current, min, max, available })
+        Ok(FrequencyMetrics {
+            current,
+            min,
+            max,
+            available,
+        })
     }
 }
 

@@ -5,15 +5,15 @@ mod performance;
 mod storage;
 mod utilization;
 
+use std::time::{Duration, Instant};
+
+use darwin_metrics::disk::{DiskMonitor, DiskStats, DiskType};
 pub use health::*;
 pub use io::*;
 pub use mount::*;
 pub use performance::*;
 pub use storage::*;
 pub use utilization::*;
-
-use darwin_metrics::disk::{DiskMonitor, DiskStats, DiskType};
-use std::time::{Duration, Instant};
 
 #[test]
 fn test_disk_monitor_new() {
@@ -40,9 +40,18 @@ fn test_detect_disk_type() {
 
     // Network mounts
     assert_eq!(monitor.detect_disk_type("//server/share").unwrap(), DiskType::Network);
-    assert_eq!(monitor.detect_disk_type("nfs://server/share").unwrap(), DiskType::Network);
-    assert_eq!(monitor.detect_disk_type("smb://server/share").unwrap(), DiskType::Network);
-    assert_eq!(monitor.detect_disk_type("afp://server/share").unwrap(), DiskType::Network);
+    assert_eq!(
+        monitor.detect_disk_type("nfs://server/share").unwrap(),
+        DiskType::Network
+    );
+    assert_eq!(
+        monitor.detect_disk_type("smb://server/share").unwrap(),
+        DiskType::Network
+    );
+    assert_eq!(
+        monitor.detect_disk_type("afp://server/share").unwrap(),
+        DiskType::Network
+    );
 }
 
 #[test]

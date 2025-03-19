@@ -1,13 +1,12 @@
+use std::time::{Duration, SystemTime};
+
+use async_trait::async_trait;
+
 use super::Metric;
 use crate::core::types::{Percentage, Temperature};
 use crate::error::Result;
-use crate::{
-    hardware::temperature::{Fan, ThermalMetrics},
-    power::PowerState,
-};
-use async_trait::async_trait;
-use std::time::Duration;
-use std::time::SystemTime;
+use crate::power::PowerState;
+use crate::temperature::types::{Fan, ThermalMetrics};
 
 /// Trait for monitoring hardware components
 ///

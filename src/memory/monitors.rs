@@ -1,20 +1,19 @@
-use crate::{
-    core::{metrics::Metric, types::Percentage},
-    error::{Error, Result},
-    hardware::iokit::IOKit,
-    memory::{
-        constants::{DEFAULT_CRITICAL_THRESHOLD, DEFAULT_WARNING_THRESHOLD},
-        types::{MemoryInfo, PageStates, PressureLevel, SwapUsage},
-        MemoryMonitor,
-    },
-    traits::{self, hardware::MemoryMonitor as TraitsMemoryMonitor, HardwareMonitor},
-};
+use std::ptr;
+use std::sync::Arc;
+use std::time::Instant;
 
 use async_trait::async_trait;
-use std::time::Instant;
-use std::{ptr, sync::Arc};
 
-//
+use crate::core::metrics::Metric;
+use crate::core::types::Percentage;
+use crate::error::{Error, Result};
+use crate::hardware::iokit::IOKit;
+use crate::memory::MemoryMonitor;
+use crate::memory::constants::{DEFAULT_CRITICAL_THRESHOLD, DEFAULT_WARNING_THRESHOLD};
+use crate::memory::types::{MemoryInfo, PageStates, PressureLevel, SwapUsage};
+use crate::traits::hardware::MemoryMonitor as TraitsMemoryMonitor;
+use crate::traits::{self, HardwareMonitor};
+
 // Base Memory Monitor
 //
 
@@ -113,7 +112,6 @@ impl BaseMemoryMonitor {
     }
 }
 
-//
 // Memory Usage Monitor
 //
 
@@ -126,7 +124,9 @@ pub struct MemoryUsageMonitor {
 impl MemoryUsageMonitor {
     /// Create a new memory usage monitor
     pub fn new(iokit: Arc<Box<dyn IOKit>>) -> Self {
-        Self { base: BaseMemoryMonitor::new(iokit) }
+        Self {
+            base: BaseMemoryMonitor::new(iokit),
+        }
     }
 }
 
@@ -208,7 +208,6 @@ impl MemoryMonitor for MemoryUsageMonitor {
     }
 }
 
-//
 // Memory Pressure Monitor
 //
 
@@ -327,7 +326,6 @@ impl MemoryMonitor for MemoryPressureMonitor {
     }
 }
 
-//
 // Swap Monitor
 //
 
@@ -340,7 +338,9 @@ pub struct SwapMonitor {
 impl SwapMonitor {
     /// Create a new swap monitor
     pub fn new(iokit: Arc<Box<dyn IOKit>>) -> Self {
-        Self { base: BaseMemoryMonitor::new(iokit) }
+        Self {
+            base: BaseMemoryMonitor::new(iokit),
+        }
     }
 }
 
@@ -362,7 +362,11 @@ impl HardwareMonitor for SwapMonitor {
 
     async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
         let info = self.swap_usage().await?;
-        let percentage = if info.total > 0 { (info.used as f64 / info.total as f64) * 100.0 } else { 0.0 };
+        let percentage = if info.total > 0 {
+            (info.used as f64 / info.total as f64) * 100.0
+        } else {
+            0.0
+        };
         Ok(Metric::new(Percentage::from_f64(percentage)))
     }
 }
@@ -386,7 +390,11 @@ impl traits::MemoryMonitor for SwapMonitor {
 
     async fn usage_percentage(&self) -> Result<f64> {
         let swap = self.base.swap_usage().await?;
-        let percentage = if swap.total > 0 { (swap.used as f64 / swap.total as f64) * 100.0 } else { 0.0 };
+        let percentage = if swap.total > 0 {
+            (swap.used as f64 / swap.total as f64) * 100.0
+        } else {
+            0.0
+        };
         Ok(percentage)
     }
 }

@@ -1,13 +1,12 @@
+use std::time::{Duration, SystemTime};
+
+use async_trait::async_trait;
+
 use crate::core::metrics::Metric;
 use crate::core::types::{ByteSize, DiskIO, Percentage, Temperature, Transfer};
 use crate::error::Result;
-use crate::{
-    hardware::temperature::{Fan, ThermalMetrics},
-    power::PowerState,
-};
-use async_trait::async_trait;
-use std::time::Duration;
-use std::time::SystemTime;
+use crate::power::PowerState;
+use crate::temperature::types::{Fan, ThermalMetrics};
 
 /// Trait for monitoring hardware components
 ///
@@ -590,6 +589,9 @@ pub trait ThermalMonitor {
     /// Get ambient temperature in Celsius
     async fn ambient_temperature(&self) -> Result<Option<f64>>;
 
+    /// Get SSD temperature in Celsius
+    async fn ssd_temperature(&self) -> Result<Option<f64>>;
+
     /// Get whether the system is thermal throttling
     async fn is_throttling(&self) -> Result<bool>;
 
@@ -629,4 +631,27 @@ pub trait DiskUtilizationMonitor: UtilizationMonitor {
     async fn get_read_utilization(&self) -> Result<Percentage>;
     /// Get write utilization percentage
     async fn get_write_utilization(&self) -> Result<Percentage>;
+}
+
+/// Trait for monitoring fan information
+///
+/// This trait provides methods to get information about a fan,
+/// such as current speed, minimum and maximum speeds, utilization percentage,
+/// and fan name.
+#[async_trait]
+pub trait FanMonitor {
+    /// Get the current fan speed in RPM
+    async fn speed_rpm(&self) -> Result<u32>;
+
+    /// Get the minimum fan speed in RPM
+    async fn min_speed(&self) -> Result<u32>;
+
+    /// Get the maximum fan speed in RPM
+    async fn max_speed(&self) -> Result<u32>;
+
+    /// Get the current fan utilization as a percentage (0-100%)
+    async fn percentage(&self) -> Result<f64>;
+
+    /// Get the fan name
+    async fn fan_name(&self) -> Result<String>;
 }

@@ -3,22 +3,50 @@ use crate::hardware::disk::{Disk, DiskInfo};
 
 #[test]
 fn test_disk_usage_percentage() {
-    let disk = Disk::new(String::from("/dev/disk1s1"), String::from("/"), String::from("apfs"), 1000, 200, 800);
+    let disk = Disk::new(
+        String::from("/dev/disk1s1"),
+        String::from("/"),
+        String::from("apfs"),
+        1000,
+        200,
+        800,
+    );
     assert_eq!(disk.usage_percentage(), 80.0);
 }
 
 #[test]
 fn test_disk_usage_percentage_cases() {
     // Normal case
-    let disk = Disk::new("/dev/test".to_string(), "/test".to_string(), "apfs".to_string(), 1000, 750, 250);
+    let disk = Disk::new(
+        "/dev/test".to_string(),
+        "/test".to_string(),
+        "apfs".to_string(),
+        1000,
+        750,
+        250,
+    );
     assert_eq!(disk.usage_percentage(), 25.0);
 
     // Edge case: empty disk
-    let empty_disk = Disk::new("/dev/empty".to_string(), "/empty".to_string(), "apfs".to_string(), 0, 0, 0);
+    let empty_disk = Disk::new(
+        "/dev/empty".to_string(),
+        "/empty".to_string(),
+        "apfs".to_string(),
+        0,
+        0,
+        0,
+    );
     assert_eq!(empty_disk.usage_percentage(), 0.0);
 
     // Full disk
-    let full_disk = Disk::new("/dev/full".to_string(), "/full".to_string(), "apfs".to_string(), 1000, 0, 1000);
+    let full_disk = Disk::new(
+        "/dev/full".to_string(),
+        "/full".to_string(),
+        "apfs".to_string(),
+        1000,
+        0,
+        1000,
+    );
     assert_eq!(full_disk.usage_percentage(), 100.0);
 }
 

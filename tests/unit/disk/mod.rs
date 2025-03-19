@@ -1,5 +1,6 @@
-use once_cell::sync::Lazy;
 use std::sync::Mutex;
+
+use once_cell::sync::Lazy;
 
 // Initialize the test mutex
 pub static TEST_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));

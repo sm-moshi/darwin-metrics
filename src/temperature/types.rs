@@ -104,4 +104,4 @@ impl Default for ThermalMetrics {
             fans: Vec::new(),
         }
     }
-} 
+}

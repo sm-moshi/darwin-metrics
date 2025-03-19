@@ -1,9 +1,10 @@
-use darwin_metrics::{
-    core::metrics::hardware::{PowerConsumptionMonitor, PowerEventMonitor, PowerManagementMonitor, PowerStateMonitor},
-    error::Result,
-    power::{Power, PowerState},
-};
 use std::time::Duration;
+
+use darwin_metrics::core::metrics::hardware::{
+    PowerConsumptionMonitor, PowerEventMonitor, PowerManagementMonitor, PowerStateMonitor,
+};
+use darwin_metrics::error::Result;
+use darwin_metrics::power::{Power, PowerState};
 
 /// Helper function to format power values in watts
 fn format_watts(watts: f32) -> String {
@@ -53,8 +54,14 @@ async fn main() -> Result<()> {
         // Power Consumption Metrics
         println!("Power Consumption:");
         println!("-----------------");
-        println!("Package Power: {}", format_watts(consumption_monitor.package_power().await?));
-        println!("CPU Cores Power: {}", format_watts(consumption_monitor.cores_power().await?));
+        println!(
+            "Package Power: {}",
+            format_watts(consumption_monitor.package_power().await?)
+        );
+        println!(
+            "CPU Cores Power: {}",
+            format_watts(consumption_monitor.cores_power().await?)
+        );
         if let Some(gpu_power) = consumption_monitor.gpu_power().await? {
             println!("GPU Power: {}", format_watts(gpu_power));
         }
@@ -64,7 +71,10 @@ async fn main() -> Result<()> {
         if let Some(neural_power) = consumption_monitor.neural_engine_power().await? {
             println!("Neural Engine Power: {}", format_watts(neural_power));
         }
-        println!("Total System Power: {}", format_watts(consumption_monitor.total_power().await?));
+        println!(
+            "Total System Power: {}",
+            format_watts(consumption_monitor.total_power().await?)
+        );
 
         // Power State Information
         println!("\nPower State:");
@@ -85,15 +95,33 @@ async fn main() -> Result<()> {
         if let Some(time_remaining) = state_monitor.time_remaining().await? {
             println!("Time Remaining: {} minutes", time_remaining);
         }
-        println!("On Battery: {}", if state_monitor.is_on_battery().await? { "Yes" } else { "No" });
-        println!("Charging: {}", if state_monitor.is_charging().await? { "Yes" } else { "No" });
+        println!(
+            "On Battery: {}",
+            if state_monitor.is_on_battery().await? {
+                "Yes"
+            } else {
+                "No"
+            }
+        );
+        println!(
+            "Charging: {}",
+            if state_monitor.is_charging().await? {
+                "Yes"
+            } else {
+                "No"
+            }
+        );
 
         // Power Management Information
         println!("\nPower Management:");
         println!("----------------");
         println!(
             "Thermal Throttling: {}",
-            if management_monitor.is_thermal_throttling().await? { "Yes" } else { "No" }
+            if management_monitor.is_thermal_throttling().await? {
+                "Yes"
+            } else {
+                "No"
+            }
         );
         if let Some(impact) = management_monitor.power_impact().await? {
             println!("Power Impact Score: {:.1}", impact);
@@ -104,12 +132,22 @@ async fn main() -> Result<()> {
         // Power Events
         println!("\nPower Events:");
         println!("-------------");
-        println!("Time Since Wake: {}", format_duration(event_monitor.time_since_wake().await?));
+        println!(
+            "Time Since Wake: {}",
+            format_duration(event_monitor.time_since_wake().await?)
+        );
         println!("Thermal Events: {}", event_monitor.thermal_event_count().await?);
         if let Some(sleep_time) = event_monitor.time_until_sleep().await? {
             println!("Time Until Sleep: {}", format_duration(sleep_time));
         }
-        println!("Sleep Prevention: {}", if event_monitor.is_sleep_prevented().await? { "Active" } else { "Inactive" });
+        println!(
+            "Sleep Prevention: {}",
+            if event_monitor.is_sleep_prevented().await? {
+                "Active"
+            } else {
+                "Inactive"
+            }
+        );
 
         println!("\n");
     }

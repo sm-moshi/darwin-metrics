@@ -1,17 +1,15 @@
-/// Mock implementation of IOKit for testing purposes.
-use objc2::{class, runtime::AnyClass};
-use objc2_foundation::NSObject;
-use std::sync::{Arc, Mutex, Once};
-
-use crate::{
-    error::{Error, Result},
-    hardware::iokit::{FanInfo, GpuStats, IOKit, ThermalInfo, ThreadSafeAnyObject},
-    utils::core::dictionary::SafeDictionary,
-};
-
 use std::ffi::{CStr, CString};
 use std::fmt::Debug;
 use std::os::raw::{c_char, c_void};
+use std::sync::{Arc, Mutex, Once};
+
+/// Mock implementation of IOKit for testing purposes.
+use objc2::{class, runtime::AnyClass};
+use objc2_foundation::NSObject;
+
+use crate::error::{Error, Result};
+use crate::hardware::iokit::{FanInfo, GpuStats, IOKit, ThermalInfo, ThreadSafeAnyObject};
+use crate::utils::core::dictionary::SafeDictionary;
 
 static INIT: Once = Once::new();
 
@@ -155,7 +153,13 @@ impl MockIOKit {
         max_frequency: Option<f64>,
         available_frequencies: Option<Vec<f64>>,
     ) -> Result<Self> {
-        self.cpu_info = CpuInfo { model_name, frequency, min_frequency, max_frequency, available_frequencies };
+        self.cpu_info = CpuInfo {
+            model_name,
+            frequency,
+            min_frequency,
+            max_frequency,
+            available_frequencies,
+        };
         Ok(self)
     }
 
@@ -297,8 +301,10 @@ impl IOKit for MockIOKit {
     }
 
     fn get_number_property(&self, dict: &SafeDictionary, key: &str) -> Result<f64> {
-        dict.get_number(key)
-            .ok_or_else(|| Error::NotAvailable { resource: key.to_string(), reason: "Property not found".to_string() })
+        dict.get_number(key).ok_or_else(|| Error::NotAvailable {
+            resource: key.to_string(),
+            reason: "Property not found".to_string(),
+        })
     }
 
     fn io_connect_call_method(
@@ -308,7 +314,10 @@ impl IOKit for MockIOKit {
         _input: &[u64],
         _output: &mut [u64],
     ) -> Result<()> {
-        Err(Error::NotAvailable { resource: "IOConnect".to_string(), reason: "Mock implementation".to_string() })
+        Err(Error::NotAvailable {
+            resource: "IOConnect".to_string(),
+            reason: "Mock implementation".to_string(),
+        })
     }
 
     fn clone_box(&self) -> Box<dyn IOKit> {

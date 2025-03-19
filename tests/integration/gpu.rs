@@ -2,6 +2,7 @@ use darwin_metrics::gpu::{
     Gpu, GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor, HardwareMonitor,
     MemoryMonitor, TemperatureMonitor, UtilizationMonitor,
 };
+use darwin_metrics::{HardwareMonitor, UtilizationMonitor};
 
 #[tokio::test]
 async fn test_gpu_monitor_creation() {
@@ -49,7 +50,10 @@ async fn test_gpu_monitor_integration() {
         memory_metrics.total_bytes - memory_metrics.used_bytes
     );
     assert!(memory_metrics.total_bytes > 0, "Total memory should be greater than 0");
-    assert!(memory_metrics.used_bytes <= memory_metrics.total_bytes, "Used memory should not exceed total");
+    assert!(
+        memory_metrics.used_bytes <= memory_metrics.total_bytes,
+        "Used memory should not exceed total"
+    );
 
     // Test temperature
     let temp_monitor = GpuTemperatureMonitor::new(gpu.clone());

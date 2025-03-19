@@ -14,17 +14,15 @@ pub use disk_impl::*;
 mod monitors;
 pub use monitors::*;
 
+// Import IOKit for disk monitoring
+use crate::error::Result;
 // Re-exports for disk-specific traits
 pub use crate::traits::hardware::{
     DiskHealthMonitor, DiskIOMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor,
     DiskUtilizationMonitor,
 };
-
 // Re-export core traits from the traits module
 pub use crate::traits::{ByteMetricsMonitor, HardwareMonitor, StorageMonitor, UtilizationMonitor};
-
-// Import IOKit for disk monitoring
-use crate::error::Result;
 
 /// Get information about the root filesystem
 ///

@@ -1,5 +1,6 @@
-use crate::core::types::Percentage;
 use std::time::Duration;
+
+use crate::core::types::Percentage;
 
 /// Represents the current power source for the system
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -66,7 +67,12 @@ pub struct BatteryCapacity {
 
 impl BatteryCapacity {
     pub fn new(current: f64, maximum: f64, design: f64, cycle_count: u32) -> Self {
-        Self { current, maximum, design, cycle_count }
+        Self {
+            current,
+            maximum,
+            design,
+            cycle_count,
+        }
     }
 
     /// Get the health percentage (current max capacity / design capacity)

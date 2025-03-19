@@ -89,17 +89,14 @@
 //! - The implementation is designed to be lightweight with minimal system impact
 //! - The API is not thread-safe by default; use appropriate synchronization when sharing across threads
 
-use std::{
-    os::raw::c_char,
-    time::{Duration, SystemTime},
-};
+use std::os::raw::c_char;
+use std::time::{Duration, SystemTime};
 
-use crate::{
-    core::metrics::hardware::{PowerConsumptionMonitor, PowerEventMonitor, PowerManagementMonitor, PowerStateMonitor},
-    error::{Error, Result},
-    hardware::iokit::{IOKit, IOKitImpl},
+use crate::core::metrics::hardware::{
+    PowerConsumptionMonitor, PowerEventMonitor, PowerManagementMonitor, PowerStateMonitor,
 };
-
+use crate::error::{Error, Result};
+use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::utils::bindings::{
     SMC_KEY_CPU_POWER, SMC_KEY_CPU_THROTTLE, SMC_KEY_DRAM_POWER, SMC_KEY_GPU_POWER, SMC_KEY_NEURAL_POWER,
     SMC_KEY_PACKAGE_POWER,
@@ -184,7 +181,10 @@ impl From<Error> for PowerError {
     fn from(err: Error) -> Self {
         match err {
             Error::IoError { source: _ } => PowerError::IOError,
-            Error::SystemError { operation: _, message: _ } => PowerError::SystemError,
+            Error::SystemError {
+                operation: _,
+                message: _,
+            } => PowerError::SystemError,
             Error::InvalidData { message: _, details: _ } => PowerError::InvalidData,
             Error::InvalidArgument { context: _, value: _ } => PowerError::InvalidArgument,
             Error::NotImplemented { feature: _ } => PowerError::UnsupportedOperation,
@@ -594,7 +594,9 @@ pub struct Power {
 
 impl Default for Power {
     fn default() -> Self {
-        Self { iokit: Box::new(IOKitImpl::default()) }
+        Self {
+            iokit: Box::new(IOKitImpl::default()),
+        }
     }
 }
 
@@ -647,7 +649,9 @@ impl Power {
     ///
     /// A new PowerConsumptionMonitorImpl instance that implements the PowerConsumptionMonitor trait.
     pub fn consumption_monitor(&self) -> PowerConsumptionMonitorImpl {
-        PowerConsumptionMonitorImpl { iokit: Box::new(IOKitImpl::default()) }
+        PowerConsumptionMonitorImpl {
+            iokit: Box::new(IOKitImpl::default()),
+        }
     }
 
     /// Returns a monitor for power state
@@ -676,7 +680,9 @@ impl Power {
     ///
     /// A new PowerStateMonitorImpl instance that implements the PowerStateMonitor trait.
     pub fn state_monitor(&self) -> PowerStateMonitorImpl {
-        PowerStateMonitorImpl { iokit: Box::new(IOKitImpl::default()) }
+        PowerStateMonitorImpl {
+            iokit: Box::new(IOKitImpl::default()),
+        }
     }
 
     /// Returns a monitor for power management
@@ -706,7 +712,9 @@ impl Power {
     ///
     /// A new PowerManagementMonitorImpl instance that implements the PowerManagementMonitor trait.
     pub fn management_monitor(&self) -> PowerManagementMonitorImpl {
-        PowerManagementMonitorImpl { iokit: Box::new(IOKitImpl::default()) }
+        PowerManagementMonitorImpl {
+            iokit: Box::new(IOKitImpl::default()),
+        }
     }
 
     /// Returns a monitor for power events
@@ -768,7 +776,9 @@ impl Power {
 
 impl Clone for Power {
     fn clone(&self) -> Self {
-        Self { iokit: Box::new(IOKitImpl::default()) }
+        Self {
+            iokit: Box::new(IOKitImpl::default()),
+        }
     }
 }
 
@@ -850,7 +860,9 @@ impl PowerManagementMonitor for PowerManagementMonitorImpl {
 #[async_trait::async_trait]
 impl PowerEventMonitor for PowerEventMonitorImpl {
     async fn time_since_wake(&self) -> Result<Duration> {
-        Ok(SystemTime::now().duration_since(self.last_wake_time).unwrap_or(Duration::from_secs(0)))
+        Ok(SystemTime::now()
+            .duration_since(self.last_wake_time)
+            .unwrap_or(Duration::from_secs(0)))
     }
 
     async fn thermal_event_count(&self) -> Result<u32> {

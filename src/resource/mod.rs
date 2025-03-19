@@ -103,21 +103,21 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
-use crate::{
-    core::types::{Percentage, Temperature},
-    disk::Disk,
-    hardware::{iokit::IOKitImpl, temperature::ThermalMetrics},
-    memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor},
-    network::{Interface, NetworkInfo},
-    power::PowerInfo,
-    process::Process,
-    system::System,
-    Error, Result,
-};
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
+
+use crate::core::types::{Percentage, Temperature};
+use crate::disk::Disk;
+use crate::hardware::iokit::IOKitImpl;
+use crate::memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor};
+use crate::network::{Interface, NetworkInfo};
+use crate::power::PowerInfo;
+use crate::process::Process;
+use crate::system::System;
+use crate::temperature::types::ThermalMetrics;
+use crate::{Error, Result};
 
 /// Cache entry with time-based expiration
 ///
@@ -146,7 +146,10 @@ impl<T> CacheEntry<T> {
     ///
     /// A new CacheEntry that will expire after the specified TTL
     fn new(value: T, ttl: Duration) -> Self {
-        Self { value, expires_at: Instant::now() + ttl }
+        Self {
+            value,
+            expires_at: Instant::now() + ttl,
+        }
     }
 
     /// Checks if the cache entry has expired
@@ -228,7 +231,10 @@ impl<T> ResourcePool<T> {
     /// let pool = ResourcePool::<String>::new(10);
     /// ```
     pub fn new(max_size: usize) -> Self {
-        Self { resources: Arc::new(Mutex::new(Vec::with_capacity(max_size))), max_size }
+        Self {
+            resources: Arc::new(Mutex::new(Vec::with_capacity(max_size))),
+            max_size,
+        }
     }
 
     /// Acquires a resource from the pool, or returns None if no resources are available
@@ -414,7 +420,10 @@ where
     /// let cache = Cache::<String, String>::new(Duration::from_secs(300));
     /// ```
     pub fn new(ttl: Duration) -> Self {
-        Self { entries: Arc::new(RwLock::new(HashMap::new())), ttl }
+        Self {
+            entries: Arc::new(RwLock::new(HashMap::new())),
+            ttl,
+        }
     }
 
     /// Retrieves a value from the cache if it exists and hasn't expired
@@ -442,7 +451,13 @@ where
     /// ```
     pub fn get(&self, key: &K) -> Option<V> {
         let entries = self.entries.read();
-        entries.get(key).and_then(|entry| if entry.is_expired() { None } else { Some(entry.value.clone()) })
+        entries.get(key).and_then(|entry| {
+            if entry.is_expired() {
+                None
+            } else {
+                Some(entry.value.clone())
+            }
+        })
     }
 
     /// Stores a value in the cache with the default TTL
@@ -703,7 +718,11 @@ impl<T: Send + Sync + 'static> ResourceManager<T> {
     /// manager.track_resource_usage("cpu", 0.75).unwrap();
     /// ```
     pub fn track_resource_usage(&self, resource_type: &str, usage: f64) -> Result<()> {
-        let usage = ResourceUsage { resource_type: resource_type.to_string(), usage, timestamp: SystemTime::now() };
+        let usage = ResourceUsage {
+            resource_type: resource_type.to_string(),
+            usage,
+            timestamp: SystemTime::now(),
+        };
 
         // Use try_send since we can't await in a sync function
         self.usage_tx.try_send(usage).map_err(|_| Error::ChannelError)?;
@@ -995,7 +1014,12 @@ impl ResourceMonitor {
             }
         });
 
-        Ok(Self { update_interval, stop_tx, monitor_task: Some(monitor_task), update_rx })
+        Ok(Self {
+            update_interval,
+            stop_tx,
+            monitor_task: Some(monitor_task),
+            update_rx,
+        })
     }
 
     /// Gets the next resource update
@@ -1071,7 +1095,10 @@ impl ResourceMonitor {
     pub async fn stop(&mut self) -> Result<()> {
         if let Some(handle) = self.monitor_task.take() {
             // Send stop signal
-            self.stop_tx.send(()).await.map_err(|_| Error::system("Failed to send stop signal".to_string()))?;
+            self.stop_tx
+                .send(())
+                .await
+                .map_err(|_| Error::system("Failed to send stop signal".to_string()))?;
 
             // Wait for task to finish with timeout
             match tokio::time::timeout(Duration::from_secs(5), handle).await {
@@ -1131,8 +1158,9 @@ impl ResourceMonitoring for ResourceMonitor {
 /// Unit tests for the resource module
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::time::Duration;
+
+    use super::*;
 
     /// Simple Memory struct for testing
     struct Memory {

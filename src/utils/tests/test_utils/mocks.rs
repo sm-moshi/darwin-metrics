@@ -1,9 +1,10 @@
-use crate::utils::core::dictionary::DictionaryAccess;
-use crate::utils::core::dictionary::SafeDictionary;
-use crate::utils::core::property::PropertyUtils;
+use std::collections::HashMap;
+
 use objc2::rc::Retained;
 use objc2_foundation::{NSDictionary, NSObject, NSString};
-use std::collections::HashMap;
+
+use crate::utils::core::dictionary::{DictionaryAccess, SafeDictionary};
+use crate::utils::core::property::PropertyUtils;
 
 /// A value type that can be stored in a MockDictionary
 #[derive(Debug, Clone)]
@@ -55,7 +56,9 @@ pub struct MockDictionary {
 impl MockDictionary {
     /// Create a new empty mock dictionary
     pub fn new() -> Self {
-        Self { entries: HashMap::new() }
+        Self {
+            entries: HashMap::new(),
+        }
     }
 
     /// Create a mock dictionary with the given entries

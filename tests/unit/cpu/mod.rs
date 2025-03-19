@@ -1,6 +1,6 @@
 #[cfg(test)]
 use super::*;
-use crate::hardware::cpu::{CpuMetrics, FrequencyMetrics, FrequencyMonitor, CPU};
+use crate::hardware::cpu::{CPU, CpuMetrics, FrequencyMetrics, FrequencyMonitor};
 use crate::utils::tests::test_utils::MockIOKit;
 
 #[test]

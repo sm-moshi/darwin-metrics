@@ -1,9 +1,8 @@
-use crate::{
-    error::Result,
-    network::{Interface, InterfaceType, NetworkMetrics},
-    utils::bindings::if_flags,
-};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+use crate::error::Result;
+use crate::network::{Interface, InterfaceType, NetworkMetrics};
+use crate::utils::bindings::if_flags;
 
 #[test]
 fn test_interface_type_display() {
@@ -35,7 +34,10 @@ fn test_interface_creation() {
     assert_eq!(interface.name(), "test0");
     assert_eq!(interface.interface_type(), &InterfaceType::Ethernet);
     assert_eq!(interface.mac_address(), Some("00:11:22:33:44:55"));
-    assert_eq!(interface.addresses().unwrap()[0], IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100)));
+    assert_eq!(
+        interface.addresses().unwrap()[0],
+        IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100))
+    );
 
     // Test traffic metrics
     assert_eq!(interface.bytes_received(), 1000);
@@ -99,7 +101,20 @@ fn test_interface_update_traffic() {
 #[test]
 fn test_interface_wireless_detection() {
     // Test WiFi interface type
-    let wifi_interface = Interface::new("en0".to_string(), InterfaceType::WiFi, 0, None, vec![], 0, 0, 0, 0, 0, 0, 0);
+    let wifi_interface = Interface::new(
+        "en0".to_string(),
+        InterfaceType::WiFi,
+        0,
+        None,
+        vec![],
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    );
     assert!(wifi_interface.is_wireless());
 
     // Test wireless flag
@@ -120,8 +135,20 @@ fn test_interface_wireless_detection() {
     assert!(wireless_interface.is_wireless());
 
     // Test wireless name pattern
-    let wlan_interface =
-        Interface::new("wlan0".to_string(), InterfaceType::Other, 0, None, vec![], 0, 0, 0, 0, 0, 0, 0);
+    let wlan_interface = Interface::new(
+        "wlan0".to_string(),
+        InterfaceType::Other,
+        0,
+        None,
+        vec![],
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    );
     assert!(wlan_interface.is_wireless());
 }
 
@@ -194,7 +221,10 @@ fn test_interface_builder_missing_required() {
 
 #[test]
 fn test_interface_builder_addresses() {
-    let addresses = vec![IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)), IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1))];
+    let addresses = vec![
+        IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)),
+        IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+    ];
 
     // Test adding addresses individually
     let interface1 = Interface::builder()

@@ -1,5 +1,6 @@
-use super::super::TEST_MUTEX;
 use darwin_metrics::hardware::temperature::{FanMonitoring, Temperature};
+
+use super::super::TEST_MUTEX;
 
 #[tokio::test]
 async fn test_fan_monitor_creation() {
@@ -41,7 +42,10 @@ async fn test_fan_percentage() {
         println!("Fan Speed Percentage: {:.1}%", percentage);
 
         // Check percentage bounds
-        assert!((0.0..=100.0).contains(&percentage), "Percentage should be between 0 and 100");
+        assert!(
+            (0.0..=100.0).contains(&percentage),
+            "Percentage should be between 0 and 100"
+        );
 
         // Verify percentage calculation
         let speed = monitor.speed_rpm().await.unwrap() as f64;

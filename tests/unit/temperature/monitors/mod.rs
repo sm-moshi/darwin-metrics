@@ -4,8 +4,9 @@ mod cpu;
 mod fan;
 mod gpu;
 
-use super::TEST_MUTEX;
 use darwin_metrics::hardware::temperature::{FanMonitoring, Temperature, TemperatureMonitor};
+
+use super::TEST_MUTEX;
 
 #[tokio::test]
 async fn test_monitor_traits() {

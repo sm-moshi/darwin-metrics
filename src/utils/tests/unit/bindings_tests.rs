@@ -3,10 +3,10 @@ use std::ffi::c_char;
 
 use crate::error::Error;
 use crate::utils::bindings::{
-    address_family, extern_proc, extract_proc_name, get_network_stats_native, getloadavg, if_data64, if_flags,
-    is_system_process, kinfo_proc, proc_info, process_state, reachability_flags, smc_key_from_chars, timeval,
     MTLCreateSystemDefaultDevice, MTLDeviceRef, SMC_KEY_AMBIENT_TEMP, SMC_KEY_BATTERY_TEMP, SMC_KEY_CPU_POWER,
-    SMC_KEY_CPU_TEMP, SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM, SMC_KEY_GPU_TEMP,
+    SMC_KEY_CPU_TEMP, SMC_KEY_CPU_THROTTLE, SMC_KEY_FAN_NUM, SMC_KEY_GPU_TEMP, address_family, extern_proc,
+    extract_proc_name, get_network_stats_native, getloadavg, if_data64, if_flags, is_system_process, kinfo_proc,
+    proc_info, process_state, reachability_flags, smc_key_from_chars, timeval,
 };
 
 // Macro for testing constant values
@@ -39,7 +39,10 @@ fn test_get_network_stats_native_cases() {
             assert!(result.unwrap_err().to_string().contains(expected_err));
         } else if let Ok(stats) = result {
             // If successful, verify the stats struct has valid fields
-            println!("Interface {} stats: rx={}, tx={}", interface, stats.ifi_ibytes, stats.ifi_obytes);
+            println!(
+                "Interface {} stats: rx={}, tx={}",
+                interface, stats.ifi_ibytes, stats.ifi_obytes
+            );
         }
     }
 }
@@ -88,8 +91,16 @@ test_constants!(test_reachability_flags_constants, {
 #[test]
 fn test_extract_proc_name() {
     let mut proc_info = kinfo_proc {
-        kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
-        kp_eproc: extern_proc { p_starttime: timeval { tv_sec: 0, tv_usec: 0 }, p_comm: [0; 16] },
+        kp_proc: proc_info {
+            p_flag: 0,
+            p_pid: 123,
+            p_ppid: 1,
+            p_stat: 0,
+        },
+        kp_eproc: extern_proc {
+            p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
+            p_comm: [0; 16],
+        },
     };
 
     let test_name = b"test_process\0";
@@ -106,8 +117,16 @@ fn test_extract_proc_name() {
 #[test]
 fn test_extract_proc_name_no_null_terminator() {
     let mut proc_info = kinfo_proc {
-        kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
-        kp_eproc: extern_proc { p_starttime: timeval { tv_sec: 0, tv_usec: 0 }, p_comm: [0; 16] },
+        kp_proc: proc_info {
+            p_flag: 0,
+            p_pid: 123,
+            p_ppid: 1,
+            p_stat: 0,
+        },
+        kp_eproc: extern_proc {
+            p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
+            p_comm: [0; 16],
+        },
     };
 
     let test_name = b"sixteencharname";
@@ -124,8 +143,16 @@ fn test_extract_proc_name_no_null_terminator() {
 #[test]
 fn test_extract_proc_name_empty() {
     let proc_info = kinfo_proc {
-        kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
-        kp_eproc: extern_proc { p_starttime: timeval { tv_sec: 0, tv_usec: 0 }, p_comm: [0; 16] },
+        kp_proc: proc_info {
+            p_flag: 0,
+            p_pid: 123,
+            p_ppid: 1,
+            p_stat: 0,
+        },
+        kp_eproc: extern_proc {
+            p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
+            p_comm: [0; 16],
+        },
     };
 
     let extracted_name = extract_proc_name(&proc_info);
@@ -135,8 +162,16 @@ fn test_extract_proc_name_empty() {
 #[test]
 fn test_extract_proc_name_non_ascii() {
     let mut proc_info = kinfo_proc {
-        kp_proc: proc_info { p_flag: 0, p_pid: 123, p_ppid: 1, p_stat: 0 },
-        kp_eproc: extern_proc { p_starttime: timeval { tv_sec: 0, tv_usec: 0 }, p_comm: [0; 16] },
+        kp_proc: proc_info {
+            p_flag: 0,
+            p_pid: 123,
+            p_ppid: 1,
+            p_stat: 0,
+        },
+        kp_eproc: extern_proc {
+            p_starttime: timeval { tv_sec: 0, tv_usec: 0 },
+            p_comm: [0; 16],
+        },
     };
 
     let test_name = b"caf\xC3\xA9\0";
@@ -202,8 +237,15 @@ fn test_smc_key_from_chars_predefined_keys() {
     let cpu_throttle_key = smc_key_from_chars(SMC_KEY_CPU_THROTTLE);
 
     // Verify each key is unique
-    let keys =
-        [cpu_temp_key, gpu_temp_key, fan_num_key, ambient_temp_key, battery_temp_key, cpu_power_key, cpu_throttle_key];
+    let keys = [
+        cpu_temp_key,
+        gpu_temp_key,
+        fan_num_key,
+        ambient_temp_key,
+        battery_temp_key,
+        cpu_power_key,
+        cpu_throttle_key,
+    ];
 
     // Check that all keys are unique
     let unique_keys: HashSet<_> = keys.iter().collect();
@@ -249,7 +291,10 @@ fn test_getloadavg_binding() {
         assert!(loads[2] >= 0.0);
 
         // The 5-minute and 15-minute averages should be available
-        println!("Load averages: 1min={}, 5min={}, 15min={}", loads[0], loads[1], loads[2]);
+        println!(
+            "Load averages: 1min={}, 5min={}, 15min={}",
+            loads[0], loads[1], loads[2]
+        );
     }
 }
 
@@ -282,7 +327,10 @@ mod mock_tests {
         // This should either return an error or succeed with zeroed stats depending on the system
         if let Ok(stats) = result {
             // If it succeeds, the stats should be valid
-            println!("Empty interface stats: rx={}, tx={}", stats.ifi_ibytes, stats.ifi_obytes);
+            println!(
+                "Empty interface stats: rx={}, tx={}",
+                stats.ifi_ibytes, stats.ifi_obytes
+            );
         } else if let Err(Error::Network { operation: _, message }) = result {
             // If it fails, it should be a network error
             assert!(message.contains("Failed to get interface data"));

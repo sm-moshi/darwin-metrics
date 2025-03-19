@@ -4,11 +4,10 @@
 
 #![allow(non_camel_case_types)]
 
+use std::ffi::c_void as ffi_c_void;
+use std::os::raw::{c_char, c_int, c_uint, c_void};
+
 use libc::mach_port_t;
-use std::{
-    ffi::c_void as ffi_c_void,
-    os::raw::{c_char, c_int, c_uint, c_void},
-};
 
 //------------------------------------------------------------------------------
 // sysctl FFI bindings for macOS
@@ -549,7 +548,15 @@ pub fn is_system_process(pid: u32, name: &str) -> bool {
 
     pid < 1000
         || name.starts_with("com.apple.")
-        || ["launchd", "kernel_task", "WindowServer", "systemstats", "logd", "syslogd"].contains(&name)
+        || [
+            "launchd",
+            "kernel_task",
+            "WindowServer",
+            "systemstats",
+            "logd",
+            "syslogd",
+        ]
+        .contains(&name)
 }
 
 /// Convert a char array to an SMC key integer
@@ -585,8 +592,10 @@ pub fn smc_key_from_chars(key: [c_char; 4]) -> u32 {
 /// println!("Bytes sent: {}", stats.ifi_obytes);
 /// ```
 pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if_data64> {
+    use std::ffi::CString;
+    use std::{mem, ptr};
+
     use crate::error::Error;
-    use std::{ffi::CString, mem, ptr};
 
     // Check for empty interface name
     if interface_name.is_empty() {
@@ -601,7 +610,10 @@ pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if
     let c_sysctl_key = CString::new(sysctl_key).map_err(|e| {
         Error::network_error(
             "sysctlbyname",
-            format!("Failed to create sysctlbyname key for interface '{}': {}", interface_name, e),
+            format!(
+                "Failed to create sysctlbyname key for interface '{}': {}",
+                interface_name, e
+            ),
         )
     })?;
 
@@ -611,7 +623,13 @@ pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if
 
     // Call sysctlbyname
     let result = unsafe {
-        sysctlbyname(c_sysctl_key.as_ptr(), &mut if_data_64 as *mut _ as *mut c_void, &mut size, ptr::null(), 0)
+        sysctlbyname(
+            c_sysctl_key.as_ptr(),
+            &mut if_data_64 as *mut _ as *mut c_void,
+            &mut size,
+            ptr::null(),
+            0,
+        )
     };
 
     if result != 0 {

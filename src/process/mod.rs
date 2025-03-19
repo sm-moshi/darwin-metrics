@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 /// # Process Monitoring
 ///
 /// The process module provides comprehensive monitoring of processes running on macOS systems.
@@ -91,24 +92,17 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
+use async_trait::async_trait;
+use libc::{PROC_PIDTASKINFO, proc_pidinfo};
+use libproc::pid_rusage::RUsageInfoV4;
 use libproc::{pid_rusage, proc_pid, task_info};
 
-use libc::{proc_pidinfo, PROC_PIDTASKINFO};
-use libproc::pid_rusage::RUsageInfoV4;
-use std::ffi::c_void;
-
-use crate::{
-    core::metrics::hardware::{
-        ProcessIOMonitor, ProcessInfoMonitor, ProcessRelationshipMonitor, ProcessResourceMonitor,
-    },
-    error::{Error, Result},
-    utils::bindings::{
-        extract_proc_name, is_system_process, kinfo_proc, proc_info, sysctl,
-        sysctl_constants::{CTL_KERN, KERN_PROC, KERN_PROC_ALL},
-    },
+use crate::core::metrics::hardware::{
+    ProcessIOMonitor, ProcessInfoMonitor, ProcessRelationshipMonitor, ProcessResourceMonitor,
 };
-
-use async_trait::async_trait;
+use crate::error::{Error, Result};
+use crate::utils::bindings::sysctl_constants::{CTL_KERN, KERN_PROC, KERN_PROC_ALL};
+use crate::utils::bindings::{extract_proc_name, is_system_process, kinfo_proc, proc_info, sysctl};
 
 /// Error types specific to process operations
 #[derive(Debug, Clone)]
@@ -118,7 +112,11 @@ pub enum ProcessError {
     /// Process not found
     NotFound { pid: u32 },
     /// Invalid process data
-    InvalidData { pid: Option<u32>, field: String, message: String },
+    InvalidData {
+        pid: Option<u32>,
+        field: String,
+        message: String,
+    },
     /// System call error
     SystemCall { pid: Option<u32>, call: String, code: i32 },
     /// General process error
@@ -129,7 +127,12 @@ impl std::fmt::Display for ProcessError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::AccessDenied { pid, message } => {
-                write!(f, "Access denied for process{}: {}", pid.map_or(String::new(), |p| format!(" {}", p)), message)
+                write!(
+                    f,
+                    "Access denied for process{}: {}",
+                    pid.map_or(String::new(), |p| format!(" {}", p)),
+                    message
+                )
             },
             Self::NotFound { pid } => write!(f, "Process not found: PID {}", pid),
             Self::InvalidData { pid, field, message } => {
@@ -151,7 +154,12 @@ impl std::fmt::Display for ProcessError {
                 )
             },
             Self::General { pid, message } => {
-                write!(f, "Process error{}: {}", pid.map_or(String::new(), |p| format!(" (PID {})", p)), message)
+                write!(
+                    f,
+                    "Process error{}: {}",
+                    pid.map_or(String::new(), |p| format!(" (PID {})", p)),
+                    message
+                )
             },
         }
     }
@@ -219,7 +227,12 @@ struct CpuHistoryTracker {
 impl CpuHistoryTracker {
     /// Create a new CPU history tracker
     fn new(max_processes: usize, max_age_secs: u64) -> Self {
-        Self { history: HashMap::new(), max_processes, max_age_secs, last_cleanup: Instant::now() }
+        Self {
+            history: HashMap::new(),
+            max_processes,
+            max_age_secs,
+            last_cleanup: Instant::now(),
+        }
     }
 
     /// Get the CPU time for a process, if available
@@ -262,8 +275,9 @@ impl CpuHistoryTracker {
     }
 }
 
-use once_cell::sync::Lazy as SyncLazy;
 use std::sync::Mutex;
+
+use once_cell::sync::Lazy as SyncLazy;
 
 /// Static CPU history tracker instance
 static CPU_HISTORY: SyncLazy<Mutex<CpuHistoryTracker>> = SyncLazy::new(
@@ -453,7 +467,10 @@ impl Process {
         })?;
 
         let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0).map_err(|e| {
-            ProcessError::AccessDenied { pid: Some(pid), message: format!("Failed to get process info: {}", e) }
+            ProcessError::AccessDenied {
+                pid: Some(pid),
+                message: format!("Failed to get process info: {}", e),
+            }
         })?;
 
         // Validate and calculate process start time
@@ -489,7 +506,7 @@ impl Process {
                     return process_error(ProcessError::General {
                         pid: Some(pid),
                         message: "Failed to calculate process age".to_string(),
-                    })
+                    });
                 },
             },
         }
@@ -566,7 +583,8 @@ impl Process {
 
     /// Get all processes using the sysctl API for efficient bulk retrieval
     fn get_all_via_sysctl() -> Result<Vec<Self>> {
-        use std::{mem, os::raw::c_void, ptr};
+        use std::os::raw::c_void;
+        use std::{mem, ptr};
 
         unsafe {
             // First call to get the size of the buffer needed
@@ -687,9 +705,11 @@ impl Process {
             return Ok(None);
         }
 
-        let proc_info = proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0).map_err(|e| {
-            ProcessError::AccessDenied { pid: Some(pid), message: format!("Failed to get process info: {}", e) }
-        })?;
+        let proc_info =
+            proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0).map_err(|e| ProcessError::AccessDenied {
+                pid: Some(pid),
+                message: format!("Failed to get process info: {}", e),
+            })?;
 
         let ppid = proc_info.pbsd.pbi_ppid;
 
@@ -731,7 +751,10 @@ impl Process {
     /// ```
     pub fn get_process_start_time(pid: u32) -> Result<SystemTime> {
         let proc_info = libproc::proc_pid::pidinfo::<task_info::TaskAllInfo>(pid as i32, 0).map_err(|e| {
-            ProcessError::AccessDenied { pid: Some(pid), message: format!("Failed to get process info: {}", e) }
+            ProcessError::AccessDenied {
+                pid: Some(pid),
+                message: format!("Failed to get process info: {}", e),
+            }
         })?;
 
         let start_time = if proc_info.pbsd.pbi_start_tvsec > 0 {
@@ -766,7 +789,7 @@ impl Process {
                     return process_error(ProcessError::General {
                         pid: Some(pid),
                         message: "Failed to calculate process age".to_string(),
-                    })
+                    });
                 },
             },
         }
@@ -912,8 +935,15 @@ impl Process {
         let mut info: proc_info = unsafe { std::mem::zeroed() };
         let info_size = std::mem::size_of::<proc_info>();
 
-        let result =
-            unsafe { proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &mut info as *mut _ as *mut c_void, info_size as i32) };
+        let result = unsafe {
+            proc_pidinfo(
+                pid,
+                PROC_PIDTASKINFO,
+                0,
+                &mut info as *mut _ as *mut c_void,
+                info_size as i32,
+            )
+        };
 
         if result <= 0 {
             let error_code = std::io::Error::last_os_error().raw_os_error().unwrap_or(-1);
@@ -979,7 +1009,11 @@ impl ProcessMetricsStream {
     /// let stream = ProcessMetricsStream::new(pid, Duration::from_secs(1));
     /// ```
     pub fn new(pid: u32, interval: Duration) -> Self {
-        Self { pid, update_interval: interval, last_update: Instant::now() }
+        Self {
+            pid,
+            update_interval: interval,
+            last_update: Instant::now(),
+        }
     }
 
     /// Checks if enough time has elapsed and returns new process metrics if available
@@ -1163,7 +1197,11 @@ impl ProcessRelationshipMonitor for ProcessRelationshipMonitorImpl {
     async fn sibling_pids(&self) -> Result<Vec<u32>> {
         if let Ok(Some(parent_pid)) = Process::get_parent_pid(self.process.pid) {
             let siblings = Process::get_child_processes(parent_pid)?;
-            Ok(siblings.into_iter().filter(|p| p.pid != self.process.pid).map(|p| p.pid).collect())
+            Ok(siblings
+                .into_iter()
+                .filter(|p| p.pid != self.process.pid)
+                .map(|p| p.pid)
+                .collect())
         } else {
             Ok(Vec::new())
         }

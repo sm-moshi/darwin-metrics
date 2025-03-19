@@ -1,13 +1,13 @@
+use darwin_metrics::error::Error;
+use darwin_metrics::hardware::iokit::{IOKit, IOKitImpl, MockIOKit};
 use darwin_metrics::utils::tests::test_utils::{create_test_dictionary, create_test_object};
-use darwin_metrics::{
-    error::Error,
-    hardware::iokit::{IOKit, IOKitImpl, MockIOKit},
-};
 
 #[test]
 fn test_io_service_matching() {
     let mut mock_iokit = MockIOKit::new();
-    mock_iokit.expect_io_service_matching().returning(|_| Ok(create_test_dictionary()));
+    mock_iokit
+        .expect_io_service_matching()
+        .returning(|_| Ok(create_test_dictionary()));
     let result = mock_iokit.io_service_matching("TestService");
     assert!(result.is_ok());
 }
@@ -16,7 +16,9 @@ fn test_io_service_matching() {
 fn test_io_service_get_matching_service() {
     let mut mock_iokit = MockIOKit::new();
     let dict = create_test_dictionary();
-    mock_iokit.expect_io_service_get_matching_service().returning(|_| Ok(create_test_object()));
+    mock_iokit
+        .expect_io_service_get_matching_service()
+        .returning(|_| Ok(create_test_object()));
     let result = mock_iokit.io_service_get_matching_service(&dict);
     assert!(result.is_ok());
 }
@@ -25,7 +27,9 @@ fn test_io_service_get_matching_service() {
 fn test_io_registry_entry_create_cf_properties() {
     let mut mock_iokit = MockIOKit::new();
     let obj = create_test_object();
-    mock_iokit.expect_io_registry_entry_create_cf_properties().returning(|_| Ok(create_test_dictionary()));
+    mock_iokit
+        .expect_io_registry_entry_create_cf_properties()
+        .returning(|_| Ok(create_test_dictionary()));
     let result = mock_iokit.io_registry_entry_create_cf_properties(&obj);
     assert!(result.is_ok());
 }
@@ -55,7 +59,9 @@ fn test_get_number_property() {
     let mut mock_iokit = MockIOKit::new();
     let dict = create_test_dictionary();
 
-    mock_iokit.expect_get_number_property().returning(|_, key| if key == "TestKey" { Some(42.0) } else { None });
+    mock_iokit
+        .expect_get_number_property()
+        .returning(|_, key| if key == "TestKey" { Some(42.0) } else { None });
 
     let result = mock_iokit.get_number_property(&dict, "TestKey");
     assert_eq!(result, Some(42.0));
@@ -69,7 +75,9 @@ fn test_get_bool_property() {
     let mut mock_iokit = MockIOKit::new();
     let dict = create_test_dictionary();
 
-    mock_iokit.expect_get_bool_property().returning(|_, key| if key == "TestKey" { Some(true) } else { None });
+    mock_iokit
+        .expect_get_bool_property()
+        .returning(|_, key| if key == "TestKey" { Some(true) } else { None });
 
     let result = mock_iokit.get_bool_property(&dict, "TestKey");
     assert_eq!(result, Some(true));
@@ -102,7 +110,9 @@ fn test_get_dict_property() {
 fn test_io_registry_entry_get_parent_entry() {
     let mut mock_iokit = MockIOKit::new();
     let obj = create_test_object();
-    mock_iokit.expect_io_registry_entry_get_parent_entry().returning(|_| Ok(create_test_object()));
+    mock_iokit
+        .expect_io_registry_entry_get_parent_entry()
+        .returning(|_| Ok(create_test_object()));
     let result = mock_iokit.io_registry_entry_get_parent_entry(&obj);
     assert!(result.is_ok());
 }
@@ -110,7 +120,9 @@ fn test_io_registry_entry_get_parent_entry() {
 #[test]
 fn test_get_service_matching() {
     let mut mock_iokit = MockIOKit::new();
-    mock_iokit.expect_get_service_matching().returning(|_| Ok(Some(create_test_object())));
+    mock_iokit
+        .expect_get_service_matching()
+        .returning(|_| Ok(Some(create_test_object())));
     let result = mock_iokit.get_service_matching("TestService");
     assert!(result.is_ok());
     assert!(result.unwrap().is_some());

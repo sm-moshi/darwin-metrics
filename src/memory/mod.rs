@@ -68,15 +68,15 @@ pub mod monitors;
 /// Memory data types
 pub mod types;
 
+use std::sync::Arc;
+
+use async_trait::async_trait;
 pub use monitors::*;
 pub use types::*;
 
 use crate::error::Result;
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::traits;
-use async_trait::async_trait;
-
-use std::sync::Arc;
 
 /// Memory monitor trait that extends the base MemoryMonitor trait
 /// with additional memory-specific functionality
@@ -111,7 +111,9 @@ impl Memory {
     /// Creates a new Memory instance with current system information
     pub fn new() -> Result<Self> {
         let iokit_impl = IOKitImpl::new()?;
-        Ok(Self { iokit: Arc::new(Box::new(iokit_impl)) })
+        Ok(Self {
+            iokit: Arc::new(Box::new(iokit_impl)),
+        })
     }
 
     /// Get a monitor for memory usage metrics
@@ -132,7 +134,9 @@ impl Memory {
 
 impl Default for Memory {
     fn default() -> Self {
-        Self { iokit: Arc::new(Box::new(IOKitImpl::default())) }
+        Self {
+            iokit: Arc::new(Box::new(IOKitImpl::default())),
+        }
     }
 }
 

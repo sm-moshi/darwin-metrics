@@ -1,8 +1,9 @@
-use crate::core::types::{Percentage, Temperature};
 use std::time::Instant;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+use crate::core::types::{Percentage, Temperature};
 
 /// Represents a frequency in MHz
 #[derive(Debug, Clone, Copy)]
@@ -63,19 +64,33 @@ pub struct CpuTemperature {
 
 impl Default for CpuUtilization {
     fn default() -> Self {
-        Self { user: 0.0, system: 0.0, idle: 100.0, nice: 0.0, timestamp: Instant::now() }
+        Self {
+            user: 0.0,
+            system: 0.0,
+            idle: 100.0,
+            nice: 0.0,
+            timestamp: Instant::now(),
+        }
     }
 }
 
 impl Default for CpuFrequency {
     fn default() -> Self {
-        Self { current: 0.0, min: 0.0, max: 0.0 }
+        Self {
+            current: 0.0,
+            min: 0.0,
+            max: 0.0,
+        }
     }
 }
 
 impl Default for CpuTemperature {
     fn default() -> Self {
-        Self { celsius: 0.0, critical: None, timestamp: Instant::now() }
+        Self {
+            celsius: 0.0,
+            critical: None,
+            timestamp: Instant::now(),
+        }
     }
 }
 

@@ -1,4 +1,5 @@
-use std::{thread::sleep, time::Duration};
+use std::thread::sleep;
+use std::time::Duration;
 
 use objc2::rc::autoreleasepool;
 
@@ -48,7 +49,10 @@ fn main() {
         println!("GPU Monitor - Sample #{}\n", sample_count);
 
         // Print estimated metrics
-        println!("System Load (1min, 5min, 15min): {:.2}, {:.2}, {:.2}", load.0, load.1, load.2);
+        println!(
+            "System Load (1min, 5min, 15min): {:.2}, {:.2}, {:.2}",
+            load.0, load.1, load.2
+        );
         println!("Estimated GPU Usage: {:.1}%", estimated_gpu);
 
         // Memory info from process_info was too intensive to query repeatedly
@@ -57,7 +61,10 @@ fn main() {
         let memory_total = 8.0; // Simplified - real systems would calculate this
         let memory_percent = (memory_used / memory_total) * 100.0;
 
-        println!("Estimated GPU Memory: {:.1} GB/{:.1} GB ({:.1}%)", memory_used, memory_total, memory_percent);
+        println!(
+            "Estimated GPU Memory: {:.1} GB/{:.1} GB ({:.1}%)",
+            memory_used, memory_total, memory_percent
+        );
 
         // Create a visual bar for GPU usage
         print_bar("GPU Usage:", estimated_gpu, 50);
@@ -78,7 +85,10 @@ fn display_system_info() {
     autoreleasepool(|_| unsafe {
         let process_info = objc2_foundation::NSProcessInfo::processInfo();
         println!("  OS Version: {}", process_info.operatingSystemVersionString());
-        println!("  Memory: {} GB", process_info.physicalMemory() as f64 / 1_073_741_824.0);
+        println!(
+            "  Memory: {} GB",
+            process_info.physicalMemory() as f64 / 1_073_741_824.0
+        );
         println!("  CPU Cores: {}", process_info.activeProcessorCount());
     });
 }

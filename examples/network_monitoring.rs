@@ -1,11 +1,10 @@
-use darwin_metrics::{
-    core::metrics::hardware::{
-        NetworkBandwidthMonitor, NetworkErrorMonitor, NetworkInterfaceMonitor, NetworkPacketMonitor,
-    },
-    error::Result,
-    network::{NetworkManager, NetworkMetrics},
-};
 use std::time::Duration;
+
+use darwin_metrics::core::metrics::hardware::{
+    NetworkBandwidthMonitor, NetworkErrorMonitor, NetworkInterfaceMonitor, NetworkPacketMonitor,
+};
+use darwin_metrics::error::Result;
+use darwin_metrics::network::{NetworkManager, NetworkMetrics};
 
 /// Helper function to format bytes in a human-readable format
 fn format_bytes(bytes: u64) -> String {
@@ -64,8 +63,11 @@ async fn main() -> Result<()> {
 
         // Sort interfaces by download speed for more interesting output
         let mut interfaces = interfaces.to_vec();
-        interfaces
-            .sort_by(|a, b| b.download_speed().partial_cmp(&a.download_speed()).unwrap_or(std::cmp::Ordering::Equal));
+        interfaces.sort_by(|a, b| {
+            b.download_speed()
+                .partial_cmp(&a.download_speed())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Display information for each interface
         for interface in interfaces {
@@ -74,39 +76,75 @@ async fn main() -> Result<()> {
             let packet_monitor = interface.packet_monitor();
             let error_monitor = interface.error_monitor();
 
-            println!("Interface: {} ({})", interface.name(), interface_monitor.interface_type().await?);
-            println!("Status: {}", if interface_monitor.is_active().await? { "Active" } else { "Inactive" });
+            println!(
+                "Interface: {} ({})",
+                interface.name(),
+                interface_monitor.interface_type().await?
+            );
+            println!(
+                "Status: {}",
+                if interface_monitor.is_active().await? {
+                    "Active"
+                } else {
+                    "Inactive"
+                }
+            );
 
             // Interface properties
             if let Some(mac) = interface_monitor.mac_address().await? {
                 println!("MAC Address: {}", mac);
             }
-            println!("Type: {}", if interface_monitor.is_wireless().await? { "Wireless" } else { "Wired" });
+            println!(
+                "Type: {}",
+                if interface_monitor.is_wireless().await? {
+                    "Wireless"
+                } else {
+                    "Wired"
+                }
+            );
             println!("Supports Broadcast: {}", interface_monitor.supports_broadcast().await?);
             println!("Supports Multicast: {}", interface_monitor.supports_multicast().await?);
             println!("Is Loopback: {}", interface_monitor.is_loopback().await?);
 
             // Bandwidth metrics
             println!("\nBandwidth Metrics:");
-            println!("Total Received: {}", format_bytes(bandwidth_monitor.bytes_received().await?));
+            println!(
+                "Total Received: {}",
+                format_bytes(bandwidth_monitor.bytes_received().await?)
+            );
             println!("Total Sent: {}", format_bytes(bandwidth_monitor.bytes_sent().await?));
-            println!("Download Speed: {}", format_rate(bandwidth_monitor.download_speed().await?));
+            println!(
+                "Download Speed: {}",
+                format_rate(bandwidth_monitor.download_speed().await?)
+            );
             println!("Upload Speed: {}", format_rate(bandwidth_monitor.upload_speed().await?));
 
             // Packet metrics
             println!("\nPacket Metrics:");
             println!("Packets Received: {}", packet_monitor.packets_received().await?);
             println!("Packets Sent: {}", packet_monitor.packets_sent().await?);
-            println!("Packet Receive Rate: {:.2} packets/s", packet_monitor.packet_receive_rate().await?);
-            println!("Packet Send Rate: {:.2} packets/s", packet_monitor.packet_send_rate().await?);
+            println!(
+                "Packet Receive Rate: {:.2} packets/s",
+                packet_monitor.packet_receive_rate().await?
+            );
+            println!(
+                "Packet Send Rate: {:.2} packets/s",
+                packet_monitor.packet_send_rate().await?
+            );
 
             // Error metrics
             println!("\nError Metrics:");
             println!("Receive Errors: {}", error_monitor.receive_errors().await?);
             println!("Send Errors: {}", error_monitor.send_errors().await?);
             println!("Collisions: {}", error_monitor.collisions().await?);
-            println!("Receive Error Rate: {:.2}%", error_monitor.receive_error_rate().await? * 100.0);
-            println!("Send Error Rate: {:.2}%", error_monitor.send_error_rate().await? * 100.0);
+            println!(
+                "Receive Error Rate: {:.2}%",
+                error_monitor.receive_error_rate().await? * 100.0
+            );
+            println!(
+                "Send Error Rate: {:.2}%",
+                error_monitor.send_error_rate().await? * 100.0
+            );
 
             println!("\n{}", "-".repeat(50));
         }

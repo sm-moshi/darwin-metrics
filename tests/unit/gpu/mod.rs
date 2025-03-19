@@ -1,5 +1,6 @@
-use lazy_static::lazy_static;
 use std::sync::Mutex;
+
+use lazy_static::lazy_static;
 
 lazy_static! {
     /// Global mutex for GPU tests to prevent concurrent access

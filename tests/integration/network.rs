@@ -1,7 +1,5 @@
-use darwin_metrics::{
-    error::Result,
-    network::{NetworkManager, NetworkMetrics},
-};
+use darwin_metrics::error::Result;
+use darwin_metrics::network::{NetworkManager, NetworkMetrics};
 
 #[test]
 fn test_network_manager_integration() -> Result<()> {
@@ -41,7 +39,8 @@ fn test_network_manager_integration() -> Result<()> {
 #[test]
 #[ignore = "This test needs a real network environment"]
 fn test_real_network_traffic() -> Result<()> {
-    use std::{thread::sleep, time::Duration};
+    use std::thread::sleep;
+    use std::time::Duration;
 
     let mut network_manager = NetworkManager::new()?;
 

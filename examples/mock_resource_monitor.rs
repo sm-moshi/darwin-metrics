@@ -1,6 +1,7 @@
+use std::time::Duration;
+
 use darwin_metrics::resource::ResourceMonitor;
 use darwin_metrics::utils::tests::test_utils::iokit_mock::MockIOKit;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

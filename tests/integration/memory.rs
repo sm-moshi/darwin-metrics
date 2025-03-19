@@ -1,5 +1,7 @@
-use darwin_metrics::memory::{Memory, MemoryMonitor, PressureLevel};
 use std::time::Duration;
+
+use darwin_metrics::MemoryMonitor;
+use darwin_metrics::memory::{Memory, MemoryMonitor, PressureLevel};
 
 #[tokio::test]
 async fn test_memory_monitor_interactions() {

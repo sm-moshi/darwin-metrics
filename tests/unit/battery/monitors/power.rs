@@ -1,4 +1,6 @@
-use crate::{battery::Battery, error::Result, tests::common::TestBatteryBuilder};
+use crate::battery::Battery;
+use crate::error::Result;
+use crate::tests::common::TestBatteryBuilder;
 
 #[test]
 fn test_power_monitor() -> Result<()> {

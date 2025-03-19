@@ -1,31 +1,28 @@
 use std::ffi::CString;
-use std::mem;
 use std::os::raw::c_void;
-use std::ptr;
 use std::ptr::null_mut as null_ptr;
-use tokio::task;
+use std::{mem, ptr};
 
 use async_trait::async_trait;
 use metal::Device as MTLDevice;
+use objc2::msg_send;
 use objc2::rc::autoreleasepool;
-use objc2::{msg_send, runtime::AnyObject};
+use objc2::runtime::AnyObject;
+use tokio::task;
 
-use crate::{
-    core::{
-        metrics::Metric,
-        types::{ByteSize, Percentage},
-    },
-    error::{Error, Result},
-    gpu::types::{GpuCharacteristics, GpuMemory, GpuUtilization},
-    traits::{HardwareMonitor, UtilizationMonitor},
-    utils::bindings::{IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT},
-};
+use crate::core::metrics::Metric;
+use crate::core::types::{ByteSize, Percentage};
+use crate::error::{Error, Result};
+use crate::gpu::types::{GpuCharacteristics, GpuMemory, GpuUtilization};
+use crate::traits::{HardwareMonitor, UtilizationMonitor};
+use crate::utils::bindings::{IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT};
 
 //------------------------------------------------------------------------------
 // GpuCharacteristicsMonitor
 //------------------------------------------------------------------------------
 
 /// Monitor for GPU characteristics
+#[derive(Debug, Clone)]
 pub struct GpuCharacteristicsMonitor {
     metal_device: Option<MTLDevice>,
 }
@@ -177,7 +174,9 @@ impl GpuCharacteristicsMonitor {
             }
 
             // Convert model identifier to string
-            let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8).to_string_lossy().into_owned();
+            let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8)
+                .to_string_lossy()
+                .into_owned();
 
             Some(model)
         }
@@ -238,7 +237,9 @@ impl GpuCharacteristicsMonitor {
             }
 
             // Convert to string
-            let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8).to_string_lossy().into_owned();
+            let model = std::ffi::CStr::from_ptr(buffer.as_ptr() as *const i8)
+                .to_string_lossy()
+                .into_owned();
 
             Some(model)
         })
@@ -252,6 +253,7 @@ impl GpuCharacteristicsMonitor {
 //------------------------------------------------------------------------------
 
 /// Monitor for GPU memory metrics
+#[derive(Debug, Clone)]
 pub struct GpuMemoryMonitor {
     metal_device: Option<MTLDevice>,
 }
@@ -343,6 +345,7 @@ impl GpuMemoryMonitor {
 //------------------------------------------------------------------------------
 
 /// Monitor for GPU temperature
+#[derive(Debug, Clone)]
 pub struct GpuTemperatureMonitor {
     metal_device: Option<MTLDevice>,
 }
@@ -407,6 +410,7 @@ fn get_service_for_name(service_name: &CString) -> u32 {
 //------------------------------------------------------------------------------
 
 /// Monitor for GPU utilization
+#[derive(Debug, Clone)]
 pub struct GpuUtilizationMonitor {
     metal_device: Option<MTLDevice>,
     gpu_id: usize,

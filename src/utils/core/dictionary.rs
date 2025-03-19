@@ -1,10 +1,13 @@
-use crate::error::{Error, Result};
-use objc2::{class, msg_send};
-use objc2::{rc::Retained, runtime::AnyObject};
-use objc2_foundation::{NSMutableDictionary, NSDictionary, NSNumber, NSObject, NSString};
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::{Mutex, Once, Arc};
+use std::sync::{Arc, Mutex, Once};
+
+use objc2::rc::Retained;
+use objc2::runtime::AnyObject;
+use objc2::{class, msg_send};
+use objc2_foundation::{NSDictionary, NSMutableDictionary, NSNumber, NSObject, NSString};
+
+use crate::error::{Error, Result};
 
 static INIT: Once = Once::new();
 
@@ -159,23 +162,23 @@ impl SafeDictionary {
     /// Create a new empty dictionary
     pub fn new() -> Self {
         ensure_classes_registered();
-        Self { dict: Mutex::new(NSMutableDictionary::new()) }
+        Self {
+            dict: Mutex::new(NSMutableDictionary::new()),
+        }
     }
 
     /// Create from an existing NSDictionary
     pub fn from(dict: Retained<NSDictionary<NSString, NSObject>>) -> Self {
         ensure_classes_registered();
-        
+
         // Convert to mutable if needed
         let mutable_dict = if dict.count() > 0 {
             let dict_class = class!(NSMutableDictionary);
-            
+
             // Use from_raw instead of new and handle the Option return
             let dict_result: Option<Retained<NSMutableDictionary<NSString, NSObject>>> =
-                unsafe { 
-                    msg_send![dict_class, dictionaryWithCapacity: dict.count()]
-                };
-            
+                unsafe { msg_send![dict_class, dictionaryWithCapacity: dict.count()] };
+
             match dict_result {
                 Some(mutable_dict) => {
                     unsafe {
@@ -183,37 +186,39 @@ impl SafeDictionary {
                     }
                     mutable_dict
                 },
-                None => NSMutableDictionary::new()
+                None => NSMutableDictionary::new(),
             }
         } else {
             NSMutableDictionary::new()
         };
-        
-        Self { dict: Mutex::new(mutable_dict) }
+
+        Self {
+            dict: Mutex::new(mutable_dict),
+        }
     }
 
     /// Creates a SafeDictionary from a raw pointer
-    /// 
+    ///
     /// # Safety
     /// This function is unsafe because it takes ownership of a raw pointer
     pub unsafe fn from_ptr(ptr: *mut AnyObject) -> Self {
         ensure_classes_registered();
-        
+
         // First check if the pointer is valid
         if ptr.is_null() {
             return Self::new();
         }
-        
+
         // Try to convert the pointer to a dictionary
         // from_raw returns an Option, not a Result
-        match Retained::from_raw(ptr as *mut NSDictionary<NSString, NSObject>) {
+        match unsafe { Retained::from_raw(ptr as *mut NSDictionary<NSString, NSObject>) } {
             Some(dict) => Self::from(dict),
             None => {
                 // If conversion fails, return an empty dictionary
                 // but log the error for debugging
                 eprintln!("Warning: Failed to convert pointer to NSDictionary");
                 Self::new()
-            }
+            },
         }
     }
 
@@ -270,19 +275,22 @@ impl SafeDictionary {
             unsafe {
                 let _: () = msg_send![&*mutable_dict, addEntriesFromDictionary:&**dict];
             }
-            Self { dict: Mutex::new(mutable_dict) }
+            Self {
+                dict: Mutex::new(mutable_dict),
+            }
         } else {
             Self::new()
         }
     }
 
     /// Get the raw pointer to the underlying dictionary
-    /// 
+    ///
     /// # Safety
     /// This returns a raw pointer that should be used with care
     pub unsafe fn as_ptr(&self) -> *const NSObject {
         let dict_lock = self.dict.lock().expect("Failed to lock dictionary mutex");
-        let obj_ptr = &*dict_lock as &NSMutableDictionary<NSString, NSObject> as *const NSMutableDictionary<NSString, NSObject>;
+        let obj_ptr =
+            &*dict_lock as &NSMutableDictionary<NSString, NSObject> as *const NSMutableDictionary<NSString, NSObject>;
         obj_ptr as *const NSObject
     }
 

@@ -1,10 +1,9 @@
-use async_trait::async_trait;
-use darwin_metrics::{
-    error::Error,
-    hardware::iokit::{FanInfo, GpuStats, IOKit, IOKitImpl, ThermalInfo, ThreadSafeAnyObject},
-    utils::core::dictionary::SafeDictionary,
-};
 use std::fmt::Debug;
+
+use async_trait::async_trait;
+use darwin_metrics::error::Error;
+use darwin_metrics::hardware::iokit::{FanInfo, GpuStats, IOKit, IOKitImpl, ThermalInfo, ThreadSafeAnyObject};
+use darwin_metrics::utils::core::dictionary::SafeDictionary;
 
 // Our own simple mock for testing
 #[derive(Debug)]
@@ -17,7 +16,12 @@ struct SimpleMockIOKit {
 
 impl SimpleMockIOKit {
     fn new() -> Self {
-        Self { thermal_info: None, cpu_temp_error: None, gpu_stats_error: None, thermal_info_error: None }
+        Self {
+            thermal_info: None,
+            cpu_temp_error: None,
+            gpu_stats_error: None,
+            thermal_info_error: None,
+        }
     }
 
     fn with_thermal_info(mut self, info: ThermalInfo) -> Self {
