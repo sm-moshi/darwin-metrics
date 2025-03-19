@@ -17,14 +17,25 @@ pub struct GpuCharacteristics {
     pub clock_speed_mhz: Option<u32>,
     /// GPU chip information
     pub chip_info: String,
+    /// Name of the GPU
     pub name: String,
+    /// Vendor of the GPU (e.g., AMD, NVIDIA, Intel, Apple)
     pub vendor: String,
+    /// Device ID of the GPU
     pub device_id: String,
+    /// Total memory available to the GPU in bytes
     pub total_memory: u64,
+    /// Whether the GPU supports the Metal API
     pub supports_metal: bool,
 }
 
 impl GpuCharacteristics {
+    /// Creates a new GpuCharacteristics instance with the provided basic information
+    /// 
+    /// # Parameters
+    /// * `is_apple_silicon` - Whether this is an Apple Silicon GPU
+    /// * `is_integrated` - Whether this is an integrated GPU (vs discrete)
+    /// * `chip_info` - Information about the GPU chip
     pub fn new(is_apple_silicon: bool, is_integrated: bool, chip_info: String) -> Self {
         Self {
             is_apple_silicon,

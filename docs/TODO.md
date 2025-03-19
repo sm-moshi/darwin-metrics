@@ -140,13 +140,13 @@
 ### GPU Implementation Issues
 
 - [x] Improve GPU hardware detection for various Mac models
-- Create more comprehensive examples to validate the GPU implementation
-- Add support for multiple GPU configurations
-- Add utilization tracking for specialized GPU components (like Media Engines)
+- [ ] Create more comprehensive examples to validate the GPU implementation
+- [ ] Add support for multiple GPU configurations
+- [ ] Add utilization tracking for specialized GPU components (like Media Engines)
 
 ---
 
-## **Phase 2: Enhanced System Metrics (0.2.0) - Planned**
+## **Phase 2: Enhanced System Metrics (0.2.0) - In Progress**
 
 **Goal:** Expand monitoring capabilities with additional system metrics.
 
@@ -207,6 +207,32 @@
   - [~] Improve coverage for hardware/iokit module (currently 16.67%)
   - [ ] Expand test coverage for other system metrics, ensuring accuracy in collected data.
   - [~] Improve async testing to validate non-blocking behavior.
+
+### **PropertyUtils Improvements**
+
+- [ ] **Fix PropertyUtils Module Issues**
+  - [ ] Resolve NSString and NSCopying type conversion issues
+  - [ ] Clean up imports and remove unused ones
+  - [ ] Implement proper type casting with downcast_ref
+  - [ ] Add comprehensive tests for property access methods
+  - [ ] Document type conversion and safety guarantees
+  - [ ] Improve error handling for property access failures
+
+- [~] **Testing & Stability**
+  - [x] Add tests for power module with mock implementation (96.98% coverage)
+  - [~] Improve coverage for hardware/iokit module (currently 16.67%)
+  - [ ] Add tests for utils modules:
+    - [ ] utils/property_utils.rs (0% coverage, blocked by compilation fixes)
+      - [ ] Add tests for NSString handling
+      - [ ] Add tests for property access methods
+      - [ ] Add tests for error conditions
+      - [ ] Add tests for thread safety
+    - [ ] utils/test_utils.rs (0% coverage)
+    - [ ] utils/bindings.rs (28% coverage)
+    - [~] utils/mod.rs (68.71% coverage)
+  - [~] Improve async testing to validate non-blocking behavior
+  - [ ] Add integration tests for property access patterns
+  - [ ] Add stress tests for concurrent property access
 
 ---
 

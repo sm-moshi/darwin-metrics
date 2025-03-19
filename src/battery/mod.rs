@@ -1,3 +1,34 @@
+//! # Battery Module
+//!
+//! The battery module provides functionality for monitoring and collecting metrics
+//! from macOS system batteries. It includes support for tracking battery health,
+//! power consumption, temperature, and other battery-related metrics.
+//!
+//! ## Features
+//!
+//! * Battery health monitoring
+//! * Power consumption tracking
+//! * Temperature monitoring
+//! * Charge cycle counting
+//! * Battery status information
+//!
+//! ## Example
+//!
+//! ```rust
+//! use darwin_metrics::battery::Battery;
+//! use darwin_metrics::System;
+//!
+//! async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//!     let system = System::new()?;
+//!     let battery = Battery::new(system.io_kit())?;
+//!     
+//!     let health = battery.health().await?;
+//!     println!("Battery Health: {}%", health.percentage());
+//!     
+//!     Ok(())
+//! }
+//! ```
+
 use std::sync::Arc;
 
 use crate::error::Result;

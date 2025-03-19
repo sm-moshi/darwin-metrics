@@ -42,9 +42,13 @@ fn get_proc_path() -> PathBuf {
 /// ```
 #[derive(Debug, Clone)]
 pub struct GpuMonitors {
+    /// Monitor for GPU characteristics such as model, vendor, and capabilities
     pub characteristics: GpuCharacteristicsMonitor,
+    /// Monitor for GPU memory usage and statistics
     pub memory: GpuMemoryMonitor,
+    /// Monitor for GPU temperature measurements
     pub temperature: GpuTemperatureMonitor,
+    /// Monitor for GPU utilization metrics
     pub utilization: GpuUtilizationMonitor,
 }
 

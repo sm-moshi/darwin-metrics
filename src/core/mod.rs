@@ -1,3 +1,23 @@
+//! # Core Module
+//!
+//! The core module provides fundamental types and metrics collection functionality
+//! for the darwin-metrics library. It serves as the foundation for system metric
+//! collection on macOS systems.
+//!
+//! ## Organization
+//!
+//! * Types - Core data types for representing various metrics
+//! * Metrics - Hardware monitoring and metric collection interfaces
+//!
+//! ## Example
+//!
+//! ```rust
+//! use darwin_metrics::core::types::ByteSize;
+//!
+//! let size = ByteSize::from_bytes(1024);
+//! assert_eq!(size.as_kb(), 1.0);
+//! ```
+
 // Core modules
 pub mod metrics;
 pub mod types;

@@ -19,20 +19,71 @@ use crate::hardware::iokit::IOKit;
 // Re-export core traits from the traits module
 pub use crate::traits::{CpuMonitor, HardwareMonitor, TemperatureMonitor, UtilizationMonitor};
 
+/// # CPU Module
+///
+/// This module provides functionality for monitoring CPU metrics on macOS systems.
+/// It includes traits and types for collecting CPU usage, temperature, and frequency data.
+///
+/// ## Features
+///
+/// * CPU core usage monitoring
+/// * CPU temperature tracking
+/// * CPU frequency measurement
+/// * Support for multiple CPU cores
+///
+/// ## Example
+///
+/// ```rust
+/// use darwin_metrics::cpu::{CpuMetrics, CpuMetricsData};
+///
+/// struct MyCpuMonitor;
+///
+/// impl CpuMetrics for MyCpuMonitor {
+///     fn get_core_usage(&self) -> f64 { 50.0 }
+///     fn get_cpu_temperature(&self) -> Option<f64> { Some(45.0) }
+///     fn get_cpu_frequency(&self) -> f64 { 2400.0 }
+/// }
+/// ```
+
+/// A trait for collecting CPU metrics on macOS systems.
+///
+/// This trait defines the interface for monitoring various CPU metrics including
+/// core usage, temperature, and frequency. Implementations should provide accurate
+/// readings from the system's hardware sensors and performance counters.
 pub trait CpuMetrics {
+    /// Gets the current CPU core usage as a percentage (0.0 to 100.0).
+    ///
+    /// This method returns the average CPU usage across all cores.
     fn get_core_usage(&self) -> f64;
+
+    /// Gets the current CPU temperature in degrees Celsius.
+    ///
+    /// Returns `None` if the temperature sensor is not available or reading fails.
     fn get_cpu_temperature(&self) -> Option<f64>;
+
+    /// Gets the current CPU frequency in MHz.
+    ///
+    /// This method returns the current operating frequency of the CPU.
     fn get_cpu_frequency(&self) -> f64;
 }
 
-#[derive(Debug, Clone)]
+/// A data structure containing CPU metrics at a point in time.
+///
+/// This struct holds a snapshot of CPU metrics including usage, temperature,
+/// and frequency measurements.
 pub struct CpuMetricsData {
+    /// The CPU usage as a percentage (0.0 to 100.0)
     pub usage: f64,
+    /// The CPU temperature in degrees Celsius (if available)
     pub temperature: Option<f64>,
+    /// The CPU frequency in MHz
     pub frequency: f64,
 }
 
+/// Maximum number of CPU cores supported by the library
 pub const MAX_CORES: u32 = 64;
+
+/// Maximum CPU frequency in MHz that can be reported
 pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
 
 /// CPU monitor implementation

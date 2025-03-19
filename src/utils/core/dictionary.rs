@@ -294,6 +294,12 @@ impl SafeDictionary {
         obj_ptr as *const NSObject
     }
 
+    /// Sets a boolean value in the dictionary for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to set
+    /// * `value` - The boolean value to set
     pub fn set_bool(&mut self, key: &str, value: bool) {
         if let Ok(dict) = self.dict.lock() {
             let key = NSString::from_str(key);
@@ -307,6 +313,12 @@ impl SafeDictionary {
         }
     }
 
+    /// Sets a 64-bit integer value in the dictionary for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to set
+    /// * `value` - The i64 value to set
     pub fn set_i64(&mut self, key: &str, value: i64) {
         if let Ok(dict) = self.dict.lock() {
             let key = NSString::from_str(key);
@@ -320,6 +332,12 @@ impl SafeDictionary {
         }
     }
 
+    /// Sets a 64-bit floating point value in the dictionary for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to set
+    /// * `value` - The f64 value to set
     pub fn set_f64(&mut self, key: &str, value: f64) {
         if let Ok(dict) = self.dict.lock() {
             let key = NSString::from_str(key);
@@ -333,6 +351,15 @@ impl SafeDictionary {
         }
     }
 
+    /// Gets an array of NSObjects from the dictionary for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Option<Vec<NSObject>>` - The array of NSObjects if found, None otherwise
     pub fn get_array(&self, key: &str) -> Option<Vec<NSObject>> {
         self.get(key).and({
             // Convert NSArray to Vec<NSObject>
@@ -341,6 +368,15 @@ impl SafeDictionary {
         })
     }
 
+    /// Gets a 64-bit floating point value from the dictionary for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Result<f64>` - The f64 value if found and valid, Error otherwise
     pub fn get_f64(&self, key: &str) -> Result<f64> {
         self.get(key)
             .and({
@@ -351,6 +387,15 @@ impl SafeDictionary {
             .ok_or_else(|| Error::invalid_data(format!("Key not found: {}", key), None::<String>))
     }
 
+    /// Gets a 64-bit integer value from the dictionary for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Option<i64>` - The i64 value if found, None otherwise
     pub fn get_i64(&self, key: &str) -> Option<i64> {
         self.get(key).and({
             // Try to convert NSNumber to i64
@@ -359,6 +404,15 @@ impl SafeDictionary {
         })
     }
 
+    /// Gets a retained NSObject from the dictionary for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Option<Retained<NSObject>>` - The retained NSObject if found, None otherwise
     pub fn get(&self, key: &str) -> Option<Retained<NSObject>> {
         let dict = self.dict.lock().unwrap();
         let key_str = NSString::from_str(key);

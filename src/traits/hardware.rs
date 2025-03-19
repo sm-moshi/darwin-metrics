@@ -94,7 +94,7 @@ pub trait MemoryMonitor: Send + Sync {
 }
 
 /// Monitor for metrics related to byte-based measurements (memory, storage, etc.)
-#[async_trait]
+#[async_trait::async_trait]
 pub trait ByteMetricsMonitor: Send + Sync {
     /// Get total bytes
     async fn total_bytes(&self) -> Result<u64>;
@@ -105,6 +105,25 @@ pub trait ByteMetricsMonitor: Send + Sync {
 }
 
 /// Monitor for rate-based metrics (network, disk I/O, etc.)
+/// 
+/// This trait uses Rust's native async traits (with #[allow(async_fn_in_trait)])
+/// rather than the async_trait macro. This is intentional and offers better
+/// performance by avoiding the boxed futures that async_trait generates.
+/// 
+/// When implementing this trait, you do not need to use #[async_trait] on your
+/// implementation, as shown in the example below:
+///
+/// ```rust
+/// impl RateMonitor<u64> for MyMonitor {
+///     async fn rate(&self) -> Result<u64> {
+///         // Implementation...
+///     }
+///     
+///     async fn average_rate(&self, seconds: u64) -> Result<u64> {
+///         // Implementation...
+///     }
+/// }
+/// ```
 #[allow(async_fn_in_trait)]
 pub trait RateMonitor<T>: Send + Sync {
     /// Get the current rate
@@ -125,7 +144,7 @@ pub trait StorageMonitor: Send + Sync {
 }
 
 /// Trait for monitoring power consumption metrics
-#[async_trait]
+#[async_trait::async_trait]
 pub trait PowerConsumptionMonitor: Send + Sync {
     /// Get total package power consumption in watts
     async fn package_power(&self) -> Result<f32>;
@@ -142,7 +161,7 @@ pub trait PowerConsumptionMonitor: Send + Sync {
 }
 
 /// Trait for monitoring power state
-#[async_trait]
+#[async_trait::async_trait]
 pub trait PowerStateMonitor: Send + Sync {
     /// Get current power state (Battery, AC, Charging)
     async fn power_state(&self) -> Result<PowerState>;
@@ -157,7 +176,7 @@ pub trait PowerStateMonitor: Send + Sync {
 }
 
 /// Trait for monitoring power management
-#[async_trait]
+#[async_trait::async_trait]
 pub trait PowerManagementMonitor: Send + Sync {
     /// Check if system is currently thermal throttling
     async fn is_thermal_throttling(&self) -> Result<bool>;
@@ -170,7 +189,7 @@ pub trait PowerManagementMonitor: Send + Sync {
 }
 
 /// Trait for monitoring power events
-#[async_trait]
+#[async_trait::async_trait]
 pub trait PowerEventMonitor: Send + Sync {
     /// Get time since last wake from sleep
     async fn time_since_wake(&self) -> Result<Duration>;
@@ -183,7 +202,7 @@ pub trait PowerEventMonitor: Send + Sync {
 }
 
 /// Trait for monitoring battery health
-#[async_trait]
+#[async_trait::async_trait]
 pub trait BatteryHealthMonitor: Send + Sync {
     /// Get the battery cycle count
     async fn cycle_count(&self) -> Result<i64>;
@@ -196,7 +215,7 @@ pub trait BatteryHealthMonitor: Send + Sync {
 }
 
 /// Power monitor trait for battery power monitoring
-#[async_trait]
+#[async_trait::async_trait]
 pub trait PowerMonitorTrait: Send + Sync {
     /// The type of metric this monitor produces
     type MetricType: Clone + Send + Sync + 'static;
@@ -240,7 +259,7 @@ pub trait PowerMonitorTrait: Send + Sync {
 }
 
 /// Battery capacity monitor trait
-#[async_trait]
+#[async_trait::async_trait]
 pub trait BatteryCapacityMonitorTrait: Send + Sync {
     /// The type of metric this monitor produces
     type MetricType: Clone + Send + Sync + 'static;

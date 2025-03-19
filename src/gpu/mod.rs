@@ -26,9 +26,5 @@ pub use types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, Gp
 /// GPU constants
 pub mod constants;
 
-// Re-export core monitor traits (deprecated)
-#[deprecated(
-    since = "0.2.0-alpha.1",
-    note = "Hardware traits have been moved to the traits module. Use darwin_metrics::traits instead."
-)]
-pub use crate::core::metrics::hardware::{HardwareMonitor, TemperatureMonitor, UtilizationMonitor};
+// NOTE: Hardware monitoring traits like HardwareMonitor, TemperatureMonitor, and UtilizationMonitor
+// should be imported directly from darwin_metrics::traits module

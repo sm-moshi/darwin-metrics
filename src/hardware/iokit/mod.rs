@@ -298,7 +298,7 @@ pub trait IOKit: Debug + Send + Sync {
     fn get_core_usage(&self) -> Result<Vec<f64>>;
 
     /// Get dictionary
-    fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
+    fn get_dictionary(&self, _key: &str) -> Option<SafeDictionary> {
         None // Default implementation
     }
 
@@ -315,7 +315,7 @@ pub trait IOKit: Debug + Send + Sync {
 #[derive(Debug, Clone, Default)]
 pub struct IOKitImpl {
     /// The current IORegistry connection ID (mach_port_t)
-    connection: Option<u32>,
+    _connection: Option<u32>,
 }
 
 impl IOKitImpl {
@@ -515,10 +515,10 @@ impl IOKit for IOKitImpl {
     }
 }
 
-static INIT: Once = Once::new();
+static _INIT: Once = Once::new();
 
 fn ensure_classes_registered() {
-    INIT.call_once(|| {
+    _INIT.call_once(|| {
         let _: &AnyClass = class!(NSObject);
         let _: &AnyClass = class!(NSMutableDictionary);
         let _: &AnyClass = class!(NSNumber);
