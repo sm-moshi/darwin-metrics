@@ -108,19 +108,42 @@ use crate::utils::bindings::{extract_proc_name, is_system_process, kinfo_proc, p
 #[derive(Debug, Clone)]
 pub enum ProcessError {
     /// Error accessing process information
-    AccessDenied { pid: Option<u32>, message: String },
+    AccessDenied {
+        /// Optional process ID that caused the access error
+        pid: Option<u32>,
+        /// Detailed error message
+        message: String,
+    },
     /// Process not found
-    NotFound { pid: u32 },
+    NotFound {
+        /// Process ID that was not found
+        pid: u32,
+    },
     /// Invalid process data
     InvalidData {
+        /// Optional process ID with invalid data
         pid: Option<u32>,
+        /// Name of the field with invalid data
         field: String,
+        /// Detailed error message
         message: String,
     },
     /// System call error
-    SystemCall { pid: Option<u32>, call: String, code: i32 },
+    SystemCall {
+        /// Optional process ID related to the system call
+        pid: Option<u32>,
+        /// Name of the system call that failed
+        call: String,
+        /// Error code returned by the system call
+        code: i32,
+    },
     /// General process error
-    General { pid: Option<u32>, message: String },
+    General {
+        /// Optional process ID related to the error
+        pid: Option<u32>,
+        /// Detailed error message
+        message: String,
+    },
 }
 
 impl std::fmt::Display for ProcessError {

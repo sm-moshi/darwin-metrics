@@ -4,15 +4,13 @@ mod monitors;
 mod types;
 
 // Re-export all types and monitors
-use async_trait::async_trait;
 // Re-export constants
 pub use constants::*;
-pub use cpu_impl::*;
 pub use monitors::*;
 pub use types::*;
 
 use crate::core::metrics::Metric;
-use crate::core::types::{Percentage, Temperature};
+use crate::core::types::Percentage;
 use crate::error::Result;
 // Import IOKit from the hardware module
 use crate::hardware::iokit::IOKit;

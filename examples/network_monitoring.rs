@@ -1,10 +1,11 @@
 use std::time::Duration;
 
-use darwin_metrics::core::metrics::hardware::{
+use darwin_metrics::error::Result;
+use darwin_metrics::network::NetworkManager;
+use darwin_metrics::network::interface::{Interface, NetworkInterface};
+use darwin_metrics::network::monitors::{
     NetworkBandwidthMonitor, NetworkErrorMonitor, NetworkInterfaceMonitor, NetworkPacketMonitor,
 };
-use darwin_metrics::error::Result;
-use darwin_metrics::network::{NetworkManager, NetworkMetrics};
 
 /// Helper function to format bytes in a human-readable format
 fn format_bytes(bytes: u64) -> String {
@@ -61,13 +62,9 @@ async fn main() -> Result<()> {
         let interfaces = network.interfaces();
         println!("Found {} network interfaces\n", interfaces.len());
 
-        // Sort interfaces by download speed for more interesting output
+        // Sort interfaces by name instead of download speed since we can't use async in sort_by
         let mut interfaces = interfaces.to_vec();
-        interfaces.sort_by(|a, b| {
-            b.download_speed()
-                .partial_cmp(&a.download_speed())
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        interfaces.sort_by(|a, b| a.name().cmp(&b.name()));
 
         // Display information for each interface
         for interface in interfaces {

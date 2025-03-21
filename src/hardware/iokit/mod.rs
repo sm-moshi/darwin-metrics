@@ -1,15 +1,12 @@
 // Standard library imports
-use std::convert::AsRef;
 use std::ffi::{CString, c_char, c_void};
 use std::fmt::Debug;
-use std::sync::{Arc, Mutex, Once};
+use std::sync::Once;
 use std::time::Duration;
 
 // External crate imports
-use libc::mach_port_t;
 use objc2::class;
-use objc2::rc::Retained;
-use objc2::runtime::{AnyClass, AnyObject, NSObject};
+use objc2::runtime::AnyClass;
 
 // Internal crate imports
 use crate::{
@@ -19,24 +16,23 @@ use crate::{
     },
     error::{Error, Result},
     power::PowerState,
-    utils::{
-        SafeDictionary,
-        core::DictionaryAccess,
-        ffi::{
-            IOByteCount, IOConnectCallStructMethod, IORegistryEntryCreateCFProperties, IORegistryEntryGetParentEntry,
-            IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT,
-        },
-    },
+    utils::{SafeDictionary, core::DictionaryAccess},
 };
 
 /// GPU statistics
 #[derive(Debug, Clone)]
 pub struct GpuStats {
+    /// Utilization percentage of the GPU (0-100)
     pub utilization: f64,
+    /// Amount of GPU memory currently in use (bytes)
     pub memory_used: u64,
+    /// Total GPU memory available (bytes)
     pub memory_total: u64,
+    /// Performance capability ratio (0.0-1.0)
     pub perf_cap: f64,
+    /// Performance threshold ratio (0.0-1.0)
     pub perf_threshold: f64,
+    /// Name of the GPU
     pub name: String,
 }
 
@@ -312,7 +308,7 @@ pub trait IOKit: Debug + Send + Sync {
 }
 
 /// IOKit implementation for hardware monitoring
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct IOKitImpl {
     /// The current IORegistry connection ID (mach_port_t)
     _connection: Option<u32>,
@@ -321,12 +317,7 @@ pub struct IOKitImpl {
 impl IOKitImpl {
     /// Create a new IOKitImpl instance
     pub fn new() -> Result<Self> {
-        // Create a default implementation initially
-        let instance = Self::default();
-
-        // TODO: Establish an IORegistry connection if needed for live implementations
-
-        Ok(instance)
+        Ok(Self { _connection: None })
     }
 }
 
@@ -512,6 +503,12 @@ impl IOKit for IOKitImpl {
 
     fn read_smc_key(&self, _key: [c_char; 4]) -> Result<Option<f32>> {
         Ok(Some(35.0))
+    }
+}
+
+impl Default for IOKitImpl {
+    fn default() -> Self {
+        Self::new().expect("Failed to create IOKitImpl")
     }
 }
 

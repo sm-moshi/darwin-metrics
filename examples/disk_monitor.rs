@@ -2,14 +2,14 @@ use std::io::{self, Write};
 use std::thread::sleep;
 use std::time::Duration;
 
-use darwin_metrics::disk::DiskMonitor;
+use darwin_metrics::disk::{DiskIOMonitor, DiskIOMonitorImpl};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Darwin Metrics - Disk Monitor Example");
     println!("Press Ctrl+C to exit\n");
 
-    // Initialize the DiskMonitor
-    let mut monitor = DiskMonitor::new();
+    // Initialize the DiskIOMonitor
+    let mut monitor = DiskIOMonitorImpl::new()?;
 
     // Sample rate in milliseconds
     let sample_rate = Duration::from_millis(1000);

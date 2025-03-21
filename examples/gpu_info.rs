@@ -1,20 +1,25 @@
-use darwin_metrics::gpu::{Gpu, GpuMetrics};
+use std::error::Error;
+
+use darwin_metrics::Gpu;
+use darwin_metrics::gpu::{GpuCharacteristics, GpuMetrics};
 
 /// Demonstrates the improved GPU hardware detection in darwin-metrics
 /// This example shows detailed information about the GPU including hardware
 /// characteristics and estimated performance metrics.
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     println!("Darwin Metrics - Enhanced GPU Information");
     println!("=========================================");
 
     // Initialize the GPU module
-    let gpu = Gpu::new().unwrap();
+    let gpu = Gpu::new()?;
 
     // Get GPU metrics with enhanced hardware detection
-    let metrics = gpu.metrics().unwrap();
+    let metrics = gpu.get_metrics().await?;
+    let characteristics = gpu.get_characteristics().await?;
 
     // Display basic GPU information
-    println!("GPU Model: {}", metrics.name);
+    println!("GPU Model: {}", gpu.name().await?);
     println!();
 
     // Display GPU characteristics
@@ -22,22 +27,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------------");
     println!(
         "Architecture: {}",
-        if metrics.characteristics.is_apple_silicon {
+        if characteristics.is_apple_silicon {
             "Apple Silicon GPU"
-        } else if metrics.characteristics.is_integrated {
+        } else if characteristics.is_integrated {
             "Integrated GPU"
         } else {
             "Discrete GPU"
         }
     );
 
-    if let Some(cores) = metrics.characteristics.core_count {
+    if let Some(cores) = characteristics.core_count {
         println!("GPU Cores: {}", cores);
     } else {
         println!("GPU Cores: Unknown");
     }
 
-    if let Some(clock_speed) = metrics.characteristics.clock_speed_mhz {
+    if let Some(clock_speed) = characteristics.clock_speed_mhz {
         println!("Clock Speed: {} MHz", clock_speed);
     } else {
         println!("Clock Speed: Unknown");
@@ -45,11 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Hardware Raytracing: {}",
-        if metrics.characteristics.has_raytracing {
-            "Yes"
-        } else {
-            "No"
-        }
+        if characteristics.has_raytracing { "Yes" } else { "No" }
     );
     println!();
 
@@ -59,12 +60,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Display performance metrics
     println!("Performance Metrics:");
     println!("-------------------");
-    println!("Utilization: {:.1}%", metrics.utilization);
+    println!("Utilization: {:.1}%", metrics.utilization * 100.0);
 
-    if let Some(temp) = metrics.temperature {
-        println!("Temperature: {:.1}°C", temp);
+    if metrics.temperature > 0.0 {
+        println!("Temperature: {:.1}°C", metrics.temperature);
     } else {
         println!("Temperature: Not available");
+    }
+
+    if let Some(power) = metrics.power_usage {
+        println!("Power Usage: {:.1}W", power);
     }
 
     println!();
@@ -86,7 +91,7 @@ fn format_bytes(bytes: u64) -> String {
     } else if bytes >= KB {
         format!("{:.2} KB", bytes as f64 / KB as f64)
     } else {
-        format!("{} bytes", bytes)
+        format!("{} B", bytes)
     }
 }
 
@@ -94,12 +99,15 @@ fn format_bytes(bytes: u64) -> String {
 fn display_memory_info(metrics: &GpuMetrics) {
     println!("Memory Information:");
     println!("------------------");
-    println!("Total Memory: {}", format_bytes(metrics.memory.total));
+    println!("Total Memory: {}", format_bytes(metrics.memory_total));
+    println!("Used Memory: {}", format_bytes(metrics.memory_used));
     println!(
-        "Used Memory: {} ({:.1}%)",
-        format_bytes(metrics.memory.used),
-        (metrics.memory.used as f64 / metrics.memory.total as f64) * 100.0
+        "Memory Utilization: {:.1}%",
+        (metrics.memory_used as f64 / metrics.memory_total as f64) * 100.0
     );
-    println!("Free Memory: {}", format_bytes(metrics.memory.free));
+    println!(
+        "Free Memory: {}",
+        format_bytes(metrics.memory_total - metrics.memory_used)
+    );
     println!();
 }

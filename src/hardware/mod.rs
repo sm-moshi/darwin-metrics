@@ -20,11 +20,8 @@
 use std::future::Future;
 
 // IOKit module for hardware interaction
-#[cfg(any(test, feature = "testing"))]
 /// IOKit module for hardware interaction with macOS system APIs
 pub mod iokit;
-#[cfg(not(any(test, feature = "testing")))]
-pub(crate) mod iokit;
 
 // Hardware component modules
 // NOTE: These modules have been moved to the root level

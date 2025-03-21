@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::{Arc, Mutex, Once};
+use std::sync::{Mutex, Once};
 
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
@@ -8,6 +8,7 @@ use objc2::{class, msg_send};
 use objc2_foundation::{NSDictionary, NSMutableDictionary, NSNumber, NSObject, NSString};
 
 use crate::error::{Error, Result};
+use crate::utils::core::property::{KeyWrapper, PropertyUtils};
 
 static INIT: Once = Once::new();
 
@@ -255,17 +256,31 @@ impl SafeDictionary {
         }
     }
 
-    /// Gets a dictionary value for the given key
+    /// Gets a dictionary value for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Option<SafeDictionary>` - The dictionary if found, None otherwise
     pub fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
-        let dict = self.dict.lock().ok()?;
-        let key = NSString::from_str(key);
-        let value = unsafe { dict.valueForKey(&key) }?;
-        unsafe {
-            let dict_ptr = Retained::<NSObject>::as_ptr(&value);
-            let dict = Retained::from_raw(dict_ptr as *mut NSDictionary<NSString, NSObject>)
-                .expect("Failed to convert dictionary");
-            Some(SafeDictionary::from(dict))
+        if let Ok(dict) = self.dict.lock() {
+            let key_str = NSString::from_str(key);
+            let value = unsafe { dict.valueForKey(&key_str) }?;
+            unsafe {
+                // Cast to NSDictionary using runtime type checking
+                let is_dict: bool = msg_send![&*value, isKindOfClass: class!(NSDictionary)];
+                if is_dict {
+                    let dict_ptr = Retained::<NSObject>::as_ptr(&value);
+                    let dict = Retained::from_raw(dict_ptr as *mut NSDictionary<NSString, NSObject>)
+                        .expect("Failed to convert dictionary");
+                    return Some(SafeDictionary::from(dict));
+                }
+            }
         }
+        None
     }
 
     /// Clones the SafeDictionary, creating a new reference to the same underlying dictionary
@@ -397,11 +412,14 @@ impl SafeDictionary {
     ///
     /// * `Option<i64>` - The i64 value if found, None otherwise
     pub fn get_i64(&self, key: &str) -> Option<i64> {
-        self.get(key).and({
-            // Try to convert NSNumber to i64
-            // This is a simplified implementation
-            None
-        })
+        if let Ok(dict) = self.dict.lock() {
+            let key_str = NSString::from_str(key);
+            let value = unsafe { dict.valueForKey(&key_str) }?;
+            if let Ok(number) = value.downcast::<NSNumber>() {
+                return Some(unsafe { msg_send![&*number, longLongValue] });
+            }
+        }
+        None
     }
 
     /// Gets a retained NSObject from the dictionary for the given key.
@@ -426,6 +444,22 @@ impl SafeDictionary {
             }
         }
     }
+
+    /// Sets a string value in the dictionary for the given key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to set
+    /// * `value` - The string value to set
+    pub fn set_string(&mut self, key: &str, value: &str) {
+        if let Ok(dict) = self.dict.lock() {
+            let key = NSString::from_str(key);
+            let value = NSString::from_str(value);
+            unsafe {
+                let _: () = msg_send![&*dict, setObject:&*value, forKey:&*key];
+            }
+        }
+    }
 }
 
 impl Default for SafeDictionary {
@@ -437,3 +471,112 @@ impl Default for SafeDictionary {
 /// Implement Send and Sync for SafeDictionary as it uses Mutex<>
 unsafe impl Send for SafeDictionary {}
 unsafe impl Sync for SafeDictionary {}
+
+/// Implementation of DictionaryAccess for SafeDictionary
+impl DictionaryAccess for SafeDictionary {
+    fn get_string(&self, key: &str) -> Option<String> {
+        if let Ok(dict) = self.dict.lock() {
+            let key_str = NSString::from_str(key);
+            let value = unsafe { dict.valueForKey(&key_str) }?;
+            if let Ok(string) = value.downcast::<NSString>() {
+                return Some(string.to_string());
+            }
+        }
+        None
+    }
+
+    fn get_number(&self, key: &str) -> Option<f64> {
+        if let Ok(dict) = self.dict.lock() {
+            let key_str = NSString::from_str(key);
+            let value = unsafe { dict.valueForKey(&key_str) }?;
+            if let Ok(number) = value.downcast::<NSNumber>() {
+                return Some(number.as_f64());
+            }
+        }
+        None
+    }
+
+    fn get_bool(&self, key: &str) -> Option<bool> {
+        if let Ok(dict) = self.dict.lock() {
+            let key_str = NSString::from_str(key);
+            let value = unsafe { dict.valueForKey(&key_str) }?;
+            if let Ok(number) = value.downcast::<NSNumber>() {
+                return Some(number.as_bool());
+            }
+        }
+        None
+    }
+
+    fn get_dictionary(&self, key: &str) -> Option<SafeDictionary> {
+        if let Ok(dict) = self.dict.lock() {
+            let key_str = NSString::from_str(key);
+            let value = unsafe { dict.valueForKey(&key_str) }?;
+            unsafe {
+                // Cast to NSDictionary using runtime type checking
+                let is_dict: bool = msg_send![&*value, isKindOfClass: class!(NSDictionary)];
+                if is_dict {
+                    let dict_ptr = Retained::<NSObject>::as_ptr(&value);
+                    let dict = Retained::from_raw(dict_ptr as *mut NSDictionary<NSString, NSObject>)
+                        .expect("Failed to convert dictionary");
+                    return Some(SafeDictionary::from(dict));
+                }
+            }
+        }
+        None
+    }
+}
+
+impl PropertyUtils for SafeDictionary {
+    fn get_string_property(&self, key: &KeyWrapper) -> Option<String> {
+        let key_str = key.as_nsstring().to_string();
+        self.get_string(&key_str)
+    }
+
+    fn get_number_property(&self, key: &KeyWrapper) -> Option<i64> {
+        let key_str = key.as_nsstring().to_string();
+        self.get_number(&key_str).map(|v| v as i64)
+    }
+
+    fn set_bool(&mut self, key: &KeyWrapper, value: bool) {
+        let key_str = key.as_nsstring().to_string();
+        self.set_bool(&key_str, value);
+    }
+
+    fn set_i64(&mut self, key: &KeyWrapper, value: i64) {
+        let key_str = key.as_nsstring().to_string();
+        self.set_i64(&key_str, value);
+    }
+
+    fn set_f64(&mut self, key: &KeyWrapper, value: f64) {
+        let key_str = key.as_nsstring().to_string();
+        self.set_f64(&key_str, value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::core::property::{KeyWrapper, PropertyUtils};
+
+    #[test]
+    fn test_property_utils() {
+        let mut dict = SafeDictionary::new();
+        let key = KeyWrapper::new("test_key");
+
+        // Test string property
+        dict.set_string("test_key", "test_value");
+        assert_eq!(dict.get_string_property(&key), Some("test_value".to_string()));
+
+        // Test number property
+        dict.set_i64("test_key", 42);
+        assert_eq!(dict.get_number_property(&key), Some(42));
+
+        // Test bool property
+        dict.set_bool("test_key", true);
+        assert_eq!(dict.get_bool("test_key"), Some(true));
+
+        // Test f64 property
+        dict.set_f64("test_key", 3.14);
+        assert_eq!(dict.get_number("test_key"), Some(3.14));
+    }
+}

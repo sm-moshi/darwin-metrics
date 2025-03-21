@@ -6,10 +6,7 @@ use objc2::msg_send;
 use objc2::runtime::AnyObject;
 
 use super::{CpuMetrics, CpuMetricsData};
-use crate::core::metrics::Metric;
-use crate::core::types::Temperature;
 use crate::hardware::iokit::IOKit;
-use crate::utils::ffi;
 #[cfg(test)]
 use crate::utils::tests::test_utils::MockIOKit;
 use crate::{Error, FrequencyMetrics, FrequencyMonitor, Result};

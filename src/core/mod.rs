@@ -19,7 +19,9 @@
 //! ```
 
 // Core modules
+/// Hardware monitoring and metric collection interfaces
 pub mod metrics;
+/// Core data types for system metrics
 pub mod types;
 
 /// Core prelude module that re-exports commonly used types and traits

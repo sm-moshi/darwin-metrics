@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use darwin_metrics::resource::{ResourceMonitor, ResourceMonitoring};
+use darwin_metrics::resource::ResourceMonitor;
 
 #[tokio::main]
 async fn main() -> darwin_metrics::Result<()> {
@@ -18,11 +18,11 @@ async fn main() -> darwin_metrics::Result<()> {
                     "  Memory: {} bytes total, {} bytes used",
                     update.memory.total, update.memory.used
                 );
-                println!("  CPU temperature: {}°C", update.temperature.cpu);
-                println!("  Disk space: {} bytes free", update.disk.free_space);
+                println!("  CPU temperature: {}°C", update.temperature.value);
+                println!("  Disk space: {} bytes free", update.disk.available);
                 println!(
-                    "  Network: {} bytes received, {} bytes sent",
-                    update.network.received_bytes, update.network.sent_bytes
+                    "  Network I/O: {} bytes received, {} bytes sent",
+                    update.network.stats.bytes_received, update.network.stats.bytes_sent
                 );
             },
             Err(e) => {

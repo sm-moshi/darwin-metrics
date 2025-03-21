@@ -32,10 +32,6 @@ pub use monitors::*;
 use tokio::runtime::Runtime;
 pub use types::*;
 
-use self::monitors::{
-    AmbientTemperatureMonitor, BatteryTemperatureMonitor, CpuTemperatureMonitor, GpuTemperatureMonitor,
-    SsdTemperatureMonitor,
-};
 use crate::error::{Error, Result};
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 use crate::system::System;

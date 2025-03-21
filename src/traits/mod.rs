@@ -16,7 +16,7 @@
 //! async methods in traits. This approach is being gradually migrated to Rust's native
 //! async trait support as it becomes more stable.
 //!
-//! Some traits like `RateMonitor<T>` already use native async trait support with 
+//! Some traits like `RateMonitor<T>` already use native async trait support with
 //! `#[allow(async_fn_in_trait)]`. When implementing these traits, you don't need
 //! to use the `async_trait` macro on your implementation.
 //!

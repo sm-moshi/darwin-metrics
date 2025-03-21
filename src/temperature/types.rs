@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 /// Represents the location of a temperature sensor in the system
 #[derive(Debug, Clone, PartialEq)]
 pub enum SensorLocation {

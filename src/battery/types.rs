@@ -47,6 +47,15 @@ pub struct BatteryPower {
 }
 
 impl BatteryPower {
+    /// Creates a new BatteryPower instance with the specified power consumption
+    ///
+    /// # Arguments
+    ///
+    /// * `watts` - Power consumption in watts
+    ///
+    /// # Returns
+    ///
+    /// A new BatteryPower instance
     pub fn new(watts: f64) -> Self {
         Self { watts }
     }
@@ -66,6 +75,18 @@ pub struct BatteryCapacity {
 }
 
 impl BatteryCapacity {
+    /// Creates a new BatteryCapacity instance with the specified capacity values
+    ///
+    /// # Arguments
+    ///
+    /// * `current` - Current capacity percentage (0-100)
+    /// * `maximum` - Maximum capacity percentage (0-100)
+    /// * `design` - Design capacity percentage (0-100)
+    /// * `cycle_count` - Number of charge cycles the battery has undergone
+    ///
+    /// # Returns
+    ///
+    /// A new BatteryCapacity instance
     pub fn new(current: f64, maximum: f64, design: f64, cycle_count: u32) -> Self {
         Self {
             current,

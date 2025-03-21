@@ -8,7 +8,6 @@ pub use constants::*;
 pub use types::*;
 
 mod disk_impl;
-pub use disk_impl::*;
 
 // Consolidated monitors
 mod monitors;

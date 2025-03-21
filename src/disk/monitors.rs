@@ -1,24 +1,18 @@
-use std::ffi::{CStr, CString};
-use std::io;
-use std::mem::{MaybeUninit, size_of};
 use std::time::{Duration, SystemTime};
 
 use async_trait::async_trait;
-use log::trace;
 use tokio::time::sleep;
 
 use super::DISK_UPDATE_INTERVAL;
 use crate::core::metrics::Metric;
-use crate::core::types::{ByteSize, ByteSizeFormat, Percentage, PercentageFormat, Transfer};
-use crate::disk::constants::{FS_TYPE_APFS, FS_TYPE_NFS, FS_TYPE_RAMFS, FS_TYPE_SMB, FS_TYPE_TMPFS};
-use crate::disk::types::{ByteMetrics, Disk, DiskConfig, DiskHealth, DiskType};
+use crate::core::types::{ByteSize, Percentage, Transfer};
+use crate::disk::types::{Disk, DiskConfig, DiskHealth, DiskType};
 use crate::error::{Error, Result};
 use crate::traits::hardware::{
     ByteMetricsMonitor, DiskHealthMonitor, DiskIOMonitor, DiskMountMonitor, DiskPerformanceMonitor, DiskStorageMonitor,
     DiskUtilizationMonitor, HardwareMonitor, RateMonitor, StorageMonitor, UtilizationMonitor,
 };
-use crate::utils::bindings::{MNT_NOWAIT, Statfs, getfsstat, statfs};
-use crate::{DiskIO, DiskMount, DiskSpace};
+use crate::{DiskIO, DiskSpace};
 
 // Disk Health Monitor
 //
@@ -481,7 +475,7 @@ impl DiskStorageMonitorImpl {
         {
             let total = ByteSize::from_bytes(match self.disk.total {
                 0 => {
-                    trace!("Disk total size is 0, defaulting to 500GB");
+                    // Default to 500GB when disk total is 0
                     500 * 1024 * 1024 * 1024
                 },
                 bytes => bytes,

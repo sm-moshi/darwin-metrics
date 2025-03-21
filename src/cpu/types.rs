@@ -12,14 +12,33 @@ use crate::core::types::{Percentage, Temperature};
 pub struct Frequency(pub f64);
 
 impl Frequency {
+    /// Creates a new Frequency instance with the specified value in MHz
+    ///
+    /// # Arguments
+    ///
+    /// * `mhz` - The frequency value in MHz
+    ///
+    /// # Returns
+    ///
+    /// A new Frequency instance
     pub fn new(mhz: f64) -> Self {
         Self(mhz)
     }
 
+    /// Returns the frequency value in MHz
+    ///
+    /// # Returns
+    ///
+    /// The frequency value in MHz as a f64
     pub fn as_mhz(&self) -> f64 {
         self.0
     }
 
+    /// Returns the frequency value in GHz
+    ///
+    /// # Returns
+    ///
+    /// The frequency value in GHz as a f64 (converted from MHz)
     pub fn as_ghz(&self) -> f64 {
         self.0 / 1000.0
     }

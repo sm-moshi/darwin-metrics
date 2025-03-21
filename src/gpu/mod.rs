@@ -1,6 +1,3 @@
-use crate::error::{Error, Result};
-use crate::traits;
-
 /// Types for GPU metrics
 pub mod types;
 

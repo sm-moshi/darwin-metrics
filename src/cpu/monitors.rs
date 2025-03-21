@@ -1,5 +1,5 @@
 use std::ffi::CString;
-use std::time::{Instant, SystemTime};
+use std::time::Instant;
 
 use async_trait::async_trait;
 use libc;
@@ -334,7 +334,7 @@ impl CpuMonitor for CpuFrequencyMonitor {
 
 /// Internal CPU information structure used during frequency retrieval.
 #[derive(Default)]
-struct CpuInfo {
+pub(crate) struct CpuInfo {
     current_frequency: f64,
     min_frequency: f64,
     max_frequency: f64,
@@ -365,7 +365,7 @@ pub fn fetch_cpu_frequencies() -> Result<FrequencyMetrics> {
 /// # Returns
 ///
 /// * `Result<CpuInfo>` - CPU frequency information or an error
-pub unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
+pub(crate) unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
     // Get CPU frequency using proper MIBs On macOS, "hw.cpufrequency" gives current CPU frequency in Hz
     // "hw.cpufrequency_min" gives min frequency, "hw.cpufrequency_max" gives max
 

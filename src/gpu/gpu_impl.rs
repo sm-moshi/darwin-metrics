@@ -3,15 +3,13 @@ use std::time::SystemTime;
 
 use async_trait::async_trait;
 use metal::Device as MTLDevice;
-use tokio::task;
 
 use crate::core::metrics::Metric;
-use crate::core::types::{ByteSize, Percentage, Temperature};
-use crate::error::{Error, Result};
+use crate::core::types::{ByteSize, Percentage};
+use crate::error::Result;
 use crate::gpu::monitors::{GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor};
 use crate::gpu::types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, GpuUtilization};
 use crate::traits::HardwareMonitor;
-use crate::utils::ffi;
 
 // Path resolution helper
 fn get_proc_path() -> PathBuf {

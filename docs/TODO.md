@@ -84,7 +84,7 @@
   - [x] Add proper CPU usage calculation with history tracking.
   - [x] Add thread count and process state tracking.
   - [x] Implement graceful fallbacks for permission issues.
-  - [ ] Add additional memory usage metrics (virtual memory, swapped memory) - future enhancement.
+  - [ ] TODO: Add additional memory usage metrics (virtual memory, swapped memory) - future enhancement.
   - [ ] Add process environment variable retrieval - future enhancement.
   - [ ] Implement command-line arguments retrieval - future enhancement.
 
@@ -105,7 +105,7 @@
   - [x] Improved cleanup of IOKit resources with autoreleasepools.
   - [x] Created real-world examples to validate the implementation.
   - [x] Enhanced tests to be more resilient in different environments.
-  - [ ] Integrate with Metal API for advanced GPU monitoring (future enhancement).
+  - [ ] TODO: Integrate with Metal API for advanced GPU monitoring (future enhancement).
 
 - [x] **Network Monitoring**
 
@@ -175,15 +175,14 @@
   - [x] Implement parent-child process hierarchy tracking for improved system visibility.
   - [x] Add per-process thread monitoring to gather insights on concurrency behavior.
   - [x] Improve resource usage tracking with additional data on CPU/memory consumption.
-  - [ ] Add environment variable retrieval for processes.
-  - [ ] Add command-line arguments retrieval for processes.
 
 - [~] **Disk & Storage Monitoring**
 
   - [x] Track I/O performance by measuring read/write speeds for individual drives.
   - [x] Monitor volume usage, including available/free space calculations.
   - [x] Implement tracking for mounted disk devices and storage partitions.
-  - [ ] Improve test coverage (currently 59.29%)
+  - [x] Fix linter error in disk/monitors.rs related to trace macro
+  - [~] Improve test coverage (currently 59.29%)
 
 - [~] **Network Enhancements**
 
@@ -194,7 +193,7 @@
   - [x] Replace netstat with native sysctlbyname implementation
   - [x] Add 64-bit counter support for high-bandwidth interfaces
   - [x] Implement automatic fallback mechanism for reliability
-  - [x] Create comprehensive documentation for native implementation
+  - [~] Create comprehensive documentation for native implementation
   - [ ] Implement connection-level monitoring with TCP/UDP connection tracking
   - [ ] Add DNS resolution capabilities for hostnames and IP addresses
   - [ ] Implement per-application network usage tracking using Network.framework
@@ -204,35 +203,45 @@
 
 - [~] **Testing & Stability**
   - [x] Add tests for power module with mock implementation (96.98% coverage)
-  - [~] Improve coverage for hardware/iokit module (currently 16.67%)
-  - [ ] Expand test coverage for other system metrics, ensuring accuracy in collected data.
-  - [~] Improve async testing to validate non-blocking behavior.
-
-### **PropertyUtils Improvements**
-
-- [ ] **Fix PropertyUtils Module Issues**
-  - [ ] Resolve NSString and NSCopying type conversion issues
-  - [ ] Clean up imports and remove unused ones
-  - [ ] Implement proper type casting with downcast_ref
-  - [ ] Add comprehensive tests for property access methods
-  - [ ] Document type conversion and safety guarantees
-  - [ ] Improve error handling for property access failures
-
-- [~] **Testing & Stability**
-  - [x] Add tests for power module with mock implementation (96.98% coverage)
+  - [x] Fix visibility warning for CpuInfo type (more private than retrieve_cpu_info)
   - [~] Improve coverage for hardware/iokit module (currently 16.67%)
   - [ ] Add tests for utils modules:
-    - [ ] utils/property_utils.rs (0% coverage, blocked by compilation fixes)
+    - [ ] utils/property_utils.rs (0% coverage)
       - [ ] Add tests for NSString handling
       - [ ] Add tests for property access methods
       - [ ] Add tests for error conditions
       - [ ] Add tests for thread safety
     - [ ] utils/test_utils.rs (0% coverage)
-    - [ ] utils/bindings.rs (28% coverage)
+    - [ ] utils/bindings.rs (90.70% coverage)
     - [~] utils/mod.rs (68.71% coverage)
   - [~] Improve async testing to validate non-blocking behavior
   - [ ] Add integration tests for property access patterns
   - [ ] Add stress tests for concurrent property access
+
+### **Critical Coverage Areas Needing Attention**
+
+Based on latest test results:
+
+- [ ] battery/monitors.rs (0% coverage)
+- [ ] battery/types.rs (0% coverage)
+- [ ] core/metrics/* modules (0% coverage)
+- [ ] cpu/cpu_impl.rs (0% coverage)
+- [ ] disk/monitors.rs (0% coverage)
+- [ ] gpu/gpu_impl.rs (0.63% coverage)
+- [ ] memory/monitors.rs (0% coverage)
+- [ ] network/interface.rs (0% coverage)
+- [ ] network/traffic.rs (0% coverage)
+- [ ] process/mod.rs (0% coverage)
+- [ ] temperature/monitors.rs (0% coverage)
+
+### **Well-Covered Modules (>70%)**
+
+- [~] error.rs (66.07% line coverage, 67.86% function coverage)
+- [~] lib.rs (78.38% line coverage, 77.78% function coverage)
+- [~] memory/types.rs (80.65% line coverage, 66.67% function coverage)
+- [~] network/mod.rs (100% coverage)
+- [~] resource/mod.rs (73.58% line coverage, 57.78% function coverage)
+- [~] utils/ffi/bindings.rs (80% line coverage, 76.92% function coverage)
 
 ---
 
@@ -263,9 +272,9 @@
     - [ ] Add tests for battery module (currently 0% coverage)
     - [x] Add tests for power module (currently 96.98% coverage)
     - [x] Add tests for system module (currently 90.70% coverage)
-    - [ ] Add tests for utils modules:
-      - [ ] utils/property_utils.rs (0% coverage)
-      - [ ] utils/test_utils.rs (0% coverage)
+    - [~] Add tests for utils modules:
+      - [~] utils/property_utils.rs (0% coverage)
+      - [~] utils/test_utils.rs (0% coverage)
       - [ ] utils/bindings.rs (28% coverage)
       - [~] utils/mod.rs (68.71% coverage)
     - [~] Improve coverage for hardware/iokit (currently 16.67% coverage)
@@ -292,12 +301,12 @@
 - [ ] **Ensure CPU and memory modules are feature-complete**
 - [x] **Full Documentation & Examples**
 
-  - [x] Complete API documentation for all modules.
-  - [x] Provide real-world usage examples for developers.
-  - [x] Improve README with installation and usage instructions.
+  - [~] Complete API documentation for all modules.
+  - [~] Provide real-world usage examples for developers.
+  - [~] Improve README with installation and usage instructions.
   - [x] Set up mdBook structure for comprehensive documentation
-  - [x] Create module documentation with examples
-  - [x] Document internal architecture and contributing guidelines
+  - [~] Create module documentation with examples
+  - [~] Document internal architecture and contributing guidelines
 
 - [ ] **Comprehensive Test Coverage**
 

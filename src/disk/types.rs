@@ -210,6 +210,20 @@ pub struct DiskPerformanceMetrics {
 }
 
 impl DiskPerformanceMetrics {
+    /// Creates a new DiskPerformanceMetrics instance with the specified metrics
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes_read` - Amount of data read from disk
+    /// * `bytes_written` - Amount of data written to disk
+    /// * `read_ops` - Number of read operations
+    /// * `write_ops` - Number of write operations
+    /// * `read_latency_ms` - Average read latency in milliseconds
+    /// * `write_latency_ms` - Average write latency in milliseconds
+    ///
+    /// # Returns
+    ///
+    /// A new DiskPerformanceMetrics instance with current timestamp
     pub fn new(
         bytes_read: ByteSize,
         bytes_written: ByteSize,
@@ -242,6 +256,16 @@ pub struct ByteMetrics {
 }
 
 impl ByteMetrics {
+    /// Creates a new ByteMetrics instance with the specified byte counts
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes_read` - Number of bytes read
+    /// * `bytes_written` - Number of bytes written
+    ///
+    /// # Returns
+    ///
+    /// A new ByteMetrics instance with calculated total bytes
     pub fn new(bytes_read: u64, bytes_written: u64) -> Self {
         Self {
             bytes_read,

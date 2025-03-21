@@ -324,18 +324,12 @@ mod mock_tests {
         // Test with an empty interface name
         let result = get_network_stats_native("");
 
-        // This should either return an error or succeed with zeroed stats depending on the system
-        if let Ok(stats) = result {
-            // If it succeeds, the stats should be valid
-            println!(
-                "Empty interface stats: rx={}, tx={}",
-                stats.ifi_ibytes, stats.ifi_obytes
-            );
-        } else if let Err(Error::Network { operation: _, message }) = result {
-            // If it fails, it should be a network error
-            assert!(message.contains("Failed to get interface data"));
+        // Empty interface name should always return an error
+        assert!(result.is_err());
+        if let Err(Error::Network { operation: _, message }) = result {
+            assert!(message.contains("interface name cannot be empty"));
         } else {
-            panic!("Unexpected error type");
+            panic!("Expected Error::Network with empty interface message");
         }
     }
 

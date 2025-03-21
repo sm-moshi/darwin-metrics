@@ -31,7 +31,7 @@ pub struct GpuCharacteristics {
 
 impl GpuCharacteristics {
     /// Creates a new GpuCharacteristics instance with the provided basic information
-    /// 
+    ///
     /// # Parameters
     /// * `is_apple_silicon` - Whether this is an Apple Silicon GPU
     /// * `is_integrated` - Whether this is an integrated GPU (vs discrete)

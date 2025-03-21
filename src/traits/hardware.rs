@@ -105,11 +105,11 @@ pub trait ByteMetricsMonitor: Send + Sync {
 }
 
 /// Monitor for rate-based metrics (network, disk I/O, etc.)
-/// 
+///
 /// This trait uses Rust's native async traits (with #[allow(async_fn_in_trait)])
 /// rather than the async_trait macro. This is intentional and offers better
 /// performance by avoiding the boxed futures that async_trait generates.
-/// 
+///
 /// When implementing this trait, you do not need to use #[async_trait] on your
 /// implementation, as shown in the example below:
 ///

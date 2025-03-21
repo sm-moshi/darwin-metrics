@@ -108,15 +108,12 @@ use parking_lot::RwLock;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use crate::core::types::{Percentage, Temperature};
+use crate::core::types::Temperature;
 use crate::disk::Disk;
-use crate::hardware::iokit::IOKitImpl;
-use crate::memory::{Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, SwapMonitor};
-use crate::network::{Interface, NetworkInfo};
+use crate::memory::{Memory, MemoryInfo};
+use crate::network::NetworkInfo;
 use crate::power::PowerInfo;
 use crate::process::Process;
-use crate::system::System;
-use crate::temperature::types::ThermalMetrics;
 use crate::{Error, Result};
 
 /// Cache entry with time-based expiration

@@ -347,30 +347,55 @@ pub struct if_data {
 /// Interface data structure
 #[derive(Debug)]
 pub struct if_data64 {
+    /// Type of interface (ethernet, loopback, etc.)
     pub ifi_type: u8,
+    /// Type name length
     pub ifi_typelen: u8,
+    /// Physical port/connector type
     pub ifi_physical: u8,
+    /// Media address length
     pub ifi_addrlen: u8,
+    /// Media header length
     pub ifi_hdrlen: u8,
+    /// Receive quota (obsolete)
     pub ifi_recvquota: u8,
+    /// Transmit quota (obsolete)
     pub ifi_xmitquota: u8,
+    /// Unused padding
     pub ifi_unused1: u8,
+    /// Maximum transmission unit
     pub ifi_mtu: u32,
+    /// Routing metric
     pub ifi_metric: u32,
+    /// Linespeed
     pub ifi_baudrate: u64,
+    /// Packets received on interface
     pub ifi_ipackets: u64,
+    /// Input errors on interface
     pub ifi_ierrors: u64,
+    /// Packets sent on interface
     pub ifi_opackets: u64,
+    /// Output errors on interface
     pub ifi_oerrors: u64,
+    /// Collisions on csma interfaces
     pub ifi_collisions: u64,
+    /// Total number of bytes received
     pub ifi_ibytes: u64,
+    /// Total number of bytes sent
     pub ifi_obytes: u64,
+    /// Multicast packets received
     pub ifi_imcasts: u64,
+    /// Multicast packets sent
     pub ifi_omcasts: u64,
+    /// Dropped on input, this interface
     pub ifi_iqdrops: u64,
+    /// Destined for unsupported protocol
     pub ifi_noproto: u64,
+    /// Receive timing offset (usec)
     pub ifi_recvtiming: u32,
+    /// Transmit timing offset (usec)
     pub ifi_xmittiming: u32,
+    /// Time of last change
     pub ifi_lastchange: timeval,
 }
 
@@ -825,15 +850,15 @@ pub struct SMCKeyData_pLimitData_t {
     pub reserved: [u8; 10],
 }
 
-/// SMC key information
+/// SMC key information structure
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct SMCKeyData_keyInfo_t {
-    /// Data size
+    /// Size of the data in bytes
     pub data_size: u32,
-    /// Data type
+    /// Type of the data (4-character code)
     pub data_type: [u8; 4],
-    /// Data attributes
+    /// Attributes of the data (e.g., read-only, volatile)
     pub data_attributes: u8,
 }
 
@@ -1023,9 +1048,9 @@ pub mod io_return {
     pub const K_IORETURN_TIMEOUT: i32 = 0x2d0;
 }
 
-/// SMC key structure for temperature sensors
-#[repr(C)]
+/// SMC key structure representing a 4-character identifier
 pub struct SmcKey {
+    /// Four-byte key identifier
     pub key: [u8; 4],
 }
 
@@ -1100,12 +1125,15 @@ impl SmcKey {
     }
 }
 
-/// SMC value structure
-#[repr(C)]
+/// SMC value structure containing data and metadata
 pub struct SmcVal {
+    /// Size of the data in bytes
     pub data_size: u32,
+    /// Type of the data (4-character code)
     pub data_type: [u8; 4],
+    /// Attributes of the data (e.g., read-only, volatile)
     pub data_attributes: u8,
+    /// Actual data buffer (up to 32 bytes)
     pub data: [u8; 32],
 }
 

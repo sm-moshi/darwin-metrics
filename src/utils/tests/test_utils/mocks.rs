@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 use objc2::rc::Retained;
-use objc2_foundation::{NSDictionary, NSObject, NSString};
+use objc2_foundation::{NSDictionary, NSNumber, NSObject, NSString};
 
 use crate::utils::core::dictionary::{DictionaryAccess, SafeDictionary};
-use crate::utils::core::property::PropertyUtils;
+use crate::utils::core::property::{KeyWrapper, PropertyUtils};
 
 /// A value type that can be stored in a MockDictionary
 #[derive(Debug, Clone)]
@@ -48,31 +49,40 @@ impl From<bool> for MockValue {
 }
 
 /// A pure Rust mock dictionary that can be used for testing without Objective-C
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct MockDictionary {
-    entries: HashMap<String, MockValue>,
+    entries: Mutex<HashMap<String, MockValue>>,
+}
+
+impl Clone for MockDictionary {
+    fn clone(&self) -> Self {
+        // Create a new dictionary with cloned entries
+        Self {
+            entries: Mutex::new(self.entries.lock().unwrap().clone()),
+        }
+    }
 }
 
 impl MockDictionary {
     /// Create a new empty mock dictionary
     pub fn new() -> Self {
         Self {
-            entries: HashMap::new(),
+            entries: Mutex::new(HashMap::new()),
         }
     }
 
     /// Create a mock dictionary with the given entries
     pub fn with_entries(entries: &[(&str, MockValue)]) -> Self {
-        let mut dict = Self::new();
+        let dict = Self::new();
         for (key, value) in entries {
-            dict.entries.insert(key.to_string(), value.clone());
+            dict.entries.lock().unwrap().insert(key.to_string(), value.clone());
         }
         dict
     }
 
     /// Get a string value from the dictionary
     pub fn get_string(&self, key: &str) -> Option<String> {
-        match self.entries.get(key) {
+        match self.entries.lock().unwrap().get(key) {
             Some(MockValue::String(s)) => Some(s.clone()),
             _ => None,
         }
@@ -80,7 +90,7 @@ impl MockDictionary {
 
     /// Get a number value from the dictionary
     pub fn get_number(&self, key: &str) -> Option<f64> {
-        match self.entries.get(key) {
+        match self.entries.lock().unwrap().get(key) {
             Some(MockValue::Number(n)) => Some(*n),
             _ => None,
         }
@@ -88,19 +98,37 @@ impl MockDictionary {
 
     /// Get a boolean value from the dictionary
     pub fn get_bool(&self, key: &str) -> Option<bool> {
-        match self.entries.get(key) {
+        match self.entries.lock().unwrap().get(key) {
             Some(MockValue::Boolean(b)) => Some(*b),
             _ => None,
         }
     }
 
     /// Insert a value into the dictionary
-    pub fn insert<K, V>(&mut self, key: K, value: V)
+    pub fn insert<K, V>(&self, key: K, value: V)
     where
         K: AsRef<str>,
         V: Into<MockValue>,
     {
-        self.entries.insert(key.as_ref().to_string(), value.into());
+        self.entries
+            .lock()
+            .unwrap()
+            .insert(key.as_ref().to_string(), value.into());
+    }
+
+    pub fn set_bool(&self, key: &str, value: bool) {
+        let mut dict = self.entries.lock().unwrap();
+        dict.insert(key.to_string(), MockValue::Boolean(value));
+    }
+
+    pub fn set_i64(&self, key: &str, value: i64) {
+        let mut dict = self.entries.lock().unwrap();
+        dict.insert(key.to_string(), MockValue::Number(value as f64));
+    }
+
+    pub fn set_f64(&self, key: &str, value: f64) {
+        let mut dict = self.entries.lock().unwrap();
+        dict.insert(key.to_string(), MockValue::Number(value));
     }
 }
 
@@ -123,37 +151,31 @@ impl DictionaryAccess for MockDictionary {
 }
 
 impl PropertyUtils for MockDictionary {
-    fn get_string_property(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
-        match self.entries.get(key) {
-            Some(MockValue::String(s)) => Some(s.clone()),
-            _ => None,
-        }
+    fn get_string_property(&self, key: &KeyWrapper) -> Option<String> {
+        self.get_string(key.as_nsstring().to_string().as_str())
     }
 
-    fn get_number_property(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
-        match self.entries.get(key) {
-            Some(MockValue::Number(n)) => Some(*n),
-            _ => None,
-        }
+    fn get_number_property(&self, key: &KeyWrapper) -> Option<i64> {
+        self.get_number(key.as_nsstring().to_string().as_str())
+            .map(|n| n as i64)
     }
 
-    fn get_bool_property(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool> {
-        match self.entries.get(key) {
-            Some(MockValue::Boolean(b)) => Some(*b),
-            _ => None,
-        }
+    fn set_bool(&mut self, key: &KeyWrapper, value: bool) {
+        let key_str = key.as_nsstring().to_string();
+        let mut dict = self.entries.lock().unwrap();
+        dict.insert(key_str, MockValue::Boolean(value));
     }
 
-    fn get_string(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<String> {
-        self.get_string_property(_dict, key)
+    fn set_i64(&mut self, key: &KeyWrapper, value: i64) {
+        let key_str = key.as_nsstring().to_string();
+        let mut dict = self.entries.lock().unwrap();
+        dict.insert(key_str, MockValue::Number(value as f64));
     }
 
-    fn get_number(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<f64> {
-        self.get_number_property(_dict, key)
-    }
-
-    fn get_bool(&self, _dict: &NSDictionary<NSString, NSObject>, key: &str) -> Option<bool> {
-        self.get_bool_property(_dict, key)
+    fn set_f64(&mut self, key: &KeyWrapper, value: f64) {
+        let key_str = key.as_nsstring().to_string();
+        let mut dict = self.entries.lock().unwrap();
+        dict.insert(key_str, MockValue::Number(value));
     }
 }
 

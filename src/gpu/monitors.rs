@@ -1,7 +1,5 @@
 use std::ffi::CString;
-use std::os::raw::c_void;
-use std::ptr::null_mut as null_ptr;
-use std::{mem, ptr};
+use std::ptr;
 
 use async_trait::async_trait;
 use metal::Device as MTLDevice;

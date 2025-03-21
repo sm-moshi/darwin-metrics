@@ -31,11 +31,11 @@
 
 use std::sync::Arc;
 
-use crate::error::Result;
 use crate::hardware::iokit::IOKit;
 
 // Import modules
 pub mod constants;
+/// Battery type definitions including BatteryPower, BatteryCapacity, and BatteryInfo
 pub mod types;
 
 // Re-export monitor structs for easier access
@@ -88,4 +88,5 @@ impl Battery {
 }
 
 // Include the monitors module directly
+/// Battery monitoring implementations for capacity, health, power, and temperature
 pub mod monitors;

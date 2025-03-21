@@ -100,12 +100,19 @@ pub struct Interface {
 
 /// Struct to hold traffic statistics parameters
 pub struct TrafficStatsParams {
+    /// Total number of bytes received on the interface
     pub bytes_received: u64,
+    /// Total number of bytes sent from the interface
     pub bytes_sent: u64,
+    /// Total number of packets received on the interface
     pub packets_received: u64,
+    /// Total number of packets sent from the interface
     pub packets_sent: u64,
+    /// Number of receive errors encountered on the interface
     pub receive_errors: u64,
+    /// Number of send errors encountered on the interface
     pub send_errors: u64,
+    /// Number of packet collisions detected on the interface
     pub collisions: u64,
 }
 
