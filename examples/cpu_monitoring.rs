@@ -1,11 +1,19 @@
 use std::error::Error;
 use std::time::Duration;
 
-use darwin_metrics::{CpuFrequencyMonitor, CpuInfoMonitor, CpuLoadMonitor, CpuTemperatureMonitor, System};
+use darwin_metrics::hardware::iokit::IOKitImpl;
+use darwin_metrics::traits::{CpuMonitor, TemperatureMonitor, UtilizationMonitor};
+use darwin_metrics::CPU;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let system = System::new()?;
+    let iokit = Box::new(IOKitImpl::new()?);
+    let cpu = CPU::new(iokit);
+    
+    // Get the specific monitors
+    let temp_monitor = cpu.temperature_monitor();
+    let util_monitor = cpu.utilization_monitor();
+    let freq_monitor = cpu.frequency_monitor();
 
     println!("CPU Monitoring Example");
     println!("=====================");
@@ -13,54 +21,47 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         // CPU Info
         println!("\nCPU Information:");
-        println!("--------------");
-        println!("CPU Model: {}", system.cpu_model().await?);
-        println!("CPU Brand: {}", system.cpu_brand().await?);
-        println!("CPU Family: {}", system.cpu_family().await?);
-        println!("CPU Vendor: {}", system.cpu_vendor().await?);
-        println!("Physical Cores: {}", system.physical_cpu_count().await?);
-        println!("Logical Cores: {}", system.logical_cpu_count().await?);
-
+        println!("----------------");
+        println!("Physical Cores: {}", freq_monitor.physical_cores().await?);
+        println!("Logical Cores: {}", freq_monitor.logical_cores().await?);
+        println!("CPU Model: {}", freq_monitor.model_name().await?);
+        
         // CPU Load
         println!("\nCPU Load:");
         println!("---------");
-        let cpu_load = system.cpu_load().await?;
-        println!("Total CPU Load: {:.1}%", cpu_load.total * 100.0);
-        println!("User Load: {:.1}%", cpu_load.user * 100.0);
-        println!("System Load: {:.1}%", cpu_load.system * 100.0);
-        println!("Idle: {:.1}%", cpu_load.idle * 100.0);
-        println!("Nice: {:.1}%", cpu_load.nice * 100.0);
-
-        // Per-Core Load
+        println!("Total CPU Load: {:.1}%", util_monitor.utilization().await? * 100.0);
+        
+        let core_loads = freq_monitor.core_usage().await?;
         println!("\nPer-Core Load:");
         println!("-------------");
-        let core_loads = system.cpu_load_per_core().await?;
         for (i, load) in core_loads.iter().enumerate() {
-            println!(
-                "Core {}: {:.1}% (User: {:.1}%, System: {:.1}%, Idle: {:.1}%)",
-                i,
-                load.total * 100.0,
-                load.user * 100.0,
-                load.system * 100.0,
-                load.idle * 100.0
-            );
+            println!("Core {}: {:.1}%", i, load * 100.0);
         }
-
+        
+        // CPU Frequency
+        println!("\nCPU Frequency:");
+        println!("-------------");
+        println!("Current Frequency: {:.0} MHz", freq_monitor.frequency().await?);
+        
+        if let Some(min_freq) = freq_monitor.min_frequency() {
+            println!("Min Frequency: {:.0} MHz", min_freq);
+        } else {
+            println!("Min Frequency: Not available");
+        }
+        
+        if let Some(max_freq) = freq_monitor.max_frequency() {
+            println!("Max Frequency: {:.0} MHz", max_freq);
+        } else {
+            println!("Max Frequency: Not available");
+        }
+        
         // CPU Temperature
         println!("\nCPU Temperature:");
         println!("---------------");
-        if let Ok(temp) = system.cpu_temperature().await {
-            println!("CPU Temperature: {:.1}°C", temp);
-        } else {
-            println!("CPU Temperature: Not available");
+        match temp_monitor.temperature().await {
+            Ok(temp) => println!("Temperature: {:.1}°C", temp),
+            Err(_) => println!("Temperature: Not available"),
         }
-
-        // CPU Frequency
-        println!("\nCPU Frequency:");
-        println!("--------------");
-        println!("Current Frequency: {} MHz", system.cpu_frequency().await?);
-        println!("Min Frequency: {} MHz", system.cpu_min_frequency().await?);
-        println!("Max Frequency: {} MHz", system.cpu_max_frequency().await?);
 
         tokio::time::sleep(Duration::from_secs(2)).await;
     }

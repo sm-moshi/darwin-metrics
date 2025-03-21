@@ -35,38 +35,35 @@ pub struct MockIOKit {
     thermal_info: ThermalInfo,
 }
 
-#[derive(Debug, Clone)]
-struct BatteryInfo {
-    present: bool,
-    is_charging: bool,
-    cycle_count: i64,
-    percentage: f64,
-    temperature: f64,
-    time_remaining: i64,
-    design_capacity: f64,
-    current_capacity: f64,
+#[derive(Clone, Debug)]
+pub struct BatteryInfo {
+    /// Battery capacity
+    pub capacity: u32,
+    /// Battery health percentage (0-100)
+    pub health: f64,
+    /// Battery current charge percentage
+    pub percentage: f64,
+    /// Battery state - charging, discharging, etc.
+    pub state: String,
 }
 
-#[derive(Debug, Clone)]
-struct CpuInfo {
-    model_name: String,
-    frequency: f64,
-    min_frequency: Option<f64>,
-    max_frequency: Option<f64>,
-    available_frequencies: Option<Vec<f64>>,
+#[derive(Clone, Debug)]
+pub struct CpuInfo {
+    pub model_name: String,
+    pub physical_cores: u32,
+    pub logical_cores: u32,
+    pub frequency_current: f64,
+    pub available_frequencies: Option<Vec<f64>>,
+    pub temperature: Option<f64>,
 }
 
 impl Default for BatteryInfo {
     fn default() -> Self {
         Self {
-            present: false,
-            is_charging: false,
-            cycle_count: 0,
+            capacity: 0,
+            health: 0.0,
             percentage: 0.0,
-            temperature: 0.0,
-            time_remaining: 0,
-            design_capacity: 0.0,
-            current_capacity: 0.0,
+            state: String::new(),
         }
     }
 }
@@ -75,10 +72,11 @@ impl Default for CpuInfo {
     fn default() -> Self {
         Self {
             model_name: String::new(),
-            frequency: 0.0,
-            min_frequency: None,
-            max_frequency: None,
+            physical_cores: 0,
+            logical_cores: 0,
+            frequency_current: 0.0,
             available_frequencies: None,
+            temperature: None,
         }
     }
 }
@@ -131,14 +129,10 @@ impl MockIOKit {
         current_capacity: f64,
     ) -> Result<Self> {
         self.battery_info = BatteryInfo {
-            present: is_present,
-            is_charging,
-            cycle_count,
+            capacity: 0,
+            health: 0.0,
             percentage,
-            temperature,
-            time_remaining,
-            design_capacity,
-            current_capacity,
+            state: String::new(),
         };
         self.battery_temp = Some(temperature);
         self.thermal_info.battery_temp = Some(temperature);
@@ -155,10 +149,11 @@ impl MockIOKit {
     ) -> Result<Self> {
         self.cpu_info = CpuInfo {
             model_name,
-            frequency,
-            min_frequency,
-            max_frequency,
+            physical_cores: 0,
+            logical_cores: 0,
+            frequency_current: frequency,
             available_frequencies,
+            temperature: None,
         };
         Ok(self)
     }
@@ -278,25 +273,19 @@ impl IOKit for MockIOKit {
 
     fn get_battery_info(&self) -> Result<SafeDictionary> {
         let mut dict = SafeDictionary::new();
-        dict.set_bool("BatteryInstalled", self.battery_info.present);
-        dict.set_bool("ExternalConnected", self.battery_info.is_charging);
-        dict.set_i64("CycleCount", self.battery_info.cycle_count);
-        dict.set_f64("CurrentCapacity", self.battery_info.current_capacity);
-        dict.set_f64("MaxCapacity", self.battery_info.design_capacity);
-        dict.set_f64("Temperature", self.battery_info.temperature);
-        dict.set_i64("TimeRemaining", self.battery_info.time_remaining);
+        dict.set_bool("BatteryInstalled", false);
+        dict.set_bool("ExternalConnected", false);
+        dict.set_i64("CycleCount", 0);
+        dict.set_f64("CurrentCapacity", 0.0);
+        dict.set_f64("MaxCapacity", 0.0);
+        dict.set_f64("Temperature", 0.0);
+        dict.set_i64("TimeRemaining", 0);
         Ok(dict)
     }
 
     fn get_cpu_info(&self) -> Result<SafeDictionary> {
         let mut dict = SafeDictionary::new();
-        dict.set_f64("frequency", self.cpu_info.frequency);
-        if let Some(min_freq) = self.cpu_info.min_frequency {
-            dict.set_f64("min_frequency", min_freq);
-        }
-        if let Some(max_freq) = self.cpu_info.max_frequency {
-            dict.set_f64("max_frequency", max_freq);
-        }
+        dict.set_f64("frequency", self.cpu_info.frequency_current);
         Ok(dict)
     }
 

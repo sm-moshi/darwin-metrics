@@ -1,11 +1,11 @@
 use std::error::Error;
 use std::time::Duration;
 
-use darwin_metrics::{GpuMemoryMonitor, GpuMonitor, GpuTemperatureMonitor, System};
+use darwin_metrics::gpu::Gpu;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let system = System::new()?;
+    let gpu = Gpu::new()?;
 
     println!("GPU Monitoring Example");
     println!("=====================");
@@ -13,44 +13,42 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         // GPU Info
         println!("\nGPU Information:");
-        println!("--------------");
-        println!("GPU Model: {}", system.gpu_model().await?);
-        println!("GPU Vendor: {}", system.gpu_vendor().await?);
-        println!("GPU Architecture: {}", system.gpu_architecture().await?);
-        println!("GPU Driver Version: {}", system.gpu_driver_version().await?);
-
-        // GPU Load
-        println!("\nGPU Load:");
-        println!("---------");
-        println!("GPU Utilization: {:.1}%", system.gpu_utilization().await? * 100.0);
-        println!("GPU Core Load: {:.1}%", system.gpu_core_load().await? * 100.0);
-        println!(
-            "GPU Memory Controller Load: {:.1}%",
-            system.gpu_memory_controller_load().await? * 100.0
-        );
-        println!(
-            "GPU Video Engine Load: {:.1}%",
-            system.gpu_video_engine_load().await? * 100.0
-        );
-
-        // GPU Memory
-        println!("\nGPU Memory:");
+        println!("----------------");
+        println!("GPU Name: {}", gpu.name().await?);
+        
+        // GPU Characteristics
+        if let Ok(chars) = gpu.get_characteristics().await {
+            println!("Vendor: {}", chars.vendor);
+            println!("Is Integrated: {}", chars.is_integrated);
+            println!("Is Apple Silicon: {}", chars.is_apple_silicon);
+            if let Some(cores) = chars.core_count {
+                println!("Core Count: {}", cores);
+            }
+        }
+        
+        // GPU Metrics
+        println!("\nGPU Metrics:");
         println!("-----------");
-        println!("Total Memory: {} MB", system.gpu_total_memory().await? / 1024 / 1024);
-        println!("Used Memory: {} MB", system.gpu_used_memory().await? / 1024 / 1024);
-        println!("Free Memory: {} MB", system.gpu_free_memory().await? / 1024 / 1024);
-        println!(
-            "Memory Utilization: {:.1}%",
-            system.gpu_memory_utilization().await? * 100.0
-        );
-
+        if let Ok(util) = gpu.get_utilization().await {
+            println!("GPU Utilization: {:.1}%", util.value * 100.0);
+        }
+        
+        // GPU Memory
+        if let Ok(mem) = gpu.get_memory().await {
+            println!("\nGPU Memory:");
+            println!("-----------");
+            println!("Total Memory: {} MB", mem.total / 1024 / 1024);
+            println!("Used Memory: {} MB", mem.used / 1024 / 1024);
+            println!("Free Memory: {} MB", mem.free / 1024 / 1024);
+        }
+        
         // GPU Temperature
         println!("\nGPU Temperature:");
         println!("---------------");
-        if let Ok(temp) = system.gpu_temperature().await {
-            println!("GPU Temperature: {:.1}°C", temp);
+        if let Ok(temp) = gpu.get_temperature().await {
+            println!("Temperature: {:.1}°C", temp);
         } else {
-            println!("GPU Temperature: Not available");
+            println!("Temperature: Not available");
         }
 
         tokio::time::sleep(Duration::from_secs(2)).await;

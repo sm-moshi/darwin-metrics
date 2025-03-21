@@ -1,10 +1,15 @@
+use std::io::Write;
 use std::time::Duration;
+use std::io;
+use std::thread::sleep;
 
 use darwin_metrics::error::Result;
-use darwin_metrics::network::NetworkManager;
-use darwin_metrics::network::interface::{Interface, NetworkInterface};
-use darwin_metrics::network::monitors::{
-    NetworkBandwidthMonitor, NetworkErrorMonitor, NetworkInterfaceMonitor, NetworkPacketMonitor,
+use darwin_metrics::network::interface::NetworkManager;
+use darwin_metrics::core::metrics::hardware::{
+    NetworkBandwidthMonitor, 
+    NetworkErrorMonitor, 
+    NetworkInterfaceMonitor, 
+    NetworkPacketMonitor
 };
 
 /// Helper function to format bytes in a human-readable format
@@ -43,114 +48,89 @@ fn format_rate(bytes_per_sec: f64) -> String {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Starting network monitoring...\n");
+    println!("Darwin Metrics - Network Monitor Example");
+    println!("Press Ctrl+C to exit\n");
 
-    // Initialize network manager
+    // Create a new network manager
     let mut network = NetworkManager::new()?;
 
-    // Monitor network for 30 seconds, updating every 5 seconds
-    for i in 0..6 {
-        if i > 0 {
-            println!("\nWaiting 5 seconds for next update...\n");
-            tokio::time::sleep(Duration::from_secs(5)).await;
+    // Display initial network interfaces
+    println!("Detected network interfaces:");
+    for interface in network.interfaces() {
+        println!("  {} ({})", interface.name(), interface.interface_type());
+        if let Some(mac) = interface.mac_address() {
+            println!("    MAC: {}", mac);
         }
+        println!("    Status: {}", if !interface.name().is_empty() { "Up" } else { "Down" });
+    }
 
-        // Update network statistics
+    println!("\nStarting real-time monitoring...\n");
+    println!("Press Ctrl+C to exit");
+
+    loop {
+        // Update network stats
         network.update()?;
 
-        // Get all interfaces
-        let interfaces = network.interfaces();
-        println!("Found {} network interfaces\n", interfaces.len());
+        // Clear the screen
+        print!("\x1B[2J\x1B[1;1H");
 
-        // Sort interfaces by name instead of download speed since we can't use async in sort_by
-        let mut interfaces = interfaces.to_vec();
-        interfaces.sort_by(|a, b| a.name().cmp(&b.name()));
-
-        // Display information for each interface
-        for interface in interfaces {
-            let interface_monitor = interface.interface_monitor();
+        println!("════════════ NETWORK INTERFACES ════════════");
+        
+        // Display detailed information for each interface
+        for interface in network.interfaces() {
+            // Create monitors
+            let state_monitor = interface.interface_monitor();
             let bandwidth_monitor = interface.bandwidth_monitor();
             let packet_monitor = interface.packet_monitor();
             let error_monitor = interface.error_monitor();
-
-            println!(
-                "Interface: {} ({})",
-                interface.name(),
-                interface_monitor.interface_type().await?
-            );
-            println!(
-                "Status: {}",
-                if interface_monitor.is_active().await? {
-                    "Active"
-                } else {
-                    "Inactive"
-                }
-            );
-
-            // Interface properties
-            if let Some(mac) = interface_monitor.mac_address().await? {
-                println!("MAC Address: {}", mac);
+            
+            // Skip inactive interfaces
+            if interface.name().is_empty() {
+                continue;
             }
-            println!(
-                "Type: {}",
-                if interface_monitor.is_wireless().await? {
-                    "Wireless"
-                } else {
-                    "Wired"
-                }
-            );
-            println!("Supports Broadcast: {}", interface_monitor.supports_broadcast().await?);
-            println!("Supports Multicast: {}", interface_monitor.supports_multicast().await?);
-            println!("Is Loopback: {}", interface_monitor.is_loopback().await?);
 
-            // Bandwidth metrics
-            println!("\nBandwidth Metrics:");
-            println!(
-                "Total Received: {}",
-                format_bytes(bandwidth_monitor.bytes_received().await?)
-            );
-            println!("Total Sent: {}", format_bytes(bandwidth_monitor.bytes_sent().await?));
-            println!(
-                "Download Speed: {}",
-                format_rate(bandwidth_monitor.download_speed().await?)
-            );
-            println!("Upload Speed: {}", format_rate(bandwidth_monitor.upload_speed().await?));
-
-            // Packet metrics
-            println!("\nPacket Metrics:");
-            println!("Packets Received: {}", packet_monitor.packets_received().await?);
-            println!("Packets Sent: {}", packet_monitor.packets_sent().await?);
-            println!(
-                "Packet Receive Rate: {:.2} packets/s",
-                packet_monitor.packet_receive_rate().await?
-            );
-            println!(
-                "Packet Send Rate: {:.2} packets/s",
-                packet_monitor.packet_send_rate().await?
-            );
-
-            // Error metrics
-            println!("\nError Metrics:");
-            println!("Receive Errors: {}", error_monitor.receive_errors().await?);
-            println!("Send Errors: {}", error_monitor.send_errors().await?);
-            println!("Collisions: {}", error_monitor.collisions().await?);
-            println!(
-                "Receive Error Rate: {:.2}%",
-                error_monitor.receive_error_rate().await? * 100.0
-            );
-            println!(
-                "Send Error Rate: {:.2}%",
-                error_monitor.send_error_rate().await? * 100.0
-            );
-
-            println!("\n{}", "-".repeat(50));
+            println!("\nInterface: {} ({})", interface.name(), interface.interface_type());
+            
+            // State
+            println!("  Status: {}", if !interface.name().is_empty() { "Up" } else { "Down" });
+            if let Some(mac) = interface.mac_address() {
+                println!("  MAC: {}", mac);
+            }
+            
+            // Bandwidth - use async trait methods
+            let download = bandwidth_monitor.download_speed().await?;
+            let upload = bandwidth_monitor.upload_speed().await?;
+            let bytes_received = bandwidth_monitor.bytes_received().await?;
+            let bytes_sent = bandwidth_monitor.bytes_sent().await?;
+            
+            println!("  Download: {}/s", format_rate(download));
+            println!("  Upload: {}/s", format_rate(upload));
+            println!("  Total bytes received: {}", format_bytes(bytes_received));
+            println!("  Total bytes sent: {}", format_bytes(bytes_sent));
+            
+            // Packets - use async trait methods
+            let packets_received = packet_monitor.packets_received().await?;
+            let packets_sent = packet_monitor.packets_sent().await?;
+            let packet_receive_rate = packet_monitor.packet_receive_rate().await?;
+            let packet_send_rate = packet_monitor.packet_send_rate().await?;
+            
+            println!("  Packets received: {}", packets_received);
+            println!("  Packets sent: {}", packets_sent);
+            println!("  Packet receive rate: {:.2} pkt/s", packet_receive_rate);
+            println!("  Packet send rate: {:.2} pkt/s", packet_send_rate);
+            
+            // Errors - use async trait methods
+            let receive_errors = error_monitor.receive_errors().await?;
+            let send_errors = error_monitor.send_errors().await?;
+            let collisions = error_monitor.collisions().await?;
+            
+            if receive_errors > 0 || send_errors > 0 {
+                println!("  Receive errors: {}", receive_errors);
+                println!("  Send errors: {}", send_errors);
+                println!("  Collisions: {}", collisions);
+            }
         }
 
-        // Display system-wide network statistics
-        println!("\nSystem-wide Network Statistics:");
-        println!("Total Download Speed: {}", format_rate(network.total_download_speed()));
-        println!("Total Upload Speed: {}", format_rate(network.total_upload_speed()));
+        std::thread::sleep(Duration::from_secs(1));
     }
-
-    Ok(())
 }

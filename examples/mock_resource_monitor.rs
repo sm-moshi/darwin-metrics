@@ -1,8 +1,16 @@
+// Remove the file-level cfg attribute
+// #![cfg(feature = "mock")]
+
 use std::time::Duration;
 
+// Conditionally include these imports only when mock feature is enabled
+#[cfg(feature = "mock")]
 use darwin_metrics::resource::ResourceMonitor;
+#[cfg(feature = "mock")]
 use darwin_metrics::utils::tests::test_utils::iokit_mock::MockIOKit;
 
+// The real implementation only when mock feature is enabled
+#[cfg(feature = "mock")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Only available when the 'testing' feature is enabled
@@ -54,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
 
                 // CPU temperature (when using mock data this should show our value)
-                println!("CPU Temperature: {:.1}°C", update.temperature.cpu);
+                println!("CPU Temperature: {:.1}°C", update.temperature.0);
 
                 // Safely print disk information
                 if update.disk.total > 0 {
@@ -114,7 +122,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// Helper function to format bytes
+// A placeholder main function when mock feature is not enabled
+#[cfg(not(feature = "mock"))]
+fn main() {
+    println!("This example requires the 'mock' feature to be enabled.");
+    println!("Run with: cargo run --example mock_resource_monitor --features=\"mock\"");
+}
+
+// Helper function (conditionally compile based on feature as it's used by the real implementation)
+#[cfg(feature = "mock")]
 fn format_bytes(bytes: f64) -> String {
     const KB: f64 = 1024.0;
     const MB: f64 = KB * 1024.0;

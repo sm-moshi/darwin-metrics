@@ -173,6 +173,40 @@ impl ByteSize {
     }
 }
 
+// Implement From for ByteSize
+impl From<ByteSize> for u64 {
+    fn from(size: ByteSize) -> Self {
+        size.as_bytes()
+    }
+}
+
+// Implement operations for ByteSize
+impl std::ops::Sub for ByteSize {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let result = self.0.saturating_sub(rhs.0);
+        Self(result)
+    }
+}
+
+// Implement Mul<f64> for Percentage
+impl std::ops::Mul<f64> for Percentage {
+    type Output = f64;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        self.as_f64() * rhs
+    }
+}
+
+// Implement additional conversion methods for ByteSize
+impl ByteSize {
+    /// Converts the ByteSize to a u64 value
+    pub fn to_u64(&self) -> u64 {
+        self.0
+    }
+}
+
 /// Format options for displaying byte sizes
 ///
 /// Used to control how byte sizes are formatted when displayed

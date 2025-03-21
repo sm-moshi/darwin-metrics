@@ -297,3 +297,10 @@ mod tests {
         assert_eq!(key.to_string(), "TA0P");
     }
 }
+
+// Type aliases for common name clashes
+/// A type alias for the network manager to avoid name clashes
+pub type NetworkManager = crate::network::interface::NetworkManager;
+
+// Re-export System for examples
+pub use crate::system::System;

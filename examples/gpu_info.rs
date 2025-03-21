@@ -1,7 +1,8 @@
 use std::error::Error;
 
 use darwin_metrics::Gpu;
-use darwin_metrics::gpu::{GpuCharacteristics, GpuMetrics};
+use darwin_metrics::gpu::GpuMetrics;
+use darwin_metrics::core::types::ByteSize;
 
 /// Demonstrates the improved GPU hardware detection in darwin-metrics
 /// This example shows detailed information about the GPU including hardware
@@ -15,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let gpu = Gpu::new()?;
 
     // Get GPU metrics with enhanced hardware detection
-    let metrics = gpu.get_metrics().await?;
+    let metrics = gpu.get_metric().await?.value;
     let characteristics = gpu.get_characteristics().await?;
 
     // Display basic GPU information
@@ -60,7 +61,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Display performance metrics
     println!("Performance Metrics:");
     println!("-------------------");
-    println!("Utilization: {:.1}%", metrics.utilization * 100.0);
+    println!("Utilization: {:.1}%", metrics.utilization.as_f64());
 
     if metrics.temperature > 0.0 {
         println!("Temperature: {:.1}°C", metrics.temperature);
@@ -99,15 +100,15 @@ fn format_bytes(bytes: u64) -> String {
 fn display_memory_info(metrics: &GpuMetrics) {
     println!("Memory Information:");
     println!("------------------");
-    println!("Total Memory: {}", format_bytes(metrics.memory_total));
-    println!("Used Memory: {}", format_bytes(metrics.memory_used));
+    println!("Total Memory: {}", format_bytes(metrics.memory_total.as_bytes()));
+    println!("Used Memory: {}", format_bytes(metrics.memory_used.as_bytes()));
     println!(
         "Memory Utilization: {:.1}%",
-        (metrics.memory_used as f64 / metrics.memory_total as f64) * 100.0
+        (metrics.memory_used.as_bytes() as f64 / metrics.memory_total.as_bytes() as f64) * 100.0
     );
     println!(
         "Free Memory: {}",
-        format_bytes(metrics.memory_total - metrics.memory_used)
+        format_bytes((metrics.memory_total.as_bytes()).saturating_sub(metrics.memory_used.as_bytes()))
     );
     println!();
 }
