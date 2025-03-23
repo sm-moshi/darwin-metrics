@@ -16,6 +16,7 @@ use crate::traits::{
 
 /// Monitor for battery capacity metrics including current, maximum, and design capacity
 pub struct BatteryCapacityMonitor {
+    /// Battery device identifier
     device_id: String,
 }
 
@@ -101,6 +102,7 @@ impl PowerStateMonitor for BatteryCapacityMonitor {
 
 /// Monitor for battery health metrics
 pub struct BatteryHealthMonitor {
+    /// Battery device identifier
     device_id: String,
 }
 
@@ -138,6 +140,7 @@ impl BatteryHealthMonitorTrait for BatteryHealthMonitor {
 
 /// Monitor for battery power consumption
 pub struct BatteryPowerMonitor {
+    /// Battery device identifier
     device_id: String,
 }
 
@@ -196,6 +199,7 @@ impl PowerMonitorTrait for BatteryPowerMonitor {
 
 /// Monitor for battery temperature
 pub struct BatteryTemperatureMonitor {
+    /// Battery device identifier
     device_id: String,
 }
 

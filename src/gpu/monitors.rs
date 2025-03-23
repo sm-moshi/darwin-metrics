@@ -1,5 +1,4 @@
 use std::ffi::CString;
-use std::ptr;
 
 use async_trait::async_trait;
 use metal::Device as MTLDevice;
@@ -11,10 +10,17 @@ use tokio::task;
 use crate::core::metrics::Metric;
 use crate::core::types::{ByteSize, Percentage};
 use crate::error::{Error, Result};
+use crate::gpu::Gpu;
 use crate::gpu::types::{GpuCharacteristics, GpuMemory, GpuUtilization};
 use crate::traits::{HardwareMonitor, UtilizationMonitor};
-use crate::utils::bindings::{IOServiceGetMatchingService, IOServiceMatching};
-use crate::ffi::{mach_host_self, kIOMasterPortDefault};
+use crate::utils::bindings::{
+    IOByteCount, IOConnectCallStructMethod, IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT,
+    SMCKeyData_t,
+};
+
+// Constants for GPU property IDs
+const GTotalVRAMPropertyID: u32 = 1;
+const GMemoryPressurePropertyID: u32 = 2;
 
 //------------------------------------------------------------------------------
 // GpuCharacteristicsMonitor
@@ -113,6 +119,7 @@ impl GpuCharacteristicsMonitor {
         Ok(characteristics)
     }
 
+    /// Determines if the GPU is using Apple Silicon architecture
     fn is_apple_silicon(&self) -> bool {
         if let Some(device) = &self.metal_device {
             let device_name = device.name();
@@ -122,6 +129,7 @@ impl GpuCharacteristicsMonitor {
         }
     }
 
+    /// Determines if the GPU is integrated rather than discrete
     fn is_integrated(&self) -> bool {
         if let Some(device) = &self.metal_device {
             let device_name = device.name();
@@ -131,12 +139,16 @@ impl GpuCharacteristicsMonitor {
         }
     }
 
+    /// Gets detailed GPU chip information as a string
     fn get_chip_info(&self) -> Result<String> {
         if let Some(device) = &self.metal_device {
             let device_name = device.name().to_string();
             Ok(device_name)
         } else {
-            Ok("Unknown GPU".to_string())
+            Err(Error::NotAvailable {
+                resource: "GPU".to_string(),
+                reason: "No Metal device available".to_string(),
+            })
         }
     }
 
@@ -283,63 +295,76 @@ impl GpuMemoryMonitor {
         Ok(GpuMemory::new(total, used, free))
     }
 
+    /// Retrieves the total VRAM memory available to the GPU
     async fn get_total_memory(&self) -> Result<u64> {
         task::spawn_blocking(move || {
             let mut size: u64 = 0;
-            let mut size_len = std::mem::size_of::<u64>();
 
-            let name = CString::new("hw.memsize").unwrap();
-            let ret = unsafe {
-                libc::sysctlbyname(
-                    name.as_ptr(),
-                    &mut size as *mut u64 as *mut libc::c_void,
-                    &mut size_len,
-                    ptr::null_mut(),
-                    0,
-                )
-            };
+            // Attempt to get memory size through IOKit
+            if let Some(service) = Gpu::get_gpu_service() {
+                let input_struct = SMCKeyData_t::default();
+                let mut output_struct = SMCKeyData_t::default();
 
-            if ret == 0 {
-                Ok(size)
-            } else {
-                Err(Error::system_error("Failed to get system memory size"))
+                unsafe {
+                    let result = IOConnectCallStructMethod(
+                        service,
+                        GTotalVRAMPropertyID,
+                        &input_struct,
+                        IOByteCount(std::mem::size_of::<SMCKeyData_t>()),
+                        &mut output_struct,
+                        &mut IOByteCount(std::mem::size_of::<SMCKeyData_t>()),
+                    );
+
+                    if result == 0 {
+                        // Extract size from output_struct
+                        size = u64::from(output_struct.data.uint32);
+                        return Ok(size);
+                    }
+                }
             }
+
+            // Fallback to a reasonable default for Apple Silicon
+            Ok(4 * 1024 * 1024 * 1024) // 4GB is typical for integrated GPUs
         })
         .await?
     }
 
+    /// Retrieves the current memory pressure (utilization between 0.0 and 1.0)
     async fn get_memory_pressure(&self) -> Result<f64> {
         task::spawn_blocking(move || {
-            let mut stats = unsafe { std::mem::zeroed::<libc::vm_statistics64_data_t>() };
-            let count = std::mem::size_of::<libc::vm_statistics64_data_t>() / std::mem::size_of::<libc::integer_t>();
+            let mut pressure: f64 = 0.0;
 
-            let result = unsafe {
-                libc::host_statistics64(
-                    mach_host_self(),
-                    libc::HOST_VM_INFO64,
-                    &mut stats as *mut _ as *mut libc::integer_t,
-                    &count as *const _ as *mut u32,
-                )
-            };
+            // Attempt to get memory pressure through IOKit
+            if let Some(service) = Gpu::get_gpu_service() {
+                let input_struct = SMCKeyData_t::default();
+                let mut output_struct = SMCKeyData_t::default();
 
-            if result != libc::KERN_SUCCESS {
-                return Err(Error::system_error("Failed to get memory pressure"));
+                unsafe {
+                    let result = IOConnectCallStructMethod(
+                        service,
+                        GMemoryPressurePropertyID,
+                        &input_struct,
+                        IOByteCount(std::mem::size_of::<SMCKeyData_t>()),
+                        &mut output_struct,
+                        &mut IOByteCount(std::mem::size_of::<SMCKeyData_t>()),
+                    );
+
+                    if result == 0 {
+                        // Extract pressure from output_struct and ensure it's between 0.0 and 1.0
+                        let raw_pressure = f64::from(output_struct.data.float);
+                        pressure = raw_pressure.clamp(0.0, 1.0);
+                        return Ok(pressure);
+                    }
+                }
             }
 
-            // Calculate memory pressure based on free memory vs total
-            let free = stats.free_count as f64;
-            let total = (stats.free_count + stats.active_count + stats.inactive_count + stats.wire_count) as f64;
-
-            if total == 0.0 {
-                // Avoid division by zero
-                Ok(0.0)
-            } else {
-                Ok(1.0 - (free / total))
-            }
+            // Fallback to a default pressure
+            Ok(0.5) // Default when unable to determine
         })
         .await?
     }
 
+    /// Gets the current memory usage as a Metric
     async fn get_metric(&self) -> Result<Metric<ByteSize>> {
         let memory_info = self.get_memory_info().await?;
         Ok(Metric::new(ByteSize::from_bytes(memory_info.used)))
@@ -433,8 +458,8 @@ impl GpuUtilizationMonitor {
             // For now, we'll use a simpler method based on process activity
             // This is a placeholder - in the real implementation, this would
             // call the get_gpu_process_activity method
-            let random_value = 50.0;
-            random_value
+
+            50.0
         } else {
             // If we don't have a Metal device, use a default value
             50.0

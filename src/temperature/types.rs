@@ -60,13 +60,16 @@ impl std::fmt::Display for MonitorType {
 /// Fan information including speed, min/max values, and utilization percentage
 #[derive(Debug, Clone)]
 pub struct Fan {
-    pub current_speed: u32,
-    pub target_speed: u32,
-    pub min_speed: u32,
-    pub max_speed: u32,
-    pub index: usize,
+    /// Fan identifier (e.g., "CPU Fan", "System Fan")
+    pub name: String,
+    /// Current fan speed in RPM
     pub speed_rpm: u32,
-    pub percentage: f64,
+    /// Minimum fan speed in RPM
+    pub min_speed: u32,
+    /// Maximum fan speed in RPM
+    pub max_speed: u32,
+    /// Target fan speed in RPM
+    pub target_speed: u32,
 }
 
 impl Fan {
@@ -152,74 +155,55 @@ impl Default for ThermalDetails {
     }
 }
 
-/// Thermal metrics for the system
+/// Thermal metrics for a device
 #[derive(Debug, Clone)]
 pub struct ThermalMetrics {
-    pub io_kit: Arc<dyn IOKit>,
+    /// Fan speeds in RPM
+    pub fan_speeds: Vec<u32>,
+    /// Current thermal level
+    pub thermal_level: ThermalLevel,
+    /// Memory temperature in Celsius
+    pub memory_temperature: Option<f64>,
+    /// Whether the device is throttling
+    pub is_throttling: bool,
+    /// Fan information
     pub fans: Vec<Fan>,
-    pub details: ThermalDetails,
+    /// CPU temperature in Celsius
+    pub cpu_temperature: Option<f64>,
+    /// GPU temperature in Celsius
+    pub gpu_temperature: Option<f64>,
+    /// Battery temperature in Celsius
+    pub battery_temperature: Option<f64>,
+    /// SSD temperature in Celsius
+    pub ssd_temperature: Option<f64>,
+    /// Ambient temperature in Celsius
+    pub ambient_temperature: Option<f64>,
 }
 
 impl ThermalMetrics {
     pub fn new(io_kit: Arc<dyn IOKit>) -> Self {
         Self {
-            io_kit,
+            fan_speeds: Vec::new(),
+            thermal_level: ThermalLevel::Normal,
+            memory_temperature: None,
+            is_throttling: false,
             fans: Vec::new(),
-            details: ThermalDetails::default(),
+            cpu_temperature: None,
+            gpu_temperature: None,
+            battery_temperature: None,
+            ssd_temperature: None,
+            ambient_temperature: None,
         }
     }
 }
 
-#[async_trait::async_trait]
-impl ThermalMonitor for ThermalMetrics {
-    async fn get_fans(&self) -> Result<Vec<Fan>> {
-        Ok(self.fans.clone())
-    }
-
-    async fn cpu_temperature(&self) -> Result<Option<f64>> {
-        Ok(self.details.cpu_temp)
-    }
-
-    async fn gpu_temperature(&self) -> Result<Option<f64>> {
-        Ok(self.details.gpu_temp)
-    }
-
-    async fn memory_temperature(&self) -> Result<Option<f64>> {
-        Ok(self.details.memory_temp)
-    }
-
-    async fn battery_temperature(&self) -> Result<Option<f64>> {
-        Ok(self.details.battery_temp)
-    }
-
-    async fn ambient_temperature(&self) -> Result<Option<f64>> {
-        Ok(self.details.ambient_temp)
-    }
-
-    async fn ssd_temperature(&self) -> Result<Option<f64>> {
-        Ok(self.details.ssd_temp)
-    }
-
-    async fn is_throttling(&self) -> Result<bool> {
-        Ok(self.details.is_throttling)
-    }
-
-    async fn get_thermal_metrics(&self) -> Result<ThermalMetrics> {
-        Ok(self.clone())
-    }
-}
-
-/// Configuration for thermal monitoring
-#[derive(Debug, Clone)]
-pub struct ThermalConfig {
-    /// Temperature threshold for thermal throttling in degrees Celsius
-    pub throttling_threshold: f64,
-}
-
-impl Default for ThermalConfig {
-    fn default() -> Self {
-        Self {
-            throttling_threshold: CPU_CRITICAL_TEMPERATURE,
-        }
-    }
+/// Thermal level of the device
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThermalLevel {
+    /// Normal operating temperature
+    Normal,
+    /// Warning temperature level
+    Warning,
+    /// Critical temperature level
+    Critical,
 }

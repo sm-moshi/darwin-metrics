@@ -134,8 +134,8 @@ impl Default for CpuConfig {
 /// ```
 #[derive(Debug)]
 pub struct CPU {
-    iokit: Arc<dyn IOKit>,
-    config: CpuConfig,
+    /// IOKit interface for hardware communication
+    iokit: Box<dyn IOKit>,
 }
 
 impl CPU {
@@ -256,5 +256,13 @@ impl CPU {
             temperature,
             frequency,
         })
+    }
+}
+
+impl Clone for CPU {
+    fn clone(&self) -> Self {
+        Self {
+            iokit: self.iokit.clone_box(),
+        }
     }
 }

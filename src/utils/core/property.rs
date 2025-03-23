@@ -83,6 +83,12 @@ pub struct PropertyAccessor {
     dict: Arc<Mutex<Retained<NSMutableDictionary>>>,
 }
 
+impl Default for PropertyAccessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PropertyAccessor {
     /// Creates a new PropertyAccessor with an empty dictionary
     pub fn new() -> Self {

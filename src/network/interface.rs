@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::CStr;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::ptr;
-use std::time::Instant;
 
 use log::debug;
 
@@ -10,7 +9,6 @@ use crate::core::metrics::hardware::{
     NetworkBandwidthMonitor, NetworkErrorMonitor, NetworkInterfaceMonitor, NetworkPacketMonitor,
 };
 use crate::error::{Error, Result};
-use crate::network::traffic::TrafficTracker;
 use crate::utils::bindings::{
     address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in, sockaddr_in6,
 };
@@ -62,42 +60,33 @@ impl std::fmt::Display for InterfaceType {
     }
 }
 
-/// Represents a network interface with its associated metrics and properties.
-///
-/// This struct encapsulates all information about a single network interface on macOS, including its configuration,
-/// status, and traffic statistics. It provides methods to query interface properties and monitor network activity.
-///
-/// Each interface tracks:
-/// - Basic properties (name, type, flags)
-/// - Hardware information (MAC address)
-/// - Network configuration (IP addresses)
-/// - Traffic statistics (bytes/packets sent/received)
-/// - Performance metrics (upload/download speeds)
-/// - Error statistics (errors, collisions)
-///
-/// The interface metrics are updated via the NetworkManager's update() method.
+/// Represents a network interface with its properties and metrics
 #[derive(Debug, Clone)]
 pub struct Interface {
-    /// Name of the interface (e.g., "en0", "lo0")
-    name: String,
-
-    /// Type of interface (Ethernet, WiFi, Loopback, Virtual, Other)
-    interface_type: InterfaceType,
-
-    /// Flags associated with this interface (IFF_UP, IFF_RUNNING, etc.)
+    /// Name of the network interface (e.g., "en0", "lo0")
+    name: Option<String>,
+    /// Type of network interface (Ethernet, WiFi, etc.)
+    interface_type: Option<InterfaceType>,
+    /// Interface flags containing status information
     flags: u32,
-
-    /// MAC address, if available (formatted as xx:xx:xx:xx:xx:xx)
+    /// MAC address of the interface as a formatted string
     mac_address: Option<String>,
-
-    /// IP addresses associated with this interface (both IPv4 and IPv6)
+    /// List of IP addresses assigned to this interface
     addresses: Vec<IpAddr>,
-
-    /// Traffic statistics tracker for monitoring network activity
-    traffic: TrafficTracker,
-
-    /// Timestamp of the last update for calculating rates
-    last_update: Instant,
+    /// Total bytes received on this interface since boot
+    bytes_received: u64,
+    /// Total bytes sent on this interface since boot
+    bytes_sent: u64,
+    /// Total packets received on this interface since boot
+    packets_received: u64,
+    /// Total packets sent on this interface since boot
+    packets_sent: u64,
+    /// Count of receive errors encountered on this interface
+    receive_errors: u64,
+    /// Count of send errors encountered on this interface
+    send_errors: u64,
+    /// Number of packet collisions detected on this interface
+    collisions: u64,
 }
 
 /// Struct to hold traffic statistics parameters
@@ -202,21 +191,18 @@ impl InterfaceBuilder {
             .ok_or_else(|| Error::invalid_data("Interface type is required"))?;
 
         Ok(Interface {
-            name,
-            interface_type,
+            name: Some(name),
+            interface_type: Some(interface_type),
             flags: self.flags,
             mac_address: self.mac_address,
             addresses: self.addresses,
-            traffic: TrafficTracker::new(
-                self.bytes_received,
-                self.bytes_sent,
-                self.packets_received,
-                self.packets_sent,
-                self.receive_errors,
-                self.send_errors,
-                self.collisions,
-            ),
-            last_update: Instant::now(),
+            bytes_received: self.bytes_received,
+            bytes_sent: self.bytes_sent,
+            packets_received: self.packets_received,
+            packets_sent: self.packets_sent,
+            receive_errors: self.receive_errors,
+            send_errors: self.send_errors,
+            collisions: self.collisions,
         })
     }
 }
@@ -244,32 +230,29 @@ impl Interface {
         collisions: u64,
     ) -> Self {
         Self {
-            name,
-            interface_type,
+            name: Some(name),
+            interface_type: Some(interface_type),
             flags,
             mac_address,
             addresses,
-            traffic: TrafficTracker::new(
-                bytes_received,
-                bytes_sent,
-                packets_received,
-                packets_sent,
-                receive_errors,
-                send_errors,
-                collisions,
-            ),
-            last_update: Instant::now(),
+            bytes_received,
+            bytes_sent,
+            packets_received,
+            packets_sent,
+            receive_errors,
+            send_errors,
+            collisions,
         }
     }
 
     /// Get the name of this interface
     pub fn name(&self) -> &str {
-        &self.name
+        &self.name.as_ref().unwrap()
     }
 
     /// Get the type of this interface
     pub fn interface_type(&self) -> &InterfaceType {
-        &self.interface_type
+        &self.interface_type.as_ref().unwrap()
     }
 
     /// Get the MAC address of this interface, if available
@@ -298,16 +281,13 @@ impl Interface {
         send_errors: u64,
         collisions: u64,
     ) {
-        self.traffic.update(
-            bytes_received,
-            bytes_sent,
-            packets_received,
-            packets_sent,
-            receive_errors,
-            send_errors,
-            collisions,
-        );
-        self.last_update = Instant::now();
+        self.bytes_received += bytes_received;
+        self.bytes_sent += bytes_sent;
+        self.packets_received += packets_received;
+        self.packets_sent += packets_sent;
+        self.receive_errors += receive_errors;
+        self.send_errors += send_errors;
+        self.collisions += collisions;
     }
 
     /// Determines if the interface is active based on its flags.
@@ -317,22 +297,22 @@ impl Interface {
 
     /// Gets the packet receive rate in packets per second.
     pub fn packet_receive_rate(&self) -> f64 {
-        self.traffic.packet_receive_rate()
+        self.packets_received as f64 / self.receive_errors as f64
     }
 
     /// Gets the packet send rate in packets per second.
     pub fn packet_send_rate(&self) -> f64 {
-        self.traffic.packet_send_rate()
+        self.packets_sent as f64 / self.send_errors as f64
     }
 
     /// Gets the receive error rate (errors per packet).
     pub fn receive_error_rate(&self) -> f64 {
-        self.traffic.receive_error_rate()
+        self.receive_errors as f64 / self.packets_received as f64
     }
 
     /// Gets the send error rate (errors per packet).
     pub fn send_error_rate(&self) -> f64 {
-        self.traffic.send_error_rate()
+        self.send_errors as f64 / self.packets_sent as f64
     }
 
     /// Returns a monitor for interface state
@@ -363,14 +343,9 @@ impl Interface {
         }
     }
 
-    pub fn from_name(name: &str) -> Result<Self> {
-        // Create a network manager and use it to get the interface by name
-        let manager = NetworkManager::new()?;
-
-        manager
-            .get_interface(name)
-            .cloned()
-            .ok_or_else(|| Error::system_error(format!("Network interface '{}' not found", name)))
+    /// Check if this is a WiFi interface
+    pub fn is_wifi(&self) -> bool {
+        self.interface_type == Some(InterfaceType::WiFi)
     }
 }
 
@@ -414,12 +389,12 @@ impl NetworkInterfaceMonitor for InterfaceStateMonitor {
 
     async fn is_wireless(&self) -> Result<bool> {
         Ok(self.interface.is_flag_set(if_flags::IFF_WIRELESS)
-            || self.interface.interface_type == InterfaceType::WiFi
-            || self.interface.name.starts_with("wl"))
+            || self.interface.interface_type == Some(InterfaceType::WiFi)
+            || self.interface.name.as_ref().unwrap().starts_with("wl"))
     }
 
     async fn interface_type(&self) -> Result<String> {
-        Ok(self.interface.interface_type.to_string())
+        Ok(self.interface.interface_type.as_ref().unwrap().to_string())
     }
 
     async fn mac_address(&self) -> Result<Option<String>> {
@@ -430,61 +405,61 @@ impl NetworkInterfaceMonitor for InterfaceStateMonitor {
 #[async_trait::async_trait]
 impl NetworkBandwidthMonitor for InterfaceBandwidthMonitor {
     async fn bytes_received(&self) -> Result<u64> {
-        Ok(self.interface.traffic.bytes_received())
+        Ok(self.interface.bytes_received)
     }
 
     async fn bytes_sent(&self) -> Result<u64> {
-        Ok(self.interface.traffic.bytes_sent())
+        Ok(self.interface.bytes_sent)
     }
 
     async fn download_speed(&self) -> Result<f64> {
-        Ok(self.interface.traffic.download_speed())
+        Ok(self.interface.bytes_received as f64 / self.interface.receive_errors as f64)
     }
 
     async fn upload_speed(&self) -> Result<f64> {
-        Ok(self.interface.traffic.upload_speed())
+        Ok(self.interface.bytes_sent as f64 / self.interface.send_errors as f64)
     }
 }
 
 #[async_trait::async_trait]
 impl NetworkPacketMonitor for InterfacePacketMonitor {
     async fn packets_received(&self) -> Result<u64> {
-        Ok(self.interface.traffic.packets_received())
+        Ok(self.interface.packets_received)
     }
 
     async fn packets_sent(&self) -> Result<u64> {
-        Ok(self.interface.traffic.packets_sent())
+        Ok(self.interface.packets_sent)
     }
 
     async fn packet_receive_rate(&self) -> Result<f64> {
-        Ok(self.interface.traffic.packet_receive_rate())
+        Ok(self.interface.packets_received as f64 / self.interface.receive_errors as f64)
     }
 
     async fn packet_send_rate(&self) -> Result<f64> {
-        Ok(self.interface.traffic.packet_send_rate())
+        Ok(self.interface.packets_sent as f64 / self.interface.send_errors as f64)
     }
 }
 
 #[async_trait::async_trait]
 impl NetworkErrorMonitor for InterfaceErrorMonitor {
     async fn receive_errors(&self) -> Result<u64> {
-        Ok(self.interface.traffic.receive_errors())
+        Ok(self.interface.receive_errors)
     }
 
     async fn send_errors(&self) -> Result<u64> {
-        Ok(self.interface.traffic.send_errors())
+        Ok(self.interface.send_errors)
     }
 
     async fn collisions(&self) -> Result<u64> {
-        Ok(self.interface.traffic.collisions())
+        Ok(self.interface.collisions)
     }
 
     async fn receive_error_rate(&self) -> Result<f64> {
-        Ok(self.interface.traffic.receive_error_rate())
+        Ok(self.interface.receive_errors as f64 / self.interface.packets_received as f64)
     }
 
     async fn send_error_rate(&self) -> Result<f64> {
-        Ok(self.interface.traffic.send_error_rate())
+        Ok(self.interface.send_errors as f64 / self.interface.packets_sent as f64)
     }
 }
 
@@ -573,12 +548,18 @@ impl NetworkManager {
 
     /// Gets the total download speed across all interfaces.
     pub fn total_download_speed(&self) -> f64 {
-        self.interfaces.values().map(|i| i.traffic.download_speed()).sum()
+        self.interfaces
+            .values()
+            .map(|i| i.bytes_received as f64 / i.receive_errors as f64)
+            .sum()
     }
 
     /// Gets the total upload speed across all interfaces.
     pub fn total_upload_speed(&self) -> f64 {
-        self.interfaces.values().map(|i| i.traffic.upload_speed()).sum()
+        self.interfaces
+            .values()
+            .map(|i| i.bytes_sent as f64 / i.send_errors as f64)
+            .sum()
     }
 
     /// Gets network interfaces using the getifaddrs() system call.
@@ -924,5 +905,36 @@ impl NetworkManager {
     }
 }
 
+/// Monitor for tracking bytes received on a network interface
+pub struct BytesReceivedMonitor {
+    /// Reference to the network interface being monitored
+    interface: Interface,
+}
+
+/// Monitor for tracking bytes sent on a network interface
+pub struct BytesSentMonitor {
+    /// Reference to the network interface being monitored
+    interface: Interface,
+}
+
+/// Monitor for tracking packets received on a network interface
+pub struct PacketsReceivedMonitor {
+    /// Reference to the network interface being monitored
+    interface: Interface,
+}
+
+/// Monitor for tracking packets sent on a network interface
+pub struct PacketsSentMonitor {
+    /// Reference to the network interface being monitored
+    interface: Interface,
+}
+
+/// Mapping of interface names to their address properties
+///
+/// Format: HashMap<name, (flags, mac_address, ip_addresses)>
 type NetworkAddressMap = HashMap<String, (u32, Option<String>, Vec<IpAddr>)>;
+
+/// Mapping of interface names to their traffic statistics
+///
+/// Format: HashMap<name, (bytes_in, bytes_out, packets_in, packets_out, rx_errors, tx_errors, collisions)>
 type TrafficStatsMap = HashMap<String, (u64, u64, u64, u64, u64, u64, u64)>;

@@ -2,6 +2,10 @@ use darwin_metrics::hardware::iokit::{FanInfo, ThermalInfo};
 use darwin_metrics::utils::safe_dictionary::SafeDictionary;
 use darwin_metrics::Error;
 use std::collections::HashMap;
+use darwin_metrics::{
+    hardware::iokit::ThermalInfo,
+    temperature::types::Fan,
+};
 
 /// Builder for creating ThermalInfo test instances
 pub struct ThermalInfoBuilder {
@@ -62,75 +66,64 @@ impl ThermalInfoBuilder {
     }
 }
 
-/// Builder for creating FanInfo test instances
-pub struct FanInfoBuilder {
-    current_speed: u32,
-    target_speed: u32,
-    min_speed: Option<u32>,
-    max_speed: Option<u32>,
-    index: u32,
+/// Builder for creating Fan test instances
+pub struct FanBuilder {
+    name: String,
     speed_rpm: u32,
-    percentage: f64,
+    min_speed: u32,
+    max_speed: u32,
+    target_speed: u32,
 }
 
-impl FanInfoBuilder {
-    pub fn new() -> Self {
+impl Default for FanBuilder {
+    fn default() -> Self {
         Self {
-            current_speed: 2000,
-            target_speed: 2000,
-            min_speed: Some(1000),
-            max_speed: Some(4000),
-            index: 0,
+            name: "System Fan".to_string(),
             speed_rpm: 2000,
-            percentage: 33.3,
+            min_speed: 1000,
+            max_speed: 4000,
+            target_speed: 2000,
         }
     }
+}
 
-    pub fn with_current_speed(mut self, speed: u32) -> Self {
-        self.current_speed = speed;
+impl FanBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_name(mut self, name: &str) -> Self {
+        self.name = name.to_string();
         self
     }
 
-    pub fn with_target_speed(mut self, speed: u32) -> Self {
-        self.target_speed = speed;
+    pub fn with_speed_rpm(mut self, speed_rpm: u32) -> Self {
+        self.speed_rpm = speed_rpm;
         self
     }
 
-    pub fn with_speed(mut self, speed: u32) -> Self {
-        self.speed_rpm = speed;
-        self.current_speed = speed;
+    pub fn with_min_speed(mut self, min_speed: u32) -> Self {
+        self.min_speed = min_speed;
         self
     }
 
-    pub fn with_min_speed(mut self, min: u32) -> Self {
-        self.min_speed = Some(min);
+    pub fn with_max_speed(mut self, max_speed: u32) -> Self {
+        self.max_speed = max_speed;
         self
     }
 
-    pub fn with_max_speed(mut self, max: u32) -> Self {
-        self.max_speed = Some(max);
+    pub fn with_target_speed(mut self, target_speed: u32) -> Self {
+        self.target_speed = target_speed;
         self
     }
 
-    pub fn with_index(mut self, index: u32) -> Self {
-        self.index = index;
-        self
-    }
-
-    pub fn with_percentage(mut self, percentage: f64) -> Self {
-        self.percentage = percentage;
-        self
-    }
-
-    pub fn build(self) -> FanInfo {
-        FanInfo {
-            current_speed: self.current_speed,
-            target_speed: self.target_speed,
+    pub fn build(self) -> Fan {
+        Fan {
+            name: self.name,
+            speed_rpm: self.speed_rpm,
             min_speed: self.min_speed,
             max_speed: self.max_speed,
-            index: self.index,
-            speed_rpm: self.speed_rpm,
-            percentage: self.percentage,
+            target_speed: self.target_speed,
         }
     }
 } 

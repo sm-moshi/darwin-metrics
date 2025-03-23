@@ -1,6 +1,6 @@
+
 use objc2::rc::Retained;
 use objc2_foundation::{NSDictionary, NSObject, NSString};
-
 use crate::utils::tests::test_utils::TestError;
 
 /// Create a simple test dictionary with string keys and values

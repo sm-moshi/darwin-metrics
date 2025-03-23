@@ -914,3 +914,37 @@ pub async fn get_power_consumption() -> Result<f32> {
     let power = Power::new();
     power.consumption_monitor().total_power().await
 }
+
+/// Monitors battery power consumption
+pub struct BatteryPowerMonitor {
+    /// IOKit interface for hardware monitoring access
+    iokit: Box<dyn IOKit>,
+}
+
+/// Monitors CPU power consumption
+pub struct CpuPowerMonitor {
+    /// IOKit interface for hardware monitoring access
+    iokit: Box<dyn IOKit>,
+}
+
+/// Monitors GPU power consumption
+pub struct GpuPowerMonitor {
+    /// IOKit interface for hardware monitoring access
+    iokit: Box<dyn IOKit>,
+}
+
+/// Monitors system-wide power events and consumption
+pub struct SystemPowerMonitor {
+    /// IOKit interface for hardware monitoring access
+    iokit: Box<dyn IOKit>,
+    /// Time when the system last woke from sleep
+    last_wake_time: SystemTime,
+    /// Count of thermal throttling events detected
+    thermal_events: u32,
+}
+
+/// Factory for creating power monitoring components
+pub struct PowerFactory {
+    /// IOKit interface for hardware monitoring access
+    iokit: Box<dyn IOKit>,
+}

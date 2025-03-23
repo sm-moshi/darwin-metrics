@@ -62,9 +62,11 @@ impl Default for BatteryConfig {
     }
 }
 
-/// Main battery struct for managing battery state
+/// Interface for accessing battery hardware and metrics
 pub struct Battery {
+    /// IOKit interface for hardware communication
     iokit: Arc<dyn IOKit>,
+    /// Battery device identifier
     device_id: String,
     config: BatteryConfig,
 }

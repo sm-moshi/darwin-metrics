@@ -7,63 +7,71 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Unreleased - Added
+### Added
 
-- Enhanced GPU hardware detection with specific Apple Silicon chip identification
-- Added comprehensive GPU characteristics struct with core count, clock speed, and raytracing
-    capability
-- Added example program to demonstrate improved GPU hardware detection
-- Improved memory reporting for different GPU architectures
-- Added tests for GPU hardware detection
+### Fixed
+
+### Changed
+
+## [0.2.0-alpha1] - 2025-03-23
+
+### Added
+
+- Enhanced GPU capabilities:
+  - Improved hardware detection for Apple Silicon chips
+  - Added comprehensive characteristics (core count, clock speed, raytracing)
+  - Added support for multiple GPU configurations
+  - Improved Metal API integration
+  - Added example program and tests for hardware detection
+- New Power module features:
+  - Component-level power consumption tracking
+  - Asynchronous monitoring support with tokio tasks
+  - Stable mock implementation for testing
+  - Added power_monitor.rs and power_monitor_async.rs examples
+- Enhanced network capabilities:
+  - Native API implementation for traffic statistics
+  - 64-bit network counters for high-bandwidth interfaces
+  - Fallback mechanism for macOS compatibility
+  - Added network_monitor.rs example
+- Memory monitoring improvements:
+  - Memory pressure monitoring with configurable thresholds
+  - Virtual memory and swap usage tracking
+  - Page fault tracking and statistics
+  - Memory bandwidth monitoring
 - Enhanced async support throughout codebase
-- Improved Metal API integration for more reliable GPU monitoring
-- Implemented new Power module with component-level power consumption tracking
-- Created stable mock implementation for power monitoring to prevent segmentation faults
-- Added asynchronous power monitoring support with tokio tasks
-- Added new example programs: power_monitor.rs and power_monitor_async.rs
-- Refactored GPU module for better stability on Apple Silicon
-- Enhanced network module with native API implementation for traffic statistics
-- Added network_monitor.rs example to demonstrate native traffic monitoring capabilities
-- Implemented 64-bit network counters to handle high-bandwidth interfaces
-- Added a fallback mechanism to maintain compatibility with all macOS versions
 
-### Unreleased - Fixed
+### Fixed
 
-- Resolved critical segmentation fault in IOKit service acquisition
-- Improved memory safety in IOKit interface implementation
-- Added Default implementation for SMCKeyData_t to improve safety
-- Simplified power module implementation with mock data to ensure stability
-- Fixed network module to use native sysctlbyname API instead of command-line utilities
-- Improved reliability of network traffic statistics with proper error handling
-- Added comprehensive tests for network module native implementation
-- Implemented a dual-approach system for network statistics with automatic fallback
-- Enhanced IOKit service handling to be more robust against segmentation faults
-- Simplified get_service implementation to avoid memory corruption
-- Added new SMC key constants for power monitoring
-- Modified IOKit trait to include read_smc_key method for safer SMC access
-- Refactored network module to use native macOS APIs wherever possible
-- Added SystemConfiguration framework bindings for network interface capabilities
-- Updated network documentation to reflect native implementation approach
-- Implemented a dual-approach system for network statistics with automatic fallback
+- IOKit improvements:
+  - Resolved critical segmentation fault in service acquisition
+  - Enhanced service handling robustness
+  - Improved memory safety in interface implementation
+  - Added Default implementation for SMCKeyData_t
+  - Simplified get_service implementation
+- Network enhancements:
+  - Migrated to native sysctlbyname API
+  - Improved traffic statistics reliability
+  - Added comprehensive tests for native implementation
+  - Implemented dual-approach system with fallback
+- Memory safety:
+  - Improved FFI code safety
+  - Enhanced error handling in monitoring
+  - Improved async monitoring reliability
+- Improved process tree error handling
 
-### Unreleases - Changed
+### Changed
 
-- Enhanced memory management in Objective-C interfaces
-- Improved error handling in IOKit bindings
-- Refactored GPU module for better stability on Apple Silicon
-- Enhanced IOKit service handling to be more robust against segmentation faults
-- Simplified get_service implementation to avoid memory corruption
-- Added new SMC key constants for power monitoring
-- Modified IOKit trait to include read_smc_key method for safer SMC access
-- Refactored network module to use native macOS APIs wherever possible
-- Added SystemConfiguration framework bindings for network interface capabilities
-- Updated network documentation to reflect native implementation approach
-- Implemented a dual-approach system for network statistics with automatic fallback
-- Enhanced GPU hardware detection to handle generic Apple Silicon GPU identifiers
-- Improved code formatting in network monitor example
-- Reorganized imports in GPU static example
-- Enhanced network interface code organization and readability
-- Improved process tree error handling with better error messages
+- Architecture improvements:
+  - Enhanced memory management in Objective-C interfaces and test environments
+  - Improved error handling in IOKit bindings
+  - Modified IOKit trait with safer SMC key access
+  - Refactored network module to use native macOS APIs
+  - Added SystemConfiguration framework bindings
+- Code organization:
+  - Improved code formatting and organization
+  - Reorganized imports and interfaces
+  - Enhanced documentation
+  - Improved metrics collection efficiency
 
 ## [0.1.5] - 2025-03-10
 
@@ -253,50 +261,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Enhanced lib.rs with comprehensive documentation for docs.rs compatibility
 - Improved error handling for FFI functions with explicit error messages
 
-### TODO
+## 0.2.0-alpha1 Pre-Release Checklist
 
-- Memory Management Improvements:
+The following items need attention before the 0.2.0-alpha1 release:
 
-  - Update remaining property utility functions (get_number_property, get_bool_property,
-        get_dict_property)
-  - Ensure consistent use of CoreFoundation vs Objective-C memory management
-  - Add clear documentation about memory ownership in FFI code
-  - Improve drop() implementations to ensure proper cleanup of resources
-  - Implement safe Clone for all IOKit service objects
+### Core Functionality
 
-- GPU Implementation Issues:
+- [ ] Fix remaining Clippy warnings from `cargo clippy --all-targets --all-features --workspace`
+- [ ] Complete documentation for all new features and modules
+- [ ] Ensure comprehensive test coverage for new functionality
+- [ ] Verify all dependencies are up-to-date (especially libc and tokio)
 
-  - Improve GPU hardware detection for various Mac models
-  - Create more comprehensive examples to validate the GPU implementation
-  - Add support for multiple GPU configurations
-  - Add utilization tracking for specialized GPU components (like Media Engines)
+### Memory Safety
 
-- API Implementation Issues:
+- [ ] Review all unsafe blocks for proper documentation and safety guarantees
+- [ ] Ensure consistent memory management in Objective-C and CoreFoundation interfaces
+- [ ] Verify proper cleanup of resources in drop() implementations
 
-  - Complete real implementation of host_statistics64 for CPU core usage monitoring and VM memory
-        statistics
-  - Implement proper frequency detection through sysctlbyname("hw.cpufrequency") calls
-  - Verify AppleACPICPU service compatibility with Objective-C method calls (`numberOfCores`,
-        `numberOfProcessorCores`, etc.)
+### Code Quality
 
-- System Integration Issues:
-
-  - Add support for individual core temperature sensors through additional SMC keys
-  - Fix system module API calls to properly detect M1/M2/M3 chip variants
-  - Add support for additional SMC temperature sensors (battery, SSD, etc.)
-  - Extend fan speed monitoring with RPM conversion for different fan types
-
-- GPU Advanced Metrics (Future):
-
-  - Implement detailed GPU utilization metrics using Metal Performance Shaders
-  - Add support for multiple GPU configurations
-  - Improve GPU memory tracking accuracy with Metal API for dedicated GPUs
-  - Implement Neural Engine usage monitoring for Apple Silicon
-
-- Environment Compatibility:
-  - Ensure compatibility with Fish shell environment and aliases:
-    - Use `rg` instead of `grep` (ripgrep)
-    - Use `fd` instead of `find`
-    - Use `bat` instead of `cat`
-    - Use `eza --tree` instead of `tree`
-    - Note: Some tools are installed in `~/.cargo/bin/` and others in `/opt/homebrew/bin/`
+- [ ] Remove any remaining debug macros (println!, panic!) from production code
+- [ ] Convert TODO comments to GitHub issues where appropriate
+- [ ] Apply DRY principles to repetitive code sections
+- [ ] Ensure code adheres to Rust 2021 idioms

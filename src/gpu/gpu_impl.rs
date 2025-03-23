@@ -11,7 +11,9 @@ use crate::gpu::monitors::{GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTempe
 use crate::gpu::types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, GpuUtilization};
 use crate::traits::HardwareMonitor;
 
-// Path resolution helper
+/// Gets the current process executable path
+///
+/// Used for identifying the current process when accessing GPU resources
 fn get_proc_path() -> PathBuf {
     std::env::current_exe().unwrap_or_else(|_| PathBuf::from(""))
 }
@@ -50,14 +52,15 @@ pub struct GpuMonitors {
     pub utilization: GpuUtilizationMonitor,
 }
 
-/// Represents a GPU device
-#[derive(Debug, Clone)]
-pub struct Gpu {
+/// Represents the GPU module implementation
+pub struct GpuImpl {
+    /// Metal device reference for accessing GPU hardware
     metal_device: Option<MTLDevice>,
+    /// Collection of GPU hardware monitors
     monitors: GpuMonitors,
 }
 
-impl Gpu {
+impl GpuImpl {
     /// Creates a new GPU instance
     pub fn new() -> Result<Self> {
         let metal_device = MTLDevice::system_default();
@@ -142,7 +145,7 @@ impl Gpu {
 }
 
 #[async_trait]
-impl HardwareMonitor for Gpu {
+impl HardwareMonitor for GpuImpl {
     type MetricType = GpuMetrics;
 
     async fn name(&self) -> Result<String> {
@@ -253,8 +256,8 @@ impl GpuMetrics {
 }
 
 // MTLDevice is already managed by the metal crate, so we don't need to manually drop it
-unsafe impl Send for Gpu {}
-unsafe impl Sync for Gpu {}
+unsafe impl Send for GpuImpl {}
+unsafe impl Sync for GpuImpl {}
 
 #[async_trait]
 impl HardwareMonitor for GpuInfo {

@@ -2,14 +2,17 @@
 //!
 //! It includes monitors for disk IO, mount points, storage, utilization, and health.
 
+/// Contains disk-related constants
 mod constants;
+/// Contains disk type definitions
 mod types;
 pub use constants::*;
 pub use types::*;
 
+/// Contains the disk module implementation
 mod disk_impl;
 
-// Consolidated monitors
+/// Contains disk monitoring implementations
 mod monitors;
 pub use monitors::*;
 

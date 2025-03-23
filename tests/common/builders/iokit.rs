@@ -9,6 +9,7 @@ use darwin_metrics::{
     error::{Error, Result},
     hardware::iokit::{FanInfo, GpuStats, IOKit, MockIOKit, ThermalInfo},
     utils::core::dictionary::SafeDictionary,
+    temperature::types::Fan,
 };
 
 /// Builder for creating test IOKit instances
@@ -110,5 +111,37 @@ impl TestIOKitBuilder {
         }
         
         Ok(mock)
+    }
+}
+
+#[derive(Default)]
+pub struct IOKitBuilder {
+    thermal_info: Option<ThermalInfo>,
+    gpu_stats: Option<GpuStats>,
+    fans: Vec<Fan>,
+}
+
+impl IOKitBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_thermal_info(mut self, thermal_info: ThermalInfo) -> Self {
+        self.thermal_info = Some(thermal_info);
+        self
+    }
+
+    pub fn with_gpu_stats(mut self, gpu_stats: GpuStats) -> Self {
+        self.gpu_stats = Some(gpu_stats);
+        self
+    }
+
+    pub fn with_fan(mut self, fan: Fan) -> Self {
+        self.fans.push(fan);
+        self
+    }
+
+    pub fn build(self) -> MockIOKit {
+        MockIOKit::new(self.thermal_info, self.gpu_stats, self.fans)
     }
 } 

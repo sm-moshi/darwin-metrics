@@ -145,50 +145,36 @@ pub mod memory;
 
 // ===== Re-exports =====
 
-// Re-export error types
-// Re-export core types
 pub use core::metrics::Metric;
 pub use core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Transfer};
 
-// Re-export battery module
 pub use battery::Battery;
-// Re-export CPU monitoring types
 pub use cpu::{
     CPU, CpuFrequencyMonitor, CpuTemperatureMonitor, CpuUtilizationMonitor, FrequencyMetrics, FrequencyMonitor,
 };
-// Re-export disk module types
 pub use disk::{Disk, DiskConfig, DiskMount, DiskPerformance, DiskType};
 pub use error::{Error, Result};
-// Re-export GPU monitoring types
 pub use gpu::{Gpu, GpuMemoryMonitor, GpuUtilizationMonitor};
-// Re-export hardware monitoring types
 pub use hardware::iokit::IOKit;
-// Re-export memory monitoring types
 pub use memory::{
     Memory, MemoryInfo, MemoryPressureMonitor, MemoryUsageMonitor, PageStates, PressureLevel, SwapMonitor, SwapUsage,
 };
-// Re-export network monitoring types
 pub use network::{Interface, NetworkInfo, NetworkInterface, NetworkMonitor};
-// Re-export power monitoring types
 pub use power::{PowerInfo, PowerState};
-// Re-export process monitoring types
 pub use process::{Process, ProcessInfo};
-// Re-export resource monitoring types
 pub use resource::{Cache, ResourceManager, ResourceMonitor, ResourceMonitoring, ResourcePool, ResourceUpdate};
 pub use temperature::Temperature as TempMonitor;
 pub use temperature::monitors::{
     AmbientTemperatureMonitor, BatteryTemperatureMonitor, CpuTemperatureMonitor as NewCpuTemperatureMonitor,
-    GpuTemperatureMonitor,
+    GpuTemperatureMonitor, TemperatureMonitorTrait,
 };
 pub use temperature::types::{Fan, ThermalMetrics};
-// Re-export trait types
 pub use traits::{
     ByteMetricsMonitor, CpuMonitor, DiskHealthMonitor, DiskMountMonitor, DiskPerformanceMonitor, GpuMonitor,
     HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor, RateMonitor, StorageMonitor, TemperatureMonitor,
     UtilizationMonitor,
 };
 
-// Also re-export disk-specific traits via prelude
 pub use crate::traits::hardware::{DiskIOMonitor, DiskStorageMonitor, DiskUtilizationMonitor};
 
 // ===== Sync API Helpers =====
@@ -207,9 +193,17 @@ pub async fn init_cpu() -> Result<CPU> {
     Ok(CPU::new(iokit))
 }
 
-/// Creates a new GPU instance.
+/// Create a new GPU instance
+#[cfg(any(test, feature = "testing", feature = "mock"))]
 pub fn new_gpu() -> Result<Gpu> {
-    Gpu::new()
+    let io_kit = crate::hardware::iokit::mock::MockIOKit::new();
+    Ok(Gpu::new(Arc::new(Box::new(io_kit))))
+}
+
+#[cfg(not(any(test, feature = "testing", feature = "mock")))]
+pub fn new_gpu() -> Result<Gpu> {
+    let io_kit = IOKitImpl::new()?;
+    Ok(Gpu::new(Arc::new(Box::new(io_kit))))
 }
 
 /// Creates a new Memory instance.
@@ -217,14 +211,9 @@ pub fn new_memory() -> Result<Memory> {
     Memory::new()
 }
 
-/// Create a new temperature instance
-///
-/// # Returns
-///
-/// * `Result<Temperature>` - A new instance of Temperature
-pub fn new_temperature() -> Result<Temperature> {
-    let iokit = IOKitImpl::new()?;
-    temperature::Temperature::new(Arc::new(iokit))
+/// Create a new Temperature instance.
+pub fn new_temperature() -> Result<temperature::TemperatureFactory> {
+    temperature::TemperatureFactory::new()
 }
 
 /// Initialize a new instance of the darwin metrics temperature module
@@ -278,6 +267,7 @@ pub mod prelude {
     pub use crate::gpu::{Gpu, GpuMemory, GpuUtilization};
     pub use crate::memory::{Memory, MemoryInfo, PageStates, PressureLevel, SwapUsage};
     pub use crate::network::{Interface, NetworkInfo, NetworkInterface};
+    pub use crate::temperature::monitors::TemperatureMonitorTrait;
     // Common monitoring traits
     pub use crate::traits::{
         ByteMetricsMonitor, CpuMonitor, GpuMonitor, HardwareMonitor, MemoryMonitor, NetworkInterfaceMonitor,

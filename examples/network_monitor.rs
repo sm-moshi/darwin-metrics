@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use darwin_metrics::error::Result;
 use darwin_metrics::network::interface::NetworkManager;
-use darwin_metrics::traits::HardwareMonitor;
+use darwin_metrics::traits::{CpuMonitor, HardwareMonitor, MemoryMonitor};
 
 fn main() -> Result<()> {
     println!("Darwin Metrics - Network Monitor Example");

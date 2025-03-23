@@ -23,13 +23,10 @@ use std::sync::Arc;
 use crate::error::Result;
 use crate::hardware::iokit::{IOKit, IOKitImpl};
 
-/// Main system interface for accessing hardware and system metrics
-///
-/// This struct provides access to various system components and metrics
-/// collection capabilities. It serves as the primary entry point for
-/// interacting with the darwin-metrics library.
-#[derive(Debug, Clone)]
+/// Central system information provider
+#[derive(Debug)]
 pub struct System {
+    /// IOKit interface for hardware monitoring access
     io_kit: Arc<Box<dyn IOKit>>,
 }
 

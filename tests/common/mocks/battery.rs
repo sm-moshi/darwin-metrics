@@ -8,6 +8,12 @@ use objc2::runtime::{AnyObject, Class};
 use objc2::{class, msg_send};
 use objc2_foundation::{NSMutableDictionary, NSNumber, NSObject, NSString};
 use std::time::Duration;
+use darwin_metrics::{
+    error::{Error, Result},
+    hardware::iokit::{GpuStats, IOKit, ThermalInfo, ThreadSafeAnyObject},
+    temperature::types::Fan,
+    utils::core::dictionary::SafeDictionary,
+};
 
 #[derive(Debug)]
 pub struct MockIOKit {
@@ -185,5 +191,15 @@ impl IOKit for MockIOKit {
 
     fn clone_box(&self) -> Box<dyn IOKit> {
         Box::new(self.clone())
+    }
+
+    async fn get_fans(&self) -> Result<Vec<Fan>> {
+        Ok(vec![Fan {
+            name: "System Fan".to_string(),
+            speed_rpm: 2000,
+            min_speed: 1000,
+            max_speed: 4000,
+            target_speed: 2000,
+        }])
     }
 } 
