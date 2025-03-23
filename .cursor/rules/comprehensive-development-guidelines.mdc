@@ -1,0 +1,106 @@
+---
+description: Comprehensive Development Guidelines
+globs: 
+alwaysApply: true
+---
+# Comprehensive Development Guidelines
+
+## 🏗️ Code Quality Principles
+
+### Fundamental Standards
+- **Clean and Simple Structure**
+  - Prioritize clarity and simplicity
+  - Refactor regularly to maintain code quality
+
+### Design Principles
+- **SOLID Development Approach**
+  - **KISS**: Keep It Simple, Stupid
+     - Avoid unnecessary complexity
+     - Solve problems with minimal, clear solutions
+  - **DRY**: Don't Repeat Yourself
+     - Modularize code
+     - Eliminate duplication
+  - **YAGNI**: You Aren't Gonna Need It
+     - Build only what's immediately necessary
+     - Avoid speculative complexity
+
+### Code Characteristics
+- **Mandatory Qualities**
+  - Readable and maintainable
+  - Easily testable
+  - Extendable
+  - Reusable
+  - Performance-oriented
+  - Reliable
+
+### Solution Design
+- Consider multiple approaches
+- Maintain consistent implementation
+- Choose the most appropriate solution for the context
+
+## 📄 Documentation Strategy
+
+### Project Documentation
+Maintain a `/docs` directory with:
+- `PROJECT.md`: Project overview and architecture
+- `TODO.md`: Ongoing task tracking
+- `CHANGELOG.md`: Detailed change log
+- `ARCHITECTURE.md`: System design details
+
+### Documentation Principles
+- Document all significant changes
+- Keep documentation up-to-date
+- Provide clear, concise explanations
+- Use markdown for consistency
+
+## 🧪 Testing Framework
+
+### Testing Requirements
+- **Unit Testing**
+  - Mandatory for all new features
+  - 100% coverage for core logic
+  - Use Rust's native testing framework
+
+- **Integration Testing**
+  - Required for:
+    - FFI (Foreign Function Interface) interactions
+    - System API integrations
+    - Complex component interactions
+
+### Testing Tools
+- **Code Coverage**
+  - **CRITICAL**: Use `cargo llvm-cov`
+  - Track and maintain high code coverage
+  - Identify and address untested code paths
+
+### Deployment Criteria
+- All tests must pass before code merge
+- No exceptions to testing requirements
+
+## 🔀 Git Workflow
+
+### Commit Message Format
+```
+[Category]: Brief, descriptive summary
+
+- Detailed change description
+- Additional context if needed
+
+**Example**:
+[Feature]: Add CPU Temperature Monitoring
+
+- Implemented SMC temperature reading
+- Added FFI bridge for Rust integration
+```
+
+### Workflow Guidelines
+- Provide comprehensive commit descriptions
+- Update changelog for major features
+- Maintain clear, informative commit history
+
+## 🚦 Continuous Improvement
+- Regularly review and update guidelines
+- Adapt to emerging best practices
+- Encourage team knowledge sharing
+
+**Note**: These guidelines are living documents. Continuous refinement is expected and encouraged.

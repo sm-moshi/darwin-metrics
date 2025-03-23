@@ -7,16 +7,19 @@
 > **IMPORTANT**: These items MUST be completed before releasing to crates.io
 
 - [x] **Version Consistency**
+
   - [x] Update version in Cargo.toml from "0.0.1" to "0.1.0" to match README
   - [x] Ensure consistent versioning across all documentation
 
 - [x] **Feature Completion**
+
   - [x] Complete the Disk module (marked as "Complete" in CLAUDE.md)
   - [x] Fix memory management issues in GPU module
   - [x] Complete memory analysis module (with tests and async support)
   - [x] Address critical TODOs listed in CHANGELOG.md
 
 - [x] **Documentation**
+
   - [x] Update module documentation to match actual implementations
   - [x] Add comprehensive documentation for the disk module
   - [x] Add comprehensive documentation for the memory module
@@ -24,22 +27,27 @@
   - [x] Verify API examples match actual code behavior
 
 - [x] **Testing Issues**
+
   - [x] Fix disabled GPU tests causing SIGSEGV crashes
   - [x] Resolve memory safety issues in IOKit interfaces
   - [x] Replace simulated data with real hardware access in tests
   - [x] Ensure all modules have basic test coverage
 
 - [x] **CI/CD Setup**
+
   - [x] Create GitHub Actions workflow files
   - [x] Set up proper CI pipeline referenced in README badge
   - [x] Implement automated testing and release process
 
-- [ ] **Critical Bugs**
+- [x] **Critical Bugs**
+
   - [x] Fix memory management issues with IOKit calls
   - [x] Implement real system API calls instead of simulations
-  - [ ] Fix remaining clippy warnings about non-snake case fields (Optional - can be addressed post-release)
+  - [x] Fix remaining clippy warnings about non-snake case fields (Optional - can be addressed
+    post-release)
 
 - [x] **Final Steps**
+
   - [x] Update the changelog for 0.1.0 release
   - [x] Move items from "Unreleased" to the proper version
   - [x] Set up crates.io metadata and verify package information
@@ -56,7 +64,7 @@
 
 ---
 
-## **Phase 1: Codebase Refactoring & Cleanup (0.1.0) - In Progress**
+## **Phase 1: Codebase Refactoring & Cleanup (0.1.0) - COMPLETED**
 
 **Goal:** Improve structure, maintainability, and performance before implementing new features.
 
@@ -65,7 +73,8 @@
 - [x] **Process Monitoring**
 
   - [x] Improve modularity by separating concerns into dedicated functions and modules.
-  - [x] Refactor function and variable names to follow Rust conventions (`snake_case` for functions, `PascalCase` for structs).
+  - [x] Refactor function and variable names to follow Rust conventions (`snake_case` for functions,
+            `PascalCase` for structs).
   - [x] Implement async-friendly architecture where necessary, ensuring minimal blocking operations.
   - [x] Enhance process I/O tracking by gathering read/write statistics.
   - [x] Add structured error handling for process-related failures.
@@ -91,7 +100,8 @@
   - [x] Implemented CoreFoundation approach for basic GPU metrics.
   - [x] Added GPU utilization and VRAM usage tracking.
   - [x] Integrated with IOKit to access GPU performance information.
-  - [x] Fixed memory safety issues during test teardown (SIGSEGV) by making IOKitImpl properly cloneable.
+  - [x] Fixed memory safety issues during test teardown (SIGSEGV) by making IOKitImpl properly
+            cloneable.
   - [x] Improved cleanup of IOKit resources with autoreleasepools.
   - [x] Created real-world examples to validate the implementation.
   - [x] Enhanced tests to be more resilient in different environments.
@@ -127,11 +137,91 @@
   - [x] Ensured existing tests pass after refactoring, updating them where necessary.
   - [x] Moved all Metal, statfs, and process-related FFI bindings to centralized location.
 
+### GPU Implementation Issues
+
+- [x] Improve GPU hardware detection for various Mac models
+- [x] Create more comprehensive examples to validate the GPU implementation
+- [x] Add support for multiple GPU configurations
+- [ ] Add utilization tracking for specialized GPU components (like Media Engines)
+
 ---
 
-## **Phase 2: Enhanced System Metrics (0.2.0) - Planned**
+## **Phase 2: Enhanced System Metrics (0.2.0) - ONGOING**
 
 **Goal:** Expand monitoring capabilities with additional system metrics.
+
+### **HIGH PRIORITY: Pre-Release Checklist for 0.2.0-alpha1**
+
+> **IMPORTANT**: These items MUST be completed before releasing 0.2.0-alpha1 to crates.io
+
+- [ ] **Code Quality**
+  - [ ] Run and fix all issues from `cargo clippy --all-targets --all-features --workspace`
+  - [ ] Focus on memory safety warnings in FFI code first
+  - [ ] Document the reasoning behind any suppressed warnings
+  - [ ] Use bindgen for generating Rust bindings with appropriate allow attributes
+
+- [ ] **Code Cleanup**
+  - [ ] Remove dead and unused code, especially in modules with recent changes
+  - [ ] Clean up debug macros (println!, panic!) that shouldn't be in production code
+  - [ ] Convert todo!() macros to GitHub issues or TODO.md entries
+  - [ ] Review and document all unsafe blocks
+  - [ ] Follow DRY principle by extracting repeated code into reusable functions
+
+- [ ] **Documentation Enhancement**
+  - [ ] Update README.md with clear usage examples for all modules
+  - [ ] Document all public items with rustdoc, focusing on the 'why' not just 'what'
+  - [ ] Add module-level documentation for new modules
+  - [ ] Create or update CHANGELOG.md with 0.2.0-alpha1 changes
+  - [ ] Review and document any remaining undocumented public APIs
+
+- [ ] **Testing Verification**
+  - [ ] Review and enable any ignored tests
+  - [ ] Ensure 100% test pass rate with 0 warnings
+  - [ ] Add tests for new functionality
+  - [ ] Test FFI boundaries thoroughly
+  - [ ] Verify test coverage for critical components
+  - [ ] Prioritize memory safety and concurrency tests
+
+- [ ] **Memory Module Testing**
+  - [ ] Add comprehensive tests for memory/monitors.rs (currently 0% coverage)
+  - [ ] Improve test coverage for memory/types.rs (currently 80.65% line coverage)
+  - [ ] Add integration tests for memory monitoring functionality
+  - [ ] Test async memory monitoring functions
+  - [ ] Add stress tests for memory monitoring under load
+  - [ ] Test error handling and edge cases
+  - [ ] Verify memory safety in FFI code
+  - [ ] Add benchmarks for memory monitoring performance
+
+- [ ] **Memory Module Documentation**
+  - [ ] Add comprehensive documentation for memory/monitors.rs
+  - [ ] Document memory monitoring traits and implementations
+  - [ ] Add usage examples for memory monitoring
+  - [ ] Document async memory monitoring capabilities
+  - [ ] Add performance considerations and best practices
+  - [ ] Document error handling and recovery strategies
+
+- [ ] **Memory Module Features**
+  - [ ] Implement virtual memory monitoring
+  - [ ] Add swap memory tracking
+  - [ ] Implement memory pressure monitoring
+  - [ ] Add memory compression statistics
+  - [ ] Implement memory page fault tracking
+  - [ ] Add memory bandwidth monitoring
+  - [ ] Implement memory thermal monitoring
+  - [ ] Add memory power consumption tracking
+
+- [ ] **Dependency Management**
+  - [ ] Review and update dependencies:
+    - [ ] Update libc from 0.2.167/0.2.168 to latest
+    - [ ] Review and update async-trait if needed
+    - [ ] Check and update tokio dependencies
+    - [ ] Ensure all dependencies have appropriate version constraints
+
+- [ ] **Publication Steps**
+  - [ ] Update version to 0.2.0-alpha1 in Cargo.toml
+  - [ ] Create git tag v0.2.0-alpha1
+  - [ ] Run cargo package to verify package builds correctly
+  - [ ] Use cargo publish --dry-run before actual publication
 
 ### **New Features**
 
@@ -149,23 +239,23 @@
   - [x] Add detailed GPU characteristics (core count, clock speed, architecture)
   - [x] Create comprehensive example program for GPU hardware information
   - [x] Add tests for GPU hardware detection (currently 64.66% coverage)
-  - [ ] Investigate IOGraphicsLib.h for better GPU metrics access (<https://developer.apple.com/documentation/iokit/iographicslib_h> for reference)
-  - [ ] Add support for multiple GPUs (planned post-1.0.0)
+  - [ ] Investigate IOGraphicsLib.h for better GPU metrics access
+            (<https://developer.apple.com/documentation/iokit/iographicslib_h> for reference)
+  - [x] Add support for multiple GPUs
 
-- [~] **Advanced Process Monitoring**
+- [x] **Advanced Process Monitoring**
 
   - [x] Implement parent-child process hierarchy tracking for improved system visibility.
   - [x] Add per-process thread monitoring to gather insights on concurrency behavior.
   - [x] Improve resource usage tracking with additional data on CPU/memory consumption.
-  - [ ] Add environment variable retrieval for processes.
-  - [ ] Add command-line arguments retrieval for processes.
 
-- [~] **Disk & Storage Monitoring**
+- [x] **Disk & Storage Monitoring**
 
   - [x] Track I/O performance by measuring read/write speeds for individual drives.
   - [x] Monitor volume usage, including available/free space calculations.
   - [x] Implement tracking for mounted disk devices and storage partitions.
-  - [ ] Improve test coverage (currently 59.29%)
+  - [x] Fix linter error in disk/monitors.rs related to trace macro
+  - [~] Improve test coverage (currently 59.29%)
 
 - [~] **Network Enhancements**
 
@@ -173,16 +263,58 @@
   - [x] Add connection state tracking to detect when network interfaces go up or down.
   - [x] Add async versions of network monitoring functions
   - [x] Implement NetworkManager::update_async() using tokio::spawn_blocking for I/O
-  - [ ] Add DNS resolution capabilities for hostnames and IP addresses.
-  - [ ] Implement per-application network usage tracking (future enhancement).
+  - [x] Replace netstat with native sysctlbyname implementation
+  - [x] Add 64-bit counter support for high-bandwidth interfaces
+  - [x] Implement automatic fallback mechanism for reliability
+  - [~] Create comprehensive documentation for native implementation
+  - [ ] Implement connection-level monitoring with TCP/UDP connection tracking
+  - [ ] Add DNS resolution capabilities for hostnames and IP addresses
+  - [ ] Implement per-application network usage tracking using Network.framework
+  - [ ] Add event-driven hooks for network state changes
   - [ ] Improve test coverage for network/interface (currently 21.46%)
   - [ ] Improve test coverage for network/traffic (currently 52.63%)
 
 - [~] **Testing & Stability**
   - [x] Add tests for power module with mock implementation (96.98% coverage)
+  - [x] Fix visibility warning for CpuInfo type (more private than retrieve_cpu_info)
   - [~] Improve coverage for hardware/iokit module (currently 16.67%)
-  - [ ] Expand test coverage for other system metrics, ensuring accuracy in collected data.
-  - [~] Improve async testing to validate non-blocking behavior.
+  - [ ] Add tests for utils modules:
+    - [ ] utils/property_utils.rs (0% coverage)
+      - [ ] Add tests for NSString handling
+      - [ ] Add tests for property access methods
+      - [ ] Add tests for error conditions
+      - [ ] Add tests for thread safety
+    - [ ] utils/test_utils.rs (0% coverage)
+    - [ ] utils/bindings.rs (90.70% coverage)
+    - [~] utils/mod.rs (68.71% coverage)
+  - [~] Improve async testing to validate non-blocking behavior
+  - [ ] Add integration tests for property access patterns
+  - [ ] Add stress tests for concurrent property access
+
+### **Critical Coverage Areas Needing Attention**
+
+Based on latest test results:
+
+- [ ] battery/monitors.rs (0% coverage)
+- [ ] battery/types.rs (0% coverage)
+- [ ] core/metrics/* modules (0% coverage)
+- [ ] cpu/cpu_impl.rs (0% coverage)
+- [ ] disk/monitors.rs (0% coverage)
+- [ ] gpu/gpu_impl.rs (0.63% coverage)
+- [ ] memory/monitors.rs (0% coverage)
+- [ ] network/interface.rs (0% coverage)
+- [ ] network/traffic.rs (0% coverage)
+- [ ] process/mod.rs (0% coverage)
+- [ ] temperature/monitors.rs (0% coverage)
+
+### **Well-Covered Modules (>70%)**
+
+- [~] error.rs (66.07% line coverage, 67.86% function coverage)
+- [~] lib.rs (78.38% line coverage, 77.78% function coverage)
+- [~] memory/types.rs (80.65% line coverage, 66.67% function coverage)
+- [~] network/mod.rs (100% coverage)
+- [~] resource/mod.rs (73.58% line coverage, 57.78% function coverage)
+- [~] utils/ffi/bindings.rs (80% line coverage, 76.92% function coverage)
 
 ---
 
@@ -213,9 +345,9 @@
     - [ ] Add tests for battery module (currently 0% coverage)
     - [x] Add tests for power module (currently 96.98% coverage)
     - [x] Add tests for system module (currently 90.70% coverage)
-    - [ ] Add tests for utils modules:
-      - [ ] utils/property_utils.rs (0% coverage)
-      - [ ] utils/test_utils.rs (0% coverage)
+    - [~] Add tests for utils modules:
+      - [~] utils/property_utils.rs (0% coverage)
+      - [~] utils/test_utils.rs (0% coverage)
       - [ ] utils/bindings.rs (28% coverage)
       - [~] utils/mod.rs (68.71% coverage)
     - [~] Improve coverage for hardware/iokit (currently 16.67% coverage)
@@ -242,12 +374,12 @@
 - [ ] **Ensure CPU and memory modules are feature-complete**
 - [x] **Full Documentation & Examples**
 
-  - [x] Complete API documentation for all modules.
-  - [x] Provide real-world usage examples for developers.
-  - [x] Improve README with installation and usage instructions.
+  - [~] Complete API documentation for all modules.
+  - [~] Provide real-world usage examples for developers.
+  - [~] Improve README with installation and usage instructions.
   - [x] Set up mdBook structure for comprehensive documentation
-  - [x] Create module documentation with examples
-  - [x] Document internal architecture and contributing guidelines
+  - [~] Create module documentation with examples
+  - [~] Document internal architecture and contributing guidelines
 
 - [ ] **Comprehensive Test Coverage**
 
@@ -266,6 +398,22 @@
 - [ ] **Release on Crates.io**
   - [ ] Finalize release notes and versioning.
   - [ ] Publish `darwin-metrics` to `crates.io` for public use.
+
+---
+
+## **Dependencies & Maintenance**
+
+Based on the latest dependency updates observed in similar projects:
+
+- [ ] **Update Core Dependencies**
+  - [ ] libc (current: ~0.2.167/168, target: 0.2.168+)
+  - [ ] tokio (verify using latest version)
+  - [ ] async-trait (check for compatibility with recent Rust updates)
+
+- [ ] **Development Dependencies**
+  - [ ] Update testing frameworks
+  - [ ] Update code coverage tools
+  - [ ] Consider adding Rust 2021 edition support if not already done
 
 ---
 

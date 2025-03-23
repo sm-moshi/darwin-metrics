@@ -6,28 +6,86 @@ This document explains the internal architecture and organization of the `darwin
 
 The darwin-metrics library follows a domain-driven design approach, organizing code around system resources:
 
-```text
-src/
-  battery/           # Battery monitoring
-  disk/              # Storage monitoring
-  error.rs           # Centralized error handling
-  hardware/          # Hardware-related metrics
-    cpu/             # CPU monitoring (usage, frequency)
-    gpu/             # GPU monitoring (usage, memory)
-    iokit/           # IOKit bindings and abstractions
-    memory/          # RAM and swap monitoring
-    temperature/     # Temperature sensors
-  lib.rs             # Public API and re-exports
-  network/           # Network interface monitoring
-  power/             # Power management
-  process/           # Process monitoring
-  resource/          # Resource management
-  system/            # System-wide information
-  temperature/       # Global temperature monitoring
-  utils/             # Shared utilities
-    bindings.rs      # Centralized FFI bindings
-    property_utils.rs # Property list utilities
-    test_utils.rs    # Testing helpers
+```
+darwin-metrics/
+├── Cargo.lock
+├── Cargo.toml                     # Crate configuration
+├── LICENSE
+├── NOTICE
+├── README.md                      # Project overview
+├── build.rs                       # Native code build script
+├── changelog-configuration.json   # Release configuration
+├── clippy.toml                    # Linting configuration
+├── coverage/                      # Code coverage reports
+├── docs/                          # Documentation
+│   ├── CHANGELOG.md               # Release history
+│   ├── CHECKLIST.md               # Release checklist
+│   ├── ROADMAP.md                 # Development roadmap
+│   ├── RUST_API_CHECKLIST.md      # API design guidelines
+│   ├── TODO.md                    # Development tasks
+│   ├── book.toml                  # mdBook configuration
+│   ├── book/                      # Generated documentation
+│   ├── custom.css                 # Documentation styling
+│   └── src/                       # Documentation source
+│       ├── SUMMARY.md             # Documentation index
+│       ├── advanced/              # Advanced topics
+│       ├── development/           # Developer guides
+│       ├── getting-started.md     # Quickstart guide
+│       ├── introduction.md        # Project introduction
+│       └── modules/               # Module documentation
+├── examples/                      # Example applications
+│   ├── disk_monitor.rs            # Disk monitoring example
+│   ├── gpu_monitor_safe.rs        # Safe GPU monitoring
+│   ├── gpu_monitor_simplified.rs  # Simplified GPU example
+│   ├── gpu_static.rs              # Static GPU info example
+│   ├── memory_monitor.rs          # Memory monitoring
+│   ├── memory_monitor_async.rs    # Async memory monitoring
+│   ├── network_async.rs           # Async network monitoring
+│   └── network_info.rs            # Network info example
+├── src/                           # Main source code
+│   ├── battery/                   # Battery monitoring
+│   │   └── mod.rs                 # Battery module implementation
+│   ├── disk/                      # Disk monitoring
+│   │   └── mod.rs                 # Disk module implementation
+│   ├── docs_rs_stubs.rs           # Support for docs.rs
+│   ├── error.rs                   # Error handling
+│   ├── hardware/                  # Hardware-related modules
+│   │   ├── cpu/                   # CPU metrics
+│   │   │   ├── cpu_impl.rs        # CPU implementation
+│   │   │   ├── frequency.rs       # CPU frequency tracking
+│   │   │   └── mod.rs             # CPU module definition
+│   │   ├── gpu/                   # GPU metrics
+│   │   │   └── mod.rs             # GPU implementation
+│   │   ├── iokit/                 # IOKit interface
+│   │   │   ├── mock.rs            # Mock implementation for testing
+│   │   │   ├── mod.rs             # Main implementation
+│   │   │   └── tests.rs           # Tests for IOKit
+│   │   ├── memory/                # Memory metrics
+│   │   │   └── mod.rs             # Memory implementation
+│   │   ├── mod.rs                 # Hardware module exports
+│   │   └── temperature/           # Temperature sensors
+│   │       └── mod.rs             # Temperature implementation
+│   ├── lib.rs                     # Library entry point
+│   ├── network/                   # Network monitoring
+│   │   ├── interface.rs           # Network interfaces
+│   │   ├── mod.rs                 # Network module exports
+│   │   └── traffic.rs             # Network traffic
+│   ├── power/                     # Power management
+│   │   └── mod.rs                 # Power implementation
+│   ├── process/                   # Process monitoring
+│   │   └── mod.rs                 # Process implementation
+│   ├── resource/                  # Resource monitoring
+│   │   └── mod.rs                 # Resource implementation
+│   ├── system/                    # System information
+│   │   └── mod.rs                 # System implementation
+│   └── utils/                     # Utility functions
+│       ├── bindings.rs            # FFI bindings
+│       ├── mod.rs                 # Utilities exports
+│       ├── property_utils.rs      # Property access utilities
+│       ├── property_utils_tests.rs # Tests for property utils
+│       └── test_utils.rs          # Testing utilities
+└── tests/                         # Integration tests
+    └── version-sync.rs            # Version consistency tests
 ```
 
 ## Core Design Principles

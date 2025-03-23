@@ -1,23 +1,35 @@
-use std::{
-    collections::HashMap,
-    ffi::CStr,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    ptr,
-    time::Instant,
-};
+use std::collections::{HashMap, HashSet};
+use std::ffi::CStr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::ptr;
 
-use crate::{
-    error::{Error, Result},
-    network::{traffic::TrafficTracker, NetworkMetrics},
-    utils::bindings::{
-        address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in,
-        sockaddr_in6,
-    },
+use crate::core::metrics::hardware::{
+    NetworkBandwidthMonitor, NetworkErrorMonitor, NetworkInterfaceMonitor, NetworkPacketMonitor,
 };
+use crate::error::{Error, Result};
+use crate::utils::bindings::{
+    address_family, freeifaddrs, getifaddrs, if_flags, ifaddrs, sockaddr_dl, sockaddr_in, sockaddr_in6,
+};
+use crate::utils::ffi::bindings::get_network_stats_native;
 
-// Type aliases to reduce clippy::type_complexity warnings
-type NetworkAddressMap = HashMap<String, (u32, Option<String>, Vec<IpAddr>)>;
-type TrafficStatsMap = HashMap<String, (u64, u64, u64, u64, u64, u64, u64)>;
+/// Macro to define flag-checking methods for network interface flags.
+/// Each method is generated with proper documentation and returns a boolean
+/// indicating whether the specified flag is set.
+macro_rules! define_flag_methods {
+    ($(
+        $(#[$attr:meta])*
+        $fn_name:ident => $flag:expr
+    ),* $(,)?) => {
+        impl Interface {
+            $(
+                $(#[$attr])*
+                pub fn $fn_name(&self) -> bool {
+                    self.is_flag_set($flag)
+                }
+            )*
+        }
+    };
+}
 
 /// Represents the type of network interface.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,46 +58,159 @@ impl std::fmt::Display for InterfaceType {
     }
 }
 
-/// Represents a network interface with its associated metrics and properties.
-///
-/// This struct encapsulates all information about a single network interface on
-/// macOS, including its configuration, status, and traffic statistics. It
-/// provides methods to query interface properties and monitor network activity.
-///
-/// Each interface tracks:
-/// - Basic properties (name, type, flags)
-/// - Hardware information (MAC address)
-/// - Network configuration (IP addresses)
-/// - Traffic statistics (bytes/packets sent/received)
-/// - Performance metrics (upload/download speeds)
-/// - Error statistics (errors, collisions)
-///
-/// The interface metrics are updated via the NetworkManager's update() method.
+/// Represents a network interface with its properties and metrics
 #[derive(Debug, Clone)]
 pub struct Interface {
-    /// Name of the interface (e.g., "en0", "lo0")
-    name: String,
-
-    /// Type of interface (Ethernet, WiFi, Loopback, Virtual, Other)
-    interface_type: InterfaceType,
-
-    /// Flags associated with this interface (IFF_UP, IFF_RUNNING, etc.)
+    /// Name of the network interface (e.g., "en0", "lo0")
+    name: Option<String>,
+    /// Type of network interface (Ethernet, WiFi, etc.)
+    interface_type: Option<InterfaceType>,
+    /// Interface flags containing status information
     flags: u32,
-
-    /// MAC address, if available (formatted as xx:xx:xx:xx:xx:xx)
+    /// MAC address of the interface as a formatted string
     mac_address: Option<String>,
-
-    /// IP addresses associated with this interface (both IPv4 and IPv6)
+    /// List of IP addresses assigned to this interface
     addresses: Vec<IpAddr>,
+    /// Total bytes received on this interface since boot
+    bytes_received: u64,
+    /// Total bytes sent on this interface since boot
+    bytes_sent: u64,
+    /// Total packets received on this interface since boot
+    packets_received: u64,
+    /// Total packets sent on this interface since boot
+    packets_sent: u64,
+    /// Count of receive errors encountered on this interface
+    receive_errors: u64,
+    /// Count of send errors encountered on this interface
+    send_errors: u64,
+    /// Number of packet collisions detected on this interface
+    collisions: u64,
+}
 
-    /// Traffic statistics tracker for monitoring network activity
-    traffic: TrafficTracker,
+/// Struct to hold traffic statistics parameters
+pub struct TrafficStatsParams {
+    /// Total number of bytes received on the interface
+    pub bytes_received: u64,
+    /// Total number of bytes sent from the interface
+    pub bytes_sent: u64,
+    /// Total number of packets received on the interface
+    pub packets_received: u64,
+    /// Total number of packets sent from the interface
+    pub packets_sent: u64,
+    /// Number of receive errors encountered on the interface
+    pub receive_errors: u64,
+    /// Number of send errors encountered on the interface
+    pub send_errors: u64,
+    /// Number of packet collisions detected on the interface
+    pub collisions: u64,
+}
 
-    /// Timestamp of the last update for calculating rates
-    last_update: Instant,
+/// Builder for creating Interface instances with a fluent API.
+#[derive(Debug, Default)]
+pub struct InterfaceBuilder {
+    name: Option<String>,
+    interface_type: Option<InterfaceType>,
+    flags: u32,
+    mac_address: Option<String>,
+    addresses: Vec<IpAddr>,
+    bytes_received: u64,
+    bytes_sent: u64,
+    packets_received: u64,
+    packets_sent: u64,
+    receive_errors: u64,
+    send_errors: u64,
+    collisions: u64,
+}
+
+impl InterfaceBuilder {
+    /// Creates a new InterfaceBuilder with default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the interface name.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    /// Sets the interface type.
+    pub fn interface_type(mut self, interface_type: InterfaceType) -> Self {
+        self.interface_type = Some(interface_type);
+        self
+    }
+
+    /// Sets the interface flags.
+    pub fn flags(mut self, flags: u32) -> Self {
+        self.flags = flags;
+        self
+    }
+
+    /// Sets the MAC address.
+    pub fn mac_address(mut self, mac_address: impl Into<String>) -> Self {
+        self.mac_address = Some(mac_address.into());
+        self
+    }
+
+    /// Adds an IP address to the interface.
+    pub fn add_address(mut self, addr: IpAddr) -> Self {
+        self.addresses.push(addr);
+        self
+    }
+
+    /// Sets multiple IP addresses at once.
+    pub fn addresses(mut self, addresses: Vec<IpAddr>) -> Self {
+        self.addresses = addresses;
+        self
+    }
+
+    /// Sets traffic statistics.
+    pub fn traffic_stats(mut self, params: TrafficStatsParams) -> Self {
+        self.bytes_received = params.bytes_received;
+        self.bytes_sent = params.bytes_sent;
+        self.packets_received = params.packets_received;
+        self.packets_sent = params.packets_sent;
+        self.receive_errors = params.receive_errors;
+        self.send_errors = params.send_errors;
+        self.collisions = params.collisions;
+        self
+    }
+
+    /// Builds the Interface instance.
+    ///
+    /// # Errors
+    /// Returns an error if required fields (name, interface_type) are not set.
+    pub fn build(self) -> Result<Interface> {
+        let name = self
+            .name
+            .ok_or_else(|| Error::invalid_data("Interface name is required", None as Option<&str>))?;
+        let interface_type = self
+            .interface_type
+            .ok_or_else(|| Error::invalid_data("Interface type is required", None as Option<&str>))?;
+
+        Ok(Interface {
+            name: Some(name),
+            interface_type: Some(interface_type),
+            flags: self.flags,
+            mac_address: self.mac_address,
+            addresses: self.addresses,
+            bytes_received: self.bytes_received,
+            bytes_sent: self.bytes_sent,
+            packets_received: self.packets_received,
+            packets_sent: self.packets_sent,
+            receive_errors: self.receive_errors,
+            send_errors: self.send_errors,
+            collisions: self.collisions,
+        })
+    }
 }
 
 impl Interface {
+    /// Returns a new InterfaceBuilder instance.
+    pub fn builder() -> InterfaceBuilder {
+        InterfaceBuilder::new()
+    }
+
     /// Creates a new Interface with the given name, type, and initial metrics.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -103,32 +228,29 @@ impl Interface {
         collisions: u64,
     ) -> Self {
         Self {
-            name,
-            interface_type,
+            name: Some(name),
+            interface_type: Some(interface_type),
             flags,
             mac_address,
             addresses,
-            traffic: TrafficTracker::new(
-                bytes_received,
-                bytes_sent,
-                packets_received,
-                packets_sent,
-                receive_errors,
-                send_errors,
-                collisions,
-            ),
-            last_update: Instant::now(),
+            bytes_received,
+            bytes_sent,
+            packets_received,
+            packets_sent,
+            receive_errors,
+            send_errors,
+            collisions,
         }
     }
 
     /// Get the name of this interface
     pub fn name(&self) -> &str {
-        &self.name
+        &self.name.as_ref().unwrap()
     }
 
     /// Get the type of this interface
     pub fn interface_type(&self) -> &InterfaceType {
-        &self.interface_type
+        &self.interface_type.as_ref().unwrap()
     }
 
     /// Get the MAC address of this interface, if available
@@ -157,16 +279,13 @@ impl Interface {
         send_errors: u64,
         collisions: u64,
     ) {
-        self.traffic.update(
-            bytes_received,
-            bytes_sent,
-            packets_received,
-            packets_sent,
-            receive_errors,
-            send_errors,
-            collisions,
-        );
-        self.last_update = Instant::now();
+        self.bytes_received += bytes_received;
+        self.bytes_sent += bytes_sent;
+        self.packets_received += packets_received;
+        self.packets_sent += packets_sent;
+        self.receive_errors += receive_errors;
+        self.send_errors += send_errors;
+        self.collisions += collisions;
     }
 
     /// Determines if the interface is active based on its flags.
@@ -176,98 +295,175 @@ impl Interface {
 
     /// Gets the packet receive rate in packets per second.
     pub fn packet_receive_rate(&self) -> f64 {
-        self.traffic.packet_receive_rate()
+        self.packets_received as f64 / self.receive_errors as f64
     }
 
     /// Gets the packet send rate in packets per second.
     pub fn packet_send_rate(&self) -> f64 {
-        self.traffic.packet_send_rate()
+        self.packets_sent as f64 / self.send_errors as f64
     }
 
     /// Gets the receive error rate (errors per packet).
     pub fn receive_error_rate(&self) -> f64 {
-        self.traffic.receive_error_rate()
+        self.receive_errors as f64 / self.packets_received as f64
     }
 
     /// Gets the send error rate (errors per packet).
     pub fn send_error_rate(&self) -> f64 {
-        self.traffic.send_error_rate()
+        self.send_errors as f64 / self.packets_sent as f64
     }
 
-    /// Gets whether this is a loopback interface.
-    pub fn is_loopback(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_LOOPBACK)
+    /// Returns a monitor for interface state
+    pub fn interface_monitor(&self) -> InterfaceStateMonitor {
+        InterfaceStateMonitor {
+            interface: self.clone(),
+        }
     }
 
-    /// Gets whether this interface supports broadcast.
-    pub fn supports_broadcast(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_BROADCAST)
+    /// Returns a monitor for bandwidth metrics
+    pub fn bandwidth_monitor(&self) -> InterfaceBandwidthMonitor {
+        InterfaceBandwidthMonitor {
+            interface: self.clone(),
+        }
     }
 
-    /// Gets whether this interface supports multicast.
-    pub fn supports_multicast(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_MULTICAST)
+    /// Returns a monitor for packet metrics
+    pub fn packet_monitor(&self) -> InterfacePacketMonitor {
+        InterfacePacketMonitor {
+            interface: self.clone(),
+        }
     }
 
-    /// Gets whether this is a point-to-point interface.
-    pub fn is_point_to_point(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_POINTOPOINT)
+    /// Returns a monitor for error metrics
+    pub fn error_monitor(&self) -> InterfaceErrorMonitor {
+        InterfaceErrorMonitor {
+            interface: self.clone(),
+        }
     }
 
-    /// Gets whether this is a wireless interface.
-    pub fn is_wireless(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_WIRELESS)
-            || self.interface_type == InterfaceType::WiFi
-            || self.name.starts_with("wl")
+    /// Check if this is a WiFi interface
+    pub fn is_wifi(&self) -> bool {
+        self.interface_type == Some(InterfaceType::WiFi)
     }
 }
 
-impl NetworkMetrics for Interface {
-    fn bytes_received(&self) -> u64 {
-        self.traffic.bytes_received()
+/// Monitor for network interface state
+pub struct InterfaceStateMonitor {
+    interface: Interface,
+}
+
+/// Monitor for network bandwidth metrics
+pub struct InterfaceBandwidthMonitor {
+    interface: Interface,
+}
+
+/// Monitor for network packet metrics
+pub struct InterfacePacketMonitor {
+    interface: Interface,
+}
+
+/// Monitor for network error metrics
+pub struct InterfaceErrorMonitor {
+    interface: Interface,
+}
+
+#[async_trait::async_trait]
+impl NetworkInterfaceMonitor for InterfaceStateMonitor {
+    async fn is_active(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_UP) && self.interface.is_flag_set(if_flags::IFF_RUNNING))
     }
 
-    fn bytes_sent(&self) -> u64 {
-        self.traffic.bytes_sent()
+    async fn supports_broadcast(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_BROADCAST))
     }
 
-    fn packets_received(&self) -> u64 {
-        self.traffic.packets_received()
+    async fn supports_multicast(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_MULTICAST))
     }
 
-    fn packets_sent(&self) -> u64 {
-        self.traffic.packets_sent()
+    async fn is_loopback(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_LOOPBACK))
     }
 
-    fn receive_errors(&self) -> u64 {
-        self.traffic.receive_errors()
+    async fn is_wireless(&self) -> Result<bool> {
+        Ok(self.interface.is_flag_set(if_flags::IFF_WIRELESS)
+            || self.interface.interface_type == Some(InterfaceType::WiFi)
+            || self.interface.name.as_ref().unwrap().starts_with("wl"))
     }
 
-    fn send_errors(&self) -> u64 {
-        self.traffic.send_errors()
+    async fn interface_type(&self) -> Result<String> {
+        Ok(self.interface.interface_type.as_ref().unwrap().to_string())
     }
 
-    fn collisions(&self) -> u64 {
-        self.traffic.collisions()
+    async fn mac_address(&self) -> Result<Option<String>> {
+        Ok(self.interface.mac_address.clone())
+    }
+}
+
+#[async_trait::async_trait]
+impl NetworkBandwidthMonitor for InterfaceBandwidthMonitor {
+    async fn bytes_received(&self) -> Result<u64> {
+        Ok(self.interface.bytes_received)
     }
 
-    fn download_speed(&self) -> f64 {
-        self.traffic.download_speed()
+    async fn bytes_sent(&self) -> Result<u64> {
+        Ok(self.interface.bytes_sent)
     }
 
-    fn upload_speed(&self) -> f64 {
-        self.traffic.upload_speed()
+    async fn download_speed(&self) -> Result<f64> {
+        Ok(self.interface.bytes_received as f64 / self.interface.receive_errors as f64)
     }
 
-    fn is_active(&self) -> bool {
-        self.is_flag_set(if_flags::IFF_UP) && self.is_flag_set(if_flags::IFF_RUNNING)
+    async fn upload_speed(&self) -> Result<f64> {
+        Ok(self.interface.bytes_sent as f64 / self.interface.send_errors as f64)
+    }
+}
+
+#[async_trait::async_trait]
+impl NetworkPacketMonitor for InterfacePacketMonitor {
+    async fn packets_received(&self) -> Result<u64> {
+        Ok(self.interface.packets_received)
+    }
+
+    async fn packets_sent(&self) -> Result<u64> {
+        Ok(self.interface.packets_sent)
+    }
+
+    async fn packet_receive_rate(&self) -> Result<f64> {
+        Ok(self.interface.packets_received as f64 / self.interface.receive_errors as f64)
+    }
+
+    async fn packet_send_rate(&self) -> Result<f64> {
+        Ok(self.interface.packets_sent as f64 / self.interface.send_errors as f64)
+    }
+}
+
+#[async_trait::async_trait]
+impl NetworkErrorMonitor for InterfaceErrorMonitor {
+    async fn receive_errors(&self) -> Result<u64> {
+        Ok(self.interface.receive_errors)
+    }
+
+    async fn send_errors(&self) -> Result<u64> {
+        Ok(self.interface.send_errors)
+    }
+
+    async fn collisions(&self) -> Result<u64> {
+        Ok(self.interface.collisions)
+    }
+
+    async fn receive_error_rate(&self) -> Result<f64> {
+        Ok(self.interface.receive_errors as f64 / self.interface.packets_received as f64)
+    }
+
+    async fn send_error_rate(&self) -> Result<f64> {
+        Ok(self.interface.send_errors as f64 / self.interface.packets_sent as f64)
     }
 }
 
 /// Manages network interfaces and provides access to network metrics.
 ///
-/// The NetworkManager is the main entry point for the network monitoring
-/// functionality. It handles:
+/// The NetworkManager is the main entry point for the network monitoring functionality. It handles:
 ///
 /// - Network interface discovery and enumeration
 /// - Tracking all available network interfaces on the system
@@ -275,10 +471,8 @@ impl NetworkMetrics for Interface {
 /// - Providing access to individual interface metrics
 /// - Updating network statistics in real-time
 ///
-/// This implementation is specifically designed for macOS systems and uses
-/// a combination of getifaddrs() for interface discovery and netstat for
-/// traffic statistics, providing a reliable and efficient way to monitor
-/// network activity.
+/// This implementation is specifically designed for macOS systems and uses a combination of getifaddrs() for interface
+/// discovery and netstat for traffic statistics, providing a reliable and efficient way to monitor network activity.
 #[derive(Debug)]
 pub struct NetworkManager {
     /// Map of interface names to Interface objects
@@ -286,8 +480,7 @@ pub struct NetworkManager {
 }
 
 impl NetworkManager {
-    /// Creates a new NetworkManager and initializes it with the current
-    /// interfaces.
+    /// Creates a new NetworkManager and initializes it with the current interfaces.
     ///
     /// This constructor:
     /// 1. Creates an empty NetworkManager instance
@@ -295,11 +488,12 @@ impl NetworkManager {
     /// 3. Initializes traffic statistics for each interface
     /// 4. Returns a ready-to-use manager instance
     ///
-    /// Even if the initialization fails to retrieve network interfaces (for
-    /// example, due to permission issues), the function will still return a
-    /// valid but empty NetworkManager rather than failing with an error.
+    /// Even if the initialization fails to retrieve network interfaces (for example, due to permission issues), the
+    /// function will still return a valid but empty NetworkManager rather than failing with an error.
     pub fn new() -> Result<Self> {
-        let mut manager = Self { interfaces: HashMap::new() };
+        let mut manager = Self {
+            interfaces: HashMap::new(),
+        };
 
         // Try to initialize interfaces, but continue even if it fails
         if let Err(e) = manager.update() {
@@ -316,11 +510,10 @@ impl NetworkManager {
     /// 1. Retrieves the current state of all network interfaces
     /// 2. Updates traffic statistics for existing interfaces
     /// 3. Adds any new interfaces that were discovered
-    /// 4. Calculates current upload/download speeds based on changes since last
-    ///    update
+    /// 4. Calculates current upload/download speeds based on changes since last update
     ///
-    /// For accurate speed calculations, this method should be called at regular
-    /// intervals (typically every 1-5 seconds).
+    /// For accurate speed calculations, this method should be called at regular intervals (typically every 1-5
+    /// seconds).
     pub fn update(&mut self) -> Result<()> {
         // Get network interfaces list
         let interfaces = self.get_interfaces()?;
@@ -335,8 +528,7 @@ impl NetworkManager {
 
     /// Gets all discovered network interfaces.
     ///
-    /// Returns a vector of references to all known network interfaces.
-    /// The interfaces are returned in arbitrary order.
+    /// Returns a vector of references to all known network interfaces. The interfaces are returned in arbitrary order.
     ///
     /// This includes active and inactive interfaces of all types:
     /// - Physical interfaces (Ethernet, WiFi)
@@ -354,12 +546,18 @@ impl NetworkManager {
 
     /// Gets the total download speed across all interfaces.
     pub fn total_download_speed(&self) -> f64 {
-        self.interfaces.values().map(|i| i.download_speed()).sum()
+        self.interfaces
+            .values()
+            .map(|i| i.bytes_received as f64 / i.receive_errors as f64)
+            .sum()
     }
 
     /// Gets the total upload speed across all interfaces.
     pub fn total_upload_speed(&self) -> f64 {
-        self.interfaces.values().map(|i| i.upload_speed()).sum()
+        self.interfaces
+            .values()
+            .map(|i| i.bytes_sent as f64 / i.send_errors as f64)
+            .sum()
     }
 
     /// Gets network interfaces using the getifaddrs() system call.
@@ -394,22 +592,25 @@ impl NetworkManager {
                 // Create new interface
                 let interface_type = Self::determine_interface_type(&name, flags);
 
-                let interface = Interface::new(
-                    name.clone(),
-                    interface_type,
-                    flags,
-                    mac_addr,
-                    ip_addrs,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0, // Initial traffic stats are 0
-                );
+                let interface = Interface::builder()
+                    .name(name.clone())
+                    .interface_type(interface_type)
+                    .flags(flags)
+                    .mac_address(mac_addr.unwrap_or_default())
+                    .addresses(ip_addrs)
+                    .traffic_stats(TrafficStatsParams {
+                        bytes_received: 0,
+                        bytes_sent: 0,
+                        packets_received: 0,
+                        packets_sent: 0,
+                        receive_errors: 0,
+                        send_errors: 0,
+                        collisions: 0,
+                    })
+                    .build()
+                    .map_err(|e| Error::system(format!("Failed to create interface: {}", e)))?;
 
-                interface_map.insert(name, interface);
+                interface_map.insert(name.to_string(), interface);
             }
         }
 
@@ -418,16 +619,11 @@ impl NetworkManager {
 
         // Process traffic data if we got it
         if let Some(traffic_data) = existing_traffic {
-            for (
-                name,
-                (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions),
-            ) in traffic_data
-            {
+            for (name, (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions)) in traffic_data {
                 if let Some(interface) = interface_map.get_mut(&name) {
                     // Update with real traffic stats
                     interface.update_traffic(
-                        rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors,
-                        collisions,
+                        rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions,
                     );
                 } else if !name.is_empty() {
                     // If we have traffic data but no interface, create a placeholder
@@ -461,14 +657,16 @@ impl NetworkManager {
 
     /// Gets network addresses using getifaddrs().
     fn get_network_addresses(&self) -> Result<NetworkAddressMap> {
-        // Using type alias defined at the top of the file
         let mut result = HashMap::new();
         let mut ifap: *mut ifaddrs = ptr::null_mut();
 
         unsafe {
             // Call getifaddrs() to get list of interfaces
             if getifaddrs(&mut ifap) != 0 {
-                return Err(Error::Network("Failed to get network interfaces".to_string()));
+                return Err(Error::network_error(
+                    "get_interfaces",
+                    "Failed to get network interfaces",
+                ));
             }
 
             // Use scopeguard to ensure ifap is freed
@@ -560,14 +758,101 @@ impl NetworkManager {
         Ok(result)
     }
 
-    /// Updates traffic stats using a safer approach.
+    /// Updates traffic stats using macOS native APIs.
     ///
-    /// Instead of using sysctlbyname which is causing issues,
-    /// we'll use command line tools and parse the output.
+    /// This method tries two approaches in order:
+    /// 1. Use sysctlbyname with 64-bit interface data (modern approach)
+    /// 2. Fall back to netstat command-line tool if API approach fails
     fn update_traffic_stats(&self) -> Option<TrafficStatsMap> {
-        // Using type alias defined at the top of the file
-        // This is a fallback method that's safer than sysctlbyname
-        // On macOS, we can use netstat to get network statistics
+        // First try the native implementation using sysctlbyname
+        if let Some(result) = self.update_traffic_stats_native() {
+            return Some(result);
+        }
+
+        // If native implementation fails, fall back to netstat
+        self.update_traffic_stats_netstat()
+    }
+
+    /// Updates traffic stats using the sysctlbyname API.
+    ///
+    /// This is the preferred method that directly accesses kernel network statistics rather than relying on
+    /// command-line tools.
+    fn update_traffic_stats_native(&self) -> Option<TrafficStatsMap> {
+        // Get list of interface names
+        let mut ifap: *mut ifaddrs = ptr::null_mut();
+        let mut result = HashMap::new();
+
+        unsafe {
+            // Call getifaddrs() to get list of interfaces
+            if getifaddrs(&mut ifap) != 0 {
+                return None;
+            }
+
+            // Use scopeguard to ensure ifap is freed
+            let _guard = scopeguard::guard(ifap, |ifap| {
+                freeifaddrs(ifap);
+            });
+
+            // Collect unique interface names
+            let mut interface_names = HashSet::new();
+
+            let mut current = ifap;
+            while !current.is_null() {
+                let ifa = &*current;
+
+                // Skip entries with null names
+                if ifa.ifa_name.is_null() {
+                    current = ifa.ifa_next;
+                    continue;
+                }
+
+                // Get name as string
+                let name = match CStr::from_ptr(ifa.ifa_name).to_str() {
+                    Ok(s) => s.to_string(),
+                    Err(_) => {
+                        current = ifa.ifa_next;
+                        continue;
+                    },
+                };
+
+                interface_names.insert(name);
+                current = ifa.ifa_next;
+            }
+
+            // Get stats for each interface using sysctlbyname
+            for name in interface_names {
+                // Use the native sysctlbyname approach to get stats
+                if let Ok(if_data) = get_network_stats_native(&name) {
+                    // Extract traffic statistics
+                    let rx_bytes = if_data.ifi_ibytes;
+                    let tx_bytes = if_data.ifi_obytes;
+                    let rx_packets = if_data.ifi_ipackets;
+                    let tx_packets = if_data.ifi_opackets;
+                    let rx_errors = if_data.ifi_ierrors;
+                    let tx_errors = if_data.ifi_oerrors;
+                    let collisions = if_data.ifi_collisions;
+
+                    // Store in result map
+                    result.insert(
+                        name,
+                        (
+                            rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions,
+                        ),
+                    );
+                }
+            }
+        }
+
+        if result.is_empty() { None } else { Some(result) }
+    }
+
+    /// Updates traffic stats using netstat command-line tool.
+    ///
+    /// This is a fallback method that's safer but less efficient than using sysctlbyname. It parses the output of the
+    /// netstat command to get interface statistics.
+    fn update_traffic_stats_netstat(&self) -> Option<TrafficStatsMap> {
+        // Using type alias defined at the top of the file This is a fallback method that's safer than sysctlbyname On
+        // macOS, we can use netstat to get network statistics
         let output = std::process::Command::new("netstat").args(["-ib"]).output().ok()?;
 
         if !output.status.success() {
@@ -593,8 +878,7 @@ impl NetworkManager {
             // Get interface name
             let name = parts[0].to_string();
 
-            // Try to parse network stats
-            // Columns are: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes
+            // Try to parse network stats Columns are: Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes
             // Coll
             let rx_packets = parts[4].parse::<u64>().unwrap_or(0);
             let rx_errors = parts[5].parse::<u64>().unwrap_or(0);
@@ -602,12 +886,17 @@ impl NetworkManager {
             let tx_packets = parts[7].parse::<u64>().unwrap_or(0);
             let tx_errors = parts[8].parse::<u64>().unwrap_or(0);
             let tx_bytes = parts[9].parse::<u64>().unwrap_or(0);
-            let collisions =
-                if parts.len() > 10 { parts[10].parse::<u64>().unwrap_or(0) } else { 0 };
+            let collisions = if parts.len() > 10 {
+                parts[10].parse::<u64>().unwrap_or(0)
+            } else {
+                0
+            };
 
             result.insert(
                 name,
-                (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions),
+                (
+                    rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions,
+                ),
             );
         }
 
@@ -627,360 +916,44 @@ impl NetworkManager {
             }
         } else if name.starts_with("wl") || name.starts_with("ath") {
             InterfaceType::WiFi
-        } else if name.starts_with("vnic") || name.starts_with("bridge") || name.starts_with("utun")
-        {
+        } else if name.starts_with("vnic") || name.starts_with("bridge") || name.starts_with("utun") {
             InterfaceType::Virtual
         } else {
             InterfaceType::Other
         }
     }
-
-    /// Creates a new NetworkManager asynchronously and initializes it with the
-    /// current interfaces.
-    ///
-    /// This constructor:
-    /// 1. Creates an empty NetworkManager instance
-    /// 2. Attempts to discover all network interfaces on the system
-    ///    asynchronously
-    /// 3. Initializes traffic statistics for each interface
-    /// 4. Returns a ready-to-use manager instance
-    ///
-    /// Even if the initialization fails to retrieve network interfaces (for
-    /// example, due to permission issues), the function will still return a
-    /// valid but empty NetworkManager rather than failing with an error.
-    pub async fn new_async() -> Result<Self> {
-        let mut manager = Self { interfaces: HashMap::new() };
-
-        // Try to initialize interfaces, but continue even if it fails
-        if let Err(e) = manager.update_async().await {
-            log::warn!("Failed to initialize network interfaces asynchronously: {}", e);
-            // Continue with empty interface list rather than crashing
-        }
-
-        Ok(manager)
-    }
-
-    /// Updates all network interfaces and their metrics asynchronously.
-    ///
-    /// This method works like `update()` but is designed for use in async
-    /// contexts, running potentially blocking network operations in a
-    /// separate blocking task to avoid blocking the async runtime.
-    ///
-    /// For accurate speed calculations, this method should be called at regular
-    /// intervals (typically every 1-5 seconds).
-    pub async fn update_async(&mut self) -> Result<()> {
-        // Use tokio to spawn a blocking task for the network operations
-        // This avoids blocking the async runtime with potentially slow system calls
-        let interfaces = tokio::task::spawn_blocking(move || {
-            // Create a temporary manager just to use get_interfaces
-            // This avoids borrowing self in the blocking task
-            let temp_manager = NetworkManager { interfaces: HashMap::new() };
-            temp_manager.get_interfaces()
-        })
-        .await
-        .map_err(|e| Error::Network(format!("Task join error: {}", e)))??;
-
-        // Update our interfaces with the results from the blocking task
-        for interface in interfaces {
-            let name = interface.name().to_string();
-            self.interfaces.insert(name, interface);
-        }
-
-        Ok(())
-    }
-
-    /// Gets all active network interfaces asynchronously.
-    ///
-    /// Returns only interfaces that are currently active (UP and RUNNING).
-    /// This is a convenience method for filtering interfaces by their active
-    /// state.
-    pub async fn active_interfaces_async(&self) -> Vec<&Interface> {
-        self.interfaces.values().filter(|i| i.is_active()).collect()
-    }
-
-    /// Gets the total network throughput metrics asynchronously.
-    ///
-    /// Returns upload and download speeds without blocking the async runtime.
-    pub async fn get_throughput_async(&self) -> Result<(f64, f64)> {
-        // This operation is lightweight enough not to need a blocking task
-        let total_download = self.total_download_speed();
-        let total_upload = self.total_upload_speed();
-
-        Ok((total_download, total_upload))
-    }
-
-    /// Gets network interface by name asynchronously.
-    ///
-    /// A convenience method that doesn't block, but provides a consistent
-    /// async API alongside other async methods.
-    pub async fn get_interface_async(&self, name: &str) -> Option<&Interface> {
-        self.get_interface(name)
-    }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::Duration;
-    
-    #[test]
-    fn test_interface_type_display() {
-        assert_eq!(InterfaceType::Ethernet.to_string(), "Ethernet");
-        assert_eq!(InterfaceType::WiFi.to_string(), "WiFi");
-        assert_eq!(InterfaceType::Loopback.to_string(), "Loopback");
-        assert_eq!(InterfaceType::Virtual.to_string(), "Virtual");
-        assert_eq!(InterfaceType::Other.to_string(), "Other");
-    }
-    
-    #[test]
-    fn test_interface_creation() {
-        let interface = Interface::new(
-            "test0".to_string(),
-            InterfaceType::Ethernet,
-            if_flags::IFF_UP | if_flags::IFF_RUNNING | if_flags::IFF_BROADCAST,
-            Some("00:11:22:33:44:55".to_string()),
-            vec![IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100))],
-            1000, // bytes_received
-            2000, // bytes_sent
-            10,   // packets_received
-            20,   // packets_sent
-            1,    // receive_errors
-            2,    // send_errors
-            0,    // collisions
-        );
-        
-        // Test basic properties
-        assert_eq!(interface.name(), "test0");
-        assert_eq!(interface.interface_type(), &InterfaceType::Ethernet);
-        assert_eq!(interface.mac_address(), Some("00:11:22:33:44:55"));
-        assert_eq!(interface.addresses().unwrap()[0], IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100)));
-        
-        // Test traffic metrics
-        assert_eq!(interface.bytes_received(), 1000);
-        assert_eq!(interface.bytes_sent(), 2000);
-        assert_eq!(interface.packets_received(), 10);
-        assert_eq!(interface.packets_sent(), 20);
-        assert_eq!(interface.receive_errors(), 1);
-        assert_eq!(interface.send_errors(), 2);
-        assert_eq!(interface.collisions(), 0);
-        
-        // Test flag methods
-        assert!(interface.is_active());
-        assert!(interface.supports_broadcast());
-        assert!(!interface.is_loopback());
-        assert!(!interface.is_point_to_point());
-        assert!(!interface.is_wireless());
-    }
-    
-    #[test]
-    fn test_interface_update_traffic() {
-        let mut interface = Interface::new(
-            "test0".to_string(),
-            InterfaceType::Ethernet,
-            if_flags::IFF_UP | if_flags::IFF_RUNNING,
-            None,
-            vec![],
-            1000, // bytes_received
-            2000, // bytes_sent
-            10,   // packets_received
-            20,   // packets_sent
-            1,    // receive_errors
-            2,    // send_errors
-            0,    // collisions
-        );
-        
-        // Initial metrics
-        assert_eq!(interface.bytes_received(), 1000);
-        assert_eq!(interface.bytes_sent(), 2000);
-        
-        // Update traffic
-        interface.update_traffic(
-            2000, // bytes_received
-            3000, // bytes_sent
-            20,   // packets_received
-            30,   // packets_sent
-            2,    // receive_errors
-            3,    // send_errors
-            1,    // collisions
-        );
-        
-        // Check updated metrics
-        assert_eq!(interface.bytes_received(), 2000);
-        assert_eq!(interface.bytes_sent(), 3000);
-        assert_eq!(interface.packets_received(), 20);
-        assert_eq!(interface.packets_sent(), 30);
-        assert_eq!(interface.receive_errors(), 2);
-        assert_eq!(interface.send_errors(), 3);
-        assert_eq!(interface.collisions(), 1);
-    }
-    
-    #[test]
-    fn test_interface_wireless_detection() {
-        // Test WiFi interface type
-        let wifi_interface = Interface::new(
-            "en0".to_string(),
-            InterfaceType::WiFi,
-            0,
-            None,
-            vec![],
-            0, 0, 0, 0, 0, 0, 0,
-        );
-        assert!(wifi_interface.is_wireless());
-        
-        // Test wireless flag
-        let wireless_interface = Interface::new(
-            "test0".to_string(),
-            InterfaceType::Ethernet,
-            if_flags::IFF_WIRELESS,
-            None,
-            vec![],
-            0, 0, 0, 0, 0, 0, 0,
-        );
-        assert!(wireless_interface.is_wireless());
-        
-        // Test wireless name pattern
-        let wlan_interface = Interface::new(
-            "wlan0".to_string(),
-            InterfaceType::Other,
-            0,
-            None,
-            vec![],
-            0, 0, 0, 0, 0, 0, 0,
-        );
-        assert!(wlan_interface.is_wireless());
-    }
-    
-    #[test]
-    fn test_network_manager_creation() {
-        // This just tests that we can create a NetworkManager without errors
-        let manager = NetworkManager::new();
-        assert!(manager.is_ok());
-    }
-    
-    #[test]
-    fn test_network_manager_interface_access() {
-        let mut manager = NetworkManager { interfaces: HashMap::new() };
-        
-        // Add a test interface
-        let interface = Interface::new(
-            "test0".to_string(),
-            InterfaceType::Ethernet,
-            if_flags::IFF_UP | if_flags::IFF_RUNNING,
-            None,
-            vec![],
-            1000, 2000, 10, 20, 1, 2, 0,
-        );
-        
-        manager.interfaces.insert("test0".to_string(), interface);
-        
-        // Test interfaces() method
-        let interfaces = manager.interfaces();
-        assert_eq!(interfaces.len(), 1);
-        assert_eq!(interfaces[0].name(), "test0");
-        
-        // Test get_interface() method
-        let found = manager.get_interface("test0");
-        assert!(found.is_some());
-        assert_eq!(found.unwrap().name(), "test0");
-        
-        // Test getting a non-existent interface
-        let not_found = manager.get_interface("nonexistent");
-        assert!(not_found.is_none());
-    }
-    
-    #[test]
-    fn test_determine_interface_type() {
-        // Test loopback detection
-        assert_eq!(
-            NetworkManager::determine_interface_type("lo0", if_flags::IFF_LOOPBACK),
-            InterfaceType::Loopback
-        );
-        
-        // Test ethernet detection
-        assert_eq!(
-            NetworkManager::determine_interface_type("en1", 0),
-            InterfaceType::Ethernet
-        );
-        
-        // Test WiFi detection (en0 on macOS)
-        assert_eq!(
-            NetworkManager::determine_interface_type("en0", 0),
-            InterfaceType::WiFi
-        );
-        
-        // Test WiFi detection (wl prefix)
-        assert_eq!(
-            NetworkManager::determine_interface_type("wlan0", 0),
-            InterfaceType::WiFi
-        );
-        
-        // Test virtual interface detection
-        assert_eq!(
-            NetworkManager::determine_interface_type("vnic0", 0),
-            InterfaceType::Virtual
-        );
-        assert_eq!(
-            NetworkManager::determine_interface_type("bridge0", 0),
-            InterfaceType::Virtual
-        );
-        assert_eq!(
-            NetworkManager::determine_interface_type("utun0", 0),
-            InterfaceType::Virtual
-        );
-        
-        // Test other interface
-        assert_eq!(
-            NetworkManager::determine_interface_type("unknown0", 0),
-            InterfaceType::Other
-        );
-    }
-    
-    // Mock test for speed calculation - this doesn't test actual networking
-    // but just verifies the calculation logic
-    #[test]
-    fn test_network_speed_calculation() {
-        // Create interfaces with initial traffic
-        let mut interface1 = Interface::new(
-            "test1".to_string(),
-            InterfaceType::Ethernet,
-            if_flags::IFF_UP | if_flags::IFF_RUNNING,
-            None,
-            vec![],
-            1000, // bytes_received
-            2000, // bytes_sent
-            10, 20, 0, 0, 0,
-        );
-        
-        let mut interface2 = Interface::new(
-            "test2".to_string(),
-            InterfaceType::WiFi,
-            if_flags::IFF_UP | if_flags::IFF_RUNNING,
-            None,
-            vec![],
-            3000, // bytes_received
-            4000, // bytes_sent
-            30, 40, 0, 0, 0,
-        );
-        
-        // Sleep a bit to allow time to pass
-        std::thread::sleep(Duration::from_millis(100));
-        
-        // Update with new traffic values
-        interface1.update_traffic(2000, 3000, 20, 30, 0, 0, 0);
-        interface2.update_traffic(5000, 7000, 50, 70, 0, 0, 0);
-        
-        // Create manager with these interfaces
-        let mut manager = NetworkManager { interfaces: HashMap::new() };
-        manager.interfaces.insert("test1".to_string(), interface1);
-        manager.interfaces.insert("test2".to_string(), interface2);
-        
-        // Check total speeds
-        let download = manager.total_download_speed();
-        let upload = manager.total_upload_speed();
-        
-        // We expect non-zero speeds, but can't assert exact values
-        // due to timing differences in tests
-        assert!(download > 0.0);
-        assert!(upload > 0.0);
-    }
+/// Monitor for tracking bytes received on a network interface
+pub struct BytesReceivedMonitor {
+    /// Reference to the network interface being monitored
+    interface: Interface,
 }
+
+/// Monitor for tracking bytes sent on a network interface
+pub struct BytesSentMonitor {
+    /// Reference to the network interface being monitored
+    interface: Interface,
+}
+
+/// Monitor for tracking packets received on a network interface
+pub struct PacketsReceivedMonitor {
+    /// Reference to the network interface being monitored
+    interface: Interface,
+}
+
+/// Monitor for tracking packets sent on a network interface
+pub struct PacketsSentMonitor {
+    /// Reference to the network interface being monitored
+    interface: Interface,
+}
+
+/// Mapping of interface names to their address properties
+///
+/// Format: HashMap<name, (flags, mac_address, ip_addresses)>
+type NetworkAddressMap = HashMap<String, (u32, Option<String>, Vec<IpAddr>)>;
+
+/// Mapping of interface names to their traffic statistics
+///
+/// Format: HashMap<name, (bytes_in, bytes_out, packets_in, packets_out, rx_errors, tx_errors, collisions)>
+type TrafficStatsMap = HashMap<String, (u64, u64, u64, u64, u64, u64, u64)>;

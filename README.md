@@ -1,19 +1,26 @@
 # 🦀 darwin-metrics
 
+<!-- markdownlint-disable MD033 -->
 <div align="center">
 
 [![Crates.io](https://img.shields.io/crates/v/darwin-metrics.svg)](https://crates.io/crates/darwin-metrics)
 [![Documentation](https://docs.rs/darwin-metrics/badge.svg)](https://docs.rs/darwin-metrics)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://github.com/sm-moshi/darwin-metrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sm-moshi/darwin-metrics/actions/workflows/ci.yml)
-[![Crates.io Downloads](https://img.shields.io/crates/d/darwin-metrics)](https://crates.io/crates/darwin-metrics)
+[![License:
+MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Build
+Status](https://github.com/sm-moshi/darwin-metrics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sm-moshi/darwin-metrics/actions/workflows/ci.yml)
+[![Crates.io
+Downloads](https://img.shields.io/crates/d/darwin-metrics)](https://crates.io/crates/darwin-metrics)
 
 </div>
+<!-- markdownlint-enable MD033 -->
 
-A Rust library providing native access to macOS system metrics through low-level system APIs. This crate offers efficient, safe, and async-capable interfaces for monitoring system resources on macOS.
+A Rust library providing native access to macOS system metrics through low-level system APIs. This
+crate offers efficient, safe, and async-capable interfaces for monitoring system resources on macOS.
 
 ## 🌟 Features
 
+<!-- markdownlint-disable MD033 -->
 <table>
 <tr>
 <td>
@@ -82,6 +89,7 @@ A Rust library providing native access to macOS system metrics through low-level
 </td>
 </tr>
 </table>
+<!-- markdownlint-enable MD033 -->
 
 ## 📦 Installation
 
@@ -92,7 +100,7 @@ Add this to your `Cargo.toml`:
 darwin-metrics = "0.2.0-alpha.1"  # Development version
 
 # Or for latest development features:
-# darwin-metrics = { git = "https://github.com/sm-moshi/darwin-metrics", branch = "0.2.x" }
+# darwin-metrics = { git = "https://github.com/sm-moshi/darwin-metrics", branch = "develop" }
 ```
 
 ### 🔧 Requirements
@@ -112,17 +120,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cpu = CPU::new();
     println!("CPU cores: {}", cpu.cores());
     println!("CPU usage: {}%", cpu.usage()?);
-    
+
     // Monitor memory
     let mut memory = Memory::new()?;
     memory.update()?;
     println!("Memory used: {:.2} GB", memory.used as f64 / 1_073_741_824.0);
     println!("Memory pressure: {:.1}%", memory.pressure_percentage());
-    
+
     // Check GPU status
     let gpu = Gpu::new()?;
     println!("GPU name: {}", gpu.name()?);
-    
+
     Ok(())
 }
 ```
@@ -131,24 +139,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 All features are enabled by default, but you can selectively enable only what you need:
 
-| Flag                | Description                               |
-| ------------------- | ----------------------------------------- |
-| `battery`           | Enable battery monitoring                 |
-| `cpu`               | Enable CPU metrics                        |
-| `memory`            | Enable memory statistics                  |
-| `gpu`               | Enable GPU monitoring                     |
-| `disk`              | Enable storage metrics                    |
-| `temperature`       | Enable thermal monitoring                 |
-| `async`             | Enable async support (requires tokio)     |
-| `process_monitoring`| Enable detailed process monitoring        |
-| `unstable-tests`    | Enable tests that may be unstable in CI   |
+| Flag | Description |
+|------|-------------|
+| `battery` | Enable battery monitoring |
+| `cpu` | Enable CPU metrics |
+| `memory` | Enable memory statistics |
+| `gpu` | Enable GPU monitoring |
+| `disk` | Enable storage metrics |
+| `temperature` | Enable thermal monitoring |
+| `async` | Enable async support (requires tokio) |
+| `process_monitoring` | Enable detailed process monitoring |
+| `unstable-tests` | Enable tests that may be unstable in CI |
 
 ## 📈 Development Status
 
 Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed development plans.
 
+<!-- markdownlint-disable MD033 -->
 <details>
-<summary><b>Development Progress</b></summary>
+<summary>**Development Progress**</summary>
 
 ### ✅ Completed (v0.1.0)
 
@@ -165,8 +174,8 @@ Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed
 ### 🚧 In Progress (v0.2.0)
 
 - [x] Enhanced async support throughout
-- [ ] Metal API integration for improved GPU monitoring
-- [ ] Memory management optimizations for IOKit interfaces
+- [x] Metal API integration for improved GPU monitoring
+- [x] Memory management optimizations for IOKit interfaces
 - [ ] Cross-platform abstractions (Linux/Windows)
 - [ ] Metrics export to Prometheus/InfluxDB
 - [ ] Performance optimizations
@@ -176,35 +185,36 @@ Currently in active development. See our [roadmap](docs/ROADMAP.md) for detailed
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open
+an issue first to discuss what you would like to change.
 
 <details>
-<summary><b>Development Setup</b></summary>
+<summary>**Development Setup**</summary>
 
 1. Clone the repository:
 
-   ```bash
-   git clone https://github.com/sm-moshi/darwin-metrics.git
-   cd darwin-metrics
-   ```
+    ```bash
+    git clone https://github.com/sm-moshi/darwin-metrics.git
+    cd darwin-metrics
+    ```
 
 2. Install dependencies:
 
-   ```bash
-   xcode-select --install  # Install Xcode Command Line Tools
-   ```
+    ```bash
+    xcode-select --install  # Install Xcode Command Line Tools
+    ```
 
 3. Build the project:
 
-   ```bash
-   cargo build --all-features
-   ```
+    ```bash
+    cargo build --all-features
+    ```
 
 4. Run tests:
 
-   ```bash
-   cargo test --all-features
-   ```
+    ```bash
+    cargo test --all-features
+    ```
 
 </details>
 
@@ -213,7 +223,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 If you use darwin-metrics in your projects, please include one of the following attributions:
 
 <details>
-<summary><b>Citation Formats</b></summary>
+<summary>**Citation Formats**</summary>
 
 ### 💻 For Software Projects
 
@@ -238,6 +248,7 @@ GitHub repository: https://github.com/sm-moshi/darwin-metrics
 For more detailed attribution requirements, please see the [NOTICE](NOTICE) file.
 
 </details>
+<!-- markdownlint-enable MD033 -->
 
 ## 📄 License
 
@@ -245,7 +256,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Apple's [IOKit](https://developer.apple.com/documentation/iokit), [Foundation](https://developer.apple.com/documentation/foundation), [Core Foundation](https://developer.apple.com/documentation/corefoundation), and [Metal](https://developer.apple.com/documentation/metal) documentation
+- Apple's [IOKit](https://developer.apple.com/documentation/iokit),
+    [Foundation](https://developer.apple.com/documentation/foundation), [Core
+    Foundation](https://developer.apple.com/documentation/corefoundation), and
+    [Metal](https://developer.apple.com/documentation/metal) documentation
 - [objc2](https://github.com/mattn/objc2) crate by Mads Marquart
+- [metal](https://github.com/gfx-rs/metal-rs) crate by Rust Graphics Mages
+- [tokio](https://tokio.rs) crate by Tokio
 - The Rust and Swift communities
 - Contributors to the core dependencies

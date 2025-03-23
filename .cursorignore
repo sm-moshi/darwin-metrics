@@ -1,0 +1,11 @@
+.vscode/
+coverage/
+.gitattributes
+.gitignore
+.repomix/
+repomix*
+.references/
+.windsurfrules
+.trunk/
+bacon.toml
+mach2/

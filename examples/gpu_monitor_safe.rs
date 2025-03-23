@@ -1,4 +1,5 @@
-use std::{thread::sleep, time::Duration};
+use std::thread::sleep;
+use std::time::Duration;
 
 use objc2::rc::autoreleasepool;
 
@@ -15,15 +16,7 @@ fn main() {
 
     // Print system information once
     println!("System Information:");
-    autoreleasepool(|_| {
-        unsafe {
-            // Get system information safely using Foundation
-            let process_info = objc2_foundation::NSProcessInfo::processInfo();
-            println!("  OS Version: {}", process_info.operatingSystemVersionString());
-            println!("  Memory: {} GB", process_info.physicalMemory() as f64 / 1_073_741_824.0);
-            println!("  CPU Cores: {}", process_info.activeProcessorCount());
-        }
-    });
+    display_system_info();
 
     // GPU information - static since this doesn't change
     println!("\nGPU Information:");
@@ -56,7 +49,10 @@ fn main() {
         println!("GPU Monitor - Sample #{}\n", sample_count);
 
         // Print estimated metrics
-        println!("System Load (1min, 5min, 15min): {:.2}, {:.2}, {:.2}", load.0, load.1, load.2);
+        println!(
+            "System Load (1min, 5min, 15min): {:.2}, {:.2}, {:.2}",
+            load.0, load.1, load.2
+        );
         println!("Estimated GPU Usage: {:.1}%", estimated_gpu);
 
         // Memory info from process_info was too intensive to query repeatedly
@@ -82,6 +78,19 @@ fn main() {
         sample_count += 1;
         sleep(sample_rate);
     }
+}
+
+/// Displays system information in a formatted manner
+fn display_system_info() {
+    autoreleasepool(|_| unsafe {
+        let process_info = objc2_foundation::NSProcessInfo::processInfo();
+        println!("  OS Version: {}", process_info.operatingSystemVersionString());
+        println!(
+            "  Memory: {} GB",
+            process_info.physicalMemory() as f64 / 1_073_741_824.0
+        );
+        println!("  CPU Cores: {}", process_info.activeProcessorCount());
+    });
 }
 
 // Helper function to get system load averages

@@ -4,38 +4,116 @@ This document outlines the planned development roadmap for the `darwin-metrics` 
 
 ## Current Status
 
-The library is currently in Phase 1 of development, focusing on code refactoring and cleanup to establish a solid foundation for future feature development.
+The library is currently transitioning from Phase 1 to Phase 2 of development, with core functionality implemented and optimizations ongoing.
+
+## Project Structure
+
+```
+darwin-metrics/
+├── Cargo.lock
+├── Cargo.toml
+├── LICENSE
+├── NOTICE
+├── README.md
+├── build.rs                       # Build script for native code
+├── changelog-configuration.json
+├── clippy.toml
+├── coverage/                      # Code coverage reports
+├── docs/                          # Documentation
+│   ├── CHANGELOG.md
+│   ├── CHECKLIST.md
+│   ├── ROADMAP.md
+│   ├── RUST_API_CHECKLIST.md
+│   ├── TODO.md
+│   ├── book.toml
+│   ├── book/                      # Generated mdBook output
+│   ├── custom.css
+│   └── src/                       # mdBook source
+│       ├── SUMMARY.md
+│       ├── advanced/
+│       ├── development/
+│       ├── getting-started.md
+│       ├── introduction.md
+│       └── modules/
+├── examples/                      # Example applications
+│   ├── disk_monitor.rs
+│   ├── gpu_monitor_safe.rs
+│   ├── gpu_monitor_simplified.rs
+│   ├── gpu_static.rs
+│   ├── memory_monitor.rs
+│   ├── memory_monitor_async.rs
+│   ├── network_async.rs
+│   └── network_info.rs
+├── src/                           # Main source code
+│   ├── battery/                   # Battery monitoring
+│   ├── disk/                      # Disk monitoring
+│   ├── docs_rs_stubs.rs           # Support for docs.rs
+│   ├── error.rs                   # Error handling
+│   ├── hardware/                  # Hardware-related modules
+│   │   ├── cpu/                   # CPU metrics
+│   │   │   ├── cpu_impl.rs
+│   │   │   ├── frequency.rs
+│   │   │   └── mod.rs
+│   │   ├── gpu/                   # GPU metrics
+│   │   ├── iokit/                 # IOKit interface
+│   │   │   ├── mock.rs           # Mock implementation for testing
+│   │   │   ├── mod.rs            # Main implementation
+│   │   │   └── tests.rs          # Tests for IOKit
+│   │   ├── memory/                # Memory metrics
+│   │   ├── mod.rs
+│   │   └── temperature/           # Temperature sensors
+│   ├── lib.rs                     # Library entry point
+│   ├── network/                   # Network monitoring
+│   │   ├── interface.rs           # Network interfaces
+│   │   ├── mod.rs
+│   │   └── traffic.rs             # Network traffic
+│   ├── power/                     # Power management
+│   ├── process/                   # Process monitoring
+│   ├── resource/                  # Resource monitoring
+│   ├── system/                    # System information
+│   └── utils/                     # Utility functions
+│       ├── bindings.rs            # FFI bindings
+│       ├── mod.rs
+│       ├── property_utils.rs      # Property access utilities
+│       ├── property_utils_tests.rs
+│       └── test_utils.rs          # Testing utilities
+└── tests/                         # Integration tests
+    └── version-sync.rs            # Version consistency tests
+```
 
 ## Development Phases
 
-### Phase 1: Codebase Refactoring & Cleanup (0.1.0) - In Progress
+### Phase 1: Codebase Refactoring & Cleanup (0.1.x) - Completed
+- Latest release: 0.1.4 (March 10, 2025)
 
 **Goal:** Improve structure, maintainability, and performance before implementing new features.
 
 **Key Tasks:**
 
 - ✅ Process Monitoring: Implement comprehensive process monitoring capabilities
-- 🔄 CPU Metrics: Refactor and enhance CPU monitoring functionality
-- 🔄 GPU Metrics: Implement and refine GPU metrics collection
-- ⏳ Network Monitoring: Implement bandwidth tracking and network state monitoring
-- ⏳ Temperature Monitoring: Enhance thermal sensor data collection
-- 🔄 General Code Cleanup: Refactor and improve code quality
+- ✅ CPU Metrics: Refactor and enhance CPU monitoring functionality
+- ✅ GPU Metrics: Implement and refine GPU metrics collection
+- ✅ Network Monitoring: Implement bandwidth tracking and network state monitoring
+- ✅ Temperature Monitoring: Enhance thermal sensor data collection
+- ✅ Disk Monitoring: Implement volume detection and I/O monitoring
+- ✅ General Code Cleanup: Refactor and improve code quality
   - ✅ Centralized FFI bindings in src/utils/bindings.rs
   - ✅ Improved error handling and propagation
   - ✅ Enhanced code organization and documentation
 
-### Phase 2: Enhanced System Metrics (0.2.0) - Planned
+### Phase 2: Enhanced System Metrics (0.2.0) - In Progress
 
 **Goal:** Expand monitoring capabilities with additional system metrics.
 
 **Key Tasks:**
 
-- Enhance CPU and GPU monitoring with async processing
-- Implement detailed CPU and GPU frequency tracking
-- Add advanced process monitoring features
-- Implement comprehensive disk and storage monitoring
-- Enhance network monitoring capabilities
-- Expand test coverage
+- 🔄 Enhance CPU and GPU monitoring with improved async processing
+- ✅ Implement detailed CPU and GPU frequency tracking
+- 🔄 Add advanced process monitoring features
+- ✅ Implement comprehensive disk and storage monitoring
+- ✅ Enhance network monitoring capabilities with async support
+- 🔄 Complete battery and power management functionality
+- 🔄 Expand test coverage and benchmarking
 
 ### Phase 3: Optimization & Advanced Features (0.3.0) - Planned
 
@@ -74,9 +152,13 @@ These are our current feature priorities, ranked from highest to lowest:
 
 ## Release Schedule
 
-While we don't have exact dates, our general timeline is:
+Our current timeline is:
 
-- **0.1.0**: Q2 2024 (Alpha release with core functionality)
+- **0.1.x**: Q1-Q2 2024 (Alpha releases with core functionality)
+  - ✅ 0.1.0: Initial release with basic monitoring
+  - ✅ 0.1.1: Improved GPU and memory monitoring
+  - ✅ 0.1.2: Enhanced process tracking and disc metrics
+  - ✅ 0.1.3: Improved documentation and CI workflow
 - **0.2.0**: Q3 2024 (Beta release with enhanced features)
 - **0.3.0**: Q4 2024 (Release candidate with optimizations)
 - **1.0.0**: Q1 2025 (Stable release with complete documentation)

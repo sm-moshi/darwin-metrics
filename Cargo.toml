@@ -1,110 +1,96 @@
 [package]
-name = "darwin-metrics"
-version = "0.2.0-alpha.1"
-edition = "2021"
-description = "A Rust library exposing native macOS system metrics"
-authors = ["Stuart Meya <sm0sh1@pm.me>"]
-license = "MIT"
-repository = "https://github.com/sm-moshi/darwin-metrics"
-homepage = "https://github.com/sm-moshi/darwin-metrics"
+name          = "darwin-metrics"
+version       = "0.2.0-alpha.1"
+edition       = "2024"
+description   = "A Rust library for collecting system metrics on macOS"
+authors       = ["Stuart Meya <sm0sh1@pm.me>"]
+license       = "MIT OR Apache-2.0"
+repository    = "https://github.com/sm-moshi/darwin-metrics"
+homepage      = "https://github.com/sm-moshi/darwin-metrics"
 documentation = "https://docs.rs/darwin-metrics"
-keywords = ["macos", "system", "metrics", "ffi", "swift"]
-categories = ["os", "api-bindings"]
-readme = "README.md"
-links = "darwin_metrics"
-exclude = [
-  ".github/",
-  "coverage/",
-  "target/",
-  "CLAUDE.md",
-  "**/.DS_Store",
-  ".DS_Store",
-]
+keywords      = ["macos", "metrics", "monitoring", "system", "hardware"]
+categories    = ["os::macos-apis", "hardware-support", "api-bindings"]
+readme        = "README.md"
+links         = "darwin_metrics"
+exclude       = [".github/", "coverage/", "target/", "**/.DS_Store", ".DS_Store"]
 
 [lib]
 name       = "darwin_metrics"
 crate-type = ["rlib", "cdylib", "staticlib"]
 
-[build-dependencies]
-cc = "1.2.16"
+[[test]]
+name              = "integration_tests"
+path              = "tests/integration/mod.rs"
+required-features = ["testing"]
+
+[[test]]
+name              = "unit_tests"
+path              = "tests/unit/mod.rs"
+required-features = ["testing"]
 
 [dependencies]
 # Core FFI and system interfaces
-libc = "0.2.170"
-libproc = "0.14.10"
-objc2 = { version = "0.6.0", features = [
+libc = "^0.2.171"
+metal = "^0.31.0"
+objc2 = { version = "^0.6.0", features = [
   "alloc",
   "objc2-proc-macros",
   "std",
   "exception",
   "catch-all",
 ] }
-objc2-foundation = "0.3.0"
-objc2-core-foundation = "0.3.0"
-objc2-core-graphics = "0.3.0"
-block2 = { version = "0.6.0", features = ["alloc", "std"] }
-scopeguard = "1.2.0"
+objc2-foundation = "^0.3.0"
+objc2-core-foundation = "^0.3.0"
+mach2 = "^0.4.2"
+thiserror = "^2.0.12"
+scopeguard = "^1.2.0"
+libproc = "^0.14.10"
+tokio = { version = "^1.44.1", features = [
+  "rt-multi-thread",
+  "time",
+  "sync",
+  "macros",
+  "fs",
+] }
+futures = "^0.3.31"
+chrono = "^0.4.40"
 
-# Error handling and logging
-tokio              = { version = "1.44.0", features = ["full"] }
-futures            = "0.3.31"
-async-trait        = "0.1.87"
-thiserror          = "2.0.12"
-tracing            = { version = "0.1.41", features = ["attributes"] }
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-
-# Serialization and data handling
-serde      = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
-
-# Testing
-mockall = "0.13.1"
+# Optional dependencies
+serde = { version = "^1.0.219", features = ["derive"], optional = true }
 
 # Additional dependencies
-parking_lot = "0.12.3"
-log         = "0.4.26"
-once_cell   = "1.20.3"
+parking_lot = "^0.12.3"
+log         = "^0.4.26"
+once_cell   = "^1.21.1"
+async-trait = "^0.1.88"
+tracing     = "0.1.41"
 
 [dev-dependencies]
-version-sync = "0.9.5"
+version-sync = "^0.9.5"
+lazy_static  = "^1.5.0"
+mockall      = "^0.13.1"
 
 [features]
-default = ["battery", "cpu", "memory", "gpu", "disk", "temperature", "async"]
-
+default = []
 # Core features
-battery            = []
-cpu                = []
-memory             = []
-gpu                = []
-disk               = []
-temperature        = []
-process_monitoring = []
+serde = ["dep:serde"]
 
-# Optional features
-async = []
+# Monitoring features
+monitoring-all = [
+  "process-monitoring",
+  "resource-monitoring",
+  "power-monitoring",
+]
+process-monitoring = []
+resource-monitoring = []
+power-monitoring = []
 
-# Testing features
-unstable-tests   = []
+# Development features
+unstable         = []
+mock             = []
+testing          = ["mock"]     # Testing includes mock
+unstable-tests   = ["unstable"]
 skip-ffi-crashes = []
-
-[profile.release]
-lto           = true
-codegen-units = 1
-opt-level     = 3
-debug         = false
-strip         = true
-
-[profile.dev]
-opt-level = 0
-debug     = true
-
-# Documentation configuration for docs.rs
-[package.metadata.docs.rs]
-all-features   = true
-rustdoc-args   = ["--cfg", "docsrs"]
-targets        = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
-default-target = "aarch64-apple-darwin"
-rustc-args     = ["--cfg", "docs_rs"]
 
 [package.metadata]
 minimum-macos-version = "10.11"
@@ -113,3 +99,17 @@ minimum-macos-version = "10.11"
 enable    = ["line", "branch", "function", "mcdc"]
 threshold = 80
 exclude   = ["tests/*", "target/*", "**/*_test.rs"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[profile.release]
+opt-level     = 3       # Balance between performance and size
+lto           = "thin"  # Link-time optimization with reasonable compile times
+codegen-units = 1       # Better optimization but slower compile
+strip         = true    # Remove debug symbols
+panic         = "abort" # Simpler panic handling for smaller binaries

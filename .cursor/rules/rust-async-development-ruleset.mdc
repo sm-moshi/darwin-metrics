@@ -1,0 +1,135 @@
+---
+description: Rust Async Development Ruleset
+globs: *.rs
+alwaysApply: true
+---
+# Rust Async Development Ruleset
+
+## 🦀 Core Principles
+
+### MCP Servers
+
+- Use MCP servers available to you
+- sequential-thinking: sequentialthinking
+- memory: create_entities, create_relations, add_observations, delete_entities, delete_observations,
+  delete_relations, read_graph, search_nodes, open_nodes
+
+### Code Quality
+- Write clear, concise, and idiomatic Rust code
+- Prioritize readability and maintainability
+- Embrace Rust's ownership and type system
+- Minimize complexity, maximize expressiveness
+
+### Naming and Organization
+- Use expressive, intent-revealing variable names
+  - Prefer `is_ready`, `has_data` over ambiguous names
+- Follow Rust naming conventions:
+  - `snake_case` for variables and functions
+  - `PascalCase` for types and structs
+- Organize code into logical, focused modules
+- Avoid code duplication through modularization
+
+## 🔄 Async Programming Paradigms
+
+### Async Runtime
+- Use `tokio` as primary async runtime
+- Implement async functions with `async fn` syntax
+- Leverage structured concurrency patterns
+
+### Task Management
+- Use `tokio::spawn` for concurrent task execution
+- Implement `tokio::select!` for task coordination
+- Prefer scoped tasks with clear cancellation paths
+- Implement robust error handling and task lifecycle management
+
+### Advanced Concurrency Patterns
+#### Channels
+- `tokio::sync::mpsc` for multi-producer, single-consumer communication
+- `tokio::sync::broadcast` for message broadcasting
+- `tokio::sync::oneshot` for single-use communication
+- Use bounded channels with graceful backpressure
+- Implement careful capacity management
+
+#### Synchronization
+- Use `tokio::sync::Mutex` and `tokio::sync::RwLock`
+- Minimize lock contention
+- Implement deadlock-prevention strategies
+
+## 🛡️ Error Handling
+
+### Error Management Strategies
+- Leverage `Result` and `Option` types
+- Use `?` operator for error propagation
+- Implement custom error types with:
+  - `thiserror` for library errors
+  - `anyhow` for application errors
+- Handle errors early and explicitly
+- Provide meaningful error context
+
+### Async Error Handling
+- Use `.await` responsibly
+- Create safe context-switching points
+- Implement comprehensive error recovery mechanisms
+
+## 🧪 Testing Approach
+
+### Test Coverage
+- Write comprehensive unit tests
+- Use `tokio::test` for async testing
+- Implement integration tests
+- Utilize `tokio::time::pause` for deterministic time-based tests
+- **CRITICAL**: Use `cargo llvm-cov` for thorough code coverage
+
+### Mocking and Simulation
+- Create mock implementations for external dependencies
+- Use fakes for complex system interactions
+- Design tests to cover edge cases and error paths
+
+## 🚀 Performance Optimization
+
+### Async Efficiency
+- Minimize async runtime overhead
+- Use synchronous code when async is unnecessary
+- Offload blocking operations to dedicated threads
+- Utilize `tokio::task::yield_now` for cooperative multitasking
+
+### Time and Resource Management
+- Use `tokio::time::sleep` and `tokio::time::interval`
+- Optimize data structures for async environments
+- Reduce lock contention and duration
+
+## 🛠️ Ecosystem and Tooling
+
+### Recommended Libraries
+- Async Runtime: `tokio`
+- HTTP Requests: `hyper` or `reqwest`
+- Serialization: `serde`
+- Configuration: `dotenv`
+
+### Configuration Management
+- Use environment variables
+- Implement flexible configuration strategies
+- Support runtime configuration updates
+
+## 📝 Documentation
+
+### Documentation Practices
+- Write comprehensive Rustdoc comments
+- Include inline documentation for complex logic
+- Provide clear examples
+- Document public APIs thoroughly
+
+## 🔍 Continuous Improvement
+
+### Learning and Adaptation
+- Stay current with Rust async ecosystem
+- Regularly review and refactor code
+- Attend to performance and safety improvements
+- Engage with Rust community best practices
+
+**References**
+- Rust Async Book
+- Tokio Documentation
+- Rust Performance Book
+
+**Note**: These guidelines are living documents. Continuous refinement is expected and encouraged.

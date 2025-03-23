@@ -1,9 +1,6 @@
-# Rust specific
 debug/
 target/
 **/*.rs.bk
-
-# Obj-C/Swift specific
 *.hmap
 *.xcodeproj
 Packages/
@@ -11,22 +8,14 @@ Package.pins
 Package.resolved
 .build/
 generated/
-
-# Object files and libraries
 *.o
 *.lo
 *.a
 *.la
 *.dylib
-
-# Precompiled Headers
 *.gch
 *.pch
-
-# Executables
 *.app
-
-# General macOS
 .DS_Store
 **/.DS_Store
 ._*
@@ -35,19 +24,14 @@ generated/
 .Spotlight-V100
 .TemporaryItems
 .Trashes
-
-# local stuff
 .bacon-locations
 bacon.toml
-.vscode/
-.cursor/
-.cursorignore
+.vscode/mise-tools
 .references/
 .windsurfrules
 .repomix/
 repomix*
-coverage/*
+**/*.profraw
 CLAUDE.md
-
-# mdBook
 docs/book/
+mach2/

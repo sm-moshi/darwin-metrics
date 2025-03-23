@@ -19,8 +19,5 @@ fn test_changelog_mentions_version() {
 #[test]
 fn test_toml_version() {
     // Check if version in Cargo.toml matches other files
-    version_sync::assert_contains_regex!(
-        ".github/workflows/release.yml",
-        r"VERSION=\$\{GITHUB_REF#refs/tags/v\}"
-    );
+    version_sync::assert_contains_regex!(".github/workflows/release.yml", r"VERSION=\$\{GITHUB_REF#refs/tags/v\}");
 }

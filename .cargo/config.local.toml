@@ -1,9 +1,9 @@
 [build]
-rustc = "rustc +beta"
+rustc = "rustc +nightly"
 
 [cargo]
-rustc = "rustc +beta"
+rustc = "rustc +nightly"
 
 [rust]
 # Use beta for all local development
-channel = "beta"
+channel = "nightly"

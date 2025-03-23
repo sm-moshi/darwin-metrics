@@ -1,113 +1,49 @@
-use std::{
-    io::{self, Write},
-    thread::sleep,
-    time::Duration,
-};
+use std::io::{self, Write};
+use std::thread::sleep;
+use std::time::Duration;
 
-use darwin_metrics::disk::DiskMonitor;
+use darwin_metrics::HardwareMonitor;
+use darwin_metrics::disk::{DiskIOMonitor, DiskIOMonitorImpl};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Darwin Metrics - Disk Monitor Example");
     println!("Press Ctrl+C to exit\n");
 
-    // Initialize the DiskMonitor
-    let mut monitor = DiskMonitor::new();
+    // Initialize the DiskIOMonitor with root disk
+    let disk = darwin_metrics::disk::get_root_disk().await?;
+    let disk_monitor = DiskIOMonitorImpl::new(disk.clone());
 
-    // Sample rate in milliseconds
-    let sample_rate = Duration::from_millis(1000);
-    let mut sample_count = 0;
+    println!("Monitoring disk: {}", disk.name);
+    println!("Device: {}", disk.device);
+    println!("Mount point: {}", disk.mount_point);
+    println!("Filesystem: {}", disk.fs_type);
+    println!("Total size: {} bytes", disk.total);
+    println!("\nPress Ctrl+C to exit\n");
 
-    // Main monitoring loop
     loop {
-        // Clear screen and move cursor to top-left for clean display
+        // Get current disk I/O metrics
+        let metric = disk_monitor.get_metric().await?;
+        let io = metric.value;
+
+        // Calculate transfer rate
+        let transfer_rate = DiskIOMonitor::get_transfer_rate(&disk_monitor).await?;
+
+        // Clear the terminal
         print!("\x1B[2J\x1B[1;1H");
-        io::stdout().flush()?;
 
-        println!("Sample #{}\n", sample_count);
+        // Print the current metrics
+        println!("Disk: {} ({})", disk.name, disk.device);
+        println!("Read operations: {}", io.reads);
+        println!("Write operations: {}", io.writes);
+        println!("Read bytes: {:?}", io.read_bytes);
+        println!("Write bytes: {:?}", io.write_bytes);
+        println!("Read time: {:?}", io.read_time);
+        println!("Write time: {:?}", io.write_time);
+        println!("Read rate: {:?} bytes/sec", transfer_rate.read);
+        println!("Write rate: {:?} bytes/sec", transfer_rate.write);
 
-        // Display disk volumes information
-        match monitor.get_volumes() {
-            Ok(volumes) => {
-                println!("═════════════════════ DISK VOLUMES ═════════════════════");
-                for (i, volume) in volumes.iter().enumerate() {
-                    println!("Disk #{}: {}", i + 1, volume.summary());
-
-                    // Create a simple ASCII graph for disk usage
-                    let graph_width = 50;
-                    let usage_percent = volume.usage_percentage();
-                    let filled_chars = (usage_percent as usize * graph_width) / 100;
-                    let empty_chars = graph_width - filled_chars;
-
-                    print!("Usage: [");
-                    for _ in 0..filled_chars {
-                        print!("#");
-                    }
-                    for _ in 0..empty_chars {
-                        print!(" ");
-                    }
-                    println!("] {:.1}%", usage_percent);
-
-                    // Additional details
-                    println!("  Device: {}", volume.device);
-                    println!("  Mount point: {}", volume.mount_point);
-                    println!("  Filesystem: {}", volume.fs_type);
-                    println!("  Available: {}", volume.available_display());
-                    println!("  Boot volume: {}", if volume.is_boot_volume { "Yes" } else { "No" });
-                    println!();
-                }
-            },
-            Err(e) => {
-                println!("Error fetching disk volumes: {}", e);
-            },
-        }
-
-        // Display disk performance metrics
-        match monitor.get_performance() {
-            Ok(performance) => {
-                println!("═══════════════════ DISK PERFORMANCE ════════════════════");
-                for (device, perf) in performance.iter() {
-                    println!("Device: {}", device);
-                    println!(
-                        "  Read: {:.1} ops/s, {}/s",
-                        perf.reads_per_second,
-                        format_bytes(perf.bytes_read_per_second)
-                    );
-                    println!(
-                        "  Write: {:.1} ops/s, {}/s",
-                        perf.writes_per_second,
-                        format_bytes(perf.bytes_written_per_second)
-                    );
-                    println!(
-                        "  Latency: {:.2} ms read, {:.2} ms write",
-                        perf.read_latency_ms, perf.write_latency_ms
-                    );
-                    println!("  Utilization: {:.1}%", perf.utilization);
-
-                    // Create a simple ASCII graph for disk utilization
-                    let graph_width = 50;
-                    let filled_chars = (perf.utilization as usize * graph_width) / 100;
-                    let empty_chars = graph_width - filled_chars;
-
-                    print!("  I/O: [");
-                    for _ in 0..filled_chars {
-                        print!("#");
-                    }
-                    for _ in 0..empty_chars {
-                        print!(" ");
-                    }
-                    println!("] {:.1}%", perf.utilization);
-                    println!();
-                }
-            },
-            Err(e) => {
-                println!("Error fetching disk performance: {}", e);
-            },
-        }
-
-        println!("Press Ctrl+C to exit");
-
-        sample_count += 1;
-        sleep(sample_rate);
+        sleep(Duration::from_secs(1));
     }
 }
 
@@ -129,4 +65,16 @@ fn format_bytes(bytes: u64) -> String {
     } else {
         format!("{} bytes", bytes)
     }
+}
+
+// Helper function to create ASCII graph
+fn create_ascii_graph(value: f64, max: usize) -> String {
+    let filled_chars = (value as usize * max) / 100;
+    let empty_chars = max - filled_chars;
+
+    let mut graph = String::from("[");
+    graph.push_str(&"#".repeat(filled_chars));
+    graph.push_str(&" ".repeat(empty_chars));
+    graph.push_str(&format!(" ] {:.1}%%", value));
+    graph
 }
