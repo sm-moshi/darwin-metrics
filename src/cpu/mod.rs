@@ -115,6 +115,7 @@ pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
 /// ```
 #[derive(Debug)]
 pub struct CPU {
+    /// IOKit interface for hardware communication
     iokit: Box<dyn IOKit>,
 }
 
@@ -232,5 +233,13 @@ impl CPU {
             temperature,
             frequency,
         })
+    }
+}
+
+impl Clone for CPU {
+    fn clone(&self) -> Self {
+        Self {
+            iokit: self.iokit.clone_box(),
+        }
     }
 }

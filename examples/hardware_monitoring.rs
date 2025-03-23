@@ -2,10 +2,9 @@ use std::error::Error;
 use std::time::Duration;
 
 use darwin_metrics::hardware::iokit::IOKitImpl;
-use darwin_metrics::{CPU, Gpu, Memory};
-use darwin_metrics::traits::hardware::MemoryMonitor;
 use darwin_metrics::memory::MemoryMonitor as MemoryMonitorTrait;
-use darwin_metrics::traits::hardware::CpuMonitor;
+use darwin_metrics::traits::hardware::{CpuMonitor, MemoryMonitor};
+use darwin_metrics::{CPU, Gpu, Memory};
 
 /// Helper function to format bytes in a human-readable format
 fn format_bytes(bytes: u64) -> String {
@@ -54,7 +53,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let gpu_util = gpu.get_utilization().await?.value;
         let gpu_temp_value = gpu.get_temperature().await?;
         let gpu_memory_info = gpu.get_memory().await?;
-        
+
         // Calculate memory utilization manually
         let gpu_memory_used = gpu_memory_info.used;
         let gpu_total_memory = gpu_memory_info.total;
@@ -73,7 +72,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // Display CPU information
         println!("═══════════════════ CPU INFORMATION ═════════════════════");
         println!("  CPU Load: {:.1}%", cpu_load * 100.0);
-        
+
         if let Some(temp) = cpu_temp {
             println!("  CPU Temperature: {}", format_temp(temp));
         } else {
@@ -84,13 +83,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!("\n═══════════════════ GPU INFORMATION ═════════════════════");
         println!("  GPU Name: {}", gpu.name().await?);
         println!("  GPU Utilization: {:.1}%", gpu_util * 100.0);
-        
+
         // Handle temperature which may be a float directly, not an Option
         println!("  GPU Temperature: {:.1}°C", gpu_temp_value);
-        
-        println!("  GPU Memory: {} / {} ({:.1}%)", 
-            format_bytes(gpu_memory_used), 
-            format_bytes(gpu_total_memory), 
+
+        println!(
+            "  GPU Memory: {} / {} ({:.1}%)",
+            format_bytes(gpu_memory_used),
+            format_bytes(gpu_total_memory),
             gpu_memory_util * 100.0
         );
 

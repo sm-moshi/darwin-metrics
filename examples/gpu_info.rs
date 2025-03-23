@@ -1,8 +1,8 @@
 use std::error::Error;
 
 use darwin_metrics::Gpu;
-use darwin_metrics::gpu::GpuMetrics;
 use darwin_metrics::core::types::ByteSize;
+use darwin_metrics::gpu::GpuMetrics;
 
 /// Demonstrates the improved GPU hardware detection in darwin-metrics
 /// This example shows detailed information about the GPU including hardware

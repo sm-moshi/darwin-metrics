@@ -4,7 +4,8 @@ mod cpu;
 mod fan;
 mod gpu;
 
-use darwin_metrics::hardware::temperature::{FanMonitoring, Temperature, TemperatureMonitor};
+use darwin_metrics::hardware::temperature::{FanMonitoring, Temperature};
+use darwin_metrics::temperature::monitors::TemperatureMonitorTrait;
 
 use super::TEST_MUTEX;
 

@@ -41,9 +41,11 @@ pub mod types;
 // Re-export monitor structs for easier access
 pub use monitors::{BatteryCapacityMonitor, BatteryHealthMonitor, BatteryPowerMonitor, BatteryTemperatureMonitor};
 
-/// Main battery struct for managing battery state
+/// Interface for accessing battery hardware and metrics
 pub struct Battery {
+    /// IOKit interface for hardware communication
     iokit: Arc<dyn IOKit>,
+    /// Battery device identifier
     device_id: String,
 }
 

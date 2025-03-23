@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!("\nGPU Information:");
         println!("----------------");
         println!("GPU Name: {}", gpu.name().await?);
-        
+
         // GPU Characteristics
         if let Ok(chars) = gpu.get_characteristics().await {
             println!("Vendor: {}", chars.vendor);
@@ -25,14 +25,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("Core Count: {}", cores);
             }
         }
-        
+
         // GPU Metrics
         println!("\nGPU Metrics:");
         println!("-----------");
         if let Ok(util) = gpu.get_utilization().await {
             println!("GPU Utilization: {:.1}%", util.value * 100.0);
         }
-        
+
         // GPU Memory
         if let Ok(mem) = gpu.get_memory().await {
             println!("\nGPU Memory:");
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("Used Memory: {} MB", mem.used / 1024 / 1024);
             println!("Free Memory: {} MB", mem.free / 1024 / 1024);
         }
-        
+
         // GPU Temperature
         println!("\nGPU Temperature:");
         println!("---------------");

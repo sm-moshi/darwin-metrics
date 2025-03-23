@@ -1,9 +1,9 @@
 use std::error::Error;
 use std::time::Duration;
 
+use darwin_metrics::Memory;
 use darwin_metrics::memory::MemoryMonitor as MemoryMonitorTrait;
 use darwin_metrics::traits::MemoryMonitor;
-use darwin_metrics::Memory;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

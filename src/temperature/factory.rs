@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::hardware::iokit::IOKit;
 use crate::temperature::monitors::*;
-use crate::traits::TemperatureMonitor;
 
 /// Temperature Monitor Factory
 ///
@@ -21,19 +20,19 @@ impl TemperatureMonitorFactory {
     }
 
     /// Create a temperature monitor of the specified type
-    pub fn create(&self, monitor_type: &str) -> Result<Box<dyn TemperatureMonitor>> {
+    pub fn create(&self, monitor_type: &str) -> Result<Box<dyn TemperatureMonitorTrait>> {
         match monitor_type {
             "cpu" => Ok(Box::new(CpuTemperatureMonitor::new(self.io_kit.clone()))),
             "gpu" => Ok(Box::new(GpuTemperatureMonitor::new(self.io_kit.clone()))),
             "ambient" => Ok(Box::new(AmbientTemperatureMonitor::new(self.io_kit.clone()))),
             "battery" => Ok(Box::new(BatteryTemperatureMonitor::new(self.io_kit.clone()))),
             "ssd" => Ok(Box::new(SsdTemperatureMonitor::new(self.io_kit.clone()))),
-            _ => Err(crate::error::Error::InvalidMonitorType(monitor_type.to_string())),
+            _ => Err(Error::InvalidMonitorType(monitor_type.to_string())),
         }
     }
 
     /// Create all available temperature monitors
-    pub fn create_all(&self) -> Vec<Box<dyn TemperatureMonitor>> {
+    pub fn create_all(&self) -> Vec<Box<dyn TemperatureMonitorTrait>> {
         vec![
             Box::new(CpuTemperatureMonitor::new(self.io_kit.clone())),
             Box::new(GpuTemperatureMonitor::new(self.io_kit.clone())),

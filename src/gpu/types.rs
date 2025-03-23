@@ -203,7 +203,7 @@ impl Default for GpuState {
 }
 
 /// Comprehensive GPU information including characteristics and current state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GpuInfo {
     /// Static GPU characteristics
     pub characteristics: GpuCharacteristics,
@@ -215,14 +215,5 @@ impl GpuInfo {
     /// Create a new GPU info object
     pub fn new(characteristics: GpuCharacteristics, state: GpuState) -> Self {
         Self { characteristics, state }
-    }
-}
-
-impl Default for GpuInfo {
-    fn default() -> Self {
-        Self {
-            characteristics: GpuCharacteristics::default(),
-            state: GpuState::default(),
-        }
     }
 }

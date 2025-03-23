@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::sync::Once;
 use std::time::Duration;
 
+use async_trait::async_trait;
 // External crate imports
 use objc2::class;
 use objc2::runtime::AnyClass;
@@ -16,6 +17,8 @@ use crate::{
     },
     error::{Error, Result},
     power::PowerState,
+    temperature::constants::*,
+    temperature::types::{Fan, ThermalLevel, ThermalMetrics},
     utils::{SafeDictionary, core::DictionaryAccess},
 };
 
@@ -81,26 +84,27 @@ impl DictionaryAccess for GpuStats {
 #[cfg(any(test, feature = "testing", feature = "mock"))]
 pub mod mock;
 
-/// Fan information structure containing speed and range information
+/// Fan information from IOKit
 #[derive(Debug, Clone)]
-pub struct FanInfo {
-    /// Current fan speed in RPM
+pub struct IOKitFanInfo {
+    /// Current speed in RPM
     pub speed_rpm: u32,
-    /// Minimum fan speed in RPM
+    /// Minimum speed in RPM
     pub min_speed: u32,
-    /// Maximum fan speed in RPM
+    /// Maximum speed in RPM
     pub max_speed: u32,
-    /// Current fan speed as a percentage between min and max speed
+    /// Current percentage of maximum speed
     pub percentage: f64,
 }
 
-impl Default for FanInfo {
-    fn default() -> Self {
+impl From<IOKitFanInfo> for Fan {
+    fn from(f: IOKitFanInfo) -> Self {
         Self {
-            speed_rpm: 0,
-            min_speed: 0,
-            max_speed: 0,
-            percentage: 0.0,
+            name: "System Fan".to_string(),
+            speed_rpm: f.speed_rpm,
+            min_speed: f.min_speed,
+            max_speed: f.max_speed,
+            target_speed: (f.percentage * f.max_speed as f64) as u32,
         }
     }
 }
@@ -249,7 +253,7 @@ pub trait IOKit: Debug + Send + Sync {
     fn get_thermal_info(&self) -> Result<ThermalInfo>;
 
     /// Get all fans
-    fn get_all_fans(&self) -> Result<Vec<FanInfo>>;
+    fn get_all_fans(&self) -> Result<Vec<IOKitFanInfo>>;
 
     /// Check if thermal throttling is active
     fn check_thermal_throttling(&self, plane: &str) -> Result<bool>;
@@ -261,7 +265,7 @@ pub trait IOKit: Debug + Send + Sync {
     fn get_gpu_stats(&self) -> Result<GpuStats>;
 
     /// Get information about a specific fan
-    fn get_fan_info(&self, fan_index: u32) -> Result<FanInfo>;
+    fn get_fan_info(&self, fan_index: u32) -> Result<IOKitFanInfo>;
 
     /// Get battery temperature
     fn get_battery_temperature(&self) -> Result<Option<f64>>;
@@ -399,15 +403,15 @@ impl IOKit for IOKitImpl {
         })
     }
 
-    fn get_all_fans(&self) -> Result<Vec<FanInfo>> {
+    fn get_all_fans(&self) -> Result<Vec<IOKitFanInfo>> {
         Ok(vec![
-            FanInfo {
+            IOKitFanInfo {
                 speed_rpm: 1200,
                 min_speed: 0,
                 max_speed: 5000,
                 percentage: 24.0,
             },
-            FanInfo {
+            IOKitFanInfo {
                 speed_rpm: 1300,
                 min_speed: 0,
                 max_speed: 5500,
@@ -435,8 +439,8 @@ impl IOKit for IOKitImpl {
         })
     }
 
-    fn get_fan_info(&self, _fan_index: u32) -> Result<FanInfo> {
-        Ok(FanInfo {
+    fn get_fan_info(&self, _fan_index: u32) -> Result<IOKitFanInfo> {
+        Ok(IOKitFanInfo {
             speed_rpm: 1200,
             min_speed: 0,
             max_speed: 5000,
@@ -512,8 +516,12 @@ impl Default for IOKitImpl {
     }
 }
 
+/// Initialization flag to ensure classes are registered only once
 static _INIT: Once = Once::new();
 
+/// Ensures that Objective-C classes are registered for use
+///
+/// This is necessary for proper interoperability with the Objective-C runtime
 fn ensure_classes_registered() {
     _INIT.call_once(|| {
         let _: &AnyClass = class!(NSObject);
@@ -719,10 +727,11 @@ impl GpuMonitor for IOKitImpl {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl ThermalMonitor for IOKitImpl {
     async fn cpu_temperature(&self) -> Result<Option<f64>> {
-        Ok(Some(self.get_cpu_temperature("IOService")?))
+        let thermal_info = self.get_thermal_info()?;
+        Ok(Some(thermal_info.cpu_temp))
     }
 
     async fn gpu_temperature(&self) -> Result<Option<f64>> {
@@ -746,38 +755,39 @@ impl ThermalMonitor for IOKitImpl {
     }
 
     async fn is_throttling(&self) -> Result<bool> {
-        self.check_thermal_throttling("IOService")
-    }
-
-    async fn get_fans(&self) -> Result<Vec<crate::temperature::types::Fan>> {
-        let fan_info = self.get_all_fans()?;
-        Ok(fan_info
-            .into_iter()
-            .map(|f| crate::temperature::types::Fan {
-                name: format!("Fan {}", f.speed_rpm),
-                speed: f.speed_rpm as f64,
-                min_speed: f.min_speed as f64,
-                max_speed: f.max_speed as f64,
-                utilization: f.percentage,
-            })
-            .collect())
-    }
-
-    async fn get_thermal_metrics(&self) -> Result<crate::temperature::types::ThermalMetrics> {
         let thermal_info = self.get_thermal_info()?;
+        Ok(thermal_info.thermal_throttling)
+    }
 
-        // Convert fans
-        let fans = self.get_fans().await?;
+    async fn get_fans(&self) -> Result<Vec<Fan>> {
+        let fans = self.get_all_fans()?;
+        Ok(fans.into_iter().map(Fan::from).collect())
+    }
 
-        Ok(crate::temperature::types::ThermalMetrics {
+    async fn get_thermal_metrics(&self) -> Result<ThermalMetrics> {
+        let thermal_info = self.get_thermal_info()?;
+        let fans = self.get_all_fans()?;
+        let fans_info: Vec<Fan> = fans.into_iter().map(Fan::from).collect();
+
+        let thermal_level = if thermal_info.cpu_temp >= CPU_CRITICAL_TEMPERATURE {
+            ThermalLevel::Critical
+        } else if thermal_info.cpu_temp >= WARNING_TEMPERATURE_THRESHOLD {
+            ThermalLevel::Warning
+        } else {
+            ThermalLevel::Normal
+        };
+
+        Ok(ThermalMetrics {
+            fan_speeds: fans_info.iter().map(|f| f.speed_rpm).collect(),
+            thermal_level,
+            memory_temperature: thermal_info.heatsink_temp,
+            is_throttling: thermal_info.thermal_throttling,
+            fans: fans_info,
             cpu_temperature: Some(thermal_info.cpu_temp),
             gpu_temperature: thermal_info.gpu_temp,
-            memory_temperature: thermal_info.heatsink_temp, // Use heatsink as memory
-            ambient_temperature: thermal_info.ambient_temp,
             battery_temperature: thermal_info.battery_temp,
-            ssd_temperature: None, // SSD temperature not available in old struct
-            is_throttling: thermal_info.thermal_throttling,
-            fans,
+            ssd_temperature: None,
+            ambient_temperature: thermal_info.ambient_temp,
         })
     }
 }
@@ -923,4 +933,18 @@ impl PowerEventMonitor for IOKitImpl {
         let props = self.get_service_properties(&service)?;
         Ok(props.get_bool("PreventSystemSleep").unwrap_or(false))
     }
+}
+
+/// A wrapper around an IOKit service reference
+#[derive(Debug)]
+pub struct IOService {
+    /// Service reference ID from IOKit
+    service: u32,
+}
+
+/// A wrapper around an IOKit connection handle
+#[derive(Debug)]
+pub struct IOConnection {
+    /// Connection handle reference from IOKit
+    handle: u32,
 }

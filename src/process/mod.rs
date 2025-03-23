@@ -1,4 +1,4 @@
-use std::ffi::c_void;
+use std::ffi::{c_int, c_void};
 /// # Process Monitoring
 ///
 /// The process module provides comprehensive monitoring of processes running on macOS systems.
@@ -144,6 +144,8 @@ pub enum ProcessError {
         /// Detailed error message
         message: String,
     },
+    /// Process error with a message
+    Error(String),
 }
 
 impl std::fmt::Display for ProcessError {
@@ -184,6 +186,7 @@ impl std::fmt::Display for ProcessError {
                     message
                 )
             },
+            Self::Error(message) => write!(f, "Process error: {}", message),
         }
     }
 }
@@ -198,6 +201,7 @@ impl From<ProcessError> for Error {
                 Error::process_error(pid, format!("System call failed with code {}", code))
             },
             ProcessError::General { pid, message } => Error::process_error(pid, message),
+            ProcessError::Error(message) => Error::process_error(None::<u32>, message),
         }
     }
 }
@@ -417,6 +421,36 @@ pub struct ProcessIOMonitorImpl {
 
 /// Monitor for process relationships
 pub struct ProcessRelationshipMonitorImpl {
+    process: Process,
+}
+
+/// Monitor for tracking CPU usage by a process
+pub struct ProcessCpuMonitor {
+    /// Reference to the process being monitored
+    process: Process,
+}
+
+/// Monitor for tracking memory usage by a process
+pub struct ProcessMemoryMonitor {
+    /// Reference to the process being monitored
+    process: Process,
+}
+
+/// Monitor for tracking disk I/O operations by a process
+pub struct ProcessDiskMonitor {
+    /// Reference to the process being monitored
+    process: Process,
+    /// Time of the last metrics update
+    last_update: Instant,
+    /// Bytes read during the last sample period
+    last_read_bytes: u64,
+    /// Bytes written during the last sample period
+    last_write_bytes: u64,
+}
+
+/// Monitor for tracking thread count of a process
+pub struct ProcessThreadMonitor {
+    /// Reference to the process being monitored
     process: Process,
 }
 
@@ -927,6 +961,9 @@ impl Process {
         cpu_usage
     }
 
+    /// Retrieves I/O statistics for a process
+    ///
+    /// This function uses the pid_rusage API to get detailed I/O information for a specified process.
     fn get_process_io_stats(pid: u32) -> Result<ProcessIOStats> {
         use pid_rusage::RUsageInfoV4;
 
@@ -944,6 +981,9 @@ impl Process {
         })
     }
 
+    /// Converts rusage information to a ProcessIOStats struct
+    ///
+    /// Helper method to transform raw rusage data into the library's IO statistics format.
     fn get_io_stats(&self, rusage: &RUsageInfoV4) -> ProcessIOStats {
         ProcessIOStats {
             read_bytes: rusage.ri_diskio_bytesread,
@@ -954,6 +994,9 @@ impl Process {
         }
     }
 
+    /// Gets detailed process information using macOS APIs
+    ///
+    /// Uses the proc_pidinfo function to retrieve detailed process data.
     fn get_process_info(pid: i32) -> Result<proc_info> {
         let mut info: proc_info = unsafe { std::mem::zeroed() };
         let info_size = std::mem::size_of::<proc_info>();
@@ -963,29 +1006,24 @@ impl Process {
                 pid,
                 PROC_PIDTASKINFO,
                 0,
-                &mut info as *mut _ as *mut c_void,
-                info_size as i32,
+                &mut info as *mut proc_info as *mut c_void,
+                info_size as c_int,
             )
         };
 
-        if result <= 0 {
-            let error_code = std::io::Error::last_os_error().raw_os_error().unwrap_or(-1);
-            return process_error(ProcessError::SystemCall {
-                pid: Some(pid as u32),
-                call: "proc_pidinfo".to_string(),
-                code: error_code,
-            });
+        if result != 0 {
+            return Err(Error::process_error(
+                None::<u32>,
+                Self::get_error_message(result).unwrap_or_else(|| "Unknown error".to_string()),
+            ));
         }
 
         Ok(info)
     }
 
-    fn get_error_message(result: i32) -> Option<String> {
-        if result <= 0 {
-            Some(format!("Process info error: {}", result))
-        } else {
-            None
-        }
+    /// Gets error message for a given error code
+    fn get_error_message(code: i32) -> Option<String> {
+        Some(format!("Process error code: {}", code))
     }
 
     /// Returns a monitor for process information

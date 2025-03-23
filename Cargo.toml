@@ -40,6 +40,8 @@ objc2 = { version = "^0.6.0", features = [
   "catch-all",
 ] }
 objc2-foundation = "^0.3.0"
+objc2-core-foundation = "^0.3.0"
+mach2 = "^0.4.2"
 thiserror = "^2.0.12"
 scopeguard = "^1.2.0"
 libproc = "^0.14.10"

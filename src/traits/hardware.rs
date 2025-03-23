@@ -6,6 +6,7 @@ use crate::core::metrics::Metric;
 use crate::core::types::{ByteSize, DiskIO, Percentage, Temperature, Transfer};
 use crate::error::Result;
 use crate::power::PowerState;
+use crate::temperature::monitors::TemperatureMonitorTrait;
 use crate::temperature::types::{Fan, ThermalMetrics};
 
 /// Trait for monitoring hardware components
@@ -57,6 +58,55 @@ pub trait TemperatureMonitor: HardwareMonitor<MetricType = Temperature> {
     /// Get the current temperature in Celsius
     async fn temperature(&self) -> Result<f64> {
         Ok(self.get_metric().await?.value.as_celsius())
+    }
+}
+
+#[async_trait]
+impl<T: TemperatureMonitorTrait + ?Sized> HardwareMonitor for Box<T> {
+    type MetricType = Temperature;
+
+    async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
+        let temp = self.as_ref().temperature().await?;
+        Ok(Metric {
+            value: Temperature::new_celsius(temp),
+            timestamp: SystemTime::now(),
+        })
+    }
+
+    async fn name(&self) -> Result<String> {
+        self.as_ref().name().await
+    }
+
+    async fn hardware_type(&self) -> Result<String> {
+        Ok(match self.as_ref().name().await?.as_str() {
+            "CPU Temperature Monitor" => "CPU",
+            "GPU Temperature Monitor" => "GPU",
+            "Ambient Temperature Monitor" => "Ambient",
+            "Battery Temperature Monitor" => "Battery",
+            "SSD Temperature Monitor" => "SSD",
+            _ => "Unknown",
+        }
+        .to_string())
+    }
+
+    async fn device_id(&self) -> Result<String> {
+        let name = self.as_ref().name().await?;
+        Ok(match name.as_str() {
+            "CPU Temperature Monitor" => "cpu0",
+            "GPU Temperature Monitor" => "gpu0",
+            "Ambient Temperature Monitor" => "ambient0",
+            "Battery Temperature Monitor" => "battery0",
+            "SSD Temperature Monitor" => "ssd0",
+            _ => "unknown0",
+        }
+        .to_string())
+    }
+}
+
+#[async_trait]
+impl<T: TemperatureMonitorTrait + ?Sized> TemperatureMonitor for Box<T> {
+    async fn temperature(&self) -> Result<f64> {
+        self.as_ref().temperature().await
     }
 }
 

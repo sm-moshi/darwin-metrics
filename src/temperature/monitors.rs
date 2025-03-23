@@ -10,21 +10,11 @@ use async_trait::async_trait;
 /// fan monitoring functionality.
 use crate::core::metrics::Metric;
 use crate::core::types::Temperature as TemperatureType;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::hardware::iokit::IOKit;
 use crate::temperature::constants::*;
+use crate::temperature::types::Fan;
 use crate::traits::{FanMonitor as TraitsFanMonitor, HardwareMonitor, TemperatureMonitor};
-
-// Temperature constants
-const AMBIENT_DEFAULT_CRITICAL_TEMP: f64 = AMBIENT_CRITICAL_TEMPERATURE;
-const CPU_DEFAULT_CRITICAL_TEMP: f64 = CPU_CRITICAL_TEMPERATURE;
-const GPU_DEFAULT_CRITICAL_TEMP: f64 = GPU_CRITICAL_TEMPERATURE;
-const SSD_DEFAULT_CRITICAL_TEMP: f64 = SSD_CRITICAL_TEMPERATURE;
-const BATTERY_DEFAULT_CRITICAL_TEMP: f64 = BATTERY_CRITICAL_TEMPERATURE;
-
-// Fan speed percentage range constants
-const MIN_FAN_SPEED_PERCENTAGE: f64 = 0.0;
-const MAX_FAN_SPEED_PERCENTAGE: f64 = 100.0;
 
 // Fan Monitor
 //
@@ -547,43 +537,75 @@ pub trait TemperatureMonitorTrait: Send + Sync {
 
     /// Get the name of the monitor
     async fn name(&self) -> Result<String>;
+
+    /// Get fan information for this monitor
+    async fn fan(&self) -> Result<Fan>;
 }
 
 #[async_trait]
 impl TemperatureMonitorTrait for CpuTemperatureMonitor {
     async fn temperature(&self) -> Result<f64> {
-        <CpuTemperatureMonitor as TemperatureMonitor>::temperature(self).await
+        let info = self.io_kit.get_thermal_info()?;
+        Ok(info.cpu_temp)
     }
 
     async fn is_critical(&self) -> Result<bool> {
-        TemperatureMonitorExt::is_critical(self).await
+        let temp = self.temperature().await?;
+        Ok(temp >= CPU_CRITICAL_TEMPERATURE)
     }
 
     async fn critical_threshold(&self) -> Result<f64> {
-        TemperatureMonitorExt::critical_threshold(self).await
+        Ok(CPU_CRITICAL_TEMPERATURE)
     }
 
     async fn name(&self) -> Result<String> {
-        HardwareMonitor::name(self).await
+        Ok("CPU Temperature Monitor".to_string())
+    }
+
+    async fn fan(&self) -> Result<Fan> {
+        let fans = self.io_kit.get_all_fans()?;
+        fans.get(0)
+            .map(|f| Fan::from(f.clone()))
+            .ok_or_else(|| Error::NotAvailable {
+                resource: "CPU fan".to_string(),
+                reason: "No CPU fan found".to_string(),
+            })
     }
 }
 
 #[async_trait]
 impl TemperatureMonitorTrait for GpuTemperatureMonitor {
     async fn temperature(&self) -> Result<f64> {
-        <GpuTemperatureMonitor as TemperatureMonitor>::temperature(self).await
+        let info = self.io_kit.get_thermal_info()?;
+        info.gpu_temp.ok_or_else(|| Error::NotAvailable {
+            resource: "GPU temperature".to_string(),
+            reason: "Hardware info not available".to_string(),
+        })
     }
 
     async fn is_critical(&self) -> Result<bool> {
-        TemperatureMonitorExt::is_critical(self).await
+        match self.temperature().await {
+            Ok(temp) => Ok(temp >= GPU_CRITICAL_TEMPERATURE),
+            Err(_) => Ok(false),
+        }
     }
 
     async fn critical_threshold(&self) -> Result<f64> {
-        TemperatureMonitorExt::critical_threshold(self).await
+        Ok(GPU_CRITICAL_TEMPERATURE)
     }
 
     async fn name(&self) -> Result<String> {
-        HardwareMonitor::name(self).await
+        Ok("GPU Temperature Monitor".to_string())
+    }
+
+    async fn fan(&self) -> Result<Fan> {
+        let fans = self.io_kit.get_all_fans()?;
+        fans.get(1)
+            .map(|f| Fan::from(f.clone()))
+            .ok_or_else(|| Error::NotAvailable {
+                resource: "GPU fan".to_string(),
+                reason: "No GPU fan found".to_string(),
+            })
     }
 }
 
@@ -604,6 +626,13 @@ impl TemperatureMonitorTrait for AmbientTemperatureMonitor {
     async fn name(&self) -> Result<String> {
         self.name().await
     }
+
+    async fn fan(&self) -> Result<Fan> {
+        Err(Error::NotAvailable {
+            resource: "Fan information".to_string(),
+            reason: "Not supported by this monitor".to_string(),
+        })
+    }
 }
 
 #[async_trait]
@@ -623,6 +652,13 @@ impl TemperatureMonitorTrait for BatteryTemperatureMonitor {
     async fn name(&self) -> Result<String> {
         self.name().await
     }
+
+    async fn fan(&self) -> Result<Fan> {
+        Err(Error::NotAvailable {
+            resource: "Fan information".to_string(),
+            reason: "Not supported by this monitor".to_string(),
+        })
+    }
 }
 
 #[async_trait]
@@ -641,6 +677,13 @@ impl TemperatureMonitorTrait for SsdTemperatureMonitor {
 
     async fn name(&self) -> Result<String> {
         self.name().await
+    }
+
+    async fn fan(&self) -> Result<Fan> {
+        Err(Error::NotAvailable {
+            resource: "Fan information".to_string(),
+            reason: "Not supported by this monitor".to_string(),
+        })
     }
 }
 

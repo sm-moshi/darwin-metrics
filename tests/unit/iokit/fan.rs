@@ -1,25 +1,50 @@
-use darwin_metrics::error::Error;
-use darwin_metrics::hardware::iokit::{FanInfo, IOKit, IOKitImpl, MockIOKit};
+use darwin_metrics::error::Result;
+use darwin_metrics::hardware::iokit::{IOKit, IOKitImpl, MockIOKit};
+use darwin_metrics::temperature::types::Fan;
 
-#[test]
-fn test_get_fan_info() {
-    let mut mock_iokit = MockIOKit::new();
-
-    mock_iokit.expect_get_fan_info().returning(|_| {
-        Ok(FanInfo {
+#[tokio::test]
+async fn test_get_fans() -> Result<()> {
+    let mock = MockIOKit::new(
+        None,
+        None,
+        vec![Fan {
+            name: "System Fan".to_string(),
             speed_rpm: 2000,
-            min_speed: 500,
-            max_speed: 5000,
-            percentage: 40.0,
-        })
-    });
+            min_speed: 1000,
+            max_speed: 4000,
+            target_speed: 2000,
+        }],
+    );
 
-    let result = mock_iokit.get_fan_info(0).unwrap();
+    let fans = mock.get_fans().await?;
+    assert_eq!(fans.len(), 1);
+    assert_eq!(fans[0].speed_rpm, 2000);
+    assert_eq!(fans[0].min_speed, 1000);
+    assert_eq!(fans[0].max_speed, 4000);
+    assert_eq!(fans[0].target_speed, 2000);
+    Ok(())
+}
 
-    assert_eq!(result.speed_rpm, 2000);
-    assert_eq!(result.min_speed, 500);
-    assert_eq!(result.max_speed, 5000);
-    assert_eq!(result.percentage, 40.0);
+#[tokio::test]
+async fn test_get_fan_info() -> Result<()> {
+    let mock = MockIOKit::new(
+        None,
+        None,
+        vec![Fan {
+            name: "System Fan".to_string(),
+            speed_rpm: 2000,
+            min_speed: 1000,
+            max_speed: 4000,
+            target_speed: 2000,
+        }],
+    );
+
+    let fan = mock.get_fans().await?.pop().unwrap();
+    assert_eq!(fan.speed_rpm, 2000);
+    assert_eq!(fan.min_speed, 1000);
+    assert_eq!(fan.max_speed, 4000);
+    assert_eq!(fan.target_speed, 2000);
+    Ok(())
 }
 
 #[test]

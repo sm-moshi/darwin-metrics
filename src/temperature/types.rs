@@ -25,13 +25,13 @@ pub struct Fan {
     /// Fan identifier (e.g., "CPU Fan", "System Fan")
     pub name: String,
     /// Current fan speed in RPM
-    pub speed: f64,
+    pub speed_rpm: u32,
     /// Minimum fan speed in RPM
-    pub min_speed: f64,
+    pub min_speed: u32,
     /// Maximum fan speed in RPM
-    pub max_speed: f64,
-    /// Current fan utilization as a percentage (0-100%)
-    pub utilization: f64,
+    pub max_speed: u32,
+    /// Target fan speed in RPM
+    pub target_speed: u32,
 }
 
 /// Configuration for temperature monitoring
@@ -68,38 +68,55 @@ impl Default for TemperatureConfig {
     }
 }
 
-/// Comprehensive thermal metrics for the system
+/// Thermal metrics for a device
 #[derive(Debug, Clone)]
 pub struct ThermalMetrics {
-    /// CPU temperature in degrees Celsius
-    pub cpu_temperature: Option<f64>,
-    /// GPU temperature in degrees Celsius
-    pub gpu_temperature: Option<f64>,
-    /// Memory temperature in degrees Celsius
+    /// Fan speeds in RPM
+    pub fan_speeds: Vec<u32>,
+    /// Current thermal level
+    pub thermal_level: ThermalLevel,
+    /// Memory temperature in Celsius
     pub memory_temperature: Option<f64>,
-    /// Ambient (inside case) temperature in degrees Celsius
-    pub ambient_temperature: Option<f64>,
-    /// Battery temperature in degrees Celsius
-    pub battery_temperature: Option<f64>,
-    /// SSD temperature in degrees Celsius
-    pub ssd_temperature: Option<f64>,
-    /// Whether the system is currently thermal throttling
+    /// Whether the device is throttling
     pub is_throttling: bool,
-    /// Information about all fans in the system
+    /// Fan information
     pub fans: Vec<Fan>,
+    /// CPU temperature in Celsius
+    pub cpu_temperature: Option<f64>,
+    /// GPU temperature in Celsius
+    pub gpu_temperature: Option<f64>,
+    /// Battery temperature in Celsius
+    pub battery_temperature: Option<f64>,
+    /// SSD temperature in Celsius
+    pub ssd_temperature: Option<f64>,
+    /// Ambient temperature in Celsius
+    pub ambient_temperature: Option<f64>,
 }
 
 impl Default for ThermalMetrics {
     fn default() -> Self {
         Self {
-            cpu_temperature: None,
-            gpu_temperature: None,
+            fan_speeds: Vec::new(),
+            thermal_level: ThermalLevel::Normal,
             memory_temperature: None,
-            ambient_temperature: None,
-            battery_temperature: None,
-            ssd_temperature: None,
             is_throttling: false,
             fans: Vec::new(),
+            cpu_temperature: None,
+            gpu_temperature: None,
+            battery_temperature: None,
+            ssd_temperature: None,
+            ambient_temperature: None,
         }
     }
+}
+
+/// Thermal level of the device
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThermalLevel {
+    /// Normal operating temperature
+    Normal,
+    /// Warning temperature level
+    Warning,
+    /// Critical temperature level
+    Critical,
 }

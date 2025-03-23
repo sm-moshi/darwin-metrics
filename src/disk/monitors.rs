@@ -77,10 +77,9 @@ impl DiskHealthMonitor for DiskHealthMonitorImpl {
     }
 
     async fn is_nearly_full(&self) -> Result<bool> {
-        // Default to 90% threshold
-        let total = self.disk.total as f64;
-        let used = (self.disk.total as f64 * 0.9) as f64; // Default to 90% full
-        Ok((used / total) > 0.9)
+        let total = self.disk.total;
+        let used = self.disk.total as f64 * 0.9; // Default to 90% full
+        Ok((used / total as f64) > 0.9)
     }
 
     async fn is_boot_volume(&self) -> Result<bool> {
@@ -194,13 +193,11 @@ impl DiskIOMonitor for DiskIOMonitorImpl {
             Some(last) => {
                 // Simple rate calculation based on the interval
                 let read_rate = ByteSize::from_bytes(
-                    (current.read_bytes.as_bytes() - last.read_bytes.as_bytes())
-                        / self.update_interval.as_secs() as u64,
+                    (current.read_bytes.as_bytes() - last.read_bytes.as_bytes()) / self.update_interval.as_secs(),
                 );
 
                 let write_rate = ByteSize::from_bytes(
-                    (current.write_bytes.as_bytes() - last.write_bytes.as_bytes())
-                        / self.update_interval.as_secs() as u64,
+                    (current.write_bytes.as_bytes() - last.write_bytes.as_bytes()) / self.update_interval.as_secs(),
                 );
 
                 Ok(Transfer {
@@ -215,12 +212,12 @@ impl DiskIOMonitor for DiskIOMonitorImpl {
 
                 let read_rate = ByteSize::from_bytes(
                     (new_current.read_bytes.as_bytes() - current.read_bytes.as_bytes())
-                        / self.update_interval.as_secs() as u64,
+                        / self.update_interval.as_secs(),
                 );
 
                 let write_rate = ByteSize::from_bytes(
                     (new_current.write_bytes.as_bytes() - current.write_bytes.as_bytes())
-                        / self.update_interval.as_secs() as u64,
+                        / self.update_interval.as_secs(),
                 );
 
                 Ok(Transfer {

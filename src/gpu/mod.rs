@@ -14,14 +14,47 @@ pub mod monitors;
 /// It includes functionality for gathering GPU information, monitoring
 /// GPU temperature, and reporting utilization.
 pub use gpu_impl::*;
-/// Type alias for GPU monitor trait re-exports
-// Re-export types from the monitors module
-pub use monitors::{GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor};
-// Re-export types from the types module
-pub use types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, GpuUtilization};
 
 /// GPU constants
 pub mod constants;
 
 // NOTE: Hardware monitoring traits like HardwareMonitor, TemperatureMonitor, and UtilizationMonitor
 // should be imported directly from darwin_metrics::traits module
+
+use std::ffi::CString;
+use std::sync::Arc;
+
+use crate::hardware::iokit::IOKit;
+use crate::utils::bindings::{IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT};
+
+/// GPU information and monitoring
+#[derive(Debug)]
+pub struct Gpu {
+    /// IOKit service for accessing hardware information
+    io_kit: Arc<Box<dyn IOKit>>,
+}
+
+impl Gpu {
+    /// Create a new GPU instance
+    pub fn new(io_kit: Arc<Box<dyn IOKit>>) -> Self {
+        Self { io_kit }
+    }
+
+    /// Get GPU service connection
+    pub(crate) fn get_gpu_service() -> Option<u32> {
+        // Create service name for GPU
+        let service_name = CString::new("IOGraphicsAccelerator2").ok()?;
+
+        // Get matching service
+        unsafe {
+            let service =
+                IOServiceGetMatchingService(K_IOMASTER_PORT_DEFAULT, IOServiceMatching(service_name.as_ptr()));
+
+            if service == 0 { None } else { Some(service) }
+        }
+    }
+}
+
+// Re-export types
+pub use monitors::{GpuCharacteristicsMonitor, GpuMemoryMonitor, GpuTemperatureMonitor, GpuUtilizationMonitor};
+pub use types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, GpuUtilization};
