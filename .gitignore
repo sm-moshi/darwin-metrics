@@ -1,13 +1,13 @@
-debug/
-target/
+debug/*
+target/*
 **/*.rs.bk
 *.hmap
 *.xcodeproj
-Packages/
+Packages/*
 Package.pins
 Package.resolved
-.build/
-generated/
+.build/*
+generated/*
 *.o
 *.lo
 *.a
@@ -27,7 +27,7 @@ generated/
 .bacon-locations
 bacon.toml
 .vscode/mise-tools
-.references/
+.references/*
 .windsurfrules
 .repomix/
 repomix*

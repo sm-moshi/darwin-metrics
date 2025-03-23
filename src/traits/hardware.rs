@@ -674,3 +674,18 @@ pub trait FanMonitor {
     /// Get the fan name
     async fn fan_name(&self) -> Result<String>;
 }
+
+#[async_trait::async_trait]
+pub trait IOKit: Send + Sync {
+    /// Get the number of fans in the system
+    async fn get_fan_count(&self) -> Result<usize>;
+
+    /// Get the current speed of a fan by index
+    async fn get_fan_speed(&self, index: usize) -> Result<u32>;
+
+    /// Get the minimum speed of a fan by index
+    async fn get_fan_min_speed(&self, index: usize) -> Result<u32>;
+
+    /// Get the maximum speed of a fan by index
+    async fn get_fan_max_speed(&self, index: usize) -> Result<u32>;
+}

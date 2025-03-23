@@ -20,8 +20,7 @@ async fn main() -> darwin_metrics::Result<()> {
                 );
                 println!("  CPU temperature: {}°C", update.temperature.0);
                 println!("  Disk space: {} bytes free", update.disk.available);
-                println!("  Network traffic: {} received, {} sent",
-                         "N/A", "N/A");
+                println!("  Network traffic: {} received, {} sent", "N/A", "N/A");
             },
             Err(e) => {
                 println!("Error: {:?}", e);

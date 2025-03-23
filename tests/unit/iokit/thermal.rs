@@ -269,9 +269,9 @@ fn test_check_thermal_throttling() {
 
 #[test]
 fn test_thermal_info_error_propagation() {
-    let cpu_error = Error::iokit_error(1, "CPU sensor error".to_string());
-    let gpu_error = Error::iokit_error(1, "GPU sensor error".to_string());
-    let thermal_error = Error::iokit_error(1, "Thermal sensor error".to_string());
+    let cpu_error = Error::iokit_error("CPU sensor error");
+    let gpu_error = Error::iokit_error("GPU sensor error");
+    let thermal_error = Error::iokit_error("Thermal sensor error");
 
     let mock = SimpleMockIOKit::new()
         .with_cpu_temp_error(cpu_error)

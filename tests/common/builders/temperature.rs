@@ -64,34 +64,56 @@ impl ThermalInfoBuilder {
 
 /// Builder for creating FanInfo test instances
 pub struct FanInfoBuilder {
+    current_speed: u32,
+    target_speed: u32,
+    min_speed: Option<u32>,
+    max_speed: Option<u32>,
+    index: u32,
     speed_rpm: u32,
-    min_speed: u32,
-    max_speed: u32,
     percentage: f64,
 }
 
 impl FanInfoBuilder {
     pub fn new() -> Self {
         Self {
+            current_speed: 2000,
+            target_speed: 2000,
+            min_speed: Some(1000),
+            max_speed: Some(4000),
+            index: 0,
             speed_rpm: 2000,
-            min_speed: 1000,
-            max_speed: 4000,
             percentage: 33.3,
         }
     }
 
+    pub fn with_current_speed(mut self, speed: u32) -> Self {
+        self.current_speed = speed;
+        self
+    }
+
+    pub fn with_target_speed(mut self, speed: u32) -> Self {
+        self.target_speed = speed;
+        self
+    }
+
     pub fn with_speed(mut self, speed: u32) -> Self {
         self.speed_rpm = speed;
+        self.current_speed = speed;
         self
     }
 
     pub fn with_min_speed(mut self, min: u32) -> Self {
-        self.min_speed = min;
+        self.min_speed = Some(min);
         self
     }
 
     pub fn with_max_speed(mut self, max: u32) -> Self {
-        self.max_speed = max;
+        self.max_speed = Some(max);
+        self
+    }
+
+    pub fn with_index(mut self, index: u32) -> Self {
+        self.index = index;
         self
     }
 
@@ -102,9 +124,12 @@ impl FanInfoBuilder {
 
     pub fn build(self) -> FanInfo {
         FanInfo {
-            speed_rpm: self.speed_rpm,
+            current_speed: self.current_speed,
+            target_speed: self.target_speed,
             min_speed: self.min_speed,
             max_speed: self.max_speed,
+            index: self.index,
+            speed_rpm: self.speed_rpm,
             percentage: self.percentage,
         }
     }

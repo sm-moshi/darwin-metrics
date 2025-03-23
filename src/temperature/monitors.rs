@@ -8,84 +8,93 @@ use async_trait::async_trait;
 /// This module contains implementations for monitoring various hardware component
 /// temperatures including CPU, GPU, battery, SSD, and ambient sensors, as well as
 /// fan monitoring functionality.
-use crate::core::metrics::Metric;
+use crate::core::metrics::{Metric, hardware::UtilizationMonitor};
 use crate::core::types::Temperature as TemperatureType;
 use crate::error::Result;
 use crate::hardware::iokit::IOKit;
 use crate::temperature::constants::*;
-use crate::traits::{FanMonitor as TraitsFanMonitor, HardwareMonitor, TemperatureMonitor};
-
-// Temperature constants
-const AMBIENT_DEFAULT_CRITICAL_TEMP: f64 = AMBIENT_CRITICAL_TEMPERATURE;
-const CPU_DEFAULT_CRITICAL_TEMP: f64 = CPU_CRITICAL_TEMPERATURE;
-const GPU_DEFAULT_CRITICAL_TEMP: f64 = GPU_CRITICAL_TEMPERATURE;
-const SSD_DEFAULT_CRITICAL_TEMP: f64 = SSD_CRITICAL_TEMPERATURE;
-const BATTERY_DEFAULT_CRITICAL_TEMP: f64 = BATTERY_CRITICAL_TEMPERATURE;
-
-// Fan speed percentage range constants
-const MIN_FAN_SPEED_PERCENTAGE: f64 = 0.0;
-const MAX_FAN_SPEED_PERCENTAGE: f64 = 100.0;
+use crate::traits::{
+    FanMonitor, 
+    HardwareMonitor, 
+    TemperatureMonitor, 
+    ThermalMonitor
+};
+use crate::temperature::types::{Fan, ThermalMetrics};
 
 // Fan Monitor
 //
 /// Monitor for fan speed and control
-pub struct FanMonitor {
-    /// IOKit service for accessing hardware information
-    io_kit: Arc<Box<dyn IOKit>>,
-    /// Fan index
+#[derive(Debug, Clone)]
+pub struct FanMonitorImpl {
+    io_kit: Arc<dyn IOKit>,
     index: usize,
+    current_speed: u32,
+    target_speed: u32,
+    min_speed: u32,
+    max_speed: u32,
+    speed_rpm: u32,
+    percentage: f64,
 }
 
-impl FanMonitor {
-    /// Create a new fan monitor
-    pub fn new(io_kit: Arc<Box<dyn IOKit>>, index: usize) -> Self {
-        Self { io_kit, index }
+impl FanMonitorImpl {
+    pub fn new(io_kit: Arc<dyn IOKit>, index: usize) -> Self {
+        Self {
+            io_kit,
+            index,
+            current_speed: 0,
+            target_speed: 0,
+            min_speed: 0,
+            max_speed: 0,
+            speed_rpm: 0,
+            percentage: 0.0,
+        }
     }
 }
 
 #[async_trait]
-impl TraitsFanMonitor for FanMonitor {
+impl HardwareMonitor for FanMonitorImpl {
+    type MetricType = crate::core::types::Percentage;
+
+    async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
+        Ok(Metric::new(Self::MetricType::new(self.percentage)))
+    }
+
+    async fn name(&self) -> Result<String> {
+        Ok(format!("Fan {}", self.index))
+    }
+
+    async fn hardware_type(&self) -> Result<String> {
+        Ok("Fan".to_string())
+    }
+
+    async fn device_id(&self) -> Result<String> {
+        Ok(format!("fan_{}", self.index))
+    }
+}
+
+#[async_trait]
+impl crate::traits::UtilizationMonitor for FanMonitorImpl {
+    async fn utilization(&self) -> Result<f64> {
+        Ok(self.percentage)
+    }
+}
+
+#[async_trait]
+impl FanMonitor for FanMonitorImpl {
     async fn speed_rpm(&self) -> Result<u32> {
-        let fans = self.io_kit.get_all_fans()?;
-        fans.get(self.index)
-            .map(|fan| fan.speed_rpm)
-            .ok_or_else(|| crate::error::Error::NotAvailable {
-                resource: format!("Fan {}", self.index),
-                reason: "Not found".to_string(),
-            })
+        Ok(self.speed_rpm)
     }
 
     async fn min_speed(&self) -> Result<u32> {
-        let fans = self.io_kit.get_all_fans()?;
-        fans.get(self.index)
-            .map(|fan| fan.min_speed)
-            .ok_or_else(|| crate::error::Error::NotAvailable {
-                resource: format!("Fan {}", self.index),
-                reason: "Not found".to_string(),
-            })
+        Ok(self.min_speed)
     }
 
     async fn max_speed(&self) -> Result<u32> {
-        let fans = self.io_kit.get_all_fans()?;
-        fans.get(self.index)
-            .map(|fan| fan.max_speed)
-            .ok_or_else(|| crate::error::Error::NotAvailable {
-                resource: format!("Fan {}", self.index),
-                reason: "Not found".to_string(),
-            })
+        Ok(self.max_speed)
     }
 
     async fn percentage(&self) -> Result<f64> {
-        let speed = self.speed_rpm().await? as f64;
-        let min = self.min_speed().await? as f64;
-        let max = self.max_speed().await? as f64;
-
-        if max == min {
-            return Ok(0.0);
-        }
-
-        let percentage = ((speed - min) / (max - min)) * 100.0;
-        Ok(percentage.clamp(MIN_FAN_SPEED_PERCENTAGE, MAX_FAN_SPEED_PERCENTAGE))
+        Ok(self.percentage)
     }
 
     async fn fan_name(&self) -> Result<String> {
@@ -186,9 +195,8 @@ impl GpuTemperatureMonitor {
     /// Get the current GPU temperature in Celsius
     pub async fn temperature(&self) -> Result<f64> {
         let info = self.io_kit.get_thermal_info()?;
-        info.gpu_temp.ok_or_else(|| crate::error::Error::NotAvailable {
-            resource: "GPU Temperature".to_string(),
-            reason: "Not supported on this device".to_string(),
+        info.gpu_temp.ok_or_else(|| {
+            crate::error::Error::NotAvailable("GPU Temperature not supported on this device".to_string())
         })
     }
 
@@ -235,14 +243,12 @@ impl HardwareMonitor for GpuTemperatureMonitor {
 impl TemperatureMonitor for GpuTemperatureMonitor {
     async fn temperature(&self) -> Result<f64> {
         match self.io_kit.get_thermal_info() {
-            Ok(info) => info.gpu_temp.ok_or_else(|| crate::error::Error::NotAvailable {
-                resource: "GPU temperature".to_string(),
-                reason: "Hardware info not available".to_string(),
+            Ok(info) => info.gpu_temp.ok_or_else(|| {
+                crate::error::Error::NotAvailable("GPU temperature hardware info not available".to_string())
             }),
-            Err(_) => Err(crate::error::Error::NotAvailable {
-                resource: "GPU temperature".to_string(),
-                reason: "Hardware info not available".to_string(),
-            }),
+            Err(_) => Err(crate::error::Error::NotAvailable(
+                "GPU temperature hardware info not available".to_string(),
+            )),
         }
     }
 }
@@ -278,9 +284,8 @@ impl AmbientTemperatureMonitor {
     /// Get the current ambient temperature in Celsius
     pub async fn temperature(&self) -> Result<f64> {
         let info = self.io_kit.get_thermal_info()?;
-        info.ambient_temp.ok_or_else(|| crate::error::Error::NotAvailable {
-            resource: "Ambient temperature".to_string(),
-            reason: "Hardware info not available".to_string(),
+        info.ambient_temp.ok_or_else(|| {
+            crate::error::Error::NotAvailable("Ambient temperature hardware info not available".to_string())
         })
     }
 
@@ -332,9 +337,8 @@ impl HardwareMonitor for AmbientTemperatureMonitor {
 impl TemperatureMonitor for AmbientTemperatureMonitor {
     async fn temperature(&self) -> Result<f64> {
         let info = self.io_kit.get_thermal_info()?;
-        info.ambient_temp.ok_or_else(|| crate::error::Error::NotAvailable {
-            resource: "Ambient temperature".to_string(),
-            reason: "Hardware info not available".to_string(),
+        info.ambient_temp.ok_or_else(|| {
+            crate::error::Error::NotAvailable("Ambient temperature hardware info not available".to_string())
         })
     }
 }
@@ -370,9 +374,8 @@ impl BatteryTemperatureMonitor {
     /// Get the current battery temperature in Celsius
     pub async fn temperature(&self) -> Result<f64> {
         let info = self.io_kit.get_thermal_info()?;
-        info.battery_temp.ok_or_else(|| crate::error::Error::NotAvailable {
-            resource: "Battery temperature".to_string(),
-            reason: "Hardware info not available".to_string(),
+        info.battery_temp.ok_or_else(|| {
+            crate::error::Error::NotAvailable("Battery temperature hardware info not available".to_string())
         })
     }
 
@@ -424,9 +427,8 @@ impl HardwareMonitor for BatteryTemperatureMonitor {
 impl TemperatureMonitor for BatteryTemperatureMonitor {
     async fn temperature(&self) -> Result<f64> {
         let info = self.io_kit.get_thermal_info()?;
-        info.battery_temp.ok_or_else(|| crate::error::Error::NotAvailable {
-            resource: "Battery temperature".to_string(),
-            reason: "Hardware info not available".to_string(),
+        info.battery_temp.ok_or_else(|| {
+            crate::error::Error::NotAvailable("Battery temperature hardware info not available".to_string())
         })
     }
 }
@@ -467,10 +469,7 @@ impl SsdTemperatureMonitor {
         info.get_number("SSD_TEMPERATURE")
             .or_else(|| info.get_number("DRIVE_TEMPERATURE"))
             .or_else(|| info.get_number("NVME_TEMPERATURE"))
-            .ok_or_else(|| crate::error::Error::NotAvailable {
-                resource: "SSD temperature".to_string(),
-                reason: "Hardware info not available".to_string(),
-            })
+            .ok_or_else(|| crate::error::Error::NotAvailable("SSD temperature hardware info not available".to_string()))
     }
 
     /// Check if SSD temperature is at a critical level
@@ -526,10 +525,7 @@ impl TemperatureMonitor for SsdTemperatureMonitor {
         info.get_number("SSD_TEMPERATURE")
             .or_else(|| info.get_number("DRIVE_TEMPERATURE"))
             .or_else(|| info.get_number("NVME_TEMPERATURE"))
-            .ok_or_else(|| crate::error::Error::NotAvailable {
-                resource: "SSD temperature".to_string(),
-                reason: "Hardware info not available".to_string(),
-            })
+            .ok_or_else(|| crate::error::Error::NotAvailable("SSD temperature hardware info not available".to_string()))
     }
 }
 
@@ -653,5 +649,115 @@ pub fn create_monitor(monitor_type: &str, io_kit: Arc<Box<dyn IOKit>>) -> Option
         "battery" => Some(Box::new(BatteryTemperatureMonitor::new(io_kit))),
         "ssd" => Some(Box::new(SsdTemperatureMonitor::new(io_kit))),
         _ => None,
+    }
+}
+
+pub struct ThermalMonitorImpl {
+    io_kit: Arc<dyn IOKit>,
+}
+
+impl ThermalMonitorImpl {
+    pub fn new(io_kit: Arc<dyn IOKit>) -> Self {
+        Self { io_kit }
+    }
+}
+
+#[async_trait]
+impl HardwareMonitor for ThermalMonitorImpl {
+    type MetricType = TemperatureType;
+
+    async fn get_metric(&self) -> Result<Metric<Self::MetricType>> {
+        let temp = self.cpu_temperature().await?;
+        Ok(Metric::new(temp))
+    }
+
+    async fn name(&self) -> Result<String> {
+        Ok("Thermal Monitor".to_string())
+    }
+
+    async fn hardware_type(&self) -> Result<String> {
+        Ok("Temperature".to_string())
+    }
+
+    async fn device_id(&self) -> Result<String> {
+        Ok("thermal_monitor".to_string())
+    }
+}
+
+#[async_trait]
+impl TemperatureMonitor for ThermalMonitorImpl {}
+
+#[async_trait]
+impl ThermalMonitor for ThermalMonitorImpl {
+    async fn cpu_temperature(&self) -> Result<Option<f64>> {
+        let details = self.io_kit.get_thermal_info()?;
+        Ok(Some(details.cpu_temp))
+    }
+
+    async fn gpu_temperature(&self) -> Result<Option<f64>> {
+        let details = self.io_kit.get_thermal_info()?;
+        Ok(details.gpu_temp)
+    }
+
+    async fn memory_temperature(&self) -> Result<Option<f64>> {
+        // Memory temperature not available in ThermalInfo
+        Ok(None)
+    }
+
+    async fn battery_temperature(&self) -> Result<Option<f64>> {
+        let details = self.io_kit.get_thermal_info()?;
+        Ok(details.battery_temp)
+    }
+
+    async fn ambient_temperature(&self) -> Result<Option<f64>> {
+        let details = self.io_kit.get_thermal_info()?;
+        Ok(details.ambient_temp)
+    }
+
+    async fn ssd_temperature(&self) -> Result<Option<f64>> {
+        // SSD temperature not available in ThermalInfo
+        Ok(None)
+    }
+
+    async fn is_throttling(&self) -> Result<bool> {
+        let details = self.io_kit.get_thermal_info()?;
+        Ok(details.thermal_throttling)
+    }
+
+    async fn get_fans(&self) -> Result<Vec<Fan>> {
+        let fans = self.io_kit.get_all_fans().await?;
+        Ok(fans.into_iter()
+            .map(|f| Fan::new(
+                f.current_speed,
+                f.target_speed,
+                f.min_speed.unwrap_or(0),
+                f.max_speed.unwrap_or(0),
+                f.index,
+                f.speed_rpm,
+                f.percentage,
+            ))
+            .collect())
+    }
+
+    async fn get_thermal_metrics(&self) -> Result<ThermalMetrics> {
+        let io_kit = self.io_kit.clone();
+        let details = self.io_kit.get_thermal_info()?;
+        let fans = self.get_fans().await?;
+        
+        let thermal_details = types::ThermalDetails {
+            cpu_temp: Some(details.cpu_temp),
+            gpu_temp: details.gpu_temp,
+            memory_temp: None, // Not available
+            battery_temp: details.battery_temp,
+            ambient_temp: details.ambient_temp,
+            ssd_temp: None, // Not available
+            is_throttling: details.thermal_throttling,
+        };
+        
+        Ok(ThermalMetrics {
+            io_kit,
+            fans,
+            details: thermal_details,
+        })
     }
 }

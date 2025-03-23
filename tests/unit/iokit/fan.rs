@@ -7,9 +7,12 @@ fn test_get_fan_info() {
 
     mock_iokit.expect_get_fan_info().returning(|_| {
         Ok(FanInfo {
+            current_speed: 2000,
+            target_speed: 2000,
+            min_speed: Some(500),
+            max_speed: Some(5000),
+            index: 0,
             speed_rpm: 2000,
-            min_speed: 500,
-            max_speed: 5000,
             percentage: 40.0,
         })
     });
@@ -17,8 +20,8 @@ fn test_get_fan_info() {
     let result = mock_iokit.get_fan_info(0).unwrap();
 
     assert_eq!(result.speed_rpm, 2000);
-    assert_eq!(result.min_speed, 500);
-    assert_eq!(result.max_speed, 5000);
+    assert_eq!(result.min_speed, Some(500));
+    assert_eq!(result.max_speed, Some(5000));
     assert_eq!(result.percentage, 40.0);
 }
 
@@ -28,9 +31,12 @@ fn test_get_fan_info_min_max_equal() {
 
     mock_iokit.expect_get_fan_info().returning(|_| {
         Ok(FanInfo {
+            current_speed: 2000,
+            target_speed: 2000,
+            min_speed: Some(2000),
+            max_speed: Some(2000),
+            index: 0,
             speed_rpm: 2000,
-            min_speed: 2000,
-            max_speed: 2000,
             percentage: 0.0,
         })
     });
@@ -38,8 +44,8 @@ fn test_get_fan_info_min_max_equal() {
     let result = mock_iokit.get_fan_info(0).unwrap();
 
     assert_eq!(result.speed_rpm, 2000);
-    assert_eq!(result.min_speed, 2000);
-    assert_eq!(result.max_speed, 2000);
+    assert_eq!(result.min_speed, Some(2000));
+    assert_eq!(result.max_speed, Some(2000));
     assert_eq!(result.percentage, 0.0);
 }
 
@@ -50,15 +56,21 @@ fn test_get_all_fans() {
     mock_iokit.expect_get_all_fans().returning(|| {
         Ok(vec![
             FanInfo {
+                current_speed: 2000,
+                target_speed: 2000,
+                min_speed: Some(500),
+                max_speed: Some(5000),
+                index: 0,
                 speed_rpm: 2000,
-                min_speed: 500,
-                max_speed: 5000,
                 percentage: 40.0,
             },
             FanInfo {
+                current_speed: 1800,
+                target_speed: 1800,
+                min_speed: Some(400),
+                max_speed: Some(4500),
+                index: 1,
                 speed_rpm: 1800,
-                min_speed: 400,
-                max_speed: 4500,
                 percentage: 35.0,
             },
         ])
@@ -93,9 +105,12 @@ fn test_get_all_fans_partial_failure() {
         .with(mockall::predicate::eq(0))
         .returning(|_| {
             Ok(FanInfo {
+                current_speed: 2000,
+                target_speed: 2000,
+                min_speed: Some(500),
+                max_speed: Some(5000),
+                index: 0,
                 speed_rpm: 2000,
-                min_speed: 500,
-                max_speed: 5000,
                 percentage: 40.0,
             })
         });
@@ -103,7 +118,7 @@ fn test_get_all_fans_partial_failure() {
     mock_iokit
         .expect_get_fan_info()
         .with(mockall::predicate::eq(1))
-        .returning(|_| Err(Error::iokit_error(1, "Failed to get fan info")));
+        .returning(|_| Err(Error::iokit_error("Failed to get fan info")));
 
     let result = mock_iokit.get_all_fans().unwrap();
     assert_eq!(result.len(), 1);
@@ -130,9 +145,12 @@ fn test_fan_percentage_calculation() {
     let expected_percentage = ((speed - min) as f64 / (max - min) as f64) * 100.0;
 
     let fan_info = FanInfo {
+        current_speed: speed,
+        target_speed: speed,
+        min_speed: Some(min),
+        max_speed: Some(max),
+        index: 0,
         speed_rpm: speed,
-        min_speed: min,
-        max_speed: max,
         percentage: expected_percentage,
     };
 
@@ -143,25 +161,34 @@ fn test_fan_percentage_calculation() {
 #[test]
 fn test_fan_percentage_limits() {
     let min_fan = FanInfo {
+        current_speed: 1000,
+        target_speed: 1000,
+        min_speed: Some(1000),
+        max_speed: Some(5000),
+        index: 0,
         speed_rpm: 1000,
-        min_speed: 1000,
-        max_speed: 5000,
         percentage: 0.0,
     };
     assert_eq!(min_fan.percentage, 0.0);
 
     let max_fan = FanInfo {
+        current_speed: 5000,
+        target_speed: 5000,
+        min_speed: Some(1000),
+        max_speed: Some(5000),
+        index: 0,
         speed_rpm: 5000,
-        min_speed: 1000,
-        max_speed: 5000,
         percentage: 100.0,
     };
     assert_eq!(max_fan.percentage, 100.0);
 
     let zero_max_fan = FanInfo {
+        current_speed: 2000,
+        target_speed: 2000,
+        min_speed: Some(1000),
+        max_speed: Some(0),
+        index: 0,
         speed_rpm: 2000,
-        min_speed: 1000,
-        max_speed: 0,
         percentage: 0.0,
     };
     assert_eq!(zero_max_fan.percentage, 0.0);
@@ -173,9 +200,12 @@ fn test_fan_info_edge_cases() {
 
     mock.expect_get_fan_info().returning(|_| {
         Ok(FanInfo {
+            current_speed: 0,
+            target_speed: 0,
+            min_speed: Some(0),
+            max_speed: Some(0),
+            index: 0,
             speed_rpm: 0,
-            min_speed: 0,
-            max_speed: 0,
             percentage: 0.0,
         })
     });
@@ -187,9 +217,12 @@ fn test_fan_info_edge_cases() {
     let mut mock = MockIOKit::new();
     mock.expect_get_fan_info().returning(|_| {
         Ok(FanInfo {
+            current_speed: 2000,
+            target_speed: 2000,
+            min_speed: Some(2000),
+            max_speed: Some(2000),
+            index: 0,
             speed_rpm: 2000,
-            min_speed: 2000,
-            max_speed: 2000,
             percentage: 0.0,
         })
     });

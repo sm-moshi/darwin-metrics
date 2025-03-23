@@ -1,11 +1,10 @@
-use std::ffi::{CStr, CString};
+use std::ffi::c_void;
 use std::fmt::Debug;
-use std::os::raw::{c_char, c_void};
-use std::sync::{Arc, Mutex, Once};
+use std::os::raw::c_char;
+use std::sync::{Mutex, Once};
 
 /// Mock implementation of IOKit for testing purposes.
 use objc2::{class, runtime::AnyClass};
-use objc2_foundation::NSObject;
 
 use crate::error::{Error, Result};
 use crate::hardware::iokit::{FanInfo, GpuStats, IOKit, ThermalInfo, ThreadSafeAnyObject};
@@ -290,10 +289,8 @@ impl IOKit for MockIOKit {
     }
 
     fn get_number_property(&self, dict: &SafeDictionary, key: &str) -> Result<f64> {
-        dict.get_number(key).ok_or_else(|| Error::NotAvailable {
-            resource: key.to_string(),
-            reason: "Property not found".to_string(),
-        })
+        dict.get_number(key)
+            .ok_or_else(|| Error::not_available(format!("{} not found", key)))
     }
 
     fn io_connect_call_method(
@@ -303,10 +300,7 @@ impl IOKit for MockIOKit {
         _input: &[u64],
         _output: &mut [u64],
     ) -> Result<()> {
-        Err(Error::NotAvailable {
-            resource: "IOConnect".to_string(),
-            reason: "Mock implementation".to_string(),
-        })
+        Err(Error::not_available("Mock IOConnect implementation not available"))
     }
 
     fn clone_box(&self) -> Box<dyn IOKit> {
@@ -336,6 +330,48 @@ impl IOKit for MockIOKit {
     fn read_smc_key(&self, _key: [c_char; 4]) -> Result<Option<f32>> {
         // Mock implementation that returns a simulated temperature value
         Ok(Some(45.0))
+    }
+
+    fn get_dictionary(&self, dict_ptr: *mut c_void) -> Result<SafeDictionary> {
+        if dict_ptr.is_null() {
+            return Err(Error::null_pointer("Dictionary pointer is null"));
+        }
+        Ok(SafeDictionary::new())
+    }
+
+    fn get_properties(&self, props: *mut c_void) -> Result<SafeDictionary> {
+        if props.is_null() {
+            return Err(Error::null_pointer("Properties pointer is null"));
+        }
+        Ok(SafeDictionary::new())
+    }
+
+    fn get_battery_properties(&self, props: *mut c_void) -> Result<SafeDictionary> {
+        if props.is_null() {
+            return Err(Error::null_pointer("Battery properties pointer is null"));
+        }
+
+        let dict = SafeDictionary::new();
+        return Ok(dict);
+    }
+
+    fn get_battery_percentage(&self) -> Result<f32> {
+        let current_capacity = 75.0;
+        let max_capacity = 100.0;
+
+        if current_capacity.is_nan() {
+            return Err(Error::invalid_data("Missing CurrentCapacity"));
+        }
+
+        if max_capacity.is_nan() {
+            return Err(Error::invalid_data("Missing MaxCapacity"));
+        }
+
+        if max_capacity == 0.0 {
+            return Err(Error::invalid_value("MaxCapacity is zero"));
+        }
+
+        Ok((current_capacity / max_capacity) * 100.0)
     }
 }
 

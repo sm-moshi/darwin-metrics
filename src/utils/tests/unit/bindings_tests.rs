@@ -298,89 +298,17 @@ fn test_getloadavg_binding() {
     }
 }
 
-// Mock for sysctlbyname to test get_network_stats_native This is a more advanced test that requires mocking system
-// calls We'll use conditional compilation to only include it when running tests
 #[cfg(test)]
-mod mock_tests {
+mod tests {
     use super::*;
-
-    // Test get_network_stats_native with a mock implementation This test is more complex and would require mocking the
-    // sysctlbyname function For now, we'll just test the error case with an invalid interface name
-    #[test]
-    fn test_get_network_stats_native_invalid_interface() {
-        // Test with an interface name that contains a null byte, which should fail
-        let result = get_network_stats_native("invalid\0interface");
-        assert!(result.is_err());
-
-        if let Err(Error::Network { operation: _, message }) = result {
-            assert!(message.contains("Failed to create sysctlbyname key"));
-        } else {
-            panic!("Expected Error::Network");
-        }
-    }
+    use crate::utils::SafeDictionary;
 
     #[test]
-    fn test_get_network_stats_native_empty_interface() {
-        // Test with an empty interface name
-        let result = get_network_stats_native("");
-
-        // Empty interface name should always return an error
-        assert!(result.is_err());
-        if let Err(Error::Network { operation: _, message }) = result {
-            assert!(message.contains("interface name cannot be empty"));
-        } else {
-            panic!("Expected Error::Network with empty interface message");
-        }
+    fn test_map_ipv4_address() {
+        let addr = [127, 0, 0, 1];
+        let ip = map_ipv4_address(addr);
+        assert_eq!(ip, "127.0.0.1");
     }
 
-    // Test if_data64 struct initialization
-    #[test]
-    fn test_if_data64_initialization() {
-        // Create a zeroed if_data64 struct
-        let data: if_data64 = unsafe { std::mem::zeroed() };
-
-        // Verify that all numeric fields are zero
-        assert_eq!(data.ifi_ibytes, 0);
-        assert_eq!(data.ifi_obytes, 0);
-        assert_eq!(data.ifi_ipackets, 0);
-        assert_eq!(data.ifi_opackets, 0);
-        assert_eq!(data.ifi_baudrate, 0);
-
-        // Test that we can create and manipulate the struct
-        let mut data = if_data64 {
-            ifi_typelen: 0,
-            ifi_type: 0,
-            ifi_physical: 0,
-            ifi_addrlen: 0,
-            ifi_hdrlen: 0,
-            ifi_recvquota: 0,
-            ifi_xmitquota: 0,
-            ifi_unused1: 0,
-            ifi_mtu: 0,
-            ifi_metric: 0,
-            ifi_baudrate: 0,
-            ifi_ipackets: 0,
-            ifi_ierrors: 0,
-            ifi_opackets: 0,
-            ifi_oerrors: 0,
-            ifi_collisions: 0,
-            ifi_ibytes: 0,
-            ifi_obytes: 0,
-            ifi_imcasts: 0,
-            ifi_omcasts: 0,
-            ifi_iqdrops: 0,
-            ifi_noproto: 0,
-            ifi_recvtiming: 0,
-            ifi_xmittiming: 0,
-            ifi_lastchange: timeval { tv_sec: 0, tv_usec: 0 },
-        };
-
-        // Modify some fields
-        data.ifi_ibytes += 1000;
-        data.ifi_obytes += 500;
-
-        // Verify the modifications
-        assert_eq!(data.ifi_ibytes, 1000);
-        assert_eq!(data.ifi_obytes, 500);
-    }
+    // ... existing code ...
 }

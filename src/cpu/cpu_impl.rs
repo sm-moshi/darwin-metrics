@@ -72,7 +72,7 @@ impl CPU {
                     self.frequency_metrics = None;
                     Ok(())
                 },
-                Err(fallback_error) => Err(Error::system(format!(
+                Err(fallback_error) => Err(Error::system_error(format!(
                     "Failed to retrieve CPU frequency: primary method error: {}, fallback method error: {}",
                     primary_error, fallback_error
                 ))),
@@ -84,7 +84,7 @@ impl CPU {
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
         let _service_ref = service
             .as_ref()
-            .ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+            .ok_or_else(|| Error::iokit_error("Failed to get CPU service"))?;
 
         let obj = unsafe {
             let ptr = _service_ref as *const _ as *mut AnyObject;
@@ -101,7 +101,7 @@ impl CPU {
 
     fn fetch_core_usage(&self) -> Result<Vec<f64>> {
         let service = self.iokit.get_service_matching("AppleACPICPU")?;
-        let _service_ref = service.ok_or_else(|| Error::iokit_error(0, "Failed to get CPU service"))?;
+        let _service_ref = service.ok_or_else(|| Error::iokit_error("Failed to get CPU service"))?;
 
         let mut usages = Vec::with_capacity(self.logical_cores as usize);
 
@@ -135,7 +135,10 @@ impl CPU {
         };
 
         if result != 0 {
-            return Err(Error::iokit_error(result, "Failed to get CPU model name"));
+            return Err(Error::iokit_error(format!(
+                "Failed to get CPU model name: error code {}",
+                result
+            )));
         }
 
         Ok(String::from_utf8_lossy(&buffer[..size])

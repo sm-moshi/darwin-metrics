@@ -148,7 +148,7 @@ pub mod memory;
 // Re-export error types
 // Re-export core types
 pub use core::metrics::Metric;
-pub use core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Temperature, Transfer};
+pub use core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Transfer};
 
 // Re-export battery module
 pub use battery::Battery;
@@ -175,7 +175,7 @@ pub use power::{PowerInfo, PowerState};
 pub use process::{Process, ProcessInfo};
 // Re-export resource monitoring types
 pub use resource::{Cache, ResourceManager, ResourceMonitor, ResourceMonitoring, ResourcePool, ResourceUpdate};
-pub use temperature::TemperatureFactory as NewTemperature;
+pub use temperature::Temperature as TempMonitor;
 pub use temperature::monitors::{
     AmbientTemperatureMonitor, BatteryTemperatureMonitor, CpuTemperatureMonitor as NewCpuTemperatureMonitor,
     GpuTemperatureMonitor,
@@ -194,15 +194,17 @@ pub use crate::traits::hardware::{DiskIOMonitor, DiskStorageMonitor, DiskUtiliza
 // ===== Sync API Helpers =====
 
 /// Creates a new Battery instance.
-pub fn new_battery() -> Result<Battery> {
-    let iokit = Arc::new(IOKitImpl::new()?);
-    Ok(Battery::new(iokit))
+pub async fn init_battery() -> Result<Battery> {
+    let iokit = IOKitImpl::new()?;
+    let iokit = Arc::new(iokit);
+    Battery::new(iokit)
 }
 
 /// Creates a new CPU instance.
-pub fn new_cpu() -> Result<cpu::CPU> {
-    let iokit = Box::new(IOKitImpl::new()?);
-    Ok(cpu::CPU::new(iokit))
+pub async fn init_cpu() -> Result<CPU> {
+    let iokit = IOKitImpl::new()?;
+    let iokit = Arc::new(iokit);
+    Ok(CPU::new(iokit))
 }
 
 /// Creates a new GPU instance.
@@ -215,9 +217,25 @@ pub fn new_memory() -> Result<Memory> {
     Memory::new()
 }
 
-/// Create a new Temperature instance.
-pub fn new_temperature() -> Result<temperature::TemperatureFactory> {
-    Ok(temperature::TemperatureFactory::new()?)
+/// Create a new temperature instance
+///
+/// # Returns
+///
+/// * `Result<Temperature>` - A new instance of Temperature
+pub fn new_temperature() -> Result<Temperature> {
+    let iokit = IOKitImpl::new()?;
+    temperature::Temperature::new(Arc::new(iokit))
+}
+
+/// Initialize a new instance of the darwin metrics temperature module
+///
+/// # Returns
+///
+/// * `Result<Temperature>` - A new instance of Temperature
+pub fn init_darwin_metrics() -> Result<Arc<Temperature>> {
+    let iokit = crate::hardware::iokit::IOKitImpl::new()?;
+    let temperature = temperature::Temperature::new(Arc::new(iokit))?;
+    Ok(Arc::new(temperature))
 }
 
 /// Get information about the root filesystem (/).
@@ -249,7 +267,7 @@ pub mod prelude {
     // Hardware components
     pub use crate::battery::Battery;
     pub use crate::core::metrics::Metric;
-    pub use crate::core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Temperature, Transfer};
+    pub use crate::core::types::{ByteSize, DiskHealth, DiskIO, DiskSpace, Percentage, Transfer};
     pub use crate::cpu::CPU;
     pub use crate::disk::{
         Disk, DiskConfig, DiskHealthMonitor, DiskIOMonitor, DiskMount, DiskMountMonitor, DiskPerformance,
@@ -281,8 +299,8 @@ mod tests {
 
     #[test]
     fn test_create_monitors() -> Result<()> {
-        let _battery = new_battery()?;
-        let _cpu = new_cpu()?;
+        let _battery = init_battery()?;
+        let _cpu = init_cpu()?;
         let _gpu = new_gpu()?;
         let _memory = new_memory()?;
         let _temperature = new_temperature()?;
@@ -304,3 +322,29 @@ pub type NetworkManager = crate::network::interface::NetworkManager;
 
 // Re-export System for examples
 pub use crate::system::System;
+
+/// Main entry point for the darwin-metrics library.
+pub struct DarwinMetrics {
+    battery: Battery,
+    cpu: CPU,
+    temperature: temperature::Temperature,
+}
+
+impl DarwinMetrics {
+    pub fn new() -> Result<Self> {
+        // Initialize IOKit
+        let iokit = IOKitImpl::new().map_err(|e| Error::initialization_error(format!("Failed to initialize IOKit: {}", e)))?;
+        let iokit: Arc<dyn IOKit> = Arc::new(iokit);
+
+        // Initialize components
+        let battery = Battery::new(Arc::clone(&iokit))?;
+        let cpu = CPU::new(Arc::clone(&iokit));
+        let temperature = temperature::Temperature::new(Arc::clone(&iokit));
+
+        Ok(Self {
+            battery,
+            cpu,
+            temperature,
+        })
+    }
+}

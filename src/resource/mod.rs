@@ -104,6 +104,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use futures::TryFutureExt;
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -293,7 +294,7 @@ impl<T> ResourcePool<T> {
         let resources = self.resources.try_lock();
         match resources {
             Ok(mut res) => Ok(res.pop()),
-            Err(_) => Err(Error::system("Failed to acquire resource: mutex busy")),
+            Err(_) => Err(Error::system_error("Failed to acquire resource: mutex busy")),
         }
     }
 
@@ -333,10 +334,11 @@ impl<T> ResourcePool<T> {
     pub fn release(&self, resource: T) -> Result<()> {
         let mut resources = self.resources.lock().unwrap();
         if resources.len() >= self.max_size {
-            return Err(Error::system("Resource pool is full"));
+            Err(Error::system_error("Resource pool is full"))
+        } else {
+            resources.push(resource);
+            Ok(())
         }
-        resources.push(resource);
-        Ok(())
     }
 }
 
@@ -643,7 +645,10 @@ impl<T: Send + Sync + 'static> ResourceManager<T> {
     /// }
     /// ```
     pub fn try_acquire(&self) -> Result<Option<T>> {
-        let mut resources = self.resources.lock().map_err(|_| Error::LockError)?;
+        let mut resources = self
+            .resources
+            .lock()
+            .map_err(|_| Error::system_error("Failed to acquire resource: mutex busy"))?;
         if resources.is_empty() {
             Ok(None)
         } else {
@@ -677,9 +682,12 @@ impl<T: Send + Sync + 'static> ResourceManager<T> {
     /// manager.release(resource).unwrap();
     /// ```
     pub fn release(&self, resource: T) -> Result<()> {
-        let mut resources = self.resources.lock().map_err(|_| Error::LockError)?;
+        let mut resources = self
+            .resources
+            .lock()
+            .map_err(|_| Error::system_error("Failed to release resource: mutex busy"))?;
         if resources.len() >= self.max_size {
-            Err(Error::ResourceLimitExceeded)
+            Err(Error::system_error("Resource pool is full"))
         } else {
             resources.push(resource);
             Ok(())
@@ -722,7 +730,9 @@ impl<T: Send + Sync + 'static> ResourceManager<T> {
         };
 
         // Use try_send since we can't await in a sync function
-        self.usage_tx.try_send(usage).map_err(|_| Error::ChannelError)?;
+        self.usage_tx
+            .try_send(usage)
+            .map_err(|_| Error::system_error("Failed to send usage data: channel closed"))?;
         Ok(())
     }
 
@@ -1052,8 +1062,8 @@ impl ResourceMonitor {
     pub async fn next_update(&mut self) -> Result<ResourceUpdate> {
         tokio::time::timeout(Duration::from_secs(10), self.update_rx.recv())
             .await
-            .map_err(|_| Error::system("Failed to receive update within timeout".to_string()))?
-            .ok_or(Error::ChannelError)
+            .map_err(|_| Error::system_error("Failed to receive update within timeout"))?
+            .ok_or(Error::system_error("Failed to receive update: channel closed"))
     }
 
     /// Stops the resource monitor
@@ -1092,18 +1102,19 @@ impl ResourceMonitor {
     pub async fn stop(&mut self) -> Result<()> {
         if let Some(handle) = self.monitor_task.take() {
             // Send stop signal
-            self.stop_tx
+            let _ = self
+                .stop_tx
                 .send(())
-                .await
-                .map_err(|_| Error::system("Failed to send stop signal".to_string()))?;
+                .map_err(|_| Error::system_error("Failed to send stop signal: channel closed"))
+                .await?;
 
             // Wait for task to finish with timeout
             match tokio::time::timeout(Duration::from_secs(5), handle).await {
                 Ok(result) => {
-                    result.map_err(|e| Error::system(format!("Monitor task panicked: {}", e)))?;
+                    result.map_err(|e| Error::system_error(format!("Monitor task panicked: {}", e)))?;
                 },
                 Err(_) => {
-                    return Err(Error::system("Timed out waiting for monitor task to stop".to_string()));
+                    return Err(Error::system_error("Timed out waiting for monitor task to stop"));
                 },
             }
         }

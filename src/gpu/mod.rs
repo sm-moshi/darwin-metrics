@@ -22,6 +22,3 @@ pub use types::{GpuCharacteristics, GpuInfo, GpuMemory, GpuMetrics, GpuState, Gp
 
 /// GPU constants
 pub mod constants;
-
-// NOTE: Hardware monitoring traits like HardwareMonitor, TemperatureMonitor, and UtilizationMonitor
-// should be imported directly from darwin_metrics::traits module

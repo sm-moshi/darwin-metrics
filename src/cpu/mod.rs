@@ -16,6 +16,7 @@ use crate::error::Result;
 use crate::hardware::iokit::IOKit;
 // Re-export core traits from the traits module
 pub use crate::traits::{CpuMonitor, HardwareMonitor, TemperatureMonitor, UtilizationMonitor};
+use std::sync::Arc;
 
 /// # CPU Module
 ///
@@ -84,6 +85,24 @@ pub const MAX_CORES: u32 = 64;
 /// Maximum CPU frequency in MHz that can be reported
 pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
 
+/// Configuration for CPU monitoring
+#[derive(Debug, Clone)]
+pub struct CpuConfig {
+    /// Threshold for CPU temperature (in Celsius)
+    pub temperature_threshold: f64,
+    /// Threshold for CPU utilization (0-100)
+    pub utilization_threshold: f64,
+}
+
+impl Default for CpuConfig {
+    fn default() -> Self {
+        Self {
+            temperature_threshold: 90.0,
+            utilization_threshold: 90.0,
+        }
+    }
+}
+
 /// CPU monitor implementation
 ///
 /// This struct provides access to CPU monitoring capabilities through separate monitor instances
@@ -115,13 +134,17 @@ pub const MAX_FREQUENCY_MHZ: f64 = 5000.0;
 /// ```
 #[derive(Debug)]
 pub struct CPU {
-    iokit: Box<dyn IOKit>,
+    iokit: Arc<dyn IOKit>,
+    config: CpuConfig,
 }
 
 impl CPU {
-    /// Create a new CPU monitor with the provided IOKit implementation
-    pub fn new(iokit: Box<dyn IOKit>) -> Self {
-        Self { iokit }
+    /// Creates a new CPU monitor
+    pub fn new(iokit: Arc<dyn IOKit>) -> Self {
+        Self {
+            iokit,
+            config: CpuConfig::default(),
+        }
     }
 
     /// Get a monitor for CPU temperature metrics
@@ -151,6 +174,7 @@ impl CPU {
     pub fn clone(&self) -> Self {
         Self {
             iokit: self.iokit.clone_box(),
+            config: self.config.clone(),
         }
     }
 

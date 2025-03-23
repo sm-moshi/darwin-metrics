@@ -436,9 +436,6 @@ unsafe extern "C" {
         newlen: usize,
     ) -> c_int;
 
-    /// Get parent entry in IORegistry
-    pub fn IORegistryEntryGetParentEntry(entry: c_uint, plane: *const c_char, parent: *mut c_uint) -> i32;
-
     /// Create a dynamic store session
     pub fn SCDynamicStoreCreate(
         allocator: *mut ffi_c_void,
@@ -625,21 +622,17 @@ pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if
     // Check for empty interface name
     if interface_name.is_empty() {
         return Err(Error::network_error(
-            "get_stats",
-            "Failed to get interface data: interface name cannot be empty".to_string(),
+            "Failed to get interface data: interface name cannot be empty",
         ));
     }
 
     // Format the sysctlbyname key
     let sysctl_key = format!("net.link.generic.system.ifdata.{}", interface_name);
     let c_sysctl_key = CString::new(sysctl_key).map_err(|e| {
-        Error::network_error(
-            "sysctlbyname",
-            format!(
-                "Failed to create sysctlbyname key for interface '{}': {}",
-                interface_name, e
-            ),
-        )
+        Error::network_error(format!(
+            "Failed to create sysctlbyname key for interface '{}': {}",
+            interface_name, e
+        ))
     })?;
 
     // Initialize output variables
@@ -658,14 +651,11 @@ pub fn get_network_stats_native(interface_name: &str) -> crate::error::Result<if
     };
 
     if result != 0 {
-        return Err(Error::network_error(
-            "get_stats",
-            format!(
-                "Failed to get network stats for interface '{}': errno={}",
-                interface_name,
-                std::io::Error::last_os_error()
-            ),
-        ));
+        return Err(Error::network_error(format!(
+            "Failed to get network stats for interface '{}': errno={}",
+            interface_name,
+            std::io::Error::last_os_error()
+        )));
     }
 
     Ok(if_data_64)
@@ -971,30 +961,93 @@ unsafe extern "C" {
 #[link(name = "IOKit", kind = "framework")]
 unsafe extern "C" {
     /// Get matching service from IOKit registry
-    pub fn IOServiceGetMatchingService(masterPort: u32, matchingDictionary: *mut ffi_c_void) -> u32;
+    pub fn IOServiceGetMatchingService(masterPort: mach_port_t, matching: *mut c_void) -> io_service_t;
     /// Create matching dictionary for IOKit service
-    pub fn IOServiceMatching(serviceName: *const c_char) -> *mut ffi_c_void;
-    /// Open IOKit service
-    pub fn IOServiceOpen(service: u32, owningTask: u32, type_: u32, handle: *mut u32) -> i32;
-    /// Close IOKit service
-    pub fn IOServiceClose(handle: u32) -> i32;
+    pub fn IOServiceMatching(name: *const c_char) -> *mut c_void;
+    /// Open a connection to an IOKit service
+    pub fn IOServiceOpen(
+        service: io_service_t,
+        task_port: mach_port_t,
+        type_: u32,
+        connect: *mut io_connect_t,
+    ) -> i32;
+    /// Close a connection to an IOKit service
+    pub fn IOServiceClose(connect: io_connect_t) -> i32;
     /// Create CF properties from IOKit registry entry
     pub fn IORegistryEntryCreateCFProperties(
-        entry: u32,
-        properties: *mut *mut ffi_c_void,
-        allocator: *mut ffi_c_void,
+        entry: io_registry_entry_t,
+        properties: *mut *mut c_void,
+        allocator: *mut c_void,
         options: u32,
     ) -> i32;
 
-    /// Call IOKit service method with struct parameters
-    pub fn IOConnectCallStructMethod(
-        connection: u32,
-        selector: u32,
-        inputStruct: *const SMCKeyData_t,
-        inputStructCnt: IOByteCount,
-        outputStruct: *mut SMCKeyData_t,
-        outputStructCnt: *mut IOByteCount,
+    /// Get parent entry in IORegistry
+    pub fn IORegistryEntryGetParentEntry(
+        entry: io_registry_entry_t,
+        plane: *const c_char,
+        parent: *mut io_registry_entry_t,
     ) -> i32;
+
+    /// Get child entry in IORegistry
+    pub fn IORegistryEntryGetChildEntry(
+        entry: io_registry_entry_t,
+        plane: *const c_char,
+        child: *mut io_registry_entry_t,
+    ) -> i32;
+
+    /// Get name of IORegistry entry
+    pub fn IORegistryEntryGetName(entry: io_registry_entry_t, name: *mut c_char) -> i32;
+
+    /// Get path of IORegistry entry
+    pub fn IORegistryEntryGetPath(
+        entry: io_registry_entry_t,
+        plane: *const c_char,
+        path: *mut c_char,
+    ) -> i32;
+
+    /// Get property of IORegistry entry
+    pub fn IORegistryEntryGetProperty(
+        entry: io_registry_entry_t,
+        propertyName: *const c_char,
+        propertyValue: *mut *mut c_void,
+    ) -> i32;
+
+    /// Call method on IOKit service
+    pub fn IOConnectCallMethod(
+        connection: io_connect_t,
+        selector: u32,
+        input: *const u64,
+        inputCnt: u32,
+        inputStruct: *const c_void,
+        inputStructCnt: usize,
+        output: *mut u64,
+        outputCnt: *mut u32,
+        outputStruct: *mut c_void,
+        outputStructCnt: *mut usize,
+    ) -> i32;
+
+    /// Call scalar method on IOKit service
+    pub fn IOConnectCallScalarMethod(
+        connection: io_connect_t,
+        selector: u32,
+        input: *const u64,
+        inputCnt: u32,
+        output: *mut u64,
+        outputCnt: *mut u32,
+    ) -> i32;
+
+    /// Call structured method on IOKit service
+    pub fn IOConnectCallStructMethod(
+        connection: io_connect_t,
+        selector: u32,
+        inputStruct: *const c_void,
+        inputStructCnt: usize,
+        outputStruct: *mut c_void,
+        outputStructCnt: *mut usize,
+    ) -> i32;
+
+    /// Release an IOKit object
+    pub fn IOObjectRelease(object: io_object_t) -> i32;
 }
 
 //------------------------------------------------------------------------------
@@ -1013,22 +1066,68 @@ unsafe extern "C" {
 }
 
 //------------------------------------------------------------------------------
-// IOKit constants and types
+// IOKit Constants and Types
 //------------------------------------------------------------------------------
 
-/// Default master port for IOKit
-pub const K_IOMASTER_PORT_DEFAULT: mach_port_t = 0;
-/// Default master port for IOKit (alternative name)
-pub const IOMASTER_PORT_DEFAULT: mach_port_t = K_IOMASTER_PORT_DEFAULT;
+/// IOKit service plane name
+pub const kIOServicePlane: &str = "IOService";
 
-/// IO object type
+/// IOKit master port default value
+pub const kIOMasterPortDefault: mach_port_t = 0;
+
+/// IOKit return success
+pub const kIOReturnSuccess: i32 = 0;
+
+/// IOKit return error
+pub const kIOReturnError: i32 = 0x2bc;
+
+/// IOKit return busy
+pub const kIOReturnBusy: i32 = 0x2cd;
+
+/// IOKit return not found
+pub const kIOReturnNotFound: i32 = 0x2be;
+
+/// IOKit return no memory
+pub const kIOReturnNoMemory: i32 = 0x2bf;
+
+/// IOKit return not permitted
+pub const kIOReturnNotPermitted: i32 = 0x2c0;
+
+/// IOKit return no device
+pub const kIOReturnNoDevice: i32 = 0x2c1;
+
+/// IOKit return not privileged
+pub const kIOReturnNotPrivileged: i32 = 0x2c2;
+
+/// IOKit return bad argument
+pub const kIOReturnBadArgument: i32 = 0x2c3;
+
+/// IOKit return locked
+pub const kIOReturnLockedRead: i32 = 0x2c4;
+
+/// IOKit return locked write
+pub const kIOReturnLockedWrite: i32 = 0x2c5;
+
+/// IOKit return exclusive access
+pub const kIOReturnExclusiveAccess: i32 = 0x2c6;
+
+/// IOKit return io error
+pub const kIOReturnIOError: i32 = 0x2c7;
+
+/// IOKit object type
 pub type io_object_t = u32;
-/// IO iterator type
+
+/// IOKit iterator type
 pub type io_iterator_t = io_object_t;
-/// IO registry entry type
+
+/// IOKit registry entry type
 pub type io_registry_entry_t = io_object_t;
-/// IO service type
+
+/// IOKit service type
 pub type io_service_t = io_object_t;
+
+/// IOKit connect type
+pub type io_connect_t = io_object_t;
 
 /// IOKit service matching dictionary keys
 pub mod io_service_keys {
@@ -1141,3 +1240,9 @@ pub struct SmcVal {
 pub const SMC_CMD_READ_KEY: u8 = 5;
 /// SMC command to read index
 pub const SMC_CMD_READ_INDEX: u8 = 8;
+
+#[link(name = "System", kind = "framework")]
+unsafe extern "C" {
+    /// Get the current task's Mach port
+    pub fn mach_task_self() -> mach_port_t;
+}

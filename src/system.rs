@@ -28,7 +28,7 @@ use crate::hardware::iokit::{IOKit, IOKitImpl};
 /// This struct provides access to various system components and metrics
 /// collection capabilities. It serves as the primary entry point for
 /// interacting with the darwin-metrics library.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct System {
     io_kit: Arc<Box<dyn IOKit>>,
 }
@@ -46,7 +46,7 @@ impl System {
     pub fn new() -> Result<Self> {
         let io_kit_impl = IOKitImpl::new()?;
         Ok(Self {
-            io_kit: Arc::new(Box::new(io_kit_impl) as Box<dyn IOKit>),
+            io_kit: Arc::new(Box::new(io_kit_impl)),
         })
     }
 
@@ -56,12 +56,41 @@ impl System {
     ///
     /// An Arc-wrapped Box containing the IOKit implementation
     pub fn io_kit(&self) -> Arc<Box<dyn IOKit>> {
-        self.io_kit.clone()
+        Arc::clone(&self.io_kit)
     }
 }
 
 impl Default for System {
     fn default() -> Self {
         Self::new().expect("Failed to create default System instance")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hardware::iokit::MockIOKit;
+
+    #[test]
+    fn test_system_creation() {
+        let system = System::new();
+        assert!(system.is_ok());
+    }
+
+    #[test]
+    fn test_system_with_mock() {
+        let mock_iokit = MockIOKit::new().expect("Failed to create mock IOKit");
+        let system = System {
+            io_kit: Arc::new(Box::new(mock_iokit)),
+        };
+        assert!(Arc::strong_count(&system.io_kit) == 1);
+    }
+
+    #[test]
+    fn test_io_kit_cloning() {
+        let system = System::new().expect("Failed to create system");
+        let io_kit1 = system.io_kit();
+        let io_kit2 = system.io_kit();
+        assert!(Arc::strong_count(&io_kit1) == 3); // Original + 2 clones
     }
 }

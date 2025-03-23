@@ -1,239 +1,244 @@
-//! Temperature monitoring module
-//!
-//! This module provides comprehensive temperature monitoring capabilities for macOS systems.
-//! It tracks temperatures for various components including CPU, GPU, battery, and ambient sensors,
-//! as well as fan speeds and thermal throttling detection.
-//!
-//! # Features
-//!
-//! - CPU, GPU, and battery temperature monitoring
-//! - Ambient temperature sensing
-//! - Fan speed monitoring and control
-//! - Thermal throttling detection
-//! - Configurable temperature thresholds
-
-/// Temperature monitoring constants
-pub mod constants;
-
-/// Temperature monitoring types
-pub mod types;
-
-/// Temperature monitoring implementations
-pub mod monitors;
-
-/// Temperature monitoring factory
-pub mod factory;
+// Temperature module
+//
+// This module is responsible for monitoring the temperature of various hardware
+// components, including CPU, GPU, memory, battery, and SSD. It also provides
+// information about the fan status and whether the system is throttling.
 
 use std::sync::Arc;
 
+// Submodules
+mod constants;
+mod monitors;
+mod types;
+
+// Re-export items from the submodules
 pub use constants::*;
-pub use factory::*;
 pub use monitors::*;
-use tokio::runtime::Runtime;
 pub use types::*;
 
-use crate::error::{Error, Result};
-use crate::hardware::iokit::{IOKit, IOKitImpl};
-use crate::system::System;
-use crate::traits::{FanMonitor as FanMonitorTrait, ThermalMonitor};
+// Only import what we need for this file
+use crate::{
+    error::{Error, Result},
+    hardware::iokit::IOKit,
+    traits::hardware::ThermalMonitor,
+};
 
-/// Temperature monitoring for various components
-#[derive(Debug, Clone)]
-pub struct TemperatureFactory {
-    iokit: Arc<Box<dyn IOKit>>,
-    config: TemperatureConfig,
-    factory: TemperatureMonitorFactory,
+use self::types::{Fan, MonitorType, ThermalInfo};
+
+// Temperature struct implementation
+pub struct Temperature {
+    io_kit: Arc<dyn IOKit>,
 }
 
-impl TemperatureFactory {
-    /// Create a new Temperature monitor with default configuration
-    pub fn new() -> Result<Self> {
-        let iokit_impl = IOKitImpl::new()?;
-        let iokit: Arc<Box<dyn IOKit>> = Arc::new(Box::new(iokit_impl));
-        let factory = TemperatureMonitorFactory::new(iokit.clone());
-        Ok(Self {
-            iokit,
-            config: Default::default(),
-            factory,
-        })
+impl Temperature {
+    /// Creates a new instance of Temperature
+    ///
+    /// # Arguments
+    ///
+    /// * `io_kit` - An implementation of the IOKit trait
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Self>` - A new instance of Temperature
+    pub fn new(io_kit: Arc<dyn IOKit>) -> Result<Self> {
+        Ok(Self { io_kit })
     }
 
-    /// Create a new Temperature monitor with custom configuration
-    pub fn with_config(config: TemperatureConfig) -> Result<Self> {
-        let iokit_impl = IOKitImpl::new()?;
-        let iokit: Arc<Box<dyn IOKit>> = Arc::new(Box::new(iokit_impl));
-        let factory = TemperatureMonitorFactory::new(iokit.clone());
-        Ok(Self { iokit, config, factory })
-    }
-
-    /// Create a new Temperature monitor with a custom IOKit implementation
-    pub fn with_iokit(iokit: Arc<Box<dyn IOKit>>) -> Self {
-        let factory = TemperatureMonitorFactory::new(iokit.clone());
-        Self {
-            iokit,
-            config: TemperatureConfig::default(),
-            factory,
-        }
-    }
-
-    /// Get a CPU temperature monitor
-    pub fn cpu_monitor(&self) -> CpuTemperatureMonitor {
-        CpuTemperatureMonitor::new(self.iokit.clone())
-    }
-
-    /// Get a GPU temperature monitor
-    pub fn gpu_monitor(&self) -> GpuTemperatureMonitor {
-        GpuTemperatureMonitor::new(self.iokit.clone())
-    }
-
-    /// Get an ambient temperature monitor
-    pub fn ambient_monitor(&self) -> AmbientTemperatureMonitor {
-        AmbientTemperatureMonitor::new(self.iokit.clone())
-    }
-
-    /// Get a battery temperature monitor
-    pub fn battery_monitor(&self) -> BatteryTemperatureMonitor {
-        BatteryTemperatureMonitor::new(self.iokit.clone())
-    }
-
-    /// Get an SSD temperature monitor
-    pub fn ssd_monitor(&self) -> SsdTemperatureMonitor {
-        SsdTemperatureMonitor::new(self.iokit.clone())
-    }
-
-    /// Get a fan monitor
-    pub fn fan_monitor(&self) -> FanMonitor {
-        FanMonitor::new(self.iokit.clone(), 0)
-    }
-
-    /// Get all available temperature monitors
-    pub fn get_all_monitors(&self) -> Vec<Box<dyn TemperatureMonitorTrait>> {
-        let monitors = self.factory.create_all();
-        monitors
-            .into_iter()
-            .map(|monitor| {
-                // Convert from Box<dyn TemperatureMonitor> to Box<dyn TemperatureMonitorTrait>
-                let monitor_type = get_monitor_type_sync(&*monitor);
-                match monitors::create_monitor(&monitor_type, self.iokit.clone()) {
-                    Some(m) => m,
-                    None => Box::new(monitors::GpuTemperatureMonitor::new(self.iokit.clone()))
-                        as Box<dyn TemperatureMonitorTrait>,
-                }
+    /// Get all temperature metrics
+    ///
+    /// # Returns
+    ///
+    /// * `Result<ThermalMetrics>` - All temperature metrics
+    pub async fn all_temperature_metrics(&self) -> Result<types::ThermalMetrics> {
+        let thermal_info = self.io_kit.get_thermal_info()?;
+        let fans = self.io_kit.get_all_fans().await?;
+        
+        // Convert FanInfo to Fan 
+        let fan_list = fans.into_iter()
+            .map(|info| Fan {
+                id: info.index as u32,
+                speed: info.speed_rpm,
+                min_speed: info.min_speed.unwrap_or(0),
+                max_speed: info.max_speed.unwrap_or(0),
+                current_speed: info.current_speed,
+                target_speed: info.target_speed,
             })
-            .collect()
+            .collect();
+        
+        Ok(types::ThermalMetrics {
+            cpu_temp: Some(thermal_info.cpu_temp),
+            gpu_temp: thermal_info.gpu_temp,
+            memory_temp: None, // Not available
+            battery_temp: thermal_info.battery_temp,
+            ambient_temp: thermal_info.ambient_temp,
+            ssd_temp: None, // Not available
+            is_throttling: Some(thermal_info.thermal_throttling),
+            fans: fan_list,
+        })
     }
 
-    /// Create a specific temperature monitor by type
-    pub fn create_monitor(&self, monitor_type: &str) -> Result<Box<dyn TemperatureMonitorTrait>> {
-        match monitors::create_monitor(monitor_type, self.iokit.clone()) {
-            Some(monitor) => Ok(monitor),
-            None => Err(Error::NotAvailable {
-                resource: format!("Temperature monitor '{}'", monitor_type),
-                reason: "Monitor type not available".to_string(),
-            }),
+    /// Get temperature details
+    ///
+    /// # Returns
+    ///
+    /// * `Result<ThermalDetails>` - Temperature details
+    pub async fn temperature_details(&self) -> Result<types::ThermalDetails> {
+        let thermal_info = self.io_kit.get_thermal_info()?;
+        let fans = self.io_kit.get_all_fans().await?;
+        
+        // Convert FanInfo to Fan
+        let fan_list = fans.into_iter()
+            .map(|info| Fan {
+                id: info.index as u32,
+                speed: info.speed_rpm,
+                min_speed: info.min_speed.unwrap_or(0),
+                max_speed: info.max_speed.unwrap_or(0),
+                current_speed: info.current_speed,
+                target_speed: info.target_speed,
+            })
+            .collect();
+        
+        Ok(types::ThermalDetails {
+            cpu_temp: Some(thermal_info.cpu_temp),
+            gpu_temp: thermal_info.gpu_temp,
+            memory_temp: None, // Not available
+            battery_temp: thermal_info.battery_temp,
+            ambient_temp: thermal_info.ambient_temp,
+            ssd_temp: None, // Not available
+            is_throttling: Some(thermal_info.thermal_throttling),
+            fans: fan_list,
+        })
+    }
+
+    /// Get all fan details
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Vec<Fan>>` - All fan details
+    pub async fn all_fan_details(&self) -> Result<Vec<Fan>> {
+        let fan_info = self.io_kit.get_all_fans().await?;
+        // Convert FanInfo to Fan
+        let fans = fan_info.into_iter()
+            .map(|info| Fan {
+                id: info.index as u32,
+                speed: info.speed_rpm,
+                min_speed: info.min_speed.unwrap_or(0),
+                max_speed: info.max_speed.unwrap_or(0),
+                current_speed: info.current_speed,
+                target_speed: info.target_speed,
+            })
+            .collect();
+        Ok(fans)
+    }
+
+    /// Get temperature monitor
+    ///
+    /// # Arguments
+    ///
+    /// * `monitor_type` - The type of monitor to get
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Box<dyn TemperatureMonitor>>` - The temperature monitor
+    pub async fn get_temperature_monitor(
+        &self,
+        monitor_type: MonitorType,
+    ) -> Result<Box<dyn crate::traits::hardware::TemperatureMonitor>> {
+        match monitor_type {
+            MonitorType::Cpu => Ok(Box::new(monitors::CpuTemperatureMonitor::new(
+                self.io_kit.clone(),
+            )?)),
+            MonitorType::Gpu => Ok(Box::new(monitors::GpuTemperatureMonitor::new(
+                self.io_kit.clone(),
+            )?)),
+            MonitorType::Memory => Ok(Box::new(monitors::MemoryTemperatureMonitor::new(
+                self.io_kit.clone(),
+            )?)),
+            MonitorType::Battery => Ok(Box::new(monitors::BatteryTemperatureMonitor::new(
+                self.io_kit.clone(),
+            )?)),
+            MonitorType::Ambient => Ok(Box::new(monitors::AmbientTemperatureMonitor::new(
+                self.io_kit.clone(),
+            )?)),
+            MonitorType::Ssd => Ok(Box::new(monitors::SsdTemperatureMonitor::new(
+                self.io_kit.clone(),
+            )?)),
+            _ => Err(Error::Temperature(format!(
+                "Unsupported monitor type: {:?}",
+                monitor_type
+            ))),
         }
     }
 
-    /// Create a new Temperature instance with a system reference
-    pub fn new_with_system(system: &System) -> Result<Self> {
-        let iokit = system.io_kit();
-        let factory = TemperatureMonitorFactory::new(iokit.clone());
-        Ok(Self {
-            iokit,
-            config: Default::default(),
-            factory,
-        })
+    /// Get fans
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Vec<Fan>>` - All fans
+    pub async fn get_fans(&self) -> Result<Vec<Fan>> {
+        self.all_fan_details().await
     }
-}
 
-// Helper function to get the monitor type synchronously
-fn get_monitor_type_sync(monitor: &dyn crate::traits::TemperatureMonitor) -> String {
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async { monitor.name().await.unwrap_or_default() })
+    /// Get thermal metrics
+    ///
+    /// # Returns
+    ///
+    /// * `Result<ThermalMetrics>` - Thermal metrics
+    pub async fn get_thermal_metrics(&self) -> Result<types::ThermalMetrics> {
+        self.all_temperature_metrics().await
+    }
 }
 
 #[async_trait::async_trait]
-impl ThermalMonitor for TemperatureFactory {
-    async fn cpu_temperature(&self) -> Result<Option<f64>> {
-        let monitor = self.cpu_monitor();
-        Ok(Some(monitor.temperature().await?))
+impl ThermalMonitor for Temperature {
+    async fn cpu_temperature(&self) -> Option<f64> {
+        match self.io_kit.get_thermal_info() {
+            Ok(info) => Some(info.cpu_temp),
+            Err(_) => None,
+        }
     }
 
-    async fn gpu_temperature(&self) -> Result<Option<f64>> {
-        let monitor = self.gpu_monitor();
-        Ok(Some(monitor.temperature().await?))
+    async fn gpu_temperature(&self) -> Option<f64> {
+        match self.io_kit.get_thermal_info() {
+            Ok(info) => info.gpu_temp,
+            Err(_) => None,
+        }
     }
 
-    async fn memory_temperature(&self) -> Result<Option<f64>> {
-        // Memory temperature monitoring is not available on Mac
-        Ok(None)
+    async fn memory_temperature(&self) -> Option<f64> {
+        None // Not available in ThermalInfo
     }
 
-    async fn battery_temperature(&self) -> Result<Option<f64>> {
-        let monitor = self.battery_monitor();
-        Ok(Some(monitor.temperature().await?))
+    async fn battery_temperature(&self) -> Option<f64> {
+        match self.io_kit.get_thermal_info() {
+            Ok(info) => info.battery_temp,
+            Err(_) => None,
+        }
     }
 
-    async fn ambient_temperature(&self) -> Result<Option<f64>> {
-        let monitor = self.ambient_monitor();
-        Ok(Some(monitor.temperature().await?))
+    async fn ambient_temperature(&self) -> Option<f64> {
+        match self.io_kit.get_thermal_info() {
+            Ok(info) => info.ambient_temp,
+            Err(_) => None,
+        }
     }
 
-    async fn ssd_temperature(&self) -> Result<Option<f64>> {
-        let monitor = self.ssd_monitor();
-        Ok(Some(monitor.temperature().await?))
+    async fn ssd_temperature(&self) -> Option<f64> {
+        None // Not available in ThermalInfo
     }
 
-    async fn is_throttling(&self) -> Result<bool> {
-        // Check if any temperature monitor is reporting critical temperatures
-        let cpu_temp = self.cpu_temperature().await?.unwrap_or(0.0);
-        let gpu_temp = self.gpu_temperature().await?.unwrap_or(0.0);
-        let battery_temp = self.battery_temperature().await?.unwrap_or(0.0);
-        let ssd_temp = self.ssd_temperature().await?.unwrap_or(0.0);
-
-        // Check if any temperature exceeds the throttling threshold
-        Ok(cpu_temp > self.config.throttling_threshold
-            || gpu_temp > self.config.throttling_threshold
-            || battery_temp > self.config.throttling_threshold
-            || ssd_temp > SSD_CRITICAL_TEMPERATURE)
+    async fn is_throttling(&self) -> bool {
+        match self.io_kit.get_thermal_info() {
+            Ok(info) => info.thermal_throttling,
+            Err(_) => false,
+        }
     }
 
     async fn get_fans(&self) -> Result<Vec<Fan>> {
-        let fan_monitor = self.fan_monitor();
-        let speed = fan_monitor.speed_rpm().await?;
-        let min_speed = fan_monitor.min_speed().await?;
-        let max_speed = fan_monitor.max_speed().await?;
-        let utilization = fan_monitor.percentage().await?;
-        let name = fan_monitor.fan_name().await?;
-
-        Ok(vec![Fan {
-            name,
-            speed: speed as f64,
-            min_speed: min_speed as f64,
-            max_speed: max_speed as f64,
-            utilization,
-        }])
+        self.all_fan_details().await
     }
 
-    async fn get_thermal_metrics(&self) -> Result<ThermalMetrics> {
-        let cpu_temp = self.cpu_temperature().await?;
-        let gpu_temp = self.gpu_temperature().await?;
-        let memory_temp = self.memory_temperature().await?;
-        let battery_temp = self.battery_temperature().await?;
-        let ambient_temp = self.ambient_temperature().await?;
-        let ssd_temp = self.ssd_temperature().await?;
-        let is_throttling = self.is_throttling().await?;
-        let fans = self.get_fans().await?;
-
-        Ok(ThermalMetrics {
-            cpu_temperature: cpu_temp,
-            gpu_temperature: gpu_temp,
-            memory_temperature: memory_temp,
-            battery_temperature: battery_temp,
-            ambient_temperature: ambient_temp,
-            ssd_temperature: ssd_temp,
-            is_throttling,
-            fans,
-        })
+    async fn get_thermal_metrics(&self) -> Result<types::ThermalMetrics> {
+        self.all_temperature_metrics().await
     }
-}
+} 

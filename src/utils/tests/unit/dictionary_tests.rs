@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use objc2_foundation::NSString;
 
     use crate::utils::core::dictionary::SafeDictionary;
 

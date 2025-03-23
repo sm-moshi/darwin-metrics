@@ -229,18 +229,20 @@ impl MemoryPressureMonitor {
 
     /// Set custom pressure thresholds
     pub fn set_thresholds(&mut self, warning: f64, critical: f64) -> Result<()> {
-        if !(0.0..=100.0).contains(&warning) || !(0.0..=100.0).contains(&critical) {
-            return Err(Error::InvalidArgument {
-                context: "Thresholds must be between 0 and 100".into(),
-                value: format!("warning: {}, critical: {}", warning, critical),
-            });
+        if warning < 0.0 || warning > 100.0 || critical < 0.0 || critical > 100.0 {
+            return Err(Error::InvalidArgument(format!(
+                "Thresholds must be between 0 and 100, got warning: {}, critical: {}",
+                warning, critical
+            )));
         }
-        if warning >= critical {
-            return Err(Error::InvalidArgument {
-                context: "Warning threshold must be less than critical threshold".into(),
-                value: format!("warning: {}, critical: {}", warning, critical),
-            });
+
+        if warning > critical {
+            return Err(Error::InvalidArgument(format!(
+                "Warning threshold must be less than critical threshold, got warning: {}, critical: {}",
+                warning, critical
+            )));
         }
+
         self.warning_threshold = warning;
         self.critical_threshold = critical;
         Ok(())

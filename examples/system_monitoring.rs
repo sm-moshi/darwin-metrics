@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let iokit = Box::new(IOKitImpl::new()?);
     let cpu = CPU::new(iokit);
     let memory = Memory::new()?;
-    
+
     // Get the specific monitors
     let freq_monitor = cpu.frequency_monitor();
     let util_monitor = cpu.utilization_monitor();
@@ -40,25 +40,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!("Physical Cores: {}", freq_monitor.physical_cores().await?);
         println!("Logical Cores: {}", freq_monitor.logical_cores().await?);
         println!("CPU Model: {}", freq_monitor.model_name().await?);
-        
+
         // CPU Performance
         println!("\nCPU Performance:");
         println!("----------------");
         println!("Total CPU Usage: {:.1}%", util_monitor.utilization().await? * 100.0);
         println!("Current Frequency: {:.0} MHz", freq_monitor.frequency().await?);
-        
+
         if let Some(min_freq) = freq_monitor.min_frequency() {
             println!("Min Frequency: {:.0} MHz", min_freq);
         } else {
             println!("Min Frequency: Not available");
         }
-        
+
         if let Some(max_freq) = freq_monitor.max_frequency() {
             println!("Max Frequency: {:.0} MHz", max_freq);
         } else {
             println!("Max Frequency: Not available");
         }
-        
+
         // Per-core usage
         let core_loads = freq_monitor.core_usage().await?;
         println!("\nPer-Core Usage:");
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         for (i, load) in core_loads.iter().enumerate() {
             println!("Core {}: {:.1}%", i, load * 100.0);
         }
-        
+
         // Memory Information
         println!("\nMemory Information:");
         println!("------------------");

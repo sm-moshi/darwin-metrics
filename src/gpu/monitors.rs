@@ -13,7 +13,8 @@ use crate::core::types::{ByteSize, Percentage};
 use crate::error::{Error, Result};
 use crate::gpu::types::{GpuCharacteristics, GpuMemory, GpuUtilization};
 use crate::traits::{HardwareMonitor, UtilizationMonitor};
-use crate::utils::bindings::{IOServiceGetMatchingService, IOServiceMatching, K_IOMASTER_PORT_DEFAULT};
+use crate::utils::bindings::{IOServiceGetMatchingService, IOServiceMatching};
+use crate::ffi::{mach_host_self, kIOMasterPortDefault};
 
 //------------------------------------------------------------------------------
 // GpuCharacteristicsMonitor
@@ -301,7 +302,7 @@ impl GpuMemoryMonitor {
             if ret == 0 {
                 Ok(size)
             } else {
-                Err(Error::system("Failed to get system memory size"))
+                Err(Error::system_error("Failed to get system memory size"))
             }
         })
         .await?
@@ -309,24 +310,31 @@ impl GpuMemoryMonitor {
 
     async fn get_memory_pressure(&self) -> Result<f64> {
         task::spawn_blocking(move || {
-            let mut pressure: f64 = 0.0;
-            let mut pressure_len = std::mem::size_of::<f64>();
+            let mut stats = unsafe { std::mem::zeroed::<libc::vm_statistics64_data_t>() };
+            let count = std::mem::size_of::<libc::vm_statistics64_data_t>() / std::mem::size_of::<libc::integer_t>();
 
-            let name = CString::new("vm.memory_pressure").unwrap();
-            let ret = unsafe {
-                libc::sysctlbyname(
-                    name.as_ptr(),
-                    &mut pressure as *mut f64 as *mut libc::c_void,
-                    &mut pressure_len,
-                    ptr::null_mut(),
-                    0,
+            let result = unsafe {
+                libc::host_statistics64(
+                    mach_host_self(),
+                    libc::HOST_VM_INFO64,
+                    &mut stats as *mut _ as *mut libc::integer_t,
+                    &count as *const _ as *mut u32,
                 )
             };
 
-            if ret == 0 {
-                Ok(pressure / 100.0) // Convert to 0.0-1.0 range
+            if result != libc::KERN_SUCCESS {
+                return Err(Error::system_error("Failed to get memory pressure"));
+            }
+
+            // Calculate memory pressure based on free memory vs total
+            let free = stats.free_count as f64;
+            let total = (stats.free_count + stats.active_count + stats.inactive_count + stats.wire_count) as f64;
+
+            if total == 0.0 {
+                // Avoid division by zero
+                Ok(0.0)
             } else {
-                Err(Error::system("Failed to get memory pressure"))
+                Ok(1.0 - (free / total))
             }
         })
         .await?
@@ -377,10 +385,9 @@ impl GpuTemperatureMonitor {
                     Ok(50.0) // Default to 50°C when actual reading is not available
                 })
             } else {
-                Err(Error::NotAvailable {
-                    resource: "GPU temperature".to_string(),
-                    reason: "No Metal device available".to_string(),
-                })
+                Err(Error::NotAvailable(
+                    "No Metal device available for GPU temperature".to_string(),
+                ))
             }
         })
         .await?
@@ -392,15 +399,14 @@ impl GpuTemperatureMonitor {
         // For example, on Intel Macs: "TG0P" for GPU proximity
         // TODO: Implement this
         // This is a placeholder implementation
-        Err(Error::NotAvailable {
-            resource: "SMC temperature reading".to_string(),
-            reason: "Not implemented".to_string(),
-        })
+        Err(Error::NotAvailable(
+            "SMC temperature reading not implemented".to_string(),
+        ))
     }
 }
 
 fn get_service_for_name(service_name: &CString) -> u32 {
-    unsafe { IOServiceGetMatchingService(K_IOMASTER_PORT_DEFAULT, IOServiceMatching(service_name.as_ptr())) }
+    unsafe { IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(service_name.as_ptr())) }
 }
 
 //------------------------------------------------------------------------------
@@ -465,5 +471,25 @@ impl UtilizationMonitor for GpuUtilizationMonitor {
     async fn utilization(&self) -> Result<f64> {
         let gpu_utilization = self.get_utilization().await?;
         Ok(gpu_utilization.value)
+    }
+}
+
+fn get_vm_stats() -> Result<libc::vm_statistics64_data_t> {
+    unsafe {
+        let mut stats: libc::vm_statistics64_data_t = std::mem::zeroed();
+        let count = std::mem::size_of::<libc::vm_statistics64_data_t>() / std::mem::size_of::<libc::integer_t>();
+        
+        let result = libc::host_statistics64(
+            mach_host_self(),
+            libc::HOST_VM_INFO64,
+            &mut stats as *mut _ as *mut libc::integer_t,
+            &count as *const _ as *mut u32,
+        );
+
+        if result != libc::KERN_SUCCESS {
+            return Err(Error::system_error("Failed to get VM statistics"));
+        }
+
+        Ok(stats)
     }
 }

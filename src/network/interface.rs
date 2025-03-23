@@ -4,6 +4,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::ptr;
 use std::time::Instant;
 
+use log::debug;
+
 use crate::core::metrics::hardware::{
     NetworkBandwidthMonitor, NetworkErrorMonitor, NetworkInterfaceMonitor, NetworkPacketMonitor,
 };
@@ -194,10 +196,10 @@ impl InterfaceBuilder {
     pub fn build(self) -> Result<Interface> {
         let name = self
             .name
-            .ok_or_else(|| Error::invalid_data("Interface name is required", None as Option<&str>))?;
+            .ok_or_else(|| Error::invalid_data("Interface name is required"))?;
         let interface_type = self
             .interface_type
-            .ok_or_else(|| Error::invalid_data("Interface type is required", None as Option<&str>))?;
+            .ok_or_else(|| Error::invalid_data("Interface type is required"))?;
 
         Ok(Interface {
             name,
@@ -359,6 +361,16 @@ impl Interface {
         InterfaceErrorMonitor {
             interface: self.clone(),
         }
+    }
+
+    pub fn from_name(name: &str) -> Result<Self> {
+        // Create a network manager and use it to get the interface by name
+        let manager = NetworkManager::new()?;
+
+        manager
+            .get_interface(name)
+            .cloned()
+            .ok_or_else(|| Error::system_error(format!("Network interface '{}' not found", name)))
     }
 }
 
@@ -571,94 +583,71 @@ impl NetworkManager {
 
     /// Gets network interfaces using the getifaddrs() system call.
     fn get_interfaces(&self) -> Result<Vec<Interface>> {
-        // Store network interfaces
         let mut interfaces = Vec::new();
 
-        // First get addresses from getifaddrs()
-        let addresses = self.get_network_addresses()?;
+        unsafe {
+            // Get all interface addresses
+            let mut if_addrs: *mut libc::ifaddrs = std::ptr::null_mut();
+            let ret = libc::getifaddrs(&mut if_addrs);
 
-        // Create a map to store interface details
-        let mut interface_map: HashMap<String, Interface> = HashMap::new();
+            if ret != 0 {
+                return Err(Error::system_error(format!(
+                    "Failed to get network interfaces: {}",
+                    ret
+                )));
+            }
 
-        // Process all addresses
-        for (name, data) in addresses {
-            // If this interface is already in the map, update it
-            let (flags, mac_addr, ip_addrs) = data;
+            // Make sure we free the memory when we're done
+            let _if_addrs_guard = scopeguard::guard(if_addrs, |ptr| {
+                libc::freeifaddrs(ptr);
+            });
 
-            if let Some(existing) = interface_map.get_mut(&name) {
-                // Only update mac_address if it's currently None and new address exists
-                if existing.mac_address.is_none() && mac_addr.is_some() {
-                    existing.mac_address = mac_addr;
+            // Collect unique interface names
+            let mut seen_names = std::collections::HashSet::new();
+            let mut addr_count = 0;
+
+            let mut curr = if_addrs;
+            while !curr.is_null() {
+                addr_count += 1;
+                let if_addr = &*curr;
+
+                // Skip interfaces with no addresses or non-AF_INET/AF_INET6 families
+                if if_addr.ifa_addr.is_null() {
+                    curr = if_addr.ifa_next;
+                    continue;
                 }
 
-                // Add all new IP addresses
-                for addr in ip_addrs {
-                    if !existing.addresses.contains(&addr) {
-                        existing.addresses.push(addr);
+                let addr_family = unsafe { (*if_addr.ifa_addr).sa_family };
+                if addr_family != libc::AF_INET as u8 && addr_family != libc::AF_INET6 as u8 {
+                    curr = if_addr.ifa_next;
+                    continue;
+                }
+
+                let if_name = unsafe {
+                    std::ffi::CStr::from_ptr(if_addr.ifa_name)
+                        .to_string_lossy()
+                        .into_owned()
+                };
+
+                // Only add each interface once
+                if !seen_names.contains(&if_name) {
+                    seen_names.insert(if_name.clone());
+
+                    match Interface::from_name(&if_name) {
+                        Ok(iface) => interfaces.push(iface),
+                        Err(e) => {
+                            debug!("Failed to create interface {}: {}", if_name, e);
+                        },
                     }
                 }
-            } else {
-                // Create new interface
-                let interface_type = Self::determine_interface_type(&name, flags);
 
-                let interface = Interface::builder()
-                    .name(name.clone())
-                    .interface_type(interface_type)
-                    .flags(flags)
-                    .mac_address(mac_addr.unwrap_or_default())
-                    .addresses(ip_addrs)
-                    .traffic_stats(TrafficStatsParams {
-                        bytes_received: 0,
-                        bytes_sent: 0,
-                        packets_received: 0,
-                        packets_sent: 0,
-                        receive_errors: 0,
-                        send_errors: 0,
-                        collisions: 0,
-                    })
-                    .build()
-                    .map_err(|e| Error::system(format!("Failed to create interface: {}", e)))?;
-
-                interface_map.insert(name.to_string(), interface);
+                curr = if_addr.ifa_next;
             }
-        }
 
-        // Get existing traffic data
-        let existing_traffic = self.update_traffic_stats();
-
-        // Process traffic data if we got it
-        if let Some(traffic_data) = existing_traffic {
-            for (name, (rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions)) in traffic_data {
-                if let Some(interface) = interface_map.get_mut(&name) {
-                    // Update with real traffic stats
-                    interface.update_traffic(
-                        rx_bytes, tx_bytes, rx_packets, tx_packets, rx_errors, tx_errors, collisions,
-                    );
-                } else if !name.is_empty() {
-                    // If we have traffic data but no interface, create a placeholder
-                    let interface = Interface::new(
-                        name.clone(),
-                        InterfaceType::Other,
-                        0, // No flags
-                        None,
-                        Vec::new(),
-                        rx_bytes,
-                        tx_bytes,
-                        rx_packets,
-                        tx_packets,
-                        rx_errors,
-                        tx_errors,
-                        collisions,
-                    );
-
-                    interface_map.insert(name, interface);
-                }
+            // If we didn't find any interfaces, that's suspicious
+            if interfaces.is_empty() && addr_count > 0 {
+                debug!("Found {} addresses but no usable interfaces", addr_count);
             }
-        }
-
-        // Convert map to vector
-        for (_, interface) in interface_map {
-            interfaces.push(interface);
         }
 
         Ok(interfaces)
@@ -671,11 +660,12 @@ impl NetworkManager {
 
         unsafe {
             // Call getifaddrs() to get list of interfaces
-            if getifaddrs(&mut ifap) != 0 {
-                return Err(Error::network_error(
-                    "get_interfaces",
-                    "Failed to get network interfaces",
-                ));
+            let addr_count = getifaddrs(&mut ifap);
+            if addr_count < 0 {
+                return Err(Error::system_error(format!(
+                    "Failed to get network interfaces: {}",
+                    addr_count
+                )));
             }
 
             // Use scopeguard to ensure ifap is freed
@@ -793,7 +783,8 @@ impl NetworkManager {
 
         unsafe {
             // Call getifaddrs() to get list of interfaces
-            if getifaddrs(&mut ifap) != 0 {
+            let addr_count = getifaddrs(&mut ifap);
+            if addr_count < 0 {
                 return None;
             }
 

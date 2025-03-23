@@ -172,7 +172,15 @@ impl IOKit for MockIOKit {
     }
 
     fn get_fan_info(&self, _fan_index: u32) -> Result<FanInfo> {
-        Ok(FanInfo { speed_rpm: 2000, min_speed: 1000, max_speed: 4000, percentage: 50.0 })
+        Ok(FanInfo { 
+            current_speed: 2000,
+            target_speed: 2000,
+            min_speed: Some(1000),
+            max_speed: Some(4000),
+            index: _fan_index,
+            speed_rpm: 2000,
+            percentage: 50.0 
+        })
     }
 
     fn clone_box(&self) -> Box<dyn IOKit> {

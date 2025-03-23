@@ -5,9 +5,12 @@ use darwin_metrics::utils::SafeDictionary;
 fn test_debug_implementations() {
     let gpu_stats = GpuStats::default();
     let fan_info = FanInfo {
+        current_speed: 1000,
+        target_speed: 1000,
+        min_speed: Some(500),
+        max_speed: Some(2000),
+        index: 0,
         speed_rpm: 1000,
-        min_speed: 500,
-        max_speed: 2000,
         percentage: 50.0,
     };
 
@@ -37,9 +40,12 @@ fn test_clone_implementations() {
         perf_threshold: 90.0,
     };
     let fan_info = FanInfo {
+        current_speed: 1000,
+        target_speed: 1000,
+        min_speed: Some(500),
+        max_speed: Some(2000),
+        index: 0,
         speed_rpm: 1000,
-        min_speed: 500,
-        max_speed: 2000,
         percentage: 50.0,
     };
 
@@ -85,16 +91,22 @@ fn test_gpu_stats_clone() {
 #[test]
 fn test_fan_info_clone() {
     let fan = FanInfo {
+        current_speed: 2000,
+        target_speed: 2000,
+        min_speed: Some(500),
+        max_speed: Some(5000),
+        index: 0,
         speed_rpm: 2000,
-        min_speed: 500,
-        max_speed: 5000,
         percentage: 40.0,
     };
     let fan_clone = fan.clone();
 
-    assert_eq!(fan.speed_rpm, fan_clone.speed_rpm);
+    assert_eq!(fan.current_speed, fan_clone.current_speed);
+    assert_eq!(fan.target_speed, fan_clone.target_speed);
     assert_eq!(fan.min_speed, fan_clone.min_speed);
     assert_eq!(fan.max_speed, fan_clone.max_speed);
+    assert_eq!(fan.index, fan_clone.index);
+    assert_eq!(fan.speed_rpm, fan_clone.speed_rpm);
     assert_eq!(fan.percentage, fan_clone.percentage);
 }
 

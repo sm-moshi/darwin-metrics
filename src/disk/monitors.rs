@@ -257,12 +257,11 @@ impl RateMonitor<u64> for DiskIOMonitorImpl {
     }
 
     async fn average_rate(&self, seconds: u64) -> Result<u64> {
-        // Simplistic implementation
+        // Update error handling for InvalidArgument
         if seconds == 0 {
-            return Err(Error::InvalidArgument {
-                context: "seconds for average_rate".to_string(),
-                value: "0".to_string(),
-            });
+            return Err(Error::InvalidArgument(
+                "seconds for average_rate must be greater than 0".to_string(),
+            ));
         }
         self.rate().await
     }

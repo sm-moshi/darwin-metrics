@@ -31,7 +31,10 @@
 
 use std::sync::Arc;
 
-use crate::hardware::iokit::IOKit;
+use crate::{
+    error::Result,
+    hardware::iokit::IOKit,
+};
 
 // Import modules
 pub mod constants;
@@ -41,19 +44,39 @@ pub mod types;
 // Re-export monitor structs for easier access
 pub use monitors::{BatteryCapacityMonitor, BatteryHealthMonitor, BatteryPowerMonitor, BatteryTemperatureMonitor};
 
+/// Configuration for battery monitoring
+#[derive(Debug, Clone)]
+pub struct BatteryConfig {
+    /// Threshold for battery temperature (in Celsius)
+    pub temperature_threshold: f64,
+    /// Threshold for battery percentage (0-100)
+    pub percentage_threshold: f64,
+}
+
+impl Default for BatteryConfig {
+    fn default() -> Self {
+        Self {
+            temperature_threshold: 45.0,
+            percentage_threshold: 20.0,
+        }
+    }
+}
+
 /// Main battery struct for managing battery state
 pub struct Battery {
     iokit: Arc<dyn IOKit>,
     device_id: String,
+    config: BatteryConfig,
 }
 
 impl Battery {
-    /// Creates a new Battery instance with the provided IOKit implementation
-    pub fn new(iokit: Arc<dyn IOKit>) -> Self {
-        Self {
+    /// Creates a new battery monitor
+    pub fn new(iokit: Arc<dyn IOKit>) -> Result<Self> {
+        Ok(Self {
             iokit,
             device_id: "main".to_string(),
-        }
+            config: BatteryConfig::default(),
+        })
     }
 
     /// Gets the IOKit instance used by this battery

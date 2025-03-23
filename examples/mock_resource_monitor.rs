@@ -1,8 +1,6 @@
 // Remove the file-level cfg attribute
 // #![cfg(feature = "mock")]
 
-use std::time::Duration;
-
 // Conditionally include these imports only when mock feature is enabled
 #[cfg(feature = "mock")]
 use darwin_metrics::resource::ResourceMonitor;

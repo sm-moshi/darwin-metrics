@@ -410,30 +410,28 @@ pub(crate) unsafe fn retrieve_cpu_info() -> Result<CpuInfo> {
 ///
 /// * `Result<f64>` - The frequency value or an error
 pub unsafe fn fetch_sysctl_frequency_by_name(name: &str) -> Result<f64> {
-    // Create null-terminated C string for the sysctl name
+    let mut size: libc::size_t = std::mem::size_of::<i64>();
+    let mut value: i64 = 0;
+
     let c_name = CString::new(name)
-        .map_err(|_| Error::system(format!("Failed to create C string for sysctl name: {}", name)))?;
+        .map_err(|_| Error::system_error(format!("Failed to create C string for sysctl name: {}", name)))?;
 
-    let mut freq: u64 = 0;
-    let mut size = std::mem::size_of::<u64>();
-
-    let result = unsafe {
+    let ret = unsafe {
         libc::sysctlbyname(
             c_name.as_ptr(),
-            &mut freq as *mut _ as *mut libc::c_void,
+            &mut value as *mut i64 as *mut libc::c_void,
             &mut size,
             std::ptr::null_mut(),
             0,
         )
     };
 
-    if result == 0 {
-        Ok(freq as f64)
-    } else {
-        Err(Error::system(format!(
-            "Failed to get frequency from sysctl for {}: {}",
-            name,
-            std::io::Error::last_os_error()
-        )))
+    if ret != 0 {
+        return Err(Error::system_error(format!(
+            "Failed to get frequency from sysctl: {} (error code: {})",
+            name, ret
+        )));
     }
+
+    Ok(value as f64)
 }

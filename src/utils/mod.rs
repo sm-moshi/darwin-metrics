@@ -39,7 +39,7 @@ pub use core::dictionary::SafeDictionary;
 use std::{
     ffi::{CStr, c_char},
     os::raw::c_double,
-    panic::AssertUnwindSafe,
+    panic::{self, AssertUnwindSafe, UnwindSafe},
     slice,
 };
 
@@ -171,16 +171,13 @@ where
 }
 
 /// Safely executes Objective-C code, catching any Rust panics.
-pub fn objc_safe_exec<T, F>(f: F) -> Result<T>
+pub fn catch_unwind_result<F, T>(f: F) -> Result<T>
 where
-    F: FnOnce() -> Result<T>,
+    F: FnOnce() -> T + std::panic::UnwindSafe,
 {
-    let result = std::panic::catch_unwind(AssertUnwindSafe(f));
-    match result {
-        Ok(value) => value,
-        Err(_) => Err(Error::System {
-            message: "Panic occurred during Objective-C operation".to_string(),
-        }),
+    match std::panic::catch_unwind(f) {
+        Ok(result) => Ok(result),
+        Err(_) => Err(Error::system_error("Panic occurred during Objective-C operation")),
     }
 }
 
@@ -233,34 +230,25 @@ pub unsafe fn raw_f64_slice_to_vec(ptr: *const c_double, len: usize) -> Option<V
 /// Retrieves the name of an Objective-C device.
 pub fn get_name(device: *mut std::ffi::c_void) -> Result<String> {
     if device.is_null() {
-        return Err(Error::NotAvailable {
-            resource: "device".to_string(),
-            reason: "No device available".to_string(),
-        });
+        return Err(Error::not_available("No device available"));
     }
 
     autorelease_pool(|| {
-        objc_safe_exec(|| unsafe {
+        catch_unwind_result(|| unsafe {
             let device_obj: *mut AnyObject = device.cast();
             let name_obj: *mut AnyObject = msg_send![device_obj, name];
 
             if name_obj.is_null() {
-                return Err(Error::NotAvailable {
-                    resource: "device".to_string(),
-                    reason: "Device not found".to_string(),
-                });
+                return Err(Error::not_available("Device name not available"));
             }
 
             let utf8_string: *const u8 = msg_send![name_obj, UTF8String];
             if utf8_string.is_null() {
-                return Err(Error::NotAvailable {
-                    resource: "device".to_string(),
-                    reason: "Device not found".to_string(),
-                });
+                return Err(Error::not_available("Device name UTF8String not available"));
             }
 
             let c_str = CStr::from_ptr(utf8_string as *const i8);
             Ok(c_str.to_string_lossy().into_owned())
         })
-    })
+    })?
 }

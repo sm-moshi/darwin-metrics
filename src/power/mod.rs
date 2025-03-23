@@ -175,20 +175,21 @@ pub enum PowerError {
     /// An unsupported operation was attempted
     #[error("Unsupported operation")]
     UnsupportedOperation,
+
+    /// An unknown error occurred
+    #[error("Unknown error")]
+    UnknownError,
 }
 
 impl From<Error> for PowerError {
     fn from(err: Error) -> Self {
         match err {
-            Error::IoError { source: _ } => PowerError::IOError,
-            Error::SystemError {
-                operation: _,
-                message: _,
-            } => PowerError::SystemError,
-            Error::InvalidData { message: _, details: _ } => PowerError::InvalidData,
-            Error::InvalidArgument { context: _, value: _ } => PowerError::InvalidArgument,
-            Error::NotImplemented { feature: _ } => PowerError::UnsupportedOperation,
-            _ => PowerError::SystemCallFailed,
+            Error::Io(_) => PowerError::IOError,
+            Error::System(_) => PowerError::SystemError,
+            Error::InvalidData(_) => PowerError::InvalidData,
+            Error::InvalidArgument(_) => PowerError::InvalidArgument,
+            Error::NotImplemented(_) => PowerError::UnsupportedOperation,
+            _ => PowerError::UnknownError,
         }
     }
 }
