@@ -26,7 +26,7 @@ name       = "darwin_metrics"
 crate-type = ["rlib", "cdylib", "staticlib"]
 
 [build-dependencies]
-cc = "1.2.16"
+cc = "1.2.17"
 
 [dependencies]
 # Core FFI and system interfaces
