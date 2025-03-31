@@ -62,8 +62,8 @@ mockall = "0.13.1"
 
 # Additional dependencies
 parking_lot = "0.12.3"
+once_cell   = "1.21.3"
 log         = "0.4.27"
-once_cell   = "1.21.1"
 
 [dev-dependencies]
 version-sync = "0.9.5"
