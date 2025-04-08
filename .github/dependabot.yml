@@ -18,10 +18,6 @@ updates:
       # Update dependencies that are crucial for security
       - dependency-type: "direct"
       - dependency-type: "indirect"
-    # Labels for pull requests
-    labels:
-      - "dependencies"
-      - "rust"
     # Target branch for PRs - set to the maintenance branch
     target-branch: "0.1.x"
 
